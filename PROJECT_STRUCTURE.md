@@ -24,14 +24,13 @@ gonhanh.org/
 ├── platforms/                   # Platform-specific apps
 │   │
 │   ├── macos/                  # 🍎 macOS Native App
-│   │   ├── GoNhanh/
-│   │   │   ├── App.swift               # Entry point
-│   │   │   ├── MenuBar.swift           # System tray
-│   │   │   ├── SettingsView.swift      # Settings UI (SwiftUI)
-│   │   │   ├── RustBridge.swift        # FFI bridge
-│   │   │   └── Info.plist              # App metadata
-│   │   ├── GoNhanh.xcodeproj/          # Xcode project (to be created)
-│   │   └── libgonhanh_core.a           # Built Rust library (gitignored)
+│   │   ├── App.swift               # Entry point
+│   │   ├── MenuBar.swift           # System tray
+│   │   ├── SettingsView.swift      # Settings UI (SwiftUI)
+│   │   ├── RustBridge.swift        # FFI bridge
+│   │   ├── Info.plist              # App metadata
+│   │   ├── GoNhanh.xcodeproj/      # Xcode project (to be created)
+│   │   └── libgonhanh_core.a       # Built Rust library (gitignored)
 │   │
 │   └── windows/                # 🪟 Windows App (planned)
 │       └── GoNhanh/
