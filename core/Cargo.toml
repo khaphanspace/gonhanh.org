@@ -12,10 +12,7 @@ name = "gonhanh_core"
 crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests
 
 [dependencies]
-rdev = "0.5"
-enigo = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+# Minimal dependencies for core engine
 
 [dev-dependencies]
 rstest = "0.18"
