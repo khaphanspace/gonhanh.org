@@ -35,11 +35,6 @@ obj/
 *.swo
 *~
 
-# Config
-config.toml
-
-# Reference repositories (symlinks)
-.reference-*
-
-.claude
-.opencode
+# Agent configs (not project-specific)
+.claude/
+.opencode/
