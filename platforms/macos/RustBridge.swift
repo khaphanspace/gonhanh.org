@@ -270,6 +270,16 @@ class KeyboardHookManager {
     }
 }
 
+// MARK: - Global Hotkey
+
+enum GlobalHotkey {
+    static let toggleKey: CGKeyCode = 0x31 // Space
+
+    static func isToggleHotkey(_ keyCode: UInt16, _ flags: CGEventFlags) -> Bool {
+        keyCode == toggleKey && flags.contains(.maskControl) && !flags.contains(.maskCommand)
+    }
+}
+
 // MARK: - Keyboard Callback
 
 private func keyboardCallback(
@@ -295,6 +305,14 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
     let flags = event.flags
+
+    // Global hotkey: Ctrl+Space to toggle Vietnamese/English
+    if GlobalHotkey.isToggleHotkey(keyCode, flags) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .toggleVietnamese, object: nil)
+        }
+        return nil // Consume the event
+    }
 
     let caps = flags.contains(.maskShift) || flags.contains(.maskAlphaShift)
     let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) ||
@@ -439,5 +457,11 @@ private func sendTextReplacementWithSelection(backspaceCount: Int, chars: [Chara
     up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
     down.post(tap: .cgSessionEventTap)
     up.post(tap: .cgSessionEventTap)
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let toggleVietnamese = Notification.Name("toggleVietnamese")
 }
 

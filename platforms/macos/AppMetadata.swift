@@ -66,6 +66,7 @@ enum AppMetadata {
 enum SettingsKey {
     static let enabled = "gonhanh.enabled"
     static let method = "gonhanh.method"
+    static let modernTone = "gonhanh.modernTone"
     static let hasCompletedOnboarding = "gonhanh.onboarding.completed"
     static let permissionGranted = "gonhanh.permission.granted"
 }
