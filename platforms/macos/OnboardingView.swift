@@ -308,7 +308,8 @@ struct PermissionStep: View {
     }
 
     private func openSystemSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        // Open Accessibility settings (not Input Monitoring)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
