@@ -3,41 +3,24 @@ import SwiftUI
 // MARK: - Onboarding View
 
 struct OnboardingView: View {
-    @State private var currentStep = 0
+    @State private var step = 0
     @State private var hasPermission = false
     @State private var selectedMode: InputMode = .telex
-    @State private var isPostRestart = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    // Tổng số steps: luôn là 2 cho cả hai flow
-    private let totalSteps = 2
-
-    // Step index cho dots (0-based)
-    private var currentStepIndex: Int {
-        if currentStep >= 10 {
-            // Post-restart: step 10 -> index 0, step 11 -> index 1
-            return currentStep - 10
-        } else {
-            // Pre-restart: step 0 -> index 0, step 1 -> index 1
-            return currentStep
-        }
-    }
+    private var stepIndex: Int { step >= 10 ? step - 10 : step }
 
     var body: some View {
         VStack(spacing: 0) {
-            contentView.frame(height: 340)
+            content.frame(height: 340)
             Divider()
-            footerView
+            footer
         }
         .frame(width: 480)
         .onAppear {
             hasPermission = AXIsProcessTrusted()
-            // Nếu đã restart và có quyền -> bắt đầu từ Success (chọn bảng mã)
-            let permissionGranted = UserDefaults.standard.bool(forKey: SettingsKey.permissionGranted)
-            if permissionGranted && hasPermission {
-                isPostRestart = true
-                currentStep = 10  // Success step đầu tiên
+            if UserDefaults.standard.bool(forKey: SettingsKey.permissionGranted) && hasPermission {
+                step = 10
             }
         }
         .onReceive(timer) { _ in
@@ -48,43 +31,33 @@ struct OnboardingView: View {
     // MARK: - Content
 
     @ViewBuilder
-    private var contentView: some View {
-        switch currentStep {
-        case 0:
-            WelcomeView()
-        case 1:
-            PermissionView(hasPermission: hasPermission)
-        case 10:  // Post-restart: Success
-            SuccessView()
-        case 11:  // Post-restart: Setup
-            SetupView(selectedMode: $selectedMode)
-        default:
-            EmptyView()
+    private var content: some View {
+        switch step {
+        case 0: WelcomeStep()
+        case 1: PermissionStep(hasPermission: hasPermission)
+        case 10: SuccessStep()
+        case 11: SetupStep(selectedMode: $selectedMode)
+        default: EmptyView()
         }
     }
 
     // MARK: - Footer
 
-    private var footerView: some View {
+    private var footer: some View {
         HStack {
-            // Step indicator dots
             HStack(spacing: 6) {
-                ForEach(0..<totalSteps, id: \.self) { i in
+                ForEach(0..<2, id: \.self) { i in
                     Circle()
-                        .fill(i == currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(i == stepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
                         .frame(width: 6, height: 6)
                 }
             }
-
             Spacer()
-
-            // Buttons
             HStack(spacing: 12) {
-                if currentStep == 1 && !hasPermission {
-                    // Quay lại từ Permission
-                    Button("Quay lại") { currentStep = 0 }
+                if step == 1 && !hasPermission {
+                    Button("Quay lại") { step = 0 }
                 }
-                actionButton
+                primaryButton
             }
         }
         .padding(.horizontal, 20)
@@ -92,30 +65,20 @@ struct OnboardingView: View {
     }
 
     @ViewBuilder
-    private var actionButton: some View {
-        switch currentStep {
+    private var primaryButton: some View {
+        switch step {
         case 0:
-            Button("Tiếp tục") { currentStep = 1 }
-                .buttonStyle(.borderedProminent)
-
+            Button("Tiếp tục") { step = 1 }.buttonStyle(.borderedProminent)
         case 1:
             if hasPermission {
-                // Đã cấp quyền -> cần restart
-                Button("Khởi động lại") { restartApp() }
-                    .buttonStyle(.borderedProminent)
+                Button("Khởi động lại") { restart() }.buttonStyle(.borderedProminent)
             } else {
-                Button("Mở Cài đặt") { openSettings() }
-                    .buttonStyle(.borderedProminent)
+                Button("Mở Cài đặt") { openAccessibilitySettings() }.buttonStyle(.borderedProminent)
             }
-
-        case 10:  // Success
-            Button("Tiếp tục") { currentStep = 11 }
-                .buttonStyle(.borderedProminent)
-
-        case 11:  // Setup
-            Button("Hoàn tất") { finish() }
-                .buttonStyle(.borderedProminent)
-
+        case 10:
+            Button("Tiếp tục") { step = 11 }.buttonStyle(.borderedProminent)
+        case 11:
+            Button("Hoàn tất") { finish() }.buttonStyle(.borderedProminent)
         default:
             EmptyView()
         }
@@ -123,19 +86,18 @@ struct OnboardingView: View {
 
     // MARK: - Actions
 
-    private func openSettings() {
+    private func openAccessibilitySettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
-    private func restartApp() {
+    private func restart() {
         UserDefaults.standard.set(selectedMode.rawValue, forKey: SettingsKey.method)
         UserDefaults.standard.set(true, forKey: SettingsKey.permissionGranted)
-        // Reset hasCompletedOnboarding để sau restart vẫn show onboarding (chọn bảng mã)
         UserDefaults.standard.set(false, forKey: SettingsKey.hasCompletedOnboarding)
-        let path = Bundle.main.bundlePath
+
         let task = Process()
         task.launchPath = "/bin/sh"
-        task.arguments = ["-c", "sleep 0.5 && open \"\(path)\""]
+        task.arguments = ["-c", "sleep 0.5 && open \"\(Bundle.main.bundlePath)\""]
         try? task.run()
         NSApp.terminate(nil)
     }
@@ -148,9 +110,9 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Pages
+// MARK: - Steps
 
-private struct WelcomeView: View {
+private struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -167,20 +129,17 @@ private struct WelcomeView: View {
     }
 }
 
-private struct PermissionView: View {
+private struct PermissionStep: View {
     let hasPermission: Bool
 
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
-
             Image(systemName: hasPermission ? "checkmark.shield.fill" : "hand.raised.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(hasPermission ? .green : .orange)
-
             Text(hasPermission ? "Đã cấp quyền" : "Cấp quyền Accessibility")
                 .font(.system(size: 22, weight: .bold))
-
             if hasPermission {
                 Text("Nhấn \"Khởi động lại\" để áp dụng.")
                     .foregroundStyle(.secondary)
@@ -188,7 +147,6 @@ private struct PermissionView: View {
                 Text("Bật \(AppMetadata.name) trong System Settings để gõ tiếng Việt.")
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Mở Privacy & Security → Accessibility", systemImage: "1.circle.fill")
                     Label("Bật công tắc bên cạnh \(AppMetadata.name)", systemImage: "2.circle.fill")
@@ -197,14 +155,13 @@ private struct PermissionView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             }
-
             Spacer()
         }
         .padding(.horizontal, 40)
     }
 }
 
-private struct SuccessView: View {
+private struct SuccessStep: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -221,7 +178,7 @@ private struct SuccessView: View {
     }
 }
 
-private struct SetupView: View {
+private struct SetupStep: View {
     @Binding var selectedMode: InputMode
 
     var body: some View {
@@ -234,10 +191,9 @@ private struct SetupView: View {
                 .font(.system(size: 22, weight: .bold))
             Text("Có thể thay đổi sau trong menu.")
                 .foregroundStyle(.secondary)
-
             VStack(spacing: 8) {
                 ForEach(InputMode.allCases, id: \.rawValue) { mode in
-                    ModeButton(mode: mode, isSelected: selectedMode == mode) {
+                    ModeOption(mode: mode, isSelected: selectedMode == mode) {
                         selectedMode = mode
                     }
                 }
@@ -250,7 +206,7 @@ private struct SetupView: View {
     }
 }
 
-private struct ModeButton: View {
+private struct ModeOption: View {
     let mode: InputMode
     let isSelected: Bool
     let action: () -> Void
