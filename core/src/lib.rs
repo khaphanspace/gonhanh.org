@@ -23,6 +23,7 @@
 pub mod data;
 pub mod engine;
 pub mod input;
+pub mod updater;
 
 use engine::{Engine, Result};
 use std::sync::Mutex;

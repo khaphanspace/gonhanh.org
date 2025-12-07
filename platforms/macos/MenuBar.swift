@@ -45,6 +45,11 @@ class MenuBarController {
         KeyboardHookManager.shared.start()
         RustBridge.setEnabled(isEnabled)
         RustBridge.setMethod(currentMethod.rawValue)
+
+        // Check for updates in background after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            UpdateManager.shared.checkForUpdatesSilently()
+        }
     }
 
     @objc private func onboardingDidComplete() {
@@ -127,6 +132,11 @@ class MenuBarController {
         let about = NSMenuItem(title: "Giới thiệu \(AppMetadata.name)", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
+
+        let checkUpdate = NSMenuItem(title: "Kiểm tra cập nhật...", action: #selector(checkForUpdates), keyEquivalent: "u")
+        checkUpdate.keyEquivalentModifierMask = .command
+        checkUpdate.target = self
+        menu.addItem(checkUpdate)
 
         let help = NSMenuItem(title: "Góp ý & Báo lỗi", action: #selector(openHelp), keyEquivalent: "")
         help.target = self
@@ -229,5 +239,9 @@ class MenuBarController {
 
     @objc private func openHelp() {
         NSWorkspace.shared.open(URL(string: AppMetadata.issuesURL)!)
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateManager.shared.checkForUpdatesManually()
     }
 }
