@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-// MARK: - Menu Bar Controller (Apple HIG Compliant)
+// MARK: - Menu Bar Controller
 
 class MenuBarController {
     private var statusItem: NSStatusItem!
@@ -71,14 +71,16 @@ class MenuBarController {
     private func updateStatusButton() {
         guard let button = statusItem.button else { return }
 
+        // Hiển thị: V (Việt) hoặc E (English/tắt)
         if isEnabled {
-            button.image = NSImage(systemSymbolName: "keyboard.fill", accessibilityDescription: AppMetadata.name)
-            button.title = " \(currentMethod.shortName)"
+            button.title = "V"
+            button.contentTintColor = .controlAccentColor
         } else {
-            button.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: AppMetadata.name)
-            button.title = ""
+            button.title = "E"
+            button.contentTintColor = .secondaryLabelColor
         }
-        button.imagePosition = .imageLeading
+
+        button.font = .systemFont(ofSize: 14, weight: .semibold)
     }
 
     // MARK: - Menu
@@ -86,72 +88,73 @@ class MenuBarController {
     private func setupMenu() {
         let menu = NSMenu()
 
-        // Header
+        // Header với trạng thái
         let headerItem = NSMenuItem()
         headerItem.view = createHeaderView()
         menu.addItem(headerItem)
 
         menu.addItem(.separator())
 
-        // Enable toggle
-        let enableItem = NSMenuItem(
-            title: "Enable \(AppMetadata.name)",
+        // Toggle Bật/Tắt - item chính
+        let toggleItem = NSMenuItem(
+            title: isEnabled ? "Tắt gõ tiếng Việt" : "Bật gõ tiếng Việt",
             action: #selector(toggleEnabled),
-            keyEquivalent: ""
+            keyEquivalent: " "  // Space bar
         )
-        enableItem.target = self
-        enableItem.state = isEnabled ? .on : .off
-        enableItem.tag = 100
-        menu.addItem(enableItem)
+        toggleItem.target = self
+        toggleItem.tag = 100
+        menu.addItem(toggleItem)
 
         menu.addItem(.separator())
 
-        // Input method section
-        let methodLabel = NSMenuItem(title: "Input Method", action: nil, keyEquivalent: "")
-        methodLabel.isEnabled = false
-        menu.addItem(methodLabel)
-
-        let telexItem = NSMenuItem(title: "Telex", action: #selector(selectTelex), keyEquivalent: "t")
-        telexItem.keyEquivalentModifierMask = [.command, .shift]
+        // Kiểu gõ
+        let telexItem = NSMenuItem(
+            title: "Telex",
+            action: #selector(selectTelex),
+            keyEquivalent: "1"
+        )
+        telexItem.keyEquivalentModifierMask = [.command]
         telexItem.target = self
         telexItem.tag = 200
         telexItem.state = currentMethod == .telex ? .on : .off
-        telexItem.indentationLevel = 1
         menu.addItem(telexItem)
 
-        let vniItem = NSMenuItem(title: "VNI", action: #selector(selectVNI), keyEquivalent: "v")
-        vniItem.keyEquivalentModifierMask = [.command, .shift]
+        let vniItem = NSMenuItem(
+            title: "VNI",
+            action: #selector(selectVNI),
+            keyEquivalent: "2"
+        )
+        vniItem.keyEquivalentModifierMask = [.command]
         vniItem.target = self
         vniItem.tag = 201
         vniItem.state = currentMethod == .vni ? .on : .off
-        vniItem.indentationLevel = 1
         menu.addItem(vniItem)
 
         menu.addItem(.separator())
 
-        // About
+        // Giới thiệu
         let aboutItem = NSMenuItem(
-            title: "About \(AppMetadata.name)",
+            title: "Giới thiệu \(AppMetadata.name)",
             action: #selector(showAbout),
             keyEquivalent: ""
         )
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        // Help
-        let helpItem = NSMenuItem(
-            title: "Help & Feedback",
+        // Góp ý
+        let feedbackItem = NSMenuItem(
+            title: "Góp ý & Báo lỗi",
             action: #selector(openHelp),
-            keyEquivalent: "?"
+            keyEquivalent: ""
         )
-        helpItem.target = self
-        menu.addItem(helpItem)
+        feedbackItem.target = self
+        menu.addItem(feedbackItem)
 
         menu.addItem(.separator())
 
-        // Quit
+        // Thoát
         let quitItem = NSMenuItem(
-            title: "Quit \(AppMetadata.name)",
+            title: "Thoát",
             action: #selector(quit),
             keyEquivalent: "q"
         )
@@ -162,24 +165,40 @@ class MenuBarController {
     }
 
     private func createHeaderView() -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 40))
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 50))
 
+        // App name
         let title = NSTextField(labelWithString: AppMetadata.name)
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
-        title.frame = NSRect(x: 14, y: 20, width: 120, height: 16)
+        title.font = .systemFont(ofSize: 14, weight: .bold)
+        title.frame = NSRect(x: 14, y: 28, width: 140, height: 18)
         view.addSubview(title)
 
-        let status = NSTextField(labelWithString: isEnabled ? "On - \(currentMethod.name)" : "Off")
-        status.font = .systemFont(ofSize: 11)
-        status.textColor = isEnabled ? .systemGreen : .secondaryLabelColor
-        status.frame = NSRect(x: 14, y: 4, width: 100, height: 14)
+        // Status indicator
+        let statusDot = NSView(frame: NSRect(x: 14, y: 10, width: 8, height: 8))
+        statusDot.wantsLayer = true
+        statusDot.layer?.cornerRadius = 4
+        statusDot.layer?.backgroundColor = isEnabled ? NSColor.systemGreen.cgColor : NSColor.systemGray.cgColor
+        view.addSubview(statusDot)
+
+        // Status text
+        let statusText: String
+        if isEnabled {
+            statusText = "Đang bật • \(currentMethod.name)"
+        } else {
+            statusText = "Đang tắt"
+        }
+        let status = NSTextField(labelWithString: statusText)
+        status.font = .systemFont(ofSize: 12)
+        status.textColor = .secondaryLabelColor
+        status.frame = NSRect(x: 26, y: 6, width: 120, height: 16)
         view.addSubview(status)
 
+        // Version
         let version = NSTextField(labelWithString: "v\(AppMetadata.version)")
         version.font = .systemFont(ofSize: 10)
         version.textColor = .tertiaryLabelColor
         version.alignment = .right
-        version.frame = NSRect(x: 140, y: 20, width: 46, height: 14)
+        version.frame = NSRect(x: 160, y: 28, width: 46, height: 14)
         view.addSubview(version)
 
         return view
@@ -193,8 +212,10 @@ class MenuBarController {
             headerItem.view = createHeaderView()
         }
 
-        // Update states
-        menu.item(withTag: 100)?.state = isEnabled ? .on : .off
+        // Update toggle text
+        menu.item(withTag: 100)?.title = isEnabled ? "Tắt gõ tiếng Việt" : "Bật gõ tiếng Việt"
+
+        // Update method states
         menu.item(withTag: 200)?.state = currentMethod == .telex ? .on : .off
         menu.item(withTag: 201)?.state = currentMethod == .vni ? .on : .off
     }
@@ -244,7 +265,7 @@ class MenuBarController {
             let view = AboutView()
             let controller = NSHostingController(rootView: view)
             aboutWindow = NSWindow(contentViewController: controller)
-            aboutWindow?.title = "About \(AppMetadata.name)"
+            aboutWindow?.title = "Giới thiệu \(AppMetadata.name)"
             aboutWindow?.styleMask = [.titled, .closable]
             aboutWindow?.setContentSize(NSSize(width: 300, height: 340))
             aboutWindow?.center()
