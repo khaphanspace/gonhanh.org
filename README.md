@@ -7,15 +7,15 @@
 
 Sức mạnh của **Rust** (Core Engine) kết hợp với **Native UI** (SwiftUI) mang lại trải nghiệm gõ phím mượt mà, ổn định và bảo mật tuyệt đối.
 
-## Về dự án
+## Về GoNhanh
 
 GoNhanh được xây dựng với mục tiêu trở thành bộ gõ tiếng Việt **hoàn thiện nhất**, dựa trên các trụ cột: **Chuẩn hóa - Hiện đại - Tương lai**.
 
-- **Chuẩn hóa**: Tuyệt đối tuân thủ quy tắc chính tả chữ Quốc ngữ (theo chuẩn BGD&ĐT).
-- **Hiệu suất & Công nghệ**: Core engine viết bằng Rust kết hợp Native UI giúp xử lý tức thì, bỏ qua gánh nặng lịch sử (legacy code).
-- **Đa nền tảng & Tương lai**: Kiến trúc Hybrid sẵn sàng cho macOS, Windows, Linux và các hệ thống thế hệ mới (Wayland).
-- **Trải nghiệm mượt mà**: Giao diện thích ứng (Light/Dark mode), hoạt ảnh mượt mà, phản hồi lập tức.
-- **Cài là dùng**: Cấu hình tối ưu sẵn (Smart Defaults), không cần thiết lập phức tạp.
+- 🚀 **Chuẩn hóa**: Tuyệt đối tuân thủ quy tắc chính tả chữ Quốc ngữ (theo chuẩn BGD&ĐT).
+- 🚀 **Hiệu suất & Công nghệ**: Core engine viết bằng Rust kết hợp Native UI giúp xử lý tức thì, bỏ qua gánh nặng lịch sử (legacy code).
+- 🚀 **Đa nền tảng & Tương lai**: Kiến trúc Hybrid sẵn sàng cho macOS, Windows, Linux và các hệ thống thế hệ mới (Wayland).
+- 🚀 **Trải nghiệm mượt mà**: Giao diện thích ứng (Light/Dark mode), hoạt ảnh mượt mà, phản hồi lập tức.
+- 🚀 **Cài là dùng**: Cấu hình tối ưu sẵn (Smart Defaults), không cần thiết lập phức tạp.
 
 ## Động lực
 
@@ -89,9 +89,9 @@ Chi tiết: [docs/vietnamese-language-system.md](docs/vietnamese-language-system
 
 | Tài liệu                                      | Mô tả                                        | Link                                           |
 | --------------------------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| Hệ thống chữ viết tiếng Việt & Phương pháp gõ | Cơ sở lý thuyết ngữ âm và quy tắc đặt dấu.   | [Tài liệu](docs/vietnamese-language-system.md) |
 | Architecture                                  | Kiến trúc hệ thống, FFI, và luồng dữ liệu.   | [Tài liệu](docs/architecture.md)               |
 | Development Guide                             | Hướng dẫn build, test, và đóng góp mã nguồn. | [Tài liệu](docs/development.md)                |
-| Hệ thống chữ viết tiếng Việt & Phương pháp gõ | Cơ sở lý thuyết ngữ âm và quy tắc đặt dấu.   | [Tài liệu](docs/vietnamese-language-system.md) |
 
 ## Credits
 
