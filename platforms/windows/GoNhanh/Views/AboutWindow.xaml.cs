@@ -1,25 +1,39 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
+using GoNhanh.Core;
 
 namespace GoNhanh.Views;
 
 /// <summary>
 /// About window showing app info and links
+/// Matches macOS AboutView exactly
 /// </summary>
 public partial class AboutWindow : Window
 {
     public AboutWindow()
     {
         InitializeComponent();
-        LoadVersion();
+        LoadMetadata();
     }
 
-    private void LoadVersion()
+    private void LoadMetadata()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
+        // Version
+        VersionText.Text = $"Version {AppMetadata.Version}";
+
+        // Author
+        AuthorText.Text = AppMetadata.Author;
+        EmailText.Text = AppMetadata.AuthorEmail;
+        EmailLink.NavigateUri = new Uri($"mailto:{AppMetadata.AuthorEmail}");
+        LinkedInLink.NavigateUri = new Uri(AppMetadata.AuthorLinkedin);
+
+        // Links
+        WebsiteLink.NavigateUri = new Uri(AppMetadata.Website);
+        GitHubLink.NavigateUri = new Uri(AppMetadata.Repository);
+
+        // Copyright
+        CopyrightText.Text = AppMetadata.Copyright;
     }
 
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
@@ -34,13 +48,8 @@ public partial class AboutWindow : Window
         }
         catch
         {
-            // Ignore errors opening browser
+            // Ignore errors opening browser/email client
         }
         e.Handled = true;
-    }
-
-    private void Close_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
     }
 }

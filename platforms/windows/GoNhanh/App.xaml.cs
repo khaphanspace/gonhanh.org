@@ -8,12 +8,14 @@ namespace GoNhanh;
 /// <summary>
 /// GoNhanh - Vietnamese Input Method for Windows
 /// Main application entry point
+/// Matches macOS App.swift flow
 /// </summary>
 public partial class App : Application
 {
     private TrayIcon? _trayIcon;
     private KeyboardHook? _keyboardHook;
     private readonly SettingsService _settings = new();
+    private System.Threading.Mutex? _mutex;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -40,31 +42,26 @@ public partial class App : Application
 
         // Initialize system tray
         _trayIcon = new TrayIcon();
-        _trayIcon.OnSettingsRequested += ShowSettings;
         _trayIcon.OnExitRequested += ExitApplication;
         _trayIcon.OnMethodChanged += ChangeInputMethod;
         _trayIcon.OnEnabledChanged += ToggleEnabled;
         _trayIcon.Initialize(_settings.CurrentMethod, _settings.IsEnabled);
 
-        // Show onboarding if first run
+        // Show onboarding if first run (like macOS)
         if (_settings.IsFirstRun)
         {
             ShowOnboarding();
-            _settings.IsFirstRun = false;
-            _settings.Save();
         }
     }
 
     private bool EnsureSingleInstance()
     {
-        // Use mutex to ensure single instance
-        bool createdNew;
-        var mutex = new System.Threading.Mutex(true, "GoNhanh_SingleInstance", out createdNew);
+        _mutex = new System.Threading.Mutex(true, "GoNhanh_SingleInstance", out bool createdNew);
         if (!createdNew)
         {
             MessageBox.Show(
-                "GoNhanh is already running.\nCheck the system tray.",
-                "GoNhanh",
+                $"{AppMetadata.Name} đang chạy.\nKiểm tra khay hệ thống (system tray).",
+                AppMetadata.Name,
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return false;
@@ -97,21 +94,15 @@ public partial class App : Application
         }
     }
 
-    private void ShowSettings()
-    {
-        var settingsWindow = new SettingsWindow(_settings);
-        settingsWindow.SettingsChanged += () =>
-        {
-            ApplySettings();
-            _trayIcon?.UpdateState(_settings.CurrentMethod, _settings.IsEnabled);
-        };
-        settingsWindow.ShowDialog();
-    }
-
     private void ShowOnboarding()
     {
         var onboarding = new OnboardingWindow(_settings);
         onboarding.ShowDialog();
+
+        // Save settings after onboarding
+        _settings.IsFirstRun = false;
+        _settings.Save();
+
         ApplySettings();
         _trayIcon?.UpdateState(_settings.CurrentMethod, _settings.IsEnabled);
     }
@@ -136,6 +127,7 @@ public partial class App : Application
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
         RustBridge.Clear();
+        _mutex?.Dispose();
         Shutdown();
     }
 
@@ -143,6 +135,7 @@ public partial class App : Application
     {
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
+        _mutex?.Dispose();
         base.OnExit(e);
     }
 }

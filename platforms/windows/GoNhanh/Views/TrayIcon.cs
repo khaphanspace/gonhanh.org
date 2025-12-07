@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using GoNhanh.Core;
 
@@ -6,15 +8,17 @@ namespace GoNhanh.Views;
 
 /// <summary>
 /// System tray icon with context menu
-/// Similar to NSStatusItem on macOS
+/// Matches macOS MenuBarController flow exactly
 /// </summary>
 public class TrayIcon : IDisposable
 {
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
+    private ToolStripMenuItem? _headerItem;
     private ToolStripMenuItem? _telexItem;
     private ToolStripMenuItem? _vniItem;
-    private ToolStripMenuItem? _enabledItem;
+    private bool _isEnabled = true;
+    private InputMethod _currentMethod = InputMethod.Telex;
     private bool _disposed;
 
     #region Events
@@ -31,53 +35,67 @@ public class TrayIcon : IDisposable
     /// </summary>
     public void Initialize(InputMethod currentMethod, bool isEnabled)
     {
+        _currentMethod = currentMethod;
+        _isEnabled = isEnabled;
+
         _contextMenu = new ContextMenuStrip();
         _contextMenu.Font = new Font("Segoe UI", 9F);
+        _contextMenu.ShowCheckMargin = true;
+        _contextMenu.ShowImageMargin = false;
 
-        // Input method selection
+        // Header with toggle (like macOS)
+        _headerItem = new ToolStripMenuItem();
+        _headerItem.Enabled = false; // Non-clickable, just display
+        _contextMenu.Items.Add(_headerItem);
+        _contextMenu.Items.Add(new ToolStripSeparator());
+
+        // Input methods with shortcuts (Ctrl+1, Ctrl+2 like macOS ⌘1, ⌘2)
         _telexItem = new ToolStripMenuItem("Telex");
+        _telexItem.ShortcutKeys = Keys.Control | Keys.D1;
         _telexItem.Click += (s, e) => SetMethod(InputMethod.Telex);
+        _contextMenu.Items.Add(_telexItem);
 
         _vniItem = new ToolStripMenuItem("VNI");
+        _vniItem.ShortcutKeys = Keys.Control | Keys.D2;
         _vniItem.Click += (s, e) => SetMethod(InputMethod.VNI);
-
-        // Enable/Disable toggle
-        _enabledItem = new ToolStripMenuItem("Enabled");
-        _enabledItem.Click += (s, e) => ToggleEnabled();
-
-        // Build menu
-        _contextMenu.Items.Add(_telexItem);
         _contextMenu.Items.Add(_vniItem);
-        _contextMenu.Items.Add(new ToolStripSeparator());
-        _contextMenu.Items.Add(_enabledItem);
+
         _contextMenu.Items.Add(new ToolStripSeparator());
 
-        var settingsItem = new ToolStripMenuItem("Settings...");
-        settingsItem.Click += (s, e) => OnSettingsRequested?.Invoke();
-        _contextMenu.Items.Add(settingsItem);
+        // Toggle enabled
+        var toggleItem = new ToolStripMenuItem("Bật/Tắt");
+        toggleItem.ShortcutKeys = Keys.Control | Keys.D0;
+        toggleItem.Click += (s, e) => ToggleEnabled();
+        _contextMenu.Items.Add(toggleItem);
 
-        var aboutItem = new ToolStripMenuItem("About GoNhanh");
+        _contextMenu.Items.Add(new ToolStripSeparator());
+
+        // About (like macOS "Giới thiệu GoNhanh")
+        var aboutItem = new ToolStripMenuItem($"Giới thiệu {AppMetadata.Name}");
         aboutItem.Click += (s, e) => ShowAbout();
         _contextMenu.Items.Add(aboutItem);
 
+        // Feedback/Issues (like macOS "Góp ý & Báo lỗi")
+        var feedbackItem = new ToolStripMenuItem("Góp ý && Báo lỗi");
+        feedbackItem.Click += (s, e) => OpenFeedback();
+        _contextMenu.Items.Add(feedbackItem);
+
         _contextMenu.Items.Add(new ToolStripSeparator());
 
-        var exitItem = new ToolStripMenuItem("Exit");
+        // Exit (like macOS "Thoát")
+        var exitItem = new ToolStripMenuItem("Thoát");
+        exitItem.ShortcutKeys = Keys.Control | Keys.Q;
         exitItem.Click += (s, e) => OnExitRequested?.Invoke();
         _contextMenu.Items.Add(exitItem);
 
         // Create tray icon
         _notifyIcon = new NotifyIcon
         {
-            Text = "GoNhanh - Vietnamese Input",
             ContextMenuStrip = _contextMenu,
             Visible = true
         };
 
-        // Set initial icon
-        UpdateIcon(isEnabled);
-
-        // Double-click to toggle
+        // Double-click to toggle (like macOS)
         _notifyIcon.DoubleClick += (s, e) => ToggleEnabled();
 
         // Update initial state
@@ -89,14 +107,22 @@ public class TrayIcon : IDisposable
     /// </summary>
     public void UpdateState(InputMethod method, bool isEnabled)
     {
+        _currentMethod = method;
+        _isEnabled = isEnabled;
+
+        // Update header text
+        if (_headerItem != null)
+        {
+            string status = isEnabled ? "ON" : "OFF";
+            _headerItem.Text = $"{AppMetadata.Name}  [{status}]";
+        }
+
+        // Update method checkmarks
         if (_telexItem != null)
             _telexItem.Checked = method == InputMethod.Telex;
 
         if (_vniItem != null)
             _vniItem.Checked = method == InputMethod.VNI;
-
-        if (_enabledItem != null)
-            _enabledItem.Checked = isEnabled;
 
         UpdateIcon(isEnabled);
         UpdateTooltip(method, isEnabled);
@@ -104,6 +130,7 @@ public class TrayIcon : IDisposable
 
     private void SetMethod(InputMethod method)
     {
+        _currentMethod = method;
         OnMethodChanged?.Invoke(method);
 
         if (_telexItem != null)
@@ -115,33 +142,23 @@ public class TrayIcon : IDisposable
 
     private void ToggleEnabled()
     {
-        bool newState = !(_enabledItem?.Checked ?? true);
-        _enabledItem!.Checked = newState;
-        UpdateIcon(newState);
-        OnEnabledChanged?.Invoke(newState);
+        _isEnabled = !_isEnabled;
+        UpdateState(_currentMethod, _isEnabled);
+        OnEnabledChanged?.Invoke(_isEnabled);
     }
 
     private void UpdateIcon(bool isEnabled)
     {
         if (_notifyIcon == null) return;
 
-        // Use different icons for enabled/disabled state
-        // For now, use system icons as placeholder
-        // TODO: Replace with custom icons from Resources
         try
         {
-            if (isEnabled)
-            {
-                _notifyIcon.Icon = CreateTextIcon("V", Color.FromArgb(37, 99, 235)); // Blue
-            }
-            else
-            {
-                _notifyIcon.Icon = CreateTextIcon("V", Color.Gray);
-            }
+            // Create icon matching macOS style:
+            // White rounded rect background with "V" or "E" text
+            _notifyIcon.Icon = CreateStatusIcon(isEnabled ? "V" : "E", isEnabled);
         }
         catch
         {
-            // Fallback to default icon
             _notifyIcon.Icon = SystemIcons.Application;
         }
     }
@@ -150,29 +167,43 @@ public class TrayIcon : IDisposable
     {
         if (_notifyIcon == null) return;
 
-        string status = isEnabled ? "ON" : "OFF";
-        string methodName = method == InputMethod.Telex ? "Telex" : "VNI";
-        _notifyIcon.Text = $"GoNhanh [{methodName}] - {status}";
+        string status = isEnabled ? "Bật" : "Tắt";
+        string methodName = InputMethodInfo.GetName(method);
+        _notifyIcon.Text = $"{AppMetadata.Name} [{methodName}] - {status}";
     }
 
     /// <summary>
-    /// Create a simple text-based icon
+    /// Create status icon matching macOS style
+    /// White rounded rect background with transparent text
     /// </summary>
-    private static Icon CreateTextIcon(string text, Color color)
+    private static Icon CreateStatusIcon(string text, bool isEnabled)
     {
-        var bitmap = new Bitmap(16, 16);
+        int size = 16;
+        var bitmap = new Bitmap(size, size);
+
         using (var g = Graphics.FromImage(bitmap))
         {
-            g.Clear(Color.Transparent);
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            g.Clear(Color.Transparent);
 
-            using var font = new Font("Segoe UI", 10, FontStyle.Bold);
-            using var brush = new SolidBrush(color);
+            // White rounded rect background (like macOS)
+            var rect = new Rectangle(0, 0, size - 1, size - 1);
+            using var path = CreateRoundedRectPath(rect, 3);
+            using var bgBrush = new SolidBrush(Color.White);
+            g.FillPath(bgBrush, path);
 
-            var size = g.MeasureString(text, font);
-            float x = (16 - size.Width) / 2;
-            float y = (16 - size.Height) / 2;
+            // Text color based on state
+            var textColor = isEnabled
+                ? Color.FromArgb(37, 99, 235)  // Blue when enabled
+                : Color.FromArgb(156, 163, 175); // Gray when disabled
+
+            using var font = new Font("Segoe UI", 9, FontStyle.Bold);
+            using var brush = new SolidBrush(textColor);
+
+            var textSize = g.MeasureString(text, font);
+            float x = (size - textSize.Width) / 2;
+            float y = (size - textSize.Height) / 2;
 
             g.DrawString(text, font, brush, x, y);
         }
@@ -180,10 +211,40 @@ public class TrayIcon : IDisposable
         return Icon.FromHandle(bitmap.GetHicon());
     }
 
+    private static GraphicsPath CreateRoundedRectPath(Rectangle rect, int radius)
+    {
+        var path = new GraphicsPath();
+        int d = radius * 2;
+
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+
+        return path;
+    }
+
     private void ShowAbout()
     {
         var about = new AboutWindow();
         about.ShowDialog();
+    }
+
+    private void OpenFeedback()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = AppMetadata.IssuesUrl,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore errors opening browser
+        }
     }
 
     #region IDisposable
