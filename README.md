@@ -7,12 +7,22 @@
 
 ## Tại sao cần GoNhanh?
 
-Các bộ gõ hiện tại như UniKey, EVKey đã phục vụ tốt trong nhiều năm, nhưng:
+Các bộ gõ tiếng Việt hiện tại đã phục vụ cộng đồng rất tốt:
 
-- **Kiến trúc cũ**: Viết bằng C/C++ từ thập niên 2000, khó bảo trì và mở rộng
-- **Không native**: Dùng cùng một UI framework cho mọi nền tảng
-- **Bloated**: Tích hợp nhiều tính năng ít dùng (chuyển mã, clipboard, macro...)
-- **Closed/Semi-open**: Khó đóng góp và audit code
+- [**UniKey**](https://www.unikey.org/) — Bộ gõ huyền thoại, tiêu chuẩn de facto từ 2000
+- [**EVKey**](https://evkeyvn.com/) — Kế thừa UniKey với nhiều cải tiến
+- [**OpenKey**](https://github.com/tuyenvm/OpenKey) — Open source, hỗ trợ macOS/Windows/Linux
+
+Tuy nhiên, chúng có những hạn chế chung:
+
+| Vấn đề | Mô tả |
+|--------|-------|
+| **Kiến trúc cũ** | C/C++ từ thập niên 2000, khó bảo trì |
+| **Không native** | Dùng chung UI framework (Qt) cho mọi platform |
+| **Feature creep** | Tích hợp nhiều tính năng ít dùng (chuyển mã, macro, spelling...) |
+| **Lookup-based** | Dựa trên bảng tra cứu, không theo quy tắc ngữ âm |
+
+GoNhanh không thay thế các bộ gõ trên, mà là một **lựa chọn khác** cho những ai cần sự đơn giản và hiệu năng.
 
 ## Triết lý GoNhanh
 
@@ -46,14 +56,18 @@ Engine được xây dựng dựa trên **ngữ âm học tiếng Việt**, khô
 
 ## So sánh
 
-| | GoNhanh | UniKey | EVKey |
-|---|:---:|:---:|:---:|
-| **Engine** | Rust | C++ | C++ |
-| **macOS UI** | SwiftUI | Qt | Qt |
-| **Memory** | ~25 MB | ~50 MB | ~40 MB |
-| **Binary** | ~3 MB | ~8 MB | ~6 MB |
-| **Open source** | Full | Partial | Yes |
-| **Kiến trúc** | Phonology-based | Lookup table | Lookup table |
+| | GoNhanh | OpenKey | UniKey | EVKey |
+|---|:---:|:---:|:---:|:---:|
+| **Engine** | Rust | C++ | C++ | C++ |
+| **macOS UI** | SwiftUI | Obj-C | Qt | Qt |
+| **Platforms** | macOS, Windows* | macOS, Windows, Linux | Windows | Windows, macOS |
+| **Memory** | ~25 MB | ~30 MB | ~50 MB | ~40 MB |
+| **Open source** | ✅ Full | ✅ Full | ⚠️ Partial | ✅ Full |
+| **Kiến trúc** | Phonology | Lookup | Lookup | Lookup |
+| **Chuyển mã** | ❌ | ✅ | ✅ | ✅ |
+| **Macro** | ❌ | ✅ | ✅ | ✅ |
+
+*\* Windows: planned*
 
 ## Features
 
