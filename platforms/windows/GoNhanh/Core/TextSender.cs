@@ -143,57 +143,7 @@ public static class TextSender
         if (inputs.Count > 0)
         {
             var inputArray = inputs.ToArray();
-            uint result = SendInput((uint)inputArray.Length, inputArray, Marshal.SizeOf<INPUT>());
-
-            if (result != inputArray.Length)
-            {
-                int error = Marshal.GetLastWin32Error();
-                System.Diagnostics.Debug.WriteLine($"SendInput failed. Sent: {result}/{inputArray.Length}, Error: {error}");
-            }
+            SendInput((uint)inputArray.Length, inputArray, Marshal.SizeOf<INPUT>());
         }
-    }
-
-    /// <summary>
-    /// Send a single key press
-    /// </summary>
-    public static void SendKey(ushort vkCode)
-    {
-        var marker = KeyboardHook.GetInjectedKeyMarker();
-
-        var inputs = new INPUT[]
-        {
-            new INPUT
-            {
-                type = INPUT_KEYBOARD,
-                u = new INPUTUNION
-                {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = vkCode,
-                        wScan = 0,
-                        dwFlags = 0,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
-                }
-            },
-            new INPUT
-            {
-                type = INPUT_KEYBOARD,
-                u = new INPUTUNION
-                {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = vkCode,
-                        wScan = 0,
-                        dwFlags = KEYEVENTF_KEYUP,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
-                }
-            }
-        };
-
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
     }
 }

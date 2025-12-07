@@ -23,7 +23,6 @@ public class TrayIcon : IDisposable
 
     #region Events
 
-    public event Action? OnSettingsRequested;
     public event Action? OnExitRequested;
     public event Action<InputMethod>? OnMethodChanged;
     public event Action<bool>? OnEnabledChanged;
@@ -174,12 +173,12 @@ public class TrayIcon : IDisposable
 
     /// <summary>
     /// Create status icon matching macOS style
-    /// White rounded rect background with transparent text
+    /// White rounded rect background with colored text
     /// </summary>
     private static Icon CreateStatusIcon(string text, bool isEnabled)
     {
-        int size = 16;
-        var bitmap = new Bitmap(size, size);
+        const int size = 16;
+        using var bitmap = new Bitmap(size, size);
 
         using (var g = Graphics.FromImage(bitmap))
         {
@@ -208,7 +207,10 @@ public class TrayIcon : IDisposable
             g.DrawString(text, font, brush, x, y);
         }
 
-        return Icon.FromHandle(bitmap.GetHicon());
+        // Clone icon to own it, then dispose temp resources
+        var hIcon = bitmap.GetHicon();
+        using var tempIcon = Icon.FromHandle(hIcon);
+        return (Icon)tempIcon.Clone();
     }
 
     private static GraphicsPath CreateRoundedRectPath(Rectangle rect, int radius)

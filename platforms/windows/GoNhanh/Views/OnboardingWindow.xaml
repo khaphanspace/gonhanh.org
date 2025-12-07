@@ -163,8 +163,6 @@
                             <Run Text="• Đổi kiểu gõ (Telex/VNI)"/>
                             <LineBreak/>
                             <Run Text="• Bật/tắt bộ gõ"/>
-                            <LineBreak/>
-                            <Run Text="• Mở cài đặt"/>
                         </TextBlock>
 
                         <Border Background="#F3F4F6"
