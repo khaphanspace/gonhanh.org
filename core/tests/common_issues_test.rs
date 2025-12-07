@@ -93,11 +93,11 @@ fn vni_preserve_tone_mark() {
 
 #[test]
 fn vni_mark_reposition_after_horn() {
-    // ua is medial pair → mark on 'a'
-    // After adding horn to 'u' → ưa has diacritic on first → mark moves to 'ư'
+    // ua without q → u is main vowel, mark on u
+    // After adding horn to 'u' → ư still main vowel, mark stays on ư
     run_vni(&[
-        ("ua27", "ừa"), // NOT "ưà" - mark should move from a to ư
-        ("ua2", "uà"),  // Before horn: ua is medial pair, mark on a
+        ("ua27", "ừa"), // mark on u, then horn → ừa
+        ("ua2", "ùa"),  // ua without q: u is main vowel, mark on u
         ("ua7", "ưa"),  // Just horn, no mark
     ]);
 }
@@ -127,18 +127,21 @@ fn telex_mark_reposition_after_horn() {
 }
 
 #[test]
-fn vni_ua_vs_uwa_patterns() {
-    // Compare patterns
+fn vni_ua_vs_qua_patterns() {
+    // Compare patterns: ua (mua) vs qua
     run_vni(&[
-        // Without diacritic: ua is medial pair
-        ("ua1", "uá"),  // mark on a (medial pair)
-        ("ua2", "uà"),  // mark on a (medial pair)
+        // Without q: ua → u is main vowel, mark on u
+        ("ua1", "úa"),  // mark on u (main vowel)
+        ("ua2", "ùa"),  // mark on u (main vowel)
+        // With q: qua → u is medial, mark on a
+        ("qua1", "quá"), // mark on a (medial pair)
+        ("qua2", "quà"), // mark on a (medial pair)
         // With horn on u: ưa has diacritic on first vowel
         ("u7a1", "ứa"), // ư first, then a, mark on ư
         ("u7a2", "ừa"), // ư first, then a, mark on ư
-        // Delayed horn after mark should reposition
-        ("ua17", "ứa"), // uá → ứa (mark moves from a to ư)
-        ("ua27", "ừa"), // uà → ừa (mark moves from a to ư)
+        // Delayed horn after mark
+        ("ua17", "ứa"), // úa → ứa (mark stays on ư)
+        ("ua27", "ừa"), // ùa → ừa (mark stays on ư)
     ]);
 }
 
