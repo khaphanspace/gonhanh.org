@@ -65,17 +65,21 @@ impl Method for Telex {
         // w -> breve/horn
         // Special case: uo pattern → apply to u first (for ươ compound)
         if key == keys::W {
-            // Check for uo/ou patterns (for compound vowel ươ)
+            // Check for uo/ou patterns anywhere in vowels (for compound vowel ươ)
+            // Pattern can be followed by other vowels like 'i' in "người"
             let len = vowels.len();
             if len >= 2 {
-                let last_two = &vowels[len - 2..];
-                // uo → apply to u (makes ươ when both get horn)
-                if last_two == [keys::U, keys::O] {
-                    return Some((2, keys::U));
-                }
-                // ou → apply to o first
-                if last_two == [keys::O, keys::U] {
-                    return Some((2, keys::O));
+                // Scan for uo or ou pattern
+                for i in 0..len - 1 {
+                    let pair = &vowels[i..i + 2];
+                    // uo → apply to u (makes ươ when both get horn)
+                    if pair == [keys::U, keys::O] {
+                        return Some((2, keys::U));
+                    }
+                    // ou → apply to o first
+                    if pair == [keys::O, keys::U] {
+                        return Some((2, keys::O));
+                    }
                 }
             }
 
