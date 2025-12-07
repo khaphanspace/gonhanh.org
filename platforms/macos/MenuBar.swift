@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import ServiceManagement
 
 // MARK: - Menu Bar Controller
 
@@ -11,6 +12,8 @@ class MenuBarController {
 
     private var isEnabled = true
     private var currentMethod: InputMode = .telex
+    private var isModernTone = true
+    private var launchAtLogin = false
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -19,6 +22,13 @@ class MenuBarController {
             self,
             selector: #selector(onboardingDidComplete),
             name: .onboardingCompleted,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleToggleVietnamese),
+            name: .toggleVietnamese,
             object: nil
         )
 
@@ -33,11 +43,29 @@ class MenuBarController {
         }
     }
 
+    @objc private func handleToggleVietnamese() {
+        isEnabled.toggle()
+        UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
+        RustBridge.setEnabled(isEnabled)
+        updateStatusButton()
+        updateMenu()
+    }
+
     // MARK: - Setup
 
     private func loadSettings() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
+        isModernTone = UserDefaults.standard.object(forKey: SettingsKey.modernTone) as? Bool ?? true
+        launchAtLogin = getLaunchAtLoginStatus()
+        UserDefaults.standard.set(launchAtLogin, forKey: SettingsKey.launchAtLogin)
+    }
+
+    private func getLaunchAtLoginStatus() -> Bool {
+        if #available(macOS 13.0, *) {
+            return SMAppService.mainApp.status == .enabled
+        }
+        return false
     }
 
     private func startEngine() {
@@ -45,6 +73,7 @@ class MenuBarController {
         KeyboardHookManager.shared.start()
         RustBridge.setEnabled(isEnabled)
         RustBridge.setMethod(currentMethod.rawValue)
+        RustBridge.setModern(isModernTone)
     }
 
     @objc private func onboardingDidComplete() {
@@ -109,7 +138,7 @@ class MenuBarController {
         menu.addItem(header)
         menu.addItem(.separator())
 
-        // Methods
+        // Input methods
         let telex = NSMenuItem(title: "Telex", action: #selector(selectTelex), keyEquivalent: "1")
         telex.keyEquivalentModifierMask = .command
         telex.target = self
@@ -121,6 +150,25 @@ class MenuBarController {
         vni.target = self
         vni.tag = 11
         menu.addItem(vni)
+        menu.addItem(.separator())
+
+        // Tone style
+        let modernTone = NSMenuItem(title: "Kiểu mới (hoà)", action: #selector(selectModernTone), keyEquivalent: "")
+        modernTone.target = self
+        modernTone.tag = 20
+        menu.addItem(modernTone)
+
+        let classicTone = NSMenuItem(title: "Kiểu cũ (hòa)", action: #selector(selectClassicTone), keyEquivalent: "")
+        classicTone.target = self
+        classicTone.tag = 21
+        menu.addItem(classicTone)
+        menu.addItem(.separator())
+
+        // Launch at Login
+        let launchItem = NSMenuItem(title: "Khởi động cùng hệ thống", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchItem.target = self
+        launchItem.tag = 30
+        menu.addItem(launchItem)
         menu.addItem(.separator())
 
         // About & Help
@@ -172,6 +220,9 @@ class MenuBarController {
         menu.item(withTag: 1)?.view = createHeaderView()
         menu.item(withTag: 10)?.state = currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = currentMethod == .vni ? .on : .off
+        menu.item(withTag: 20)?.state = isModernTone ? .on : .off
+        menu.item(withTag: 21)?.state = isModernTone ? .off : .on
+        menu.item(withTag: 30)?.state = launchAtLogin ? .on : .off
     }
 
     // MARK: - Actions
@@ -196,6 +247,37 @@ class MenuBarController {
         RustBridge.setMethod(mode.rawValue)
         updateStatusButton()
         updateMenu()
+    }
+
+    @objc private func selectModernTone() { setToneStyle(modern: true) }
+    @objc private func selectClassicTone() { setToneStyle(modern: false) }
+
+    private func setToneStyle(modern: Bool) {
+        isModernTone = modern
+        UserDefaults.standard.set(modern, forKey: SettingsKey.modernTone)
+        RustBridge.setModern(modern)
+        updateMenu()
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        launchAtLogin.toggle()
+        UserDefaults.standard.set(launchAtLogin, forKey: SettingsKey.launchAtLogin)
+        setLaunchAtLogin(launchAtLogin)
+        updateMenu()
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                debugLog("[LaunchAtLogin] Error: \(error)")
+            }
+        }
     }
 
     private func showOnboarding() {
