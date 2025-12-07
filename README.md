@@ -17,6 +17,13 @@ GoNhanh được xây dựng với mục tiêu trở thành bộ gõ tiếng Vi�
 - **Trải nghiệm mượt mà**: Giao diện thích ứng (Light/Dark mode), hoạt ảnh mượt mà, phản hồi lập tức.
 - **Cài là dùng**: Cấu hình tối ưu sẵn (Smart Defaults), không cần thiết lập phức tạp.
 
+### Tính năng nổi bật
+
+- ✅ **Đa kiểu gõ**: Hỗ trợ đầy đủ Telex và VNI.
+- ✅ **Xử lý thông minh**: Tự động đặt dấu đúng vị trí và kiểm tra ngữ âm.
+- ✅ **Phím tắt**: Chuyển đổi Anh/Việt tức thì, có thể tùy biến.
+- ✅ **Tối giản**: Chạy ngầm dưới khay hệ thống, không chiếm không gian làm việc.
+
 ## Động lực
 
 Tiếp nối di sản của **VietKey**, **UniKey**, **OpenKey** và **EVKey**, tôi (**Kha Phan**) phát triển GoNhanh để giải quyết nhu cầu về sự ổn định tuyệt đối trên các công cụ lập trình hiện đại.
