@@ -160,6 +160,7 @@ class MenuBarController {
             toggleSwitch = toggle
         }
         toggleSwitch?.state = isEnabled ? .on : .off
+        toggleSwitch?.contentTintColor = .systemGreen
         toggleSwitch?.frame.origin = NSPoint(x: 170, y: 6)
         view.addSubview(toggleSwitch!)
 
