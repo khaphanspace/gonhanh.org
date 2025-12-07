@@ -1,7 +1,7 @@
 # GoNhanh (Gõ Nhanh)
 
-[![CI](https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg)](https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![CI](https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg)](https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml)
 
 **GoNhanh** (đọc là **Gõ Nhanh**) - Bộ gõ tiếng Việt hiệu suất cao, hiện đại và đa nền tảng.
 
