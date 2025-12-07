@@ -24,6 +24,14 @@ Nên tôi tự viết.
 | 🚫 | **Không quảng cáo** — Không popup, không banner |
 | 🚫 | **Không theo dõi** — Offline hoàn toàn, không gửi dữ liệu đi đâu |
 
+## Cam kết
+
+| | |
+|:---:|---|
+| ✅ | **Duy trì lâu dài** — Ít nhất đến 2030. Tôi dùng hàng ngày nên sẽ fix bug. |
+| ✅ | **Phản hồi nhanh** — Issues/PRs được xem trong 48 giờ. |
+| ✅ | **Ổn định** — Không breaking changes ở minor versions. Config được giữ nguyên qua các bản cập nhật. |
+
 ## Cách hoạt động
 
 Engine dựa trên ngữ âm học tiếng Việt thay vì bảng tra cứu:
@@ -84,14 +92,6 @@ make clean   # Xóa build artifacts
 ```
 
 Xem thêm: [docs/development.md](docs/development.md) · [docs/architecture.md](docs/architecture.md)
-
-## Ba Có
-
-| | |
-|:---:|---|
-| ✅ | **Có duy trì** — Ít nhất đến 2030. Tôi dùng hàng ngày nên sẽ fix bug. |
-| ✅ | **Có phản hồi** — Issues/PRs được xem trong 48 giờ. |
-| ✅ | **Có ổn định** — Không breaking changes ở minor versions. Config được giữ nguyên qua các bản cập nhật. |
 
 ## Roadmap
 
