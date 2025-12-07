@@ -109,8 +109,11 @@ struct WelcomeStepView: View {
             Spacer()
 
             Button(action: onNext) {
-                Label("Bắt đầu", systemImage: "arrow.right")
-                    .frame(width: 140)
+                HStack(spacing: 6) {
+                    Text("Bắt đầu")
+                    Image(systemName: "arrow.right")
+                }
+                .frame(width: 140)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
