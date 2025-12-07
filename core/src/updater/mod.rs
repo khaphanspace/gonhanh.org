@@ -25,7 +25,11 @@ impl Version {
         let minor = parts[1].parse().ok()?;
         let patch = parts.get(2).and_then(|p| p.parse().ok()).unwrap_or(0);
 
-        Some(Version { major, minor, patch })
+        Some(Version {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// Compare two versions
@@ -61,7 +65,11 @@ impl std::fmt::Display for Version {
 
 /// Compare two version strings
 /// Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2, -99 if parse error
+///
+/// # Safety
+/// Callers must ensure v1 and v2 are valid null-terminated C strings or null pointers.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn version_compare(v1: *const i8, v2: *const i8) -> i32 {
     let v1_str = unsafe {
         if v1.is_null() {
@@ -104,7 +112,11 @@ pub extern "C" fn version_has_update(current: *const i8, latest: *const i8) -> i
     if result == -99 {
         return -99;
     }
-    if result < 0 { 1 } else { 0 }
+    if result < 0 {
+        1
+    } else {
+        0
+    }
 }
 
 // ============================================================
@@ -119,15 +131,27 @@ mod tests {
     fn test_version_parse() {
         assert_eq!(
             Version::parse("1.2.3"),
-            Some(Version { major: 1, minor: 2, patch: 3 })
+            Some(Version {
+                major: 1,
+                minor: 2,
+                patch: 3
+            })
         );
         assert_eq!(
             Version::parse("v1.2.3"),
-            Some(Version { major: 1, minor: 2, patch: 3 })
+            Some(Version {
+                major: 1,
+                minor: 2,
+                patch: 3
+            })
         );
         assert_eq!(
             Version::parse("1.0"),
-            Some(Version { major: 1, minor: 0, patch: 0 })
+            Some(Version {
+                major: 1,
+                minor: 0,
+                patch: 0
+            })
         );
         assert_eq!(Version::parse("invalid"), None);
     }
