@@ -1,0 +1,98 @@
+<Window x:Class="GoNhanh.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Giới thiệu GoNhanh"
+        Height="400" Width="340"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="0" VerticalAlignment="Center" Margin="32,24">
+            <!-- App Logo & Name -->
+            <TextBlock Text="GoNhanh"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource PrimaryBrush}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="(Gõ Nhanh)"
+                       FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,2,0,0"/>
+            <TextBlock x:Name="VersionText"
+                       Text="Version 1.0.0"
+                       FontSize="11"
+                       Foreground="#9CA3AF"
+                       HorizontalAlignment="Center"
+                       Margin="0,4,0,0"/>
+
+            <!-- Tagline -->
+            <TextBlock Text="Bộ gõ tiếng Việt hiệu suất cao"
+                       FontSize="13"
+                       Foreground="{StaticResource TextBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,20,0,0"/>
+
+            <!-- Author Section -->
+            <StackPanel HorizontalAlignment="Center" Margin="0,24,0,0">
+                <TextBlock x:Name="AuthorText"
+                           FontSize="13"
+                           FontWeight="Medium"
+                           Foreground="{StaticResource TextBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <Hyperlink x:Name="EmailLink"
+                               RequestNavigate="Hyperlink_RequestNavigate"
+                               Foreground="{StaticResource SecondaryTextBrush}">
+                        <Run x:Name="EmailText" FontSize="12"/>
+                    </Hyperlink>
+                </TextBlock>
+                <TextBlock HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <Hyperlink x:Name="LinkedInLink"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        <Run Text="LinkedIn" FontSize="12"/>
+                    </Hyperlink>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- Links -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,24,0,0">
+                <TextBlock>
+                    <Hyperlink x:Name="WebsiteLink"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        <Run Text="Website" FontSize="13"/>
+                    </Hyperlink>
+                </TextBlock>
+                <TextBlock Text="  •  "
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           FontSize="13"/>
+                <TextBlock>
+                    <Hyperlink x:Name="GitHubLink"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        <Run Text="GitHub" FontSize="13"/>
+                    </Hyperlink>
+                </TextBlock>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Footer -->
+        <Border Grid.Row="1"
+                BorderBrush="#E5E7EB"
+                BorderThickness="0,1,0,0"
+                Padding="0,12">
+            <TextBlock x:Name="CopyrightText"
+                       FontSize="10"
+                       Foreground="#9CA3AF"
+                       HorizontalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

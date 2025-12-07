@@ -1,0 +1,202 @@
+<Window x:Class="GoNhanh.Views.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chào mừng đến GoNhanh"
+        Height="500" Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+
+    <Grid>
+        <!-- Page Container -->
+        <TabControl x:Name="PageTabs"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    Padding="0">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
+            <!-- Page 1: Welcome -->
+            <TabItem>
+                <Grid Margin="40">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                        <TextBlock Text="GoNhanh"
+                                   FontSize="36"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Gõ Tiếng Việt Nhanh"
+                                   FontSize="16"
+                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,8,0,0"/>
+
+                        <TextBlock TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   Margin="0,40,0,0"
+                                   FontSize="14"
+                                   Foreground="{StaticResource TextBrush}">
+                            <Run Text="Bộ gõ tiếng Việt hiện đại, nhẹ và nhanh."/>
+                            <LineBreak/>
+                            <LineBreak/>
+                            <Run Text="Cài đặt xong - Dùng ngay" FontWeight="SemiBold"/>
+                            <LineBreak/>
+                            <Run Text="Không quảng cáo - Không theo dõi - Miễn phí"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <Button Grid.Row="1"
+                            Content="Bắt đầu"
+                            Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Center"
+                            Width="160"
+                            Click="NextPage_Click"/>
+                </Grid>
+            </TabItem>
+
+            <!-- Page 2: Select Input Method -->
+            <TabItem>
+                <Grid Margin="40">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="Chọn kiểu gõ"
+                                   FontSize="24"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="Bạn quen dùng kiểu gõ nào?"
+                                   FontSize="14"
+                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                        <Border BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16"
+                                Margin="0,0,0,12"
+                                Cursor="Hand"
+                                MouseDown="SelectTelex_Click">
+                            <StackPanel>
+                                <RadioButton x:Name="OnboardTelexRadio"
+                                             Content="Telex"
+                                             FontWeight="SemiBold"
+                                             FontSize="15"
+                                             IsChecked="True"/>
+                                <TextBlock Text="aa → â   ow → ơ   dd → đ   s → sắc   f → huyền"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           Margin="20,4,0,0"
+                                           FontSize="13"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16"
+                                Cursor="Hand"
+                                MouseDown="SelectVni_Click">
+                            <StackPanel>
+                                <RadioButton x:Name="OnboardVniRadio"
+                                             Content="VNI"
+                                             FontWeight="SemiBold"
+                                             FontSize="15"/>
+                                <TextBlock Text="a6 → â   o7 → ơ   d9 → đ   1 → sắc   2 → huyền"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           Margin="20,4,0,0"
+                                           FontSize="13"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Quay lại"
+                                Padding="16,8"
+                                Margin="0,0,12,0"
+                                Click="PrevPage_Click"/>
+                        <Button Content="Tiếp theo"
+                                Style="{StaticResource PrimaryButton}"
+                                Width="120"
+                                Click="NextPage_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Page 3: Done -->
+            <TabItem>
+                <Grid Margin="40">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                        <TextBlock Text="Sẵn sàng!"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   Margin="0,24,0,0"
+                                   FontSize="14"
+                                   Foreground="{StaticResource TextBrush}">
+                            <Run Text="GoNhanh đang chạy trong khay hệ thống (system tray)."/>
+                            <LineBreak/>
+                            <LineBreak/>
+                            <Run Text="Nhấp chuột phải vào biểu tượng 'V' để:" FontWeight="SemiBold"/>
+                            <LineBreak/>
+                            <Run Text="• Đổi kiểu gõ (Telex/VNI)"/>
+                            <LineBreak/>
+                            <Run Text="• Bật/tắt bộ gõ"/>
+                        </TextBlock>
+
+                        <Border Background="#F3F4F6"
+                                CornerRadius="8"
+                                Padding="16"
+                                Margin="0,24,0,0">
+                            <TextBlock TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       FontSize="13"
+                                       Foreground="{StaticResource SecondaryTextBrush}">
+                                <Run Text="Mẹo: " FontWeight="SemiBold"/>
+                                <Run Text="Nhấp đúp vào biểu tượng để nhanh chóng bật/tắt bộ gõ."/>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+
+                    <Button Grid.Row="1"
+                            Content="Bắt đầu gõ tiếng Việt"
+                            Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Center"
+                            Width="200"
+                            Click="Finish_Click"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Page Indicator -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,20">
+            <Ellipse x:Name="Dot1" Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="4"/>
+            <Ellipse x:Name="Dot2" Width="8" Height="8" Fill="#E5E7EB" Margin="4"/>
+            <Ellipse x:Name="Dot3" Width="8" Height="8" Fill="#E5E7EB" Margin="4"/>
+        </StackPanel>
+    </Grid>
+</Window>
