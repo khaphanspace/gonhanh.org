@@ -13,7 +13,6 @@ class MenuBarController {
     private var isEnabled = true
     private var currentMethod: InputMode = .telex
     private var isModernTone = true
-    private var launchAtLogin = false
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -57,15 +56,6 @@ class MenuBarController {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
         isModernTone = UserDefaults.standard.object(forKey: SettingsKey.modernTone) as? Bool ?? true
-        launchAtLogin = getLaunchAtLoginStatus()
-        UserDefaults.standard.set(launchAtLogin, forKey: SettingsKey.launchAtLogin)
-    }
-
-    private func getLaunchAtLoginStatus() -> Bool {
-        if #available(macOS 13.0, *) {
-            return SMAppService.mainApp.status == .enabled
-        }
-        return false
     }
 
     private func startEngine() {
@@ -81,6 +71,7 @@ class MenuBarController {
         updateStatusButton()
         updateMenu()
         startEngine()
+        enableLaunchAtLogin()
     }
 
     // MARK: - Status Button
@@ -164,13 +155,6 @@ class MenuBarController {
         menu.addItem(classicTone)
         menu.addItem(.separator())
 
-        // Launch at Login
-        let launchItem = NSMenuItem(title: "Khởi động cùng hệ thống", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        launchItem.target = self
-        launchItem.tag = 30
-        menu.addItem(launchItem)
-        menu.addItem(.separator())
-
         // About & Help
         let about = NSMenuItem(title: "Giới thiệu \(AppMetadata.name)", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
@@ -222,7 +206,6 @@ class MenuBarController {
         menu.item(withTag: 11)?.state = currentMethod == .vni ? .on : .off
         menu.item(withTag: 20)?.state = isModernTone ? .on : .off
         menu.item(withTag: 21)?.state = isModernTone ? .off : .on
-        menu.item(withTag: 30)?.state = launchAtLogin ? .on : .off
     }
 
     // MARK: - Actions
@@ -259,20 +242,11 @@ class MenuBarController {
         updateMenu()
     }
 
-    @objc private func toggleLaunchAtLogin() {
-        launchAtLogin.toggle()
-        UserDefaults.standard.set(launchAtLogin, forKey: SettingsKey.launchAtLogin)
-        setLaunchAtLogin(launchAtLogin)
-        updateMenu()
-    }
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
+    private func enableLaunchAtLogin() {
         if #available(macOS 13.0, *) {
             do {
-                if enabled {
+                if SMAppService.mainApp.status != .enabled {
                     try SMAppService.mainApp.register()
-                } else {
-                    try SMAppService.mainApp.unregister()
                 }
             } catch {
                 debugLog("[LaunchAtLogin] Error: \(error)")
