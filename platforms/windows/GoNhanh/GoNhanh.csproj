@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Resources\Icons\app.ico</ApplicationIcon>
+
+    <!-- App Info -->
+    <AssemblyName>GoNhanh</AssemblyName>
+    <RootNamespace>GoNhanh</RootNamespace>
+    <Version>1.0.0</Version>
+    <Company>GoNhanh Contributors</Company>
+    <Product>GoNhanh - Vietnamese Input Method</Product>
+    <Description>Modern Vietnamese input method engine for Windows</Description>
+    <Copyright>Copyright (c) 2024 GoNhanh Contributors. GPL-3.0-or-later</Copyright>
+
+    <!-- Build Settings -->
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <!-- Native DLL -->
+  <ItemGroup>
+    <ContentWithTargetPath Include="Native\gonhanh_core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>gonhanh_core.dll</TargetPath>
+    </ContentWithTargetPath>
+  </ItemGroup>
+
+  <!-- Resources -->
+  <ItemGroup>
+    <Resource Include="Resources\Icons\*.ico" />
+    <Resource Include="Resources\Icons\*.png" />
+  </ItemGroup>
+
+</Project>

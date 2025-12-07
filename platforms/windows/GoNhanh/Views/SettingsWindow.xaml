@@ -1,0 +1,82 @@
+<Window x:Class="GoNhanh.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GoNhanh - Cài đặt"
+        Height="380" Width="400"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Cài đặt"
+                       FontSize="24"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource TextBrush}"/>
+            <TextBlock Text="Tùy chỉnh kiểu gõ tiếng Việt"
+                       FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Input Method -->
+        <GroupBox Grid.Row="1" Header="Kiểu gõ" Padding="12" Margin="0,0,0,16">
+            <StackPanel>
+                <RadioButton x:Name="TelexRadio"
+                             Content="Telex (aa → â, dd → đ, s/f/r/x/j → dấu)"
+                             Margin="0,4"
+                             Checked="InputMethod_Changed"/>
+                <RadioButton x:Name="VniRadio"
+                             Content="VNI (a6 → â, d9 → đ, 1-5 → dấu)"
+                             Margin="0,4"
+                             Checked="InputMethod_Changed"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Tone Style -->
+        <GroupBox Grid.Row="2" Header="Kiểu dấu" Padding="12" Margin="0,0,0,16">
+            <StackPanel>
+                <RadioButton x:Name="ModernToneRadio"
+                             Content="Kiểu mới: hòa, thủy (dấu đặt gần cuối)"
+                             Margin="0,4"
+                             Checked="ToneStyle_Changed"/>
+                <RadioButton x:Name="OldToneRadio"
+                             Content="Kiểu cũ: hoà, thuỷ (dấu đặt đầu nguyên âm)"
+                             Margin="0,4"
+                             Checked="ToneStyle_Changed"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Startup -->
+        <GroupBox Grid.Row="3" Header="Khởi động" Padding="12">
+            <CheckBox x:Name="AutoStartCheckbox"
+                      Content="Tự khởi động cùng Windows"
+                      Checked="AutoStart_Changed"
+                      Unchecked="AutoStart_Changed"/>
+        </GroupBox>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,20,0,0">
+            <Button Content="Đặt lại mặc định"
+                    Padding="16,8"
+                    Margin="0,0,12,0"
+                    Click="Reset_Click"/>
+            <Button Content="Đóng"
+                    Style="{StaticResource PrimaryButton}"
+                    Click="Close_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

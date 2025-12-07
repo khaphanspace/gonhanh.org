@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +47,65 @@ jobs:
           hdiutil create -volname GoNhanh -srcfolder "$APP" -ov -format UDZO \
             "GoNhanh.dmg"
 
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: platforms/macos/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Rust Core
+        run: |
+          cd core
+          cargo build --release --target x86_64-pc-windows-msvc
+          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
+                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
+
+      - name: Build WPF App
+        run: |
+          cd platforms/windows/GoNhanh
+          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+
+      - name: Package
+        run: |
+          cd platforms/windows
+          $V = "${{ github.ref_name }}".TrimStart('v')
+          Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: platforms/windows/*.zip
+
+  release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: platforms/macos/*.dmg
+          files: |
+            artifacts/macos-dmg/*.dmg
+            artifacts/windows-zip/*.zip
           generate_release_notes: true

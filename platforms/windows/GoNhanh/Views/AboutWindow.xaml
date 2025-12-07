@@ -1,0 +1,84 @@
+<Window x:Class="GoNhanh.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About GoNhanh"
+        Height="340" Width="380"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center">
+            <TextBlock Text="GoNhanh"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource PrimaryBrush}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock x:Name="VersionText"
+                       Text="Version 1.0.0"
+                       FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Info -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Center">
+            <TextBlock TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       FontSize="14"
+                       Foreground="{StaticResource TextBrush}">
+                <Run Text="Bộ gõ tiếng Việt hiện đại"/>
+                <LineBreak/>
+                <Run Text="Nhẹ - Nhanh - Miễn phí"/>
+            </TextBlock>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,20,0,0">
+                <TextBlock>
+                    <Hyperlink NavigateUri="https://gonhanh.org"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        Website
+                    </Hyperlink>
+                </TextBlock>
+                <TextBlock Text="  •  " Foreground="{StaticResource SecondaryTextBrush}"/>
+                <TextBlock>
+                    <Hyperlink NavigateUri="https://github.com/khaphanspace/gonhanh.org"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        GitHub
+                    </Hyperlink>
+                </TextBlock>
+            </StackPanel>
+
+            <Border Background="#F3F4F6"
+                    CornerRadius="6"
+                    Padding="12"
+                    Margin="0,20,0,0">
+                <TextBlock TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           FontSize="12"
+                           Foreground="{StaticResource SecondaryTextBrush}">
+                    <Run Text="Made with ❤️ by GoNhanh Contributors"/>
+                    <LineBreak/>
+                    <Run Text="Licensed under GPL-3.0"/>
+                </TextBlock>
+            </Border>
+        </StackPanel>
+
+        <!-- Close Button -->
+        <Button Grid.Row="2"
+                Content="Đóng"
+                Style="{StaticResource PrimaryButton}"
+                HorizontalAlignment="Center"
+                Width="100"
+                Click="Close_Click"/>
+    </Grid>
+</Window>
