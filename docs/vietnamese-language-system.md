@@ -17,6 +17,7 @@ Tài liệu toàn diện về hệ thống chữ viết tiếng Việt (chữ Qu
 9. [Phương pháp gõ Telex](#9-phương-pháp-gõ-telex)
 10. [Bảng mã Unicode](#10-bảng-mã-unicode)
 11. [Tài liệu tham khảo](#11-tài-liệu-tham-khảo)
+12. [Thuật toán Xác nhận Âm tiết (Validation)](#12-thuật-toán-xác-nhận-âm-tiết-tiếng-việt-validation)
 
 ---
 
@@ -760,7 +761,354 @@ Telex cho phép gõ dấu phụ và dấu thanh theo thứ tự bất kỳ:
 
 ---
 
+---
+
+## 12. Thuật toán Xác nhận Âm tiết Tiếng Việt (Validation)
+
+> **Mục đích**: Xác định buffer hiện tại có phải là âm tiết tiếng Việt hợp lệ hay không trước khi áp dụng transformation.
+
+### 12.1 Tại sao cần Validation?
+
+```
+VÍ DỤ:
+│
+├── "Duoc" + j → "Được" ✓
+│   └── "Duoc" là âm tiết hợp lệ → cho phép replace
+│
+├── "Clau" + s → "Claus" (giữ nguyên)
+│   └── "Cl" không phải phụ âm đầu hợp lệ → không replace
+│
+├── "HTTP" + s → "HTTPs" (giữ nguyên)
+│   └── Không có nguyên âm → không phải tiếng Việt
+│
+└── "John" + s → "Johns" (giữ nguyên)
+    └── "J" không phải phụ âm đầu tiếng Việt
+```
+
+### 12.2 Cấu trúc Âm tiết Tiếng Việt (Review)
+
+```
+Âm tiết = (C₁)(G)V(C₂)
+
+Trong đó:
+├── C₁ = Phụ âm đầu (Initial consonant) - TÙY CHỌN
+├── G  = Âm đệm (Glide/Medial) - TÙY CHỌN
+├── V  = Nguyên âm chính (Main vowel) - BẮT BUỘC
+└── C₂ = Âm cuối (Final) - TÙY CHỌN
+```
+
+### 12.3 Danh sách Phụ âm đầu Hợp lệ (C₁)
+
+#### 12.3.1 Phụ âm đơn (17)
+
+```
+VALID_INITIAL_SINGLE = {
+    'b', 'c', 'd', 'đ', 'g', 'h', 'k', 'l', 'm',
+    'n', 'p', 'q', 'r', 's', 't', 'v', 'x'
+}
+```
+
+#### 12.3.2 Phụ âm đôi (11)
+
+```
+VALID_INITIAL_DOUBLE = {
+    'ch', 'gh', 'gi', 'kh', 'ng', 'nh', 'ph', 'qu', 'th', 'tr'
+}
+
+Lưu ý đặc biệt:
+├── 'gh' chỉ đứng trước: e, ê, i (ghe, ghế, ghi)
+├── 'gi' = phụ âm, không phải g + i riêng
+├── 'qu' luôn đi cùng, 'u' không phải âm đệm
+└── 'ng' vs 'ngh': 'ngh' trước e, ê, i
+```
+
+#### 12.3.3 Phụ âm ba (1)
+
+```
+VALID_INITIAL_TRIPLE = {
+    'ngh'  // Chỉ trước e, ê, i (nghe, nghề, nghĩ)
+}
+```
+
+#### 12.3.4 KHÔNG hợp lệ (Ví dụ)
+
+```
+INVALID_INITIALS = {
+    'cl', 'bl', 'fl', 'gl', 'pl', 'sl',  // *l combinations
+    'br', 'cr', 'dr', 'fr', 'gr', 'pr',  // *r combinations
+    'sc', 'sk', 'sm', 'sn', 'sp', 'st',  // s* combinations
+    'tw', 'dw', 'sw',                     // *w combinations
+    'j', 'f', 'w', 'z'                    // Không có trong TV
+}
+```
+
+### 12.4 Danh sách Âm đệm Hợp lệ (G)
+
+```
+VALID_MEDIALS = {
+    'o': trước a, ă, e (hoa, hoặc, hoe)
+    'u': trước a, â, ê, y, yê (qua, quân, quê, quy, khuyên)
+}
+
+QUY TẮC:
+├── 'o' làm âm đệm: chỉ trước a, ă, e
+├── 'u' làm âm đệm:
+│   ├── Sau 'q': qua, quê, quy
+│   └── Sau các phụ âm khác + trước â, ê, y: huân, xuê, thúy
+│
+└── KHÔNG có âm đệm sau: b, đ, g, l, m, n, p, r, s, v, x
+    (Ví dụ: "bua" - u là nguyên âm chính, không phải âm đệm)
+```
+
+### 12.5 Danh sách Nguyên âm Hợp lệ (V)
+
+#### 12.5.1 Nguyên âm đơn (12)
+
+```
+VALID_VOWELS_SINGLE = {
+    'a', 'ă', 'â', 'e', 'ê', 'i', 'o', 'ô', 'ơ', 'u', 'ư', 'y'
+}
+```
+
+#### 12.5.2 Nguyên âm đôi (25+)
+
+```
+VALID_VOWELS_DOUBLE = {
+    // Âm đệm + Âm chính
+    'oa', 'oă', 'oe', 'ua', 'uâ', 'uê', 'uy',
+
+    // Âm chính + Bán nguyên âm
+    'ai', 'ay', 'ao', 'au', 'âu', 'ây',
+    'eo', 'êu',
+    'ia', 'iê', 'iu',
+    'oi', 'ôi', 'ơi',
+    'ui', 'ưi', 'uo', 'uô', 'ươ', 'ưa'
+}
+```
+
+#### 12.5.3 Nguyên âm ba (10)
+
+```
+VALID_VOWELS_TRIPLE = {
+    'iêu', 'yêu', 'ươi', 'ươu', 'uôi',
+    'oai', 'oay', 'oeo', 'uây', 'uyê'
+}
+```
+
+### 12.6 Danh sách Âm cuối Hợp lệ (C₂)
+
+#### 12.6.1 Phụ âm cuối (8)
+
+```
+VALID_FINALS_CONSONANT = {
+    'c', 'ch', 'm', 'n', 'ng', 'nh', 'p', 't'
+}
+```
+
+#### 12.6.2 Bán nguyên âm cuối (4)
+
+```
+VALID_FINALS_SEMIVOWEL = {
+    'i', 'y',   // sau a, â, ă, e, ê, o, ô, ơ, u, ư
+    'o', 'u'    // sau a, â, ă, e, ê, i
+}
+```
+
+#### 12.6.3 Quy tắc thanh điệu với âm cuối
+
+```
+ÂM CUỐI TẮC (p, t, c, ch) → CHỈ thanh SẮC hoặc NẶNG
+│
+├── ✓ cấp, cập, cát, cạt, các, cạc, ách, ạch
+└── ✗ cảp, cãp, càp, cảt, cãt, cát
+```
+
+### 12.7 Thuật toán Validation
+
+```
+is_valid_vietnamese_syllable(buffer)
+│
+├── STEP 1: Tách thành phần
+│   │
+│   │   input = normalize(buffer)  // lowercase, remove existing marks
+│   │
+│   │   parse_syllable(input) → {
+│   │       initial: Option<String>,   // C₁
+│   │       medial: Option<char>,      // G
+│   │       vowel: String,             // V (required)
+│   │       final: Option<String>      // C₂
+│   │   }
+│   │
+│   └── Nếu không parse được → return false
+│
+├── STEP 2: Validate Phụ âm đầu (C₁)
+│   │
+│   ├── Nếu có C₁:
+│   │   ├── Kiểm tra C₁ ∈ VALID_INITIALS
+│   │   ├── Kiểm tra quy tắc đặc biệt:
+│   │   │   ├── 'gh', 'ngh' → phải trước e, ê, i
+│   │   │   └── 'k' → phải trước e, ê, i, y
+│   │   └── Nếu vi phạm → return false
+│   │
+│   └── Nếu không có C₁ → OK (âm tiết mở đầu bằng nguyên âm)
+│
+├── STEP 3: Validate Nguyên âm (V)
+│   │
+│   ├── V phải tồn tại (bắt buộc)
+│   ├── V ∈ VALID_VOWELS
+│   └── Nếu vi phạm → return false
+│
+├── STEP 4: Validate Âm đệm (G)
+│   │
+│   ├── Nếu có G:
+│   │   ├── G ∈ {'o', 'u'}
+│   │   ├── Kiểm tra kết hợp G + V hợp lệ
+│   │   └── Nếu vi phạm → return false
+│   │
+│   └── Nếu không có G → OK
+│
+├── STEP 5: Validate Âm cuối (C₂)
+│   │
+│   ├── Nếu có C₂:
+│   │   ├── C₂ ∈ VALID_FINALS
+│   │   ├── Kiểm tra kết hợp V + C₂ hợp lệ
+│   │   └── Nếu vi phạm → return false
+│   │
+│   └── Nếu không có C₂ → OK (âm tiết mở)
+│
+└── STEP 6: return true (hợp lệ)
+```
+
+### 12.8 Ví dụ Validation
+
+```
+VALIDATION EXAMPLES
+│
+├── "duoc" (được)
+│   ├── Parse: C₁="d", G=none, V="uo", C₂="c"
+│   ├── C₁="d" ∈ VALID_INITIALS ✓
+│   ├── V="uo" ∈ VALID_VOWELS_DOUBLE ✓
+│   ├── C₂="c" ∈ VALID_FINALS ✓
+│   └── Result: VALID ✓
+│
+├── "clau"
+│   ├── Parse attempt: C₁="cl"?
+│   ├── C₁="cl" ∉ VALID_INITIALS ✗
+│   └── Result: INVALID ✗
+│
+├── "nguoi" (người)
+│   ├── Parse: C₁="ng", G=none, V="uoi", C₂=none
+│   ├── C₁="ng" ∈ VALID_INITIALS ✓
+│   ├── V="uoi"? → Cần kiểm tra: u+o+i
+│   │   └── "ươi" là nguyên âm ba ∈ VALID_VOWELS_TRIPLE ✓
+│   └── Result: VALID ✓
+│
+├── "john"
+│   ├── Parse attempt: C₁="j"?
+│   ├── C₁="j" ∉ VALID_INITIALS ✗
+│   └── Result: INVALID ✗
+│
+├── "http"
+│   ├── Parse attempt: No vowel found
+│   └── Result: INVALID ✗
+│
+├── "truong" (trường)
+│   ├── Parse: C₁="tr", G=none, V="uo", C₂="ng"
+│   ├── C₁="tr" ∈ VALID_INITIALS ✓
+│   ├── V="uo" ∈ VALID_VOWELS ✓
+│   │   └── Sẽ thành "ươ" khi thêm dấu móc
+│   ├── C₂="ng" ∈ VALID_FINALS ✓
+│   └── Result: VALID ✓
+│
+└── "qua" (quá)
+    ├── Parse: C₁="qu", G=none, V="a", C₂=none
+    ├── C₁="qu" ∈ VALID_INITIALS ✓
+    │   └── Lưu ý: "qu" là một đơn vị, 'u' không phải âm đệm
+    ├── V="a" ∈ VALID_VOWELS ✓
+    └── Result: VALID ✓
+```
+
+### 12.9 Bảng Kết hợp Hợp lệ (Quick Reference)
+
+#### 12.9.1 Phụ âm đầu + Âm đệm
+
+```
+┌─────────┬─────────────────────────────────────┐
+│ Âm đệm  │ Phụ âm đầu có thể đứng trước        │
+├─────────┼─────────────────────────────────────┤
+│ o       │ h, kh, l, ng, ngh, t, th, x, ch     │
+│         │ (hoa, khoa, loa, ngoa, toa, xoa)    │
+├─────────┼─────────────────────────────────────┤
+│ u       │ h, kh, l, ng, ngh, t, th, x, ch,    │
+│         │ q(đặc biệt), s, d, n                │
+│         │ (qua, thua, khuy, nguy)             │
+└─────────┴─────────────────────────────────────┘
+```
+
+#### 12.9.2 Nguyên âm + Âm cuối
+
+```
+┌───────────┬────────────────────────────────────┐
+│ Âm cuối   │ Nguyên âm có thể đứng trước        │
+├───────────┼────────────────────────────────────┤
+│ -c        │ a, ă, â, e, ê, i, o, ô, u, ư       │
+│ -ch       │ a, ê, i                            │
+│ -m        │ a, ă, â, e, ê, i, o, ô, ơ, u, ư    │
+│ -n        │ a, ă, â, e, ê, i, o, ô, ơ, u, ư, y │
+│ -ng       │ a, ă, â, e, ô, o, ơ, u, ư          │
+│ -nh       │ a, ê, i, y                         │
+│ -p        │ a, ă, â, e, ê, i, o, ô, ơ, u, ư    │
+│ -t        │ a, ă, â, e, ê, i, o, ô, ơ, u, ư, y │
+├───────────┼────────────────────────────────────┤
+│ -i/-y     │ a, â, ă, e, ê, o, ô, ơ, u, ư       │
+│ -o/-u     │ a, â, ă, e, ê, i                   │
+└───────────┴────────────────────────────────────┘
+```
+
+### 12.10 Implementation Notes
+
+```rust
+// Suggested data structures for engine
+
+/// Valid initial consonants (phụ âm đầu)
+const INITIALS_SINGLE: &[&str] = &[
+    "b", "c", "d", "g", "h", "k", "l", "m",
+    "n", "p", "q", "r", "s", "t", "v", "x"
+];
+
+const INITIALS_DOUBLE: &[&str] = &[
+    "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr"
+];
+
+const INITIALS_TRIPLE: &[&str] = &["ngh"];
+
+/// Valid finals (âm cuối)
+const FINALS: &[&str] = &[
+    "c", "ch", "m", "n", "ng", "nh", "p", "t",
+    "i", "y", "o", "u"
+];
+
+/// Check if buffer is valid Vietnamese syllable
+fn is_valid_vietnamese(buffer: &[Char]) -> bool {
+    // 1. Must have at least one vowel
+    // 2. Initial consonant (if any) must be valid
+    // 3. Vowel combination must be valid
+    // 4. Final (if any) must be valid
+    // 5. Check special rules (gh/ngh before e,ê,i, etc.)
+    todo!()
+}
+```
+
+---
+
 ## Changelog
+
+- **2025-12-08**: Bổ sung Thuật toán Xác nhận Âm tiết (Section 12)
+  - Thêm validation algorithm để xác định từ tiếng Việt hợp lệ
+  - Danh sách đầy đủ phụ âm đầu, nguyên âm, âm cuối hợp lệ
+  - Ví dụ validation: "Duoc" vs "Clau" vs "HTTP"
+  - Bảng kết hợp hợp lệ (phụ âm + âm đệm, nguyên âm + âm cuối)
+  - Implementation notes cho engine
 
 - **2025-12-07**: Bổ sung quy tắc đặt dấu thanh
   - Thêm mục 7.4: Hai trường phái đặt dấu (kiểu cũ vs kiểu mới)
