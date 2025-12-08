@@ -1,4 +1,7 @@
-//! Input methods
+//! Input Methods
+//!
+//! Defines key mappings for Vietnamese input methods.
+//! Engine handles all pattern matching based on buffer scan.
 
 pub mod telex;
 pub mod vni;
@@ -6,41 +9,48 @@ pub mod vni;
 pub use telex::Telex;
 pub use vni::Vni;
 
-/// Input method trait
-pub trait Method {
-    /// Check if key is mark key (s/f/r/x/j or 1-5)
-    /// Returns mark: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
-    fn is_mark(&self, key: u16) -> Option<u8>;
+use crate::data::chars::tone;
 
-    /// Check if key is tone key (immediate mode - checks prev key only)
-    /// Returns: 1=hat(^) for a/e/o, 2=breve(˘) for a/o/u
-    fn is_tone(&self, key: u16, prev: Option<u16>) -> Option<u8>;
+/// Tone modifier type
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ToneType {
+    /// Circumflex: â, ê, ô
+    Circumflex,
+    /// Horn: ơ, ư (and ă for Telex)
+    Horn,
+    /// Breve: ă (VNI only)
+    Breve,
+}
 
-    /// Check if key is tone key for any vowel in list (delayed mode - VNI)
-    /// Returns: (tone, vowel_key) if found
-    fn is_tone_for(&self, key: u16, vowels: &[u16]) -> Option<(u8, u16)> {
-        // Default: use immediate mode, check last vowel
-        if let Some(&last) = vowels.last() {
-            if let Some(tone) = self.is_tone(key, Some(last)) {
-                return Some((tone, last));
-            }
+impl ToneType {
+    pub fn value(&self) -> u8 {
+        match self {
+            ToneType::Circumflex => tone::CIRCUMFLEX,
+            ToneType::Horn => tone::HORN,
+            ToneType::Breve => tone::HORN, // ă uses same internal value
         }
-        None
     }
+}
 
-    /// Check if key triggers đ (immediate mode - checks prev key only)
-    fn is_d(&self, key: u16, prev: Option<u16>) -> bool;
+/// Input method trait - defines key mappings only
+pub trait Method {
+    /// Check if key is a mark modifier
+    /// Returns: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
+    fn mark(&self, key: u16) -> Option<u8>;
 
-    /// Check if key triggers đ for any 'd' in buffer (delayed mode - VNI)
-    /// Returns true if key=9 and buffer contains 'd'
-    fn is_d_for(&self, key: u16, buffer_keys: &[u16]) -> bool {
-        // Default: no delayed đ support
-        let _ = (key, buffer_keys);
-        false
-    }
+    /// Check if key is a tone modifier
+    /// Returns tone type if this key can modify vowels
+    fn tone(&self, key: u16) -> Option<ToneType>;
 
-    /// Check if key removes mark (z or 0)
-    fn is_remove(&self, key: u16) -> bool;
+    /// Get valid targets for tone key
+    /// Returns list of vowel keys this tone can apply to
+    fn tone_targets(&self, key: u16) -> &'static [u16];
+
+    /// Check if key is stroke modifier (d → đ)
+    fn stroke(&self, key: u16) -> bool;
+
+    /// Check if key removes diacritics
+    fn remove(&self, key: u16) -> bool;
 }
 
 /// Get method by id

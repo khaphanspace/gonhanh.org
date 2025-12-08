@@ -1,30 +1,32 @@
 //! Vietnamese IME Engine
 //!
 //! Core engine for Vietnamese input method processing.
-//! Supports Telex and VNI input methods.
+//! Uses pattern-based transformation with validation-first approach.
 //!
 //! ## Architecture
 //!
-//! The engine uses a phonology-based approach:
-//! 1. Buffer stores raw key presses with modifiers
-//! 2. Vowel classification determines phonological roles
-//! 3. Algorithmic tone placement based on Vietnamese rules
-//!
-//! ## References
-//! - /docs/vietnamese-language-system.md (project root)
-//! - https://vi.wikipedia.org/wiki/Quy_tắc_đặt_dấu_thanh_của_chữ_Quốc_ngữ
+//! 1. **Validation First**: Check if buffer is valid Vietnamese before transforming
+//! 2. **Pattern-Based**: Scan entire buffer for patterns instead of case-by-case
+//! 3. **Shortcut Support**: User-defined abbreviations with priority
+//! 4. **Longest-Match-First**: For diacritic placement
 
 pub mod buffer;
+pub mod shortcut;
+pub mod syllable;
+pub mod transform;
+pub mod validation;
 
 use crate::data::{
     chars::{self, mark, tone},
     keys,
     vowel::{Modifier, Phonology, Vowel},
 };
-use crate::input;
+use crate::input::{self, ToneType};
 use buffer::{Buffer, Char, MAX};
+use shortcut::ShortcutTable;
+use validation::is_valid;
 
-/// Convert key code to character (letters and numbers)
+/// Convert key code to character
 fn key_to_char(key: u16, caps: bool) -> Option<char> {
     let ch = match key {
         keys::A => 'a',
@@ -72,15 +74,15 @@ fn key_to_char(key: u16, caps: bool) -> Option<char> {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Action {
-    None = 0,    // Pass through
-    Send = 1,    // Delete + send new chars
-    Restore = 2, // Invalid, restore original
+    None = 0,
+    Send = 1,
+    Restore = 2,
 }
 
-/// Result for FFI - fields ordered for alignment
+/// Result for FFI
 #[repr(C)]
 pub struct Result {
-    pub chars: [u32; MAX], // Unicode output array
+    pub chars: [u32; MAX],
     pub action: u8,
     pub backspace: u8,
     pub count: u8,
@@ -116,8 +118,9 @@ impl Result {
 /// Transform type for revert tracking
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Transform {
-    Mark(u16, u8),      // (key, mark_value)
-    Tone(u16, u8, u16), // (key, tone_value, target_vowel_key)
+    Mark(u16, u8),
+    Tone(u16, u8),
+    Stroke(u16),
 }
 
 /// Main Vietnamese IME engine
@@ -127,6 +130,7 @@ pub struct Engine {
     enabled: bool,
     modern: bool,
     last_transform: Option<Transform>,
+    shortcuts: ShortcutTable,
 }
 
 impl Default for Engine {
@@ -143,6 +147,7 @@ impl Engine {
             enabled: true,
             modern: true,
             last_transform: None,
+            shortcuts: ShortcutTable::new(),
         }
     }
 
@@ -159,6 +164,10 @@ impl Engine {
 
     pub fn set_modern(&mut self, modern: bool) {
         self.modern = modern;
+    }
+
+    pub fn shortcuts_mut(&mut self) -> &mut ShortcutTable {
+        &mut self.shortcuts
     }
 
     /// Handle key event - main entry point
@@ -181,127 +190,47 @@ impl Engine {
         self.process(key, caps)
     }
 
+    /// Main processing pipeline - pattern-based
     fn process(&mut self, key: u16, caps: bool) -> Result {
         let m = input::get(self.method);
 
-        // Try each handler in order
-        if let Some(r) = self.try_handle_d(key, m.as_ref()) {
-            return r;
+        // Check modifiers by scanning buffer for patterns
+
+        // 1. Stroke modifier (d → đ)
+        if m.stroke(key) {
+            if let Some(result) = self.try_stroke(key) {
+                return result;
+            }
         }
 
-        if let Some(r) = self.try_handle_tone(key, caps, m.as_ref()) {
-            return r;
+        // 2. Tone modifier (circumflex, horn, breve)
+        if let Some(tone_type) = m.tone(key) {
+            let targets = m.tone_targets(key);
+            if let Some(result) = self.try_tone(key, caps, tone_type, targets) {
+                return result;
+            }
         }
 
-        if let Some(r) = self.try_handle_mark(key, caps, m.as_ref()) {
-            return r;
+        // 3. Mark modifier
+        if let Some(mark_val) = m.mark(key) {
+            if let Some(result) = self.try_mark(key, caps, mark_val) {
+                return result;
+            }
         }
 
-        if m.is_remove(key) {
+        // 4. Remove modifier
+        if m.remove(key) {
             self.last_transform = None;
             return self.handle_remove();
         }
 
+        // Not a modifier - normal letter
         self.handle_normal_letter(key, caps)
     }
 
-    /// Try to handle đ transformation (dd/d9)
-    fn try_handle_d(&mut self, key: u16, m: &dyn input::Method) -> Option<Result> {
-        let prev_key = self.buf.last().map(|c| c.key);
-
-        // Immediate mode: dd or d9
-        if m.is_d(key, prev_key) {
-            self.last_transform = None;
-            return Some(self.handle_d());
-        }
-
-        // Delayed mode: VNI dung9 -> đung
-        let buffer_keys: Vec<u16> = self
-            .buf
-            .iter()
-            .filter(|c| !c.stroke)
-            .map(|c| c.key)
-            .collect();
-
-        if m.is_d_for(key, &buffer_keys) {
-            self.last_transform = None;
-            return Some(self.handle_delayed_d());
-        }
-
-        None
-    }
-
-    /// Try to handle tone modifiers (aa, aw, a6, a7, etc.)
-    fn try_handle_tone(&mut self, key: u16, caps: bool, m: &dyn input::Method) -> Option<Result> {
-        // Collect vowels without tone for new application
-        let vowel_keys: Vec<u16> = self
-            .buf
-            .iter()
-            .filter(|c| keys::is_vowel(c.key) && c.tone == tone::NONE)
-            .map(|c| c.key)
-            .collect();
-
-        // Try to apply tone to new vowel
-        if let Some((t, target_key)) = m.is_tone_for(key, &vowel_keys) {
-            return Some(self.handle_tone(key, t, target_key));
-        }
-
-        // Check for double-key revert
-        if let Some(Transform::Tone(last_key, _, last_target)) = self.last_transform {
-            if last_key == key {
-                let all_vowel_keys: Vec<u16> = self
-                    .buf
-                    .iter()
-                    .filter(|c| keys::is_vowel(c.key))
-                    .map(|c| c.key)
-                    .collect();
-                if let Some((_, target_key)) = m.is_tone_for(key, &all_vowel_keys) {
-                    if target_key == last_target {
-                        return Some(self.revert_tone(key, caps));
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
-    /// Try to handle mark modifiers (s/f/r/x/j or 1-5)
-    fn try_handle_mark(&mut self, key: u16, caps: bool, m: &dyn input::Method) -> Option<Result> {
-        if let Some(mark_value) = m.is_mark(key) {
-            // Check for double-key revert
-            if let Some(Transform::Mark(last_key, _)) = self.last_transform {
-                if last_key == key {
-                    return Some(self.revert_mark(key, caps));
-                }
-            }
-            return Some(self.handle_mark(key, mark_value));
-        }
-        None
-    }
-
-    /// Handle normal letter input
-    fn handle_normal_letter(&mut self, key: u16, caps: bool) -> Result {
-        self.last_transform = None;
-        if keys::is_letter(key) {
-            self.buf.push(Char::new(key, caps));
-        } else {
-            self.buf.clear();
-        }
-        Result::none()
-    }
-
-    /// Handle đ transformation (dd/d9) - immediate mode
-    fn handle_d(&mut self) -> Result {
-        let caps = self.buf.last().map(|c| c.caps).unwrap_or(false);
-        self.buf.pop();
-        Result::send(1, &[chars::get_d(caps)])
-    }
-
-    /// Handle delayed đ transformation (VNI: dung9 -> đung)
-    /// Find 'd' in buffer, convert to 'đ', rebuild from that position
-    fn handle_delayed_d(&mut self) -> Result {
-        // Find position of unconverted 'd' in buffer
+    /// Try to apply stroke transformation by scanning buffer
+    fn try_stroke(&mut self, key: u16) -> Option<Result> {
+        // Scan buffer for un-stroked 'd'
         let d_pos = self
             .buf
             .iter()
@@ -310,104 +239,152 @@ impl Engine {
             .map(|(i, _)| i);
 
         if let Some(pos) = d_pos {
-            // Mark 'd' as converted to 'đ'
+            // Check revert: if last transform was stroke on same key at same position
+            if let Some(Transform::Stroke(last_key)) = self.last_transform {
+                if last_key == key {
+                    return Some(self.revert_stroke(key, pos));
+                }
+            }
+
+            // Mark as stroked
             if let Some(c) = self.buf.get_mut(pos) {
                 c.stroke = true;
             }
 
-            // Rebuild from 'd' position
-            self.rebuild_from(pos)
-        } else {
-            Result::none()
+            self.last_transform = Some(Transform::Stroke(key));
+            return Some(self.rebuild_from(pos));
         }
+
+        None
     }
 
-    /// Handle tone modifier (^, ơ, ư, ă)
-    /// For uo compound: applies horn to both u and o
-    /// Otherwise: applies to specific target vowel only
-    fn handle_tone(&mut self, key: u16, tone: u8, target_key: u16) -> Result {
-        // Find all vowels eligible for this tone modifier
-        let eligible_vowels = self.find_eligible_vowels_for_tone(key, tone, target_key);
-
-        if eligible_vowels.is_empty() {
-            return Result::none();
+    /// Try to apply tone transformation by scanning buffer for targets
+    fn try_tone(&mut self, key: u16, caps: bool, tone_type: ToneType, targets: &[u16]) -> Option<Result> {
+        if self.buf.is_empty() {
+            return None;
         }
 
-        // Apply tone to all eligible vowels
-        let mut earliest_pos = usize::MAX;
-        for pos in &eligible_vowels {
-            if let Some(c) = self.buf.get_mut(*pos) {
-                c.tone = tone;
-                earliest_pos = earliest_pos.min(*pos);
+        // Check revert first
+        if let Some(Transform::Tone(last_key, _)) = self.last_transform {
+            if last_key == key {
+                return Some(self.revert_tone(key, caps));
             }
         }
 
-        self.last_transform = Some(Transform::Tone(key, tone, target_key));
-
-        // After adding diacritic, reposition mark if needed
-        let mark_moved_from = self.reposition_mark_if_needed();
-
-        // Rebuild from earliest changed position
-        let mut rebuild_pos = earliest_pos;
-        if let Some(old_mark_pos) = mark_moved_from {
-            rebuild_pos = rebuild_pos.min(old_mark_pos);
+        // Validate buffer
+        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        if !is_valid(&buffer_keys) {
+            return None;
         }
-        self.rebuild_from(rebuild_pos)
-    }
 
-    /// Find all vowels that should receive the tone modifier
-    /// Special case: uo compound gets horn on BOTH vowels when typing '7' or 'w'
-    /// Otherwise: apply to specific target vowel only
-    fn find_eligible_vowels_for_tone(&self, key: u16, tone: u8, target_key: u16) -> Vec<usize> {
-        let mut positions = Vec::new();
+        let tone_val = tone_type.value();
 
-        // Special case: uo compound with horn modifier
-        // When typing '7' (VNI) or 'w' (Telex) on uo, apply horn to both u and o
-        if tone == 2 && (key == keys::N7 || key == keys::W) {
-            let target_is_u_or_o = target_key == keys::U || target_key == keys::O;
-            if target_is_u_or_o && self.has_uo_compound() {
-                // Apply horn to all u and o in the compound
-                for (i, c) in self.buf.iter().enumerate() {
-                    if (c.key == keys::U || c.key == keys::O) && c.tone == 0 {
-                        positions.push(i);
-                    }
+        // Scan buffer for eligible target vowels (without existing tone)
+        let mut target_positions = Vec::new();
+
+        // Special case: uo compound for horn
+        if tone_type == ToneType::Horn && self.has_uo_compound() {
+            for (i, c) in self.buf.iter().enumerate() {
+                if (c.key == keys::U || c.key == keys::O) && c.tone == tone::NONE {
+                    target_positions.push(i);
                 }
-                return positions;
             }
         }
 
-        // Default: apply to the specific target vowel only
-        if let Some(pos) = self.buf.find_vowel_by_key(target_key) {
-            positions.push(pos);
+        // Normal case: find last matching target
+        if target_positions.is_empty() {
+            for (i, c) in self.buf.iter().enumerate().rev() {
+                if targets.contains(&c.key) && c.tone == tone::NONE {
+                    target_positions.push(i);
+                    break;
+                }
+            }
         }
 
-        positions
+        if target_positions.is_empty() {
+            return None;
+        }
+
+        // Apply tone
+        let mut earliest_pos = usize::MAX;
+        for &pos in &target_positions {
+            if let Some(c) = self.buf.get_mut(pos) {
+                c.tone = tone_val;
+                earliest_pos = earliest_pos.min(pos);
+            }
+        }
+
+        self.last_transform = Some(Transform::Tone(key, tone_val));
+
+        // Reposition mark if needed
+        let mark_moved_from = self.reposition_mark_if_needed();
+        let mut rebuild_pos = earliest_pos;
+        if let Some(old_pos) = mark_moved_from {
+            rebuild_pos = rebuild_pos.min(old_pos);
+        }
+
+        Some(self.rebuild_from(rebuild_pos))
     }
 
-    /// Check if buffer contains adjacent u and o (uo compound pattern)
+    /// Try to apply mark transformation
+    fn try_mark(&mut self, key: u16, caps: bool, mark_val: u8) -> Option<Result> {
+        if self.buf.is_empty() {
+            return None;
+        }
+
+        // Check revert first
+        if let Some(Transform::Mark(last_key, _)) = self.last_transform {
+            if last_key == key {
+                return Some(self.revert_mark(key, caps));
+            }
+        }
+
+        // Validate buffer
+        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        if !is_valid(&buffer_keys) {
+            return None;
+        }
+
+        let vowels = self.collect_vowels();
+        if vowels.is_empty() {
+            return None;
+        }
+
+        // Find mark position using phonology rules
+        let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+        let has_final = self.has_final_consonant(last_vowel_pos);
+        let has_qu = self.has_qu_initial();
+        let pos = Phonology::find_tone_position(&vowels, has_final, self.modern, has_qu);
+
+        if let Some(c) = self.buf.get_mut(pos) {
+            c.mark = mark_val;
+            self.last_transform = Some(Transform::Mark(key, mark_val));
+            return Some(self.rebuild_from(pos));
+        }
+
+        None
+    }
+
+    /// Check for uo compound in buffer
     fn has_uo_compound(&self) -> bool {
         let mut prev_key: Option<u16> = None;
         for c in self.buf.iter() {
             if keys::is_vowel(c.key) {
                 if let Some(pk) = prev_key {
-                    // Check for uo or ou adjacency
                     if (pk == keys::U && c.key == keys::O) || (pk == keys::O && c.key == keys::U) {
                         return true;
                     }
                 }
                 prev_key = Some(c.key);
             } else {
-                prev_key = None; // Reset on consonant
+                prev_key = None;
             }
         }
         false
     }
 
-    /// Reposition mark to correct vowel based on current phonology
-    /// Called after adding/changing diacritic (tone modifier)
-    /// Returns: Some(old_pos) if mark was moved, None otherwise
+    /// Reposition mark after tone change
     fn reposition_mark_if_needed(&mut self) -> Option<usize> {
-        // Find current mark position and value
         let mark_info: Option<(usize, u8)> = self
             .buf
             .iter()
@@ -416,7 +393,6 @@ impl Engine {
             .map(|(i, c)| (i, c.mark));
 
         if let Some((old_pos, mark_value)) = mark_info {
-            // Recalculate correct position based on updated vowels
             let vowels = self.collect_vowels();
             if vowels.is_empty() {
                 return None;
@@ -427,13 +403,10 @@ impl Engine {
             let has_qu = self.has_qu_initial();
             let new_pos = Phonology::find_tone_position(&vowels, has_final, self.modern, has_qu);
 
-            // Move mark if position changed
             if new_pos != old_pos {
-                // Clear old mark
                 if let Some(c) = self.buf.get_mut(old_pos) {
                     c.mark = 0;
                 }
-                // Set new mark
                 if let Some(c) = self.buf.get_mut(new_pos) {
                     c.mark = mark_value;
                 }
@@ -447,13 +420,11 @@ impl Engine {
     fn revert_tone(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
 
-        // Find and remove tone from any vowel
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
                     let mut result = self.rebuild_from(pos);
-                    // Append the revert key character
                     if let Some(ch) = key_to_char(key, caps) {
                         if result.count < MAX as u8 {
                             result.chars[result.count as usize] = ch as u32;
@@ -464,28 +435,6 @@ impl Engine {
                 }
             }
         }
-        Result::none()
-    }
-
-    /// Handle mark (dấu thanh: sắc, huyền, hỏi, ngã, nặng)
-    fn handle_mark(&mut self, key: u16, mark: u8) -> Result {
-        let vowels = self.collect_vowels();
-        if vowels.is_empty() {
-            return Result::none();
-        }
-
-        // Use phonology-based algorithm to find mark position
-        let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
-        let has_final = self.has_final_consonant(last_vowel_pos);
-        let has_qu = self.has_qu_initial();
-        let pos = Phonology::find_tone_position(&vowels, has_final, self.modern, has_qu);
-
-        if let Some(c) = self.buf.get_mut(pos) {
-            c.mark = mark;
-            self.last_transform = Some(Transform::Mark(key, mark));
-            return self.rebuild_from(pos);
-        }
-
         Result::none()
     }
 
@@ -493,13 +442,11 @@ impl Engine {
     fn revert_mark(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
 
-        // Find and remove mark from any vowel
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.mark > mark::NONE {
                     c.mark = mark::NONE;
                     let mut result = self.rebuild_from(pos);
-                    // Append the revert key character
                     if let Some(ch) = key_to_char(key, caps) {
                         if result.count < MAX as u8 {
                             result.chars[result.count as usize] = ch as u32;
@@ -513,9 +460,23 @@ impl Engine {
         Result::none()
     }
 
-    /// Handle remove mark/tone (z or 0)
+    /// Revert stroke transformation at specific position
+    fn revert_stroke(&mut self, key: u16, pos: usize) -> Result {
+        self.last_transform = None;
+
+        if let Some(c) = self.buf.get_mut(pos) {
+            if c.key == keys::D && !c.stroke {
+                // Un-stroked d found at pos - this means we need to add another d
+                let caps = c.caps;
+                self.buf.push(Char::new(key, caps));
+                return self.rebuild_from(pos);
+            }
+        }
+        Result::none()
+    }
+
+    /// Handle remove modifier
     fn handle_remove(&mut self) -> Result {
-        // Remove mark first, then tone
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.mark > mark::NONE {
@@ -531,7 +492,18 @@ impl Engine {
         Result::none()
     }
 
-    /// Collect vowels from buffer with phonological information
+    /// Handle normal letter input
+    fn handle_normal_letter(&mut self, key: u16, caps: bool) -> Result {
+        self.last_transform = None;
+        if keys::is_letter(key) {
+            self.buf.push(Char::new(key, caps));
+        } else {
+            self.buf.clear();
+        }
+        Result::none()
+    }
+
+    /// Collect vowels from buffer
     fn collect_vowels(&self) -> Vec<Vowel> {
         self.buf
             .iter()
@@ -539,8 +511,8 @@ impl Engine {
             .filter(|(_, c)| keys::is_vowel(c.key))
             .map(|(pos, c)| {
                 let modifier = match c.tone {
-                    1 => Modifier::Circumflex,
-                    2 => Modifier::Horn,
+                    tone::CIRCUMFLEX => Modifier::Circumflex,
+                    tone::HORN => Modifier::Horn,
                     _ => Modifier::None,
                 };
                 Vowel::new(c.key, modifier, pos)
@@ -548,7 +520,7 @@ impl Engine {
             .collect()
     }
 
-    /// Check if there's a consonant after the given position
+    /// Check for final consonant after position
     fn has_final_consonant(&self, after_pos: usize) -> bool {
         (after_pos + 1..self.buf.len()).any(|i| {
             self.buf
@@ -558,19 +530,13 @@ impl Engine {
         })
     }
 
-    /// Check if 'q' precedes 'u' in buffer (for "qua" vs "mua" distinction)
-    /// Returns true for patterns like "qua" where u is medial, not main vowel
+    /// Check for qu initial
     fn has_qu_initial(&self) -> bool {
-        // Find first 'u' in buffer
         for (i, c) in self.buf.iter().enumerate() {
-            if c.key == keys::U {
-                // Check if preceded by 'q'
-                if i > 0 {
-                    if let Some(prev) = self.buf.get(i - 1) {
-                        return prev.key == keys::Q;
-                    }
+            if c.key == keys::U && i > 0 {
+                if let Some(prev) = self.buf.get(i - 1) {
+                    return prev.key == keys::Q;
                 }
-                return false;
             }
         }
         false
@@ -585,16 +551,11 @@ impl Engine {
             if let Some(c) = self.buf.get(i) {
                 backspace += 1;
 
-                // Handle 'd' -> 'đ' conversion
                 if c.key == keys::D && c.stroke {
                     output.push(chars::get_d(c.caps));
-                }
-                // Try vowel conversion
-                else if let Some(ch) = chars::to_char(c.key, c.caps, c.tone, c.mark) {
+                } else if let Some(ch) = chars::to_char(c.key, c.caps, c.tone, c.mark) {
                     output.push(ch);
-                }
-                // Consonant
-                else if let Some(ch) = key_to_char(c.key, c.caps) {
+                } else if let Some(ch) = key_to_char(c.key, c.caps) {
                     output.push(ch);
                 }
             }
@@ -610,6 +571,7 @@ impl Engine {
     /// Clear buffer
     pub fn clear(&mut self) {
         self.buf.clear();
+        self.last_transform = None;
     }
 }
 
@@ -706,5 +668,13 @@ mod tests {
         let mut e = Engine::new();
         let r = type_keys(&mut e, "dd");
         assert_eq!(last_char(&r[1]), Some('đ'));
+    }
+
+    #[test]
+    fn telex_uo_compound() {
+        let mut e = Engine::new();
+        let r = type_keys(&mut e, "duocw");
+        let last = &r[r.len() - 1];
+        assert_eq!(last.action, Action::Send as u8);
     }
 }

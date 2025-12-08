@@ -1,18 +1,27 @@
-//! VNI input method
+//! VNI Input Method
 //!
-//! Marks: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
-//! Tones: 6=^ (â,ê,ô), 7=horn (ơ,ư), 8=breve (ă), 9=đ
-//! Remove: 0
-//!
-//! Reference: https://en.wikipedia.org/wiki/VNI
+//! Key mappings:
+//! - Marks: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
+//! - Tones: 6=circumflex, 7=horn, 8=breve
+//! - Stroke: 9
+//! - Remove: 0
 
-use super::Method;
+use super::{Method, ToneType};
 use crate::data::keys;
+
+/// Vowels that can receive circumflex (^)
+const CIRCUMFLEX_TARGETS: &[u16] = &[keys::A, keys::E, keys::O];
+
+/// Vowels that can receive horn
+const HORN_TARGETS: &[u16] = &[keys::O, keys::U];
+
+/// Vowels that can receive breve
+const BREVE_TARGETS: &[u16] = &[keys::A];
 
 pub struct Vni;
 
 impl Method for Vni {
-    fn is_mark(&self, key: u16) -> Option<u8> {
+    fn mark(&self, key: u16) -> Option<u8> {
         match key {
             keys::N1 => Some(1), // sắc
             keys::N2 => Some(2), // huyền
@@ -23,73 +32,29 @@ impl Method for Vni {
         }
     }
 
-    fn is_tone(&self, key: u16, prev: Option<u16>) -> Option<u8> {
-        let prev = prev?;
-
+    fn tone(&self, key: u16) -> Option<ToneType> {
         match key {
-            // 6 -> circumflex (^) for a, e, o → â, ê, ô
-            keys::N6 if matches!(prev, keys::A | keys::E | keys::O) => Some(1),
-
-            // 7 -> horn for o, u → ơ, ư
-            keys::N7 if matches!(prev, keys::O | keys::U) => Some(2),
-
-            // 8 -> breve for a only → ă
-            keys::N8 if prev == keys::A => Some(2),
-
+            keys::N6 => Some(ToneType::Circumflex),
+            keys::N7 => Some(ToneType::Horn),
+            keys::N8 => Some(ToneType::Breve),
             _ => None,
         }
     }
 
-    /// VNI: Find any valid vowel in buffer for tone
-    /// Example: "toi6" -> find 'o' (not 'i') for circumflex tone
-    fn is_tone_for(&self, key: u16, vowels: &[u16]) -> Option<(u8, u16)> {
+    fn tone_targets(&self, key: u16) -> &'static [u16] {
         match key {
-            // 6 -> circumflex (^) for a, e, o - find first matching
-            keys::N6 => {
-                for &v in vowels.iter().rev() {
-                    if matches!(v, keys::A | keys::E | keys::O) {
-                        return Some((1, v));
-                    }
-                }
-                None
-            }
-
-            // 7 -> horn for o, u → ơ, ư
-            keys::N7 => {
-                for &v in vowels.iter().rev() {
-                    if matches!(v, keys::O | keys::U) {
-                        return Some((2, v));
-                    }
-                }
-                None
-            }
-
-            // 8 -> breve for a only → ă
-            keys::N8 => {
-                for &v in vowels.iter().rev() {
-                    if v == keys::A {
-                        return Some((2, v));
-                    }
-                }
-                None
-            }
-
-            _ => None,
+            keys::N6 => CIRCUMFLEX_TARGETS,
+            keys::N7 => HORN_TARGETS,
+            keys::N8 => BREVE_TARGETS,
+            _ => &[],
         }
     }
 
-    fn is_d(&self, key: u16, prev: Option<u16>) -> bool {
-        // d9 -> đ (immediate mode)
-        key == keys::N9 && prev == Some(keys::D)
+    fn stroke(&self, key: u16) -> bool {
+        key == keys::N9
     }
 
-    /// VNI delayed đ: find 'd' anywhere in buffer
-    /// Example: "dung9" -> find 'd' at start, convert to 'đ'
-    fn is_d_for(&self, key: u16, buffer_keys: &[u16]) -> bool {
-        key == keys::N9 && buffer_keys.contains(&keys::D)
-    }
-
-    fn is_remove(&self, key: u16) -> bool {
+    fn remove(&self, key: u16) -> bool {
         key == keys::N0
     }
 }
@@ -101,24 +66,23 @@ mod tests {
     #[test]
     fn test_marks() {
         let v = Vni;
-        assert_eq!(v.is_mark(keys::N1), Some(1));
-        assert_eq!(v.is_mark(keys::N5), Some(5));
-        assert_eq!(v.is_mark(keys::A), None);
+        assert_eq!(v.mark(keys::N1), Some(1));
+        assert_eq!(v.mark(keys::N5), Some(5));
+        assert_eq!(v.mark(keys::A), None);
     }
 
     #[test]
     fn test_tones() {
         let v = Vni;
-        assert_eq!(v.is_tone(keys::N6, Some(keys::A)), Some(1)); // a6 -> â
-        assert_eq!(v.is_tone(keys::N7, Some(keys::O)), Some(2)); // o7 -> ơ
-        assert_eq!(v.is_tone(keys::N7, Some(keys::U)), Some(2)); // u7 -> ư
-        assert_eq!(v.is_tone(keys::N8, Some(keys::A)), Some(2)); // a8 -> ă
+        assert_eq!(v.tone(keys::N6), Some(ToneType::Circumflex));
+        assert_eq!(v.tone(keys::N7), Some(ToneType::Horn));
+        assert_eq!(v.tone(keys::N8), Some(ToneType::Breve));
     }
 
     #[test]
-    fn test_d() {
+    fn test_stroke() {
         let v = Vni;
-        assert!(v.is_d(keys::N9, Some(keys::D)));
-        assert!(!v.is_d(keys::N9, Some(keys::A)));
+        assert!(v.stroke(keys::N9));
+        assert!(!v.stroke(keys::D));
     }
 }

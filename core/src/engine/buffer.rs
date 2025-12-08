@@ -126,7 +126,7 @@ impl Buffer {
     }
 
     /// Iterate over chars
-    pub fn iter(&self) -> impl Iterator<Item = &Char> {
+    pub fn iter(&self) -> std::slice::Iter<'_, Char> {
         self.data[..self.len].iter()
     }
 }
