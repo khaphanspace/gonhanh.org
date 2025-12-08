@@ -78,9 +78,9 @@ if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]
     cp "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" \
        "$PROJECT_ROOT/platforms/windows/GoNhanh/Native/gonhanh_core.dll"
 else
-    echo "Warning: Not running on Windows. Cross-compilation not supported."
-    echo "Please run this script on Windows with Git Bash or WSL."
-    exit 1
+    echo "Note: Not running on Windows. Skipping Rust core build."
+    echo "The DLL will be built by CI/CD on Windows."
+    echo ""
 fi
 
 # Build WPF app
