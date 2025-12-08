@@ -185,14 +185,51 @@ private struct SetupStep: View {
             Text("Có thể thay đổi sau trong menu.")
                 .foregroundStyle(.secondary)
 
-            Picker("", selection: $selectedMode) {
+            VStack(spacing: 8) {
                 ForEach(InputMode.allCases, id: \.rawValue) { mode in
-                    Text(mode.name).tag(mode)
+                    ModeOption(mode: mode, isSelected: selectedMode == mode) {
+                        selectedMode = mode
+                    }
                 }
             }
-            .pickerStyle(.radioGroup)
+            .frame(maxWidth: 260)
             .padding(.top, 8)
         }
+    }
+}
+
+private struct ModeOption: View {
+    let mode: InputMode
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mode.name)
+                        .font(.headline)
+                    Text(mode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.4))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
