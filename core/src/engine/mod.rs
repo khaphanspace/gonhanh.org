@@ -128,7 +128,6 @@ pub struct Engine {
     buf: Buffer,
     method: u8,
     enabled: bool,
-    modern: bool,
     last_transform: Option<Transform>,
     shortcuts: ShortcutTable,
 }
@@ -145,7 +144,6 @@ impl Engine {
             buf: Buffer::new(),
             method: 0,
             enabled: true,
-            modern: true,
             last_transform: None,
             shortcuts: ShortcutTable::new(),
         }
@@ -160,10 +158,6 @@ impl Engine {
         if !enabled {
             self.buf.clear();
         }
-    }
-
-    pub fn set_modern(&mut self, modern: bool) {
-        self.modern = modern;
     }
 
     pub fn shortcuts_mut(&mut self) -> &mut ShortcutTable {
@@ -360,7 +354,7 @@ impl Engine {
         let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
         let has_final = self.has_final_consonant(last_vowel_pos);
         let has_qu = self.has_qu_initial();
-        let pos = Phonology::find_tone_position(&vowels, has_final, self.modern, has_qu);
+        let pos = Phonology::find_tone_position(&vowels, has_final, true, has_qu);
 
         if let Some(c) = self.buf.get_mut(pos) {
             c.mark = mark_val;
@@ -407,7 +401,7 @@ impl Engine {
             let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
             let has_final = self.has_final_consonant(last_vowel_pos);
             let has_qu = self.has_qu_initial();
-            let new_pos = Phonology::find_tone_position(&vowels, has_final, self.modern, has_qu);
+            let new_pos = Phonology::find_tone_position(&vowels, has_final, true, has_qu);
 
             if new_pos != old_pos {
                 if let Some(c) = self.buf.get_mut(old_pos) {
