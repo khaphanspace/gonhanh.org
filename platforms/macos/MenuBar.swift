@@ -36,7 +36,6 @@ class MenuBarController {
 
     private var isEnabled = true
     private var currentMethod: InputMode = .telex
-    private var isModernTone = true
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -79,7 +78,6 @@ class MenuBarController {
     private func loadSettings() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
-        isModernTone = UserDefaults.standard.object(forKey: SettingsKey.modernTone) as? Bool ?? true
     }
 
     private func startEngine() {
@@ -87,7 +85,7 @@ class MenuBarController {
         KeyboardHookManager.shared.start()
         RustBridge.setEnabled(isEnabled)
         RustBridge.setMethod(currentMethod.rawValue)
-        RustBridge.setModern(isModernTone)
+        RustBridge.setModern(true) // Always use modern orthography
 
         // Check for updates in background after a short delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -172,18 +170,6 @@ class MenuBarController {
         menu.addItem(vni)
         menu.addItem(.separator())
 
-        // Tone style
-        let modernTone = NSMenuItem(title: "Kiểu mới (hoà)", action: #selector(selectModernTone), keyEquivalent: "")
-        modernTone.target = self
-        modernTone.tag = 20
-        menu.addItem(modernTone)
-
-        let classicTone = NSMenuItem(title: "Kiểu cũ (hòa)", action: #selector(selectClassicTone), keyEquivalent: "")
-        classicTone.target = self
-        classicTone.tag = 21
-        menu.addItem(classicTone)
-        menu.addItem(.separator())
-
         // About & Help
         let about = NSMenuItem(title: "Giới thiệu \(AppMetadata.name)", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
@@ -235,8 +221,6 @@ class MenuBarController {
         menu.item(withTag: 1)?.view = createHeaderView()
         menu.item(withTag: 10)?.state = currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = currentMethod == .vni ? .on : .off
-        menu.item(withTag: 20)?.state = isModernTone ? .on : .off
-        menu.item(withTag: 21)?.state = isModernTone ? .off : .on
     }
 
     // MARK: - Actions
@@ -260,16 +244,6 @@ class MenuBarController {
         UserDefaults.standard.set(mode.rawValue, forKey: SettingsKey.method)
         RustBridge.setMethod(mode.rawValue)
         updateStatusButton()
-        updateMenu()
-    }
-
-    @objc private func selectModernTone() { setToneStyle(modern: true) }
-    @objc private func selectClassicTone() { setToneStyle(modern: false) }
-
-    private func setToneStyle(modern: Bool) {
-        isModernTone = modern
-        UserDefaults.standard.set(modern, forKey: SettingsKey.modernTone)
-        RustBridge.setModern(modern)
         updateMenu()
     }
 
