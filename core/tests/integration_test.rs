@@ -339,3 +339,21 @@ fn foreign_word_exp_no_circumflex() {
         result
     );
 }
+
+#[test]
+fn foreign_word_exxpe_no_transform() {
+    let mut e = Engine::new();
+    // When typing "exxpe":
+    // - 'e' → buffer="e"
+    // - 'x' → mark applied → screen="ẽ"
+    // - 'x' → revert (same key) → screen="ex", buffer="ex"
+    // - 'p' → screen="exp", buffer="exp" (invalid Vietnamese)
+    // - 'e' → buffer="expe" invalid → no circumflex applied, just adds 'e'
+    // Result: "expe" (the first x was consumed/reverted)
+    let result = type_word(&mut e, "exxpe");
+    assert_eq!(
+        result, "expe",
+        "exxpe should become expe (first x consumed by mark/revert), got: {}",
+        result
+    );
+}

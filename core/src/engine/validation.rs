@@ -60,7 +60,9 @@ fn rule_valid_initial(keys: &[u16], syllable: &Syllable) -> Option<ValidationRes
 
     let is_valid = match initial.len() {
         1 => VALID_INITIALS_1.contains(&initial[0]),
-        2 => VALID_INITIALS_2.iter().any(|p| p[0] == initial[0] && p[1] == initial[1]),
+        2 => VALID_INITIALS_2
+            .iter()
+            .any(|p| p[0] == initial[0] && p[1] == initial[1]),
         3 => initial[0] == keys::N && initial[1] == keys::G && initial[2] == keys::H,
         _ => false,
     };
@@ -113,7 +115,9 @@ fn rule_valid_final(keys: &[u16], syllable: &Syllable) -> Option<ValidationResul
 
     let is_valid = match final_c.len() {
         1 => VALID_FINALS_1.contains(&final_c[0]),
-        2 => VALID_FINALS_2.iter().any(|p| p[0] == final_c[0] && p[1] == final_c[1]),
+        2 => VALID_FINALS_2
+            .iter()
+            .any(|p| p[0] == final_c[0] && p[1] == final_c[1]),
         _ => false,
     };
 
@@ -129,9 +133,22 @@ fn rule_valid_final(keys: &[u16], syllable: &Syllable) -> Option<ValidationResul
 
 /// Valid single initial consonants
 const VALID_INITIALS_1: &[u16] = &[
-    keys::B, keys::C, keys::D, keys::G, keys::H, keys::K, keys::L,
-    keys::M, keys::N, keys::P, keys::Q, keys::R, keys::S, keys::T,
-    keys::V, keys::X,
+    keys::B,
+    keys::C,
+    keys::D,
+    keys::G,
+    keys::H,
+    keys::K,
+    keys::L,
+    keys::M,
+    keys::N,
+    keys::P,
+    keys::Q,
+    keys::R,
+    keys::S,
+    keys::T,
+    keys::V,
+    keys::X,
 ];
 
 /// Valid double initial consonants
@@ -150,8 +167,15 @@ const VALID_INITIALS_2: &[[u16; 2]] = &[
 
 /// Valid single final consonants
 const VALID_FINALS_1: &[u16] = &[
-    keys::C, keys::M, keys::N, keys::P, keys::T,
-    keys::I, keys::Y, keys::O, keys::U, // semi-vowels
+    keys::C,
+    keys::M,
+    keys::N,
+    keys::P,
+    keys::T,
+    keys::I,
+    keys::Y,
+    keys::O,
+    keys::U, // semi-vowels
 ];
 
 /// Valid double final consonants
@@ -173,9 +197,17 @@ const SPELLING_RULES: &[(&[u16], &[u16], &str)] = &[
     // ng before e, i → invalid (should use ngh)
     (&[keys::N, keys::G], &[keys::E, keys::I], "ng before e/i"),
     // gh before a, o, u → invalid (should use g)
-    (&[keys::G, keys::H], &[keys::A, keys::O, keys::U], "gh before a/o/u"),
+    (
+        &[keys::G, keys::H],
+        &[keys::A, keys::O, keys::U],
+        "gh before a/o/u",
+    ),
     // ngh before a, o, u → invalid (should use ng)
-    (&[keys::N, keys::G, keys::H], &[keys::A, keys::O, keys::U], "ngh before a/o/u"),
+    (
+        &[keys::N, keys::G, keys::H],
+        &[keys::A, keys::O, keys::U],
+        "ngh before a/o/u",
+    ),
 ];
 
 // =============================================================================
@@ -271,17 +303,38 @@ mod tests {
 
     #[test]
     fn invalid_initial() {
-        assert_eq!(validate(&keys_from_str("clau")), ValidationResult::InvalidInitial);
-        assert_eq!(validate(&keys_from_str("john")), ValidationResult::InvalidInitial);
-        assert_eq!(validate(&keys_from_str("bla")), ValidationResult::InvalidInitial);
+        assert_eq!(
+            validate(&keys_from_str("clau")),
+            ValidationResult::InvalidInitial
+        );
+        assert_eq!(
+            validate(&keys_from_str("john")),
+            ValidationResult::InvalidInitial
+        );
+        assert_eq!(
+            validate(&keys_from_str("bla")),
+            ValidationResult::InvalidInitial
+        );
     }
 
     #[test]
     fn spelling_rules() {
-        assert_eq!(validate(&keys_from_str("ci")), ValidationResult::InvalidSpelling);
-        assert_eq!(validate(&keys_from_str("ka")), ValidationResult::InvalidSpelling);
-        assert_eq!(validate(&keys_from_str("ngi")), ValidationResult::InvalidSpelling);
-        assert_eq!(validate(&keys_from_str("ge")), ValidationResult::InvalidSpelling);
+        assert_eq!(
+            validate(&keys_from_str("ci")),
+            ValidationResult::InvalidSpelling
+        );
+        assert_eq!(
+            validate(&keys_from_str("ka")),
+            ValidationResult::InvalidSpelling
+        );
+        assert_eq!(
+            validate(&keys_from_str("ngi")),
+            ValidationResult::InvalidSpelling
+        );
+        assert_eq!(
+            validate(&keys_from_str("ge")),
+            ValidationResult::InvalidSpelling
+        );
     }
 
     #[test]
@@ -317,63 +370,5 @@ mod tests {
         assert!(!is_valid(&keys_from_str("exp")));
         assert!(!is_valid(&keys_from_str("expect")));
         assert!(!is_valid(&keys_from_str("test")));
-    }
-}
-
-#[cfg(test)]
-mod debug_tests {
-    use super::*;
-
-    fn keys_from_str(s: &str) -> Vec<u16> {
-        s.chars()
-            .filter_map(|c| match c.to_ascii_lowercase() {
-                'a' => Some(keys::A),
-                'e' => Some(keys::E),
-                'p' => Some(keys::P),
-                'x' => Some(keys::X),
-                _ => None,
-            })
-            .collect()
-    }
-
-    #[test]
-    fn debug_exxp() {
-        let keys = keys_from_str("exxp");
-        println!("exxp valid: {:?}", validate(&keys));
-        assert!(!is_valid(&keys), "exxp should be invalid");
-    }
-}
-
-#[cfg(test)]
-mod debug_exxpe {
-    use super::super::*;
-    use crate::data::keys;
-
-    fn char_to_key(c: char) -> u16 {
-        match c.to_ascii_lowercase() {
-            'a' => keys::A, 'e' => keys::E, 'p' => keys::P, 'x' => keys::X,
-            _ => 255,
-        }
-    }
-
-    #[test]
-    fn trace_exxpe() {
-        let mut e = Engine::new();
-        let input = "exxpe";
-        
-        println!("\nTyping: {}", input);
-        for c in input.chars() {
-            let key = char_to_key(c);
-            let r = e.on_key(key, false, false);
-            print!("  '{}' (key={}) → action={}, bs={}, count={}", c, key, r.action, r.backspace, r.count);
-            if r.action == Action::Send as u8 {
-                let chars: String = (0..r.count as usize)
-                    .filter_map(|i| char::from_u32(r.chars[i]))
-                    .collect();
-                println!(", chars=\"{}\"", chars);
-            } else {
-                println!();
-            }
-        }
     }
 }

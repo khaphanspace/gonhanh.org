@@ -433,14 +433,23 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
-                    let mut result = self.rebuild_from(pos);
-                    if let Some(ch) = key_to_char(key, caps) {
-                        if result.count < MAX as u8 {
-                            result.chars[result.count as usize] = ch as u32;
-                            result.count += 1;
+                    // Calculate backspace BEFORE adding key (based on old buffer state)
+                    let old_len = self.buf.len();
+                    let backspace = (old_len - pos) as u8;
+
+                    // Add the reverted key to buffer so validation sees the full sequence
+                    self.buf.push(Char::new(key, caps));
+
+                    // Build output from position (includes new key)
+                    let mut output = Vec::with_capacity(self.buf.len() - pos);
+                    for i in pos..self.buf.len() {
+                        if let Some(c) = self.buf.get(i) {
+                            if let Some(ch) = key_to_char(c.key, c.caps) {
+                                output.push(ch);
+                            }
                         }
                     }
-                    return result;
+                    return Result::send(backspace, &output);
                 }
             }
         }
@@ -455,14 +464,23 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.mark > mark::NONE {
                     c.mark = mark::NONE;
-                    let mut result = self.rebuild_from(pos);
-                    if let Some(ch) = key_to_char(key, caps) {
-                        if result.count < MAX as u8 {
-                            result.chars[result.count as usize] = ch as u32;
-                            result.count += 1;
+                    // Calculate backspace BEFORE adding key (based on old buffer state)
+                    let old_len = self.buf.len();
+                    let backspace = (old_len - pos) as u8;
+
+                    // Add the reverted key to buffer so validation sees the full sequence
+                    self.buf.push(Char::new(key, caps));
+
+                    // Build output from position (includes new key)
+                    let mut output = Vec::with_capacity(self.buf.len() - pos);
+                    for i in pos..self.buf.len() {
+                        if let Some(c) = self.buf.get(i) {
+                            if let Some(ch) = key_to_char(c.key, c.caps) {
+                                output.push(ch);
+                            }
                         }
                     }
-                    return result;
+                    return Result::send(backspace, &output);
                 }
             }
         }
