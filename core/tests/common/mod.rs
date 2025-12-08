@@ -108,13 +108,6 @@ pub enum Method {
     Vni,
 }
 
-/// Orthography mode
-#[derive(Clone, Copy, Debug)]
-pub enum Ortho {
-    Modern,
-    Classic,
-}
-
 /// Test case definition
 pub struct Case<'a> {
     pub input: &'a str,
@@ -147,23 +140,6 @@ pub fn run(method: Method, cases: &[(&str, &str)]) {
     }
 }
 
-/// Run with orthography setting
-pub fn run_with_ortho(method: Method, ortho: Ortho, cases: &[(&str, &str)]) {
-    for (input, expected) in cases {
-        let mut e = Engine::new();
-        if matches!(method, Method::Vni) {
-            e.set_method(1);
-        }
-        e.set_modern(matches!(ortho, Ortho::Modern));
-        let result = type_word(&mut e, input);
-        assert_eq!(
-            result, *expected,
-            "\n[{:?}/{:?}] '{}' → '{}' (expected '{}')",
-            method, ortho, input, result, expected
-        );
-    }
-}
-
 /// Shorthand: Telex tests
 pub fn telex(cases: &[(&str, &str)]) {
     run(Method::Telex, cases);
@@ -191,18 +167,6 @@ pub fn engine_telex() -> Engine {
 pub fn engine_vni() -> Engine {
     let mut e = Engine::new();
     e.set_method(1);
-    e
-}
-
-pub fn engine_modern() -> Engine {
-    let mut e = Engine::new();
-    e.set_modern(true);
-    e
-}
-
-pub fn engine_classic() -> Engine {
-    let mut e = Engine::new();
-    e.set_modern(false);
     e
 }
 

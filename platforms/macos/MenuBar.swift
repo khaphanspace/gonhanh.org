@@ -85,7 +85,6 @@ class MenuBarController {
         KeyboardHookManager.shared.start()
         RustBridge.setEnabled(isEnabled)
         RustBridge.setMethod(currentMethod.rawValue)
-        RustBridge.setModern(true) // Always use modern orthography
 
         // Check for updates in background after a short delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
