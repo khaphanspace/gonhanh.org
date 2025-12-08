@@ -4,21 +4,20 @@ import AppKit
 
 // MARK: - Debug Logging
 
-// Temporarily enabled for debugging
+// Only log when /tmp/gonhanh_debug.log exists (touch /tmp/gonhanh_debug.log to enable)
 func debugLog(_ message: String) {
+    let logPath = "/tmp/gonhanh_debug.log"
+    guard FileManager.default.fileExists(atPath: logPath) else { return }
+
     let timestamp = ISO8601DateFormatter().string(from: Date())
     let logMessage = "[\(timestamp)] \(message)\n"
 
-    // Write to file
-    let logPath = "/tmp/gonhanh_debug.log"
     if let handle = FileHandle(forWritingAtPath: logPath) {
         handle.seekToEndOfFile()
         if let data = logMessage.data(using: .utf8) {
             handle.write(data)
         }
         handle.closeFile()
-    } else {
-        FileManager.default.createFile(atPath: logPath, contents: logMessage.data(using: .utf8))
     }
 }
 
