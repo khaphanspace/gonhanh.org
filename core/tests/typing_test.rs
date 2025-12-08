@@ -17,10 +17,7 @@ const TELEX_BACKSPACE: &[(&str, &str)] = &[
     ("vieets<<<ng", "vng"),
 ];
 
-const VNI_BACKSPACE: &[(&str, &str)] = &[
-    ("a1<a2", "à"),
-    ("o6<o7", "ơ"),
-];
+const VNI_BACKSPACE: &[(&str, &str)] = &[("a1<a2", "à"), ("o6<o7", "ơ")];
 
 // ============================================================
 // TYPOS & WRONG ORDER
@@ -69,10 +66,7 @@ const TELEX_RAPID: &[(&str, &str)] = &[
     ("thuoocj", "thuộc"),
 ];
 
-const VNI_RAPID: &[(&str, &str)] = &[
-    ("ngu7o72i2", "người"),
-    ("to6i1", "tối"),
-];
+const VNI_RAPID: &[(&str, &str)] = &[("ngu7o72i2", "người"), ("to6i1", "tối")];
 
 // ============================================================
 // CAPITALIZATION
@@ -118,7 +112,10 @@ const VNI_GREETINGS: &[(&str, &str)] = &[
 
 const TELEX_PROVERBS: &[(&str, &str)] = &[
     ("hocj mootj bieets muwowif", "học một biết mười"),
-    ("ddi mootj ngayf ddangf hocj mootj sangf khoon", "đi một ngày đàng học một sàng khôn"),
+    (
+        "ddi mootj ngayf ddangf hocj mootj sangf khoon",
+        "đi một ngày đàng học một sàng khôn",
+    ),
     ("toots goox hown ddepj nguwowif", "tốt gỗ hơn đẹp người"),
     ("uoongs nuwowcs nhows nguoonf", "uống nước nhớ nguồn"),
     ("nuwowcs chayr ddas monf", "nước chảy đá mòn"),
@@ -146,7 +143,10 @@ const TELEX_IDIOMS: &[(&str, &str)] = &[
 // ============================================================
 
 const TELEX_DAILY: &[(&str, &str)] = &[
-    ("hoom nay thowif tieets thees naof", "hôm nay thời tiết thế nào"),
+    (
+        "hoom nay thowif tieets thees naof",
+        "hôm nay thời tiết thế nào",
+    ),
     ("banj ddi ddaau vaayj", "bạn đi đâu vậy"),
     ("tooi ddang ddi lafm", "tôi đang đi làm"),
     ("mootj ly caf phee nhes", "một ly cà phê nhé"),
@@ -154,7 +154,10 @@ const TELEX_DAILY: &[(&str, &str)] = &[
 ];
 
 const VNI_DAILY: &[(&str, &str)] = &[
-    ("ho6m nay tho7i2 tie61t the61 na2o", "hôm nay thời tiết thế nào"),
+    (
+        "ho6m nay tho7i2 tie61t the61 na2o",
+        "hôm nay thời tiết thế nào",
+    ),
     ("ba5n d9i d9a6u va65y", "bạn đi đâu vậy"),
     ("bao nhie6u tie62n", "bao nhiêu tiền"),
 ];
@@ -165,7 +168,10 @@ const VNI_DAILY: &[(&str, &str)] = &[
 
 const TELEX_FOOD: &[(&str, &str)] = &[
     ("cho tooi xem thuwcj ddown", "cho tôi xem thực đơn"),
-    ("tooi muoons goij mootj phaanf phowr", "tôi muốn gọi một phần phở"),
+    (
+        "tooi muoons goij mootj phaanf phowr",
+        "tôi muốn gọi một phần phở",
+    ),
     ("ddoof awn raats ngon", "đồ ăn rất ngon"),
     ("tinhs tieenf nhes", "tính tiền nhé"),
 ];
@@ -188,8 +194,14 @@ const TELEX_EXPRESSIONS: &[(&str, &str)] = &[
 // ============================================================
 
 const TELEX_POETRY: &[(&str, &str)] = &[
-    ("trawm nawm trong coix nguwowif ta", "trăm năm trong cõi người ta"),
-    ("chuwx taif chuwx meenhj kheos laf ghets nhau", "chữ tài chữ mệnh khéo là ghét nhau"),
+    (
+        "trawm nawm trong coix nguwowif ta",
+        "trăm năm trong cõi người ta",
+    ),
+    (
+        "chuwx taif chuwx meenhj kheos laf ghets nhau",
+        "chữ tài chữ mệnh khéo là ghét nhau",
+    ),
 ];
 
 // ============================================================
@@ -197,13 +209,25 @@ const TELEX_POETRY: &[(&str, &str)] = &[
 // ============================================================
 
 const TELEX_LONG: &[(&str, &str)] = &[
-    ("vieetj nam laf mootj quoocs gia nawmf owr ddoong nam as", "việt nam là một quốc gia nằm ở đông nam á"),
-    ("thur ddoo cura vieetj nam laf thanhf phoos haf nooij", "thủ đô của việt nam là thành phố hà nội"),
+    (
+        "vieetj nam laf mootj quoocs gia nawmf owr ddoong nam as",
+        "việt nam là một quốc gia nằm ở đông nam á",
+    ),
+    (
+        "thur ddoo cura vieetj nam laf thanhf phoos haf nooij",
+        "thủ đô của việt nam là thành phố hà nội",
+    ),
 ];
 
 const VNI_LONG: &[(&str, &str)] = &[
-    ("vie65t nam la2 mo65t quo61c gia na82m o73 d9o6ng nam a1", "việt nam là một quốc gia nằm ở đông nam á"),
-    ("thu3 d9o6 cu3a vie65t nam la2 tha2nh pho61 ha2 no65i", "thủ đô của việt nam là thành phố hà nội"),
+    (
+        "vie65t nam la2 mo65t quo61c gia na82m o73 d9o6ng nam a1",
+        "việt nam là một quốc gia nằm ở đông nam á",
+    ),
+    (
+        "thu3 d9o6 cu3a vie65t nam la2 tha2nh pho61 ha2 no65i",
+        "thủ đô của việt nam là thành phố hà nội",
+    ),
 ];
 
 // ============================================================
@@ -229,37 +253,87 @@ const VNI_MIXED_CASE: &[(&str, &str)] = &[
 
 const TELEX_COMMON_ISSUES: &[(&str, &str)] = &[
     // Issue 2.1: Dính chữ (aa -> aâ instead of â)
-    ("aa", "â"), ("ee", "ê"), ("oo", "ô"), ("dd", "đ"), ("DD", "Đ"),
+    ("aa", "â"),
+    ("ee", "ê"),
+    ("oo", "ô"),
+    ("dd", "đ"),
+    ("DD", "Đ"),
     // Issue 2.4: Lặp chữ (được -> đđược)
-    ("dduwowcj", "được"), ("ddif", "đì"), ("ddi", "đi"), ("ddang", "đang"), ("ddaauf", "đầu"),
+    ("dduwowcj", "được"),
+    ("ddif", "đì"),
+    ("ddi", "đi"),
+    ("ddang", "đang"),
+    ("ddaauf", "đầu"),
     // Issue 2.4: Mất dấu (trường -> trương)
-    ("truwowngf", "trường"), ("dduwowngf", "đường"), ("nguwowif", "người"), ("muwowif", "mười"),
+    ("truwowngf", "trường"),
+    ("dduwowngf", "đường"),
+    ("nguwowif", "người"),
+    ("muwowif", "mười"),
     // Letter vs modifier ambiguity
-    ("sa", "sa"), ("as", "á"), ("sas", "sá"), ("sass", "sas"),
-    ("fa", "fa"), ("af", "à"),
+    ("sa", "sa"),
+    ("as", "á"),
+    ("sas", "sá"),
+    ("sass", "sas"),
+    ("fa", "fa"),
+    ("af", "à"),
     // Long compound words
-    ("nghieeng", "nghiêng"), ("khuyeens", "khuyến"), ("nguoongf", "nguồng"),
+    ("nghieeng", "nghiêng"),
+    ("khuyeens", "khuyến"),
+    ("nguoongf", "nguồng"),
 ];
 
 const VNI_COMMON_ISSUES: &[(&str, &str)] = &[
     // Not sticky
-    ("a6", "â"), ("e6", "ê"), ("o6", "ô"), ("d9", "đ"), ("D9", "Đ"),
+    ("a6", "â"),
+    ("e6", "ê"),
+    ("o6", "ô"),
+    ("d9", "đ"),
+    ("D9", "Đ"),
     // No double đ
-    ("d9u7o7c5", "được"), ("d9i", "đi"), ("d9ang", "đang"),
+    ("d9u7o7c5", "được"),
+    ("d9i", "đi"),
+    ("d9ang", "đang"),
     // Preserve tone mark
-    ("tru7o7ng2", "trường"), ("d9u7o7ng2", "đường"), ("ngu7o7i2", "người"),
+    ("tru7o7ng2", "trường"),
+    ("d9u7o7ng2", "đường"),
+    ("ngu7o7i2", "người"),
     // Real words with ươ
-    ("nu7o7c1", "nước"), ("bu7o7m1", "bướm"), ("su7o7ng1", "sướng"),
-    ("lu7o7ng2", "lường"), ("thu7o7ng2", "thường"), ("hu7o7ng1", "hướng"), ("vu7o7n2", "vườn"),
+    ("nu7o7c1", "nước"),
+    ("bu7o7m1", "bướm"),
+    ("su7o7ng1", "sướng"),
+    ("lu7o7ng2", "lường"),
+    ("thu7o7ng2", "thường"),
+    ("hu7o7ng1", "hướng"),
+    ("vu7o7n2", "vườn"),
     // Real words with ua vs qua
-    ("mua2", "mùa"), ("chua1", "chúa"), ("rua2", "rùa"), ("lua1", "lúa"), ("su7a4", "sữa"),
-    ("qua1", "quá"), ("qua3", "quả"), ("qua2", "quà"),
+    ("mua2", "mùa"),
+    ("chua1", "chúa"),
+    ("rua2", "rùa"),
+    ("lua1", "lúa"),
+    ("su7a4", "sữa"),
+    ("qua1", "quá"),
+    ("qua3", "quả"),
+    ("qua2", "quà"),
     // Real words with iê
-    ("vie65t", "việt"), ("tie61ng", "tiếng"), ("bie63n", "biển"),
-    ("mie61ng", "miếng"), ("die64n", "diễn"), ("kie63m", "kiểm"), ("tie62n", "tiền"), ("hie63u", "hiểu"),
+    ("vie65t", "việt"),
+    ("tie61ng", "tiếng"),
+    ("bie63n", "biển"),
+    ("mie61ng", "miếng"),
+    ("die64n", "diễn"),
+    ("kie63m", "kiểm"),
+    ("tie62n", "tiền"),
+    ("hie63u", "hiểu"),
     // Mixed common words
-    ("co1", "có"), ("kho6ng", "không"), ("la2", "là"), ("d9i", "đi"),
-    ("ve62", "về"), ("a8n", "ăn"), ("o6ng1", "ống"), ("ba2n", "bàn"), ("nha2", "nhà"), ("hoc5", "học"),
+    ("co1", "có"),
+    ("kho6ng", "không"),
+    ("la2", "là"),
+    ("d9i", "đi"),
+    ("ve62", "về"),
+    ("a8n", "ăn"),
+    ("o6ng1", "ống"),
+    ("ba2n", "bàn"),
+    ("nha2", "nhà"),
+    ("hoc5", "học"),
 ];
 
 // ============================================================
@@ -268,33 +342,74 @@ const VNI_COMMON_ISSUES: &[(&str, &str)] = &[
 
 const VNI_MARK_REPOSITION: &[(&str, &str)] = &[
     // ua patterns
-    ("ua27", "ừa"), ("ua2", "ùa"), ("ua7", "ưa"),
+    ("ua27", "ừa"),
+    ("ua2", "ùa"),
+    ("ua7", "ưa"),
     // oa patterns
-    ("oa26", "oầ"), ("o6a2", "ồa"), ("oa2", "oà"),
+    ("oa26", "oầ"),
+    ("o6a2", "ồa"),
+    ("oa2", "oà"),
     // uo compound with marks
-    ("uo71", "ướ"), ("uo72", "ườ"), ("uo73", "ưở"), ("uo74", "ưỡ"), ("uo75", "ượ"),
-    ("uo17", "ướ"), ("uo27", "ườ"),
-    ("u7o71", "ướ"), ("u7o72", "ườ"),
+    ("uo71", "ướ"),
+    ("uo72", "ườ"),
+    ("uo73", "ưở"),
+    ("uo74", "ưỡ"),
+    ("uo75", "ượ"),
+    ("uo17", "ướ"),
+    ("uo27", "ườ"),
+    ("u7o71", "ướ"),
+    ("u7o72", "ườ"),
     // ua vs qua
-    ("ua1", "úa"), ("ua2", "ùa"), ("qua1", "quá"), ("qua2", "quà"),
-    ("u7a1", "ứa"), ("u7a2", "ừa"), ("ua17", "ứa"), ("ua27", "ừa"),
+    ("ua1", "úa"),
+    ("ua2", "ùa"),
+    ("qua1", "quá"),
+    ("qua2", "quà"),
+    ("u7a1", "ứa"),
+    ("u7a2", "ừa"),
+    ("ua17", "ứa"),
+    ("ua27", "ừa"),
 ];
 
 const TELEX_MARK_REPOSITION: &[(&str, &str)] = &[
-    ("uafw", "uằ"), ("uwaf", "ừa"), ("oafw", "oằ"),
+    ("uafw", "uằ"),
+    ("uwaf", "ừa"),
+    ("oafw", "oằ"),
     // ươ compound
-    ("uwows", "ướ"), ("uwowf", "ườ"), ("uwowr", "ưở"), ("uwowx", "ưỡ"), ("uwowj", "ượ"),
-    ("uows", "ướ"), ("uowf", "ườ"),
+    ("uwows", "ướ"),
+    ("uwowf", "ườ"),
+    ("uwowr", "ưở"),
+    ("uwowx", "ưỡ"),
+    ("uwowj", "ượ"),
+    ("uows", "ướ"),
+    ("uowf", "ườ"),
     // Real words
-    ("nuwowcs", "nước"), ("buwowms", "bướm"), ("suwowngs", "sướng"),
-    ("luwowngf", "lường"), ("dduwowngf", "đường"), ("truwowngf", "trường"),
-    ("thuwowngf", "thường"), ("huwowngs", "hướng"), ("vuwownf", "vườn"),
+    ("nuwowcs", "nước"),
+    ("buwowms", "bướm"),
+    ("suwowngs", "sướng"),
+    ("luwowngf", "lường"),
+    ("dduwowngf", "đường"),
+    ("truwowngf", "trường"),
+    ("thuwowngf", "thường"),
+    ("huwowngs", "hướng"),
+    ("vuwownf", "vườn"),
     // ua vs qua
-    ("muaf", "mùa"), ("chuas", "chúa"), ("ruaf", "rùa"), ("luas", "lúa"), ("suwax", "sữa"),
-    ("quas", "quá"), ("quar", "quả"), ("quaf", "quà"),
+    ("muaf", "mùa"),
+    ("chuas", "chúa"),
+    ("ruaf", "rùa"),
+    ("luas", "lúa"),
+    ("suwax", "sữa"),
+    ("quas", "quá"),
+    ("quar", "quả"),
+    ("quaf", "quà"),
     // iê words
-    ("vieetj", "việt"), ("tieengs", "tiếng"), ("bieenr", "biển"),
-    ("mieengs", "miếng"), ("dieenx", "diễn"), ("kieemr", "kiểm"), ("tieenf", "tiền"), ("hieeur", "hiểu"),
+    ("vieetj", "việt"),
+    ("tieengs", "tiếng"),
+    ("bieenr", "biển"),
+    ("mieengs", "miếng"),
+    ("dieenx", "diễn"),
+    ("kieemr", "kiểm"),
+    ("tieenf", "tiền"),
+    ("hieeur", "hiểu"),
 ];
 
 // ============================================================
@@ -302,13 +417,19 @@ const TELEX_MARK_REPOSITION: &[(&str, &str)] = &[
 // ============================================================
 
 const TELEX_DELAYED_PATTERNS: &[(&str, &str)] = &[
-    ("tungw", "tưng"), ("tongw", "tơng"), ("tangw", "tăng"),
-    ("tuow", "tươ"), ("nguoiw", "ngươi"),
+    ("tungw", "tưng"),
+    ("tongw", "tơng"),
+    ("tangw", "tăng"),
+    ("tuow", "tươ"),
+    ("nguoiw", "ngươi"),
 ];
 
 const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
-    ("tung7", "tưng"), ("tong7", "tơng"), ("tang8", "tăng"),
-    ("dung9", "đung"), ("Dung9", "Đung"),
+    ("tung7", "tưng"),
+    ("tong7", "tơng"),
+    ("tang8", "tăng"),
+    ("dung9", "đung"),
+    ("Dung9", "Đung"),
 ];
 
 // ============================================================

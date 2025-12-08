@@ -214,11 +214,9 @@ pub fn engine_classic() -> Engine {
 pub fn assert_action(e: &mut Engine, key: u16, caps: bool, ctrl: bool, expected: Action) {
     let r = e.on_key(key, caps, ctrl);
     assert_eq!(
-        r.action,
-        expected as u8,
+        r.action, expected as u8,
         "Expected {:?} for key {}",
-        expected,
-        key
+        expected, key
     );
 }
 
