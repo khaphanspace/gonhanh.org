@@ -1,6 +1,5 @@
 import Cocoa
 import SwiftUI
-import ServiceManagement
 
 // MARK: - Menu Bar Controller
 
@@ -253,14 +252,10 @@ class MenuBarController {
     }
 
     private func enableLaunchAtLogin() {
-        if #available(macOS 13.0, *) {
-            do {
-                if SMAppService.mainApp.status != .enabled {
-                    try SMAppService.mainApp.register()
-                }
-            } catch {
-                debugLog("[LaunchAtLogin] Error: \(error)")
-            }
+        do {
+            try LaunchAtLoginManager.shared.enable()
+        } catch {
+            debugLog("[LaunchAtLogin] Error: \(error)")
         }
     }
 
