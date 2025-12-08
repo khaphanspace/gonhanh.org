@@ -373,10 +373,13 @@ private enum KeyCode {
 /// - Default: Use backspace (works for most apps including Terminal)
 /// - Autocomplete apps (Chrome/Excel): Use Shift+Left selection (fixes "dính chữ")
 private func sendTextReplacement(backspaceCount: Int, chars: [Character]) {
-    if needsSelectionWorkaround() {
-        sendTextReplacementWithSelection(backspaceCount: backspaceCount, chars: chars)
-    } else {
-        sendTextReplacementWithBackspace(backspaceCount: backspaceCount, chars: chars)
+    // Dispatch to high-priority queue to avoid blocking event tap callback
+    DispatchQueue.global(qos: .userInteractive).async {
+        if needsSelectionWorkaround() {
+            sendTextReplacementWithSelection(backspaceCount: backspaceCount, chars: chars)
+        } else {
+            sendTextReplacementWithBackspace(backspaceCount: backspaceCount, chars: chars)
+        }
     }
 }
 
