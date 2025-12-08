@@ -33,11 +33,11 @@ struct OnboardingView: View {
     @ViewBuilder
     private var content: some View {
         switch step {
-        case 0:  WelcomeStep(colorScheme: colorScheme)
-        case 1:  PermissionStep(colorScheme: colorScheme)
-        case 2:  ReadyStep(colorScheme: colorScheme)
-        case 10: SuccessStep(colorScheme: colorScheme)
-        case 11: SetupStep(colorScheme: colorScheme, selectedMode: $selectedMode)
+        case 0:  WelcomeStep()
+        case 1:  PermissionStep()
+        case 2:  ReadyStep()
+        case 10: SuccessStep()
+        case 11: SetupStep(selectedMode: $selectedMode)
         default: EmptyView()
         }
     }
@@ -54,8 +54,10 @@ struct OnboardingView: View {
             }
             Spacer()
             if step == 1 {
-                Button("Quay lại") { step = 0 }
-                    .foregroundStyle(.secondary)
+                Button("Quay lại") {
+                    step = 0
+                }
+                .buttonStyle(SecondaryButtonStyle())
             }
             primaryButton
         }
@@ -67,11 +69,11 @@ struct OnboardingView: View {
     @ViewBuilder
     private var primaryButton: some View {
         switch step {
-        case 0:  Button("Tiếp tục") { step = 1 }.buttonStyle(.borderedProminent)
-        case 1:  Button("Mở Cài đặt") { openSettings() }.buttonStyle(.borderedProminent)
-        case 2:  Button("Khởi động lại") { restart() }.buttonStyle(.borderedProminent)
-        case 10: Button("Tiếp tục") { step = 11 }.buttonStyle(.borderedProminent)
-        case 11: Button("Hoàn tất") { finish() }.buttonStyle(.borderedProminent)
+        case 0:  Button("Tiếp tục") { step = 1 }.buttonStyle(PrimaryButtonStyle())
+        case 1:  Button("Mở Cài đặt") { openSettings() }.buttonStyle(PrimaryButtonStyle())
+        case 2:  Button("Khởi động lại") { restart() }.buttonStyle(PrimaryButtonStyle())
+        case 10: Button("Tiếp tục") { step = 11 }.buttonStyle(PrimaryButtonStyle())
+        case 11: Button("Hoàn tất") { finish() }.buttonStyle(PrimaryButtonStyle())
         default: EmptyView()
         }
     }
@@ -102,8 +104,6 @@ struct OnboardingView: View {
 // MARK: - Steps
 
 private struct WelcomeStep: View {
-    let colorScheme: ColorScheme
-
     var body: some View {
         StepLayout {
             Image(nsImage: AppMetadata.logo)
@@ -122,11 +122,18 @@ private struct WelcomeStep: View {
 }
 
 private struct PermissionStep: View {
-    let colorScheme: ColorScheme
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         StepLayout {
-            iconCircle(icon: "hand.raised.fill", color: .orange, colorScheme: colorScheme)
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "hand.raised.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.orange)
+            }
 
             Text("Cấp quyền Accessibility")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -161,11 +168,18 @@ private struct PermissionStep: View {
 }
 
 private struct ReadyStep: View {
-    let colorScheme: ColorScheme
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         StepLayout {
-            iconCircle(icon: "checkmark.shield.fill", color: .green, colorScheme: colorScheme)
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.green)
+            }
 
             Text("Đã cấp quyền")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -178,11 +192,18 @@ private struct ReadyStep: View {
 }
 
 private struct SuccessStep: View {
-    let colorScheme: ColorScheme
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         StepLayout {
-            iconCircle(icon: "checkmark.circle.fill", color: .green, colorScheme: colorScheme, size: 88)
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                    .frame(width: 88, height: 88)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.green)
+            }
 
             Text("Sẵn sàng hoạt động")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -195,12 +216,19 @@ private struct SuccessStep: View {
 }
 
 private struct SetupStep: View {
-    let colorScheme: ColorScheme
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedMode: InputMode
 
     var body: some View {
         StepLayout {
-            iconCircle(icon: "keyboard", color: .blue, colorScheme: colorScheme)
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "keyboard")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.blue)
+            }
 
             Text("Chọn kiểu gõ")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -211,7 +239,7 @@ private struct SetupStep: View {
 
             VStack(spacing: 10) {
                 ForEach(InputMode.allCases, id: \.rawValue) { mode in
-                    ModeOption(colorScheme: colorScheme, mode: mode, isSelected: selectedMode == mode) {
+                    ModeOption(mode: mode, isSelected: selectedMode == mode) {
                         selectedMode = mode
                     }
                 }
@@ -237,19 +265,8 @@ private struct StepLayout<Content: View>: View {
     }
 }
 
-private func iconCircle(icon: String, color: Color, colorScheme: ColorScheme, size: CGFloat = 80) -> some View {
-    ZStack {
-        Circle()
-            .fill(color.opacity(colorScheme == .dark ? 0.2 : 0.1))
-            .frame(width: size, height: size)
-        Image(systemName: icon)
-            .font(.system(size: size * 0.45))
-            .foregroundStyle(color)
-    }
-}
-
 private struct ModeOption: View {
-    let colorScheme: ColorScheme
+    @Environment(\.colorScheme) private var colorScheme
     let mode: InputMode
     let isSelected: Bool
     let action: () -> Void
@@ -291,6 +308,40 @@ private struct ModeOption: View {
                 NSCursor.pop()
             }
         }
+    }
+}
+
+// MARK: - Button Styles
+
+private struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.accentColor)
+                    .opacity(configuration.isPressed ? 0.8 : 1)
+            )
+    }
+}
+
+private struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                    .opacity(configuration.isPressed ? 0.6 : 1)
+            )
     }
 }
 
