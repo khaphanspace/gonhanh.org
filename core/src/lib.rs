@@ -25,7 +25,8 @@ pub mod engine;
 pub mod input;
 pub mod updater;
 
-#[cfg(test)]
+// Test utilities - available for both unit tests and integration tests
+#[doc(hidden)]
 pub mod test_utils;
 
 use engine::{Engine, Result};

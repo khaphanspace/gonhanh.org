@@ -1,104 +1,17 @@
-//! Common test utilities - DRY helpers for all test modules
+//! Common test utilities - Re-exports from core + integration test helpers
+//!
+//! Core functions are shared from `gonhanh_core::test_utils`.
+//! This module adds additional helpers for integration tests.
 
 #![allow(dead_code)]
 
-use gonhanh_core::data::keys;
+// Re-export core test utilities
+pub use gonhanh_core::test_utils::{telex, type_word, vni};
+
 use gonhanh_core::engine::{Action, Engine};
 
 // ============================================================
-// KEY MAPPING
-// ============================================================
-
-pub fn char_to_key(c: char) -> u16 {
-    match c.to_ascii_lowercase() {
-        'a' => keys::A,
-        'b' => keys::B,
-        'c' => keys::C,
-        'd' => keys::D,
-        'e' => keys::E,
-        'f' => keys::F,
-        'g' => keys::G,
-        'h' => keys::H,
-        'i' => keys::I,
-        'j' => keys::J,
-        'k' => keys::K,
-        'l' => keys::L,
-        'm' => keys::M,
-        'n' => keys::N,
-        'o' => keys::O,
-        'p' => keys::P,
-        'q' => keys::Q,
-        'r' => keys::R,
-        's' => keys::S,
-        't' => keys::T,
-        'u' => keys::U,
-        'v' => keys::V,
-        'w' => keys::W,
-        'x' => keys::X,
-        'y' => keys::Y,
-        'z' => keys::Z,
-        '0' => keys::N0,
-        '1' => keys::N1,
-        '2' => keys::N2,
-        '3' => keys::N3,
-        '4' => keys::N4,
-        '5' => keys::N5,
-        '6' => keys::N6,
-        '7' => keys::N7,
-        '8' => keys::N8,
-        '9' => keys::N9,
-        '<' => keys::DELETE,
-        ' ' => keys::SPACE,
-        _ => 255,
-    }
-}
-
-// ============================================================
-// TYPING SIMULATION
-// ============================================================
-
-/// Simulate typing, returns screen output
-pub fn type_word(e: &mut Engine, input: &str) -> String {
-    let mut screen = String::new();
-    for c in input.chars() {
-        let key = char_to_key(c);
-        let is_caps = c.is_uppercase();
-
-        if key == keys::DELETE {
-            screen.pop();
-            e.on_key(key, false, false);
-            continue;
-        }
-
-        if key == keys::SPACE {
-            screen.push(' ');
-            e.on_key(key, false, false);
-            continue;
-        }
-
-        let r = e.on_key(key, is_caps, false);
-        if r.action == Action::Send as u8 {
-            for _ in 0..r.backspace {
-                screen.pop();
-            }
-            for i in 0..r.count as usize {
-                if let Some(ch) = char::from_u32(r.chars[i]) {
-                    screen.push(ch);
-                }
-            }
-        } else if keys::is_letter(key) {
-            screen.push(if is_caps {
-                c.to_ascii_uppercase()
-            } else {
-                c.to_ascii_lowercase()
-            });
-        }
-    }
-    screen
-}
-
-// ============================================================
-// TEST RUNNERS - Dynamic test execution from data arrays
+// TEST RUNNERS - Extended helpers for integration tests
 // ============================================================
 
 /// Input method type
@@ -108,46 +21,12 @@ pub enum Method {
     Vni,
 }
 
-/// Test case definition
-pub struct Case<'a> {
-    pub input: &'a str,
-    pub expected: &'a str,
-}
-
-impl<'a> From<(&'a str, &'a str)> for Case<'a> {
-    fn from((input, expected): (&'a str, &'a str)) -> Self {
-        Self { input, expected }
-    }
-}
-
 /// Run test cases with method
 pub fn run(method: Method, cases: &[(&str, &str)]) {
-    for (input, expected) in cases {
-        let mut e = Engine::new();
-        if matches!(method, Method::Vni) {
-            e.set_method(1);
-        }
-        let result = type_word(&mut e, input);
-        let method_name = match method {
-            Method::Telex => "Telex",
-            Method::Vni => "VNI",
-        };
-        assert_eq!(
-            result, *expected,
-            "\n[{}] '{}' → '{}' (expected '{}')",
-            method_name, input, result, expected
-        );
+    match method {
+        Method::Telex => telex(cases),
+        Method::Vni => vni(cases),
     }
-}
-
-/// Shorthand: Telex tests
-pub fn telex(cases: &[(&str, &str)]) {
-    run(Method::Telex, cases);
-}
-
-/// Shorthand: VNI tests
-pub fn vni(cases: &[(&str, &str)]) {
-    run(Method::Vni, cases);
 }
 
 /// Run same cases for both methods (with different inputs)
