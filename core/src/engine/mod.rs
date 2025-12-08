@@ -425,6 +425,23 @@ impl Engine {
         None
     }
 
+    /// Common revert logic: clear modifier, add key to buffer, rebuild output
+    fn revert_and_rebuild(&mut self, pos: usize, key: u16, caps: bool) -> Result {
+        // Calculate backspace BEFORE adding key (based on old buffer state)
+        let backspace = (self.buf.len() - pos) as u8;
+
+        // Add the reverted key to buffer so validation sees the full sequence
+        self.buf.push(Char::new(key, caps));
+
+        // Build output from position (includes new key)
+        let output: Vec<char> = (pos..self.buf.len())
+            .filter_map(|i| self.buf.get(i))
+            .filter_map(|c| key_to_char(c.key, c.caps))
+            .collect();
+
+        Result::send(backspace, &output)
+    }
+
     /// Revert tone transformation
     fn revert_tone(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
@@ -433,23 +450,7 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
-                    // Calculate backspace BEFORE adding key (based on old buffer state)
-                    let old_len = self.buf.len();
-                    let backspace = (old_len - pos) as u8;
-
-                    // Add the reverted key to buffer so validation sees the full sequence
-                    self.buf.push(Char::new(key, caps));
-
-                    // Build output from position (includes new key)
-                    let mut output = Vec::with_capacity(self.buf.len() - pos);
-                    for i in pos..self.buf.len() {
-                        if let Some(c) = self.buf.get(i) {
-                            if let Some(ch) = key_to_char(c.key, c.caps) {
-                                output.push(ch);
-                            }
-                        }
-                    }
-                    return Result::send(backspace, &output);
+                    return self.revert_and_rebuild(pos, key, caps);
                 }
             }
         }
@@ -464,23 +465,7 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.mark > mark::NONE {
                     c.mark = mark::NONE;
-                    // Calculate backspace BEFORE adding key (based on old buffer state)
-                    let old_len = self.buf.len();
-                    let backspace = (old_len - pos) as u8;
-
-                    // Add the reverted key to buffer so validation sees the full sequence
-                    self.buf.push(Char::new(key, caps));
-
-                    // Build output from position (includes new key)
-                    let mut output = Vec::with_capacity(self.buf.len() - pos);
-                    for i in pos..self.buf.len() {
-                        if let Some(c) = self.buf.get(i) {
-                            if let Some(ch) = key_to_char(c.key, c.caps) {
-                                output.push(ch);
-                            }
-                        }
-                    }
-                    return Result::send(backspace, &output);
+                    return self.revert_and_rebuild(pos, key, caps);
                 }
             }
         }
@@ -604,104 +589,53 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::test_utils::{telex, vni};
 
-    fn type_keys(e: &mut Engine, s: &str) -> Vec<Result> {
-        s.chars()
-            .map(|c| {
-                let key = match c.to_ascii_lowercase() {
-                    'a' => keys::A,
-                    'b' => keys::B,
-                    'c' => keys::C,
-                    'd' => keys::D,
-                    'e' => keys::E,
-                    'f' => keys::F,
-                    'g' => keys::G,
-                    'h' => keys::H,
-                    'i' => keys::I,
-                    'j' => keys::J,
-                    'k' => keys::K,
-                    'l' => keys::L,
-                    'm' => keys::M,
-                    'n' => keys::N,
-                    'o' => keys::O,
-                    'p' => keys::P,
-                    'q' => keys::Q,
-                    'r' => keys::R,
-                    's' => keys::S,
-                    't' => keys::T,
-                    'u' => keys::U,
-                    'v' => keys::V,
-                    'w' => keys::W,
-                    'x' => keys::X,
-                    'y' => keys::Y,
-                    'z' => keys::Z,
-                    '0' => keys::N0,
-                    '1' => keys::N1,
-                    '2' => keys::N2,
-                    '3' => keys::N3,
-                    '4' => keys::N4,
-                    '5' => keys::N5,
-                    '6' => keys::N6,
-                    '7' => keys::N7,
-                    '8' => keys::N8,
-                    '9' => keys::N9,
-                    _ => 0,
-                };
-                e.on_key(key, c.is_uppercase(), false)
-            })
-            .collect()
-    }
+    const TELEX_BASIC: &[(&str, &str)] = &[
+        ("as", "á"),
+        ("af", "à"),
+        ("ar", "ả"),
+        ("ax", "ã"),
+        ("aj", "ạ"),
+        ("aa", "â"),
+        ("aw", "ă"),
+        ("ee", "ê"),
+        ("oo", "ô"),
+        ("ow", "ơ"),
+        ("uw", "ư"),
+        ("dd", "đ"),
+    ];
 
-    fn last_char(r: &Result) -> Option<char> {
-        if r.action == Action::Send as u8 && r.count > 0 {
-            char::from_u32(r.chars[0])
-        } else {
-            None
-        }
+    const VNI_BASIC: &[(&str, &str)] = &[
+        ("a1", "á"),
+        ("a2", "à"),
+        ("a3", "ả"),
+        ("a4", "ã"),
+        ("a5", "ạ"),
+        ("a6", "â"),
+        ("a8", "ă"),
+        ("e6", "ê"),
+        ("o6", "ô"),
+        ("o7", "ơ"),
+        ("u7", "ư"),
+        ("d9", "đ"),
+    ];
+
+    const TELEX_COMPOUND: &[(&str, &str)] =
+        &[("duocw", "dươc"), ("nguoiw", "ngươi"), ("tuoiws", "tưới")];
+
+    #[test]
+    fn test_telex_basic() {
+        telex(TELEX_BASIC);
     }
 
     #[test]
-    fn telex_basic() {
-        let mut e = Engine::new();
-        let r = type_keys(&mut e, "as");
-        assert_eq!(last_char(&r[1]), Some('á'));
+    fn test_vni_basic() {
+        vni(VNI_BASIC);
     }
 
     #[test]
-    fn vni_basic() {
-        let mut e = Engine::new();
-        e.set_method(1);
-        let r = type_keys(&mut e, "a1");
-        assert_eq!(last_char(&r[1]), Some('á'));
-    }
-
-    #[test]
-    fn telex_circumflex() {
-        let mut e = Engine::new();
-        let r = type_keys(&mut e, "aa");
-        assert_eq!(last_char(&r[1]), Some('â'));
-    }
-
-    #[test]
-    fn telex_horn() {
-        let mut e = Engine::new();
-        let r = type_keys(&mut e, "ow");
-        assert_eq!(last_char(&r[1]), Some('ơ'));
-    }
-
-    #[test]
-    fn telex_d() {
-        let mut e = Engine::new();
-        let r = type_keys(&mut e, "dd");
-        assert_eq!(last_char(&r[1]), Some('đ'));
-    }
-
-    #[test]
-    fn telex_uo_compound() {
-        let mut e = Engine::new();
-        let r = type_keys(&mut e, "duocw");
-        let last = &r[r.len() - 1];
-        assert_eq!(last.action, Action::Send as u8);
+    fn test_telex_compound() {
+        telex(TELEX_COMPOUND);
     }
 }

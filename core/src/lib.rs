@@ -25,6 +25,9 @@ pub mod engine;
 pub mod input;
 pub mod updater;
 
+#[cfg(test)]
+pub mod test_utils;
+
 use engine::{Engine, Result};
 use std::sync::Mutex;
 

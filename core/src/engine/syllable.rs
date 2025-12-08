@@ -240,46 +240,11 @@ pub fn is_valid_structure(buffer_keys: &[u16]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn keys_from_str(s: &str) -> Vec<u16> {
-        s.chars()
-            .filter_map(|c| match c.to_ascii_lowercase() {
-                'a' => Some(keys::A),
-                'b' => Some(keys::B),
-                'c' => Some(keys::C),
-                'd' => Some(keys::D),
-                'e' => Some(keys::E),
-                'f' => Some(keys::F),
-                'g' => Some(keys::G),
-                'h' => Some(keys::H),
-                'i' => Some(keys::I),
-                'j' => Some(keys::J),
-                'k' => Some(keys::K),
-                'l' => Some(keys::L),
-                'm' => Some(keys::M),
-                'n' => Some(keys::N),
-                'o' => Some(keys::O),
-                'p' => Some(keys::P),
-                'q' => Some(keys::Q),
-                'r' => Some(keys::R),
-                's' => Some(keys::S),
-                't' => Some(keys::T),
-                'u' => Some(keys::U),
-                'v' => Some(keys::V),
-                'w' => Some(keys::W),
-                'x' => Some(keys::X),
-                'y' => Some(keys::Y),
-                'z' => Some(keys::Z),
-                _ => None,
-            })
-            .collect()
-    }
+    use crate::test_utils::keys_from_str;
 
     #[test]
     fn parse_simple_syllable() {
-        // "ba" = b + a
-        let keys = keys_from_str("ba");
-        let s = parse(&keys);
+        let s = parse(&keys_from_str("ba"));
         assert_eq!(s.initial.len(), 1);
         assert_eq!(s.vowel.len(), 1);
         assert!(s.final_c.is_empty());
@@ -287,69 +252,53 @@ mod tests {
 
     #[test]
     fn parse_ngh_initial() {
-        // "nghieng" = ngh + ie + ng
-        let keys = keys_from_str("nghieng");
-        let s = parse(&keys);
-        assert_eq!(s.initial.len(), 3); // ngh
-        assert_eq!(s.vowel.len(), 2); // ie
-        assert_eq!(s.final_c.len(), 2); // ng
+        let s = parse(&keys_from_str("nghieng"));
+        assert_eq!(s.initial.len(), 3);
+        assert_eq!(s.vowel.len(), 2);
+        assert_eq!(s.final_c.len(), 2);
     }
 
     #[test]
     fn parse_qu_initial() {
-        // "qua" = qu + a
-        // qu is recognized as a 2-char initial
-        let keys = keys_from_str("qua");
-        let s = parse(&keys);
-        assert_eq!(s.initial.len(), 2); // qu
-        assert_eq!(s.vowel.len(), 1); // a
+        let s = parse(&keys_from_str("qua"));
+        assert_eq!(s.initial.len(), 2);
+        assert_eq!(s.vowel.len(), 1);
         assert!(s.glide.is_none());
     }
 
     #[test]
     fn parse_hoa_with_glide() {
-        // "hoa" = h + o(glide) + a
-        let keys = keys_from_str("hoa");
-        let s = parse(&keys);
-        assert_eq!(s.initial.len(), 1); // h
-        assert!(s.glide.is_some()); // o
-        assert_eq!(s.vowel.len(), 1); // a
+        let s = parse(&keys_from_str("hoa"));
+        assert_eq!(s.initial.len(), 1);
+        assert!(s.glide.is_some());
+        assert_eq!(s.vowel.len(), 1);
     }
 
     #[test]
     fn parse_gi_initial() {
-        // "giau" = gi + au
-        // gi is recognized as a 2-char initial when followed by another vowel
-        let keys = keys_from_str("giau");
-        let s = parse(&keys);
-        assert_eq!(s.initial.len(), 2); // gi
-        assert_eq!(s.vowel.len(), 2); // au
+        let s = parse(&keys_from_str("giau"));
+        assert_eq!(s.initial.len(), 2);
+        assert_eq!(s.vowel.len(), 2);
     }
 
     #[test]
     fn parse_duoc() {
-        // "duoc" = d + uo + c
-        let keys = keys_from_str("duoc");
-        let s = parse(&keys);
-        assert_eq!(s.initial.len(), 1); // d
-        assert_eq!(s.vowel.len(), 2); // uo (no glide here)
-        assert_eq!(s.final_c.len(), 1); // c
+        let s = parse(&keys_from_str("duoc"));
+        assert_eq!(s.initial.len(), 1);
+        assert_eq!(s.vowel.len(), 2);
+        assert_eq!(s.final_c.len(), 1);
     }
 
     #[test]
     fn parse_vowel_only() {
-        // "a" = a
-        let keys = keys_from_str("a");
-        let s = parse(&keys);
+        let s = parse(&keys_from_str("a"));
         assert!(s.initial.is_empty());
         assert_eq!(s.vowel.len(), 1);
     }
 
     #[test]
     fn invalid_no_vowel() {
-        // "bcd" - no vowel
-        let keys = keys_from_str("bcd");
-        let s = parse(&keys);
+        let s = parse(&keys_from_str("bcd"));
         assert!(s.is_empty());
     }
 

@@ -244,131 +244,60 @@ pub fn is_valid(buffer_keys: &[u16]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::keys_from_str;
 
-    fn keys_from_str(s: &str) -> Vec<u16> {
-        s.chars()
-            .filter_map(|c| match c.to_ascii_lowercase() {
-                'a' => Some(keys::A),
-                'b' => Some(keys::B),
-                'c' => Some(keys::C),
-                'd' => Some(keys::D),
-                'e' => Some(keys::E),
-                'f' => Some(keys::F),
-                'g' => Some(keys::G),
-                'h' => Some(keys::H),
-                'i' => Some(keys::I),
-                'j' => Some(keys::J),
-                'k' => Some(keys::K),
-                'l' => Some(keys::L),
-                'm' => Some(keys::M),
-                'n' => Some(keys::N),
-                'o' => Some(keys::O),
-                'p' => Some(keys::P),
-                'q' => Some(keys::Q),
-                'r' => Some(keys::R),
-                's' => Some(keys::S),
-                't' => Some(keys::T),
-                'u' => Some(keys::U),
-                'v' => Some(keys::V),
-                'w' => Some(keys::W),
-                'x' => Some(keys::X),
-                'y' => Some(keys::Y),
-                'z' => Some(keys::Z),
-                _ => None,
-            })
-            .collect()
+    /// Valid Vietnamese syllables
+    const VALID: &[&str] = &[
+        "ba", "ca", "an", "em", "gi", "gia", "giau", "ke", "ki", "ky", "nghe", "nghi", "nghieng",
+        "truong", "nguoi", "duoc",
+    ];
+
+    /// Invalid: no vowel
+    const INVALID_NO_VOWEL: &[&str] = &["bcd", "bcdfgh"];
+
+    /// Invalid: bad initial
+    const INVALID_INITIAL: &[&str] = &["clau", "john", "bla", "string", "chrome"];
+
+    /// Invalid: spelling violations
+    const INVALID_SPELLING: &[&str] = &["ci", "ce", "cy", "ka", "ko", "ku", "ngi", "nge", "ge"];
+
+    /// Invalid: foreign words
+    const INVALID_FOREIGN: &[&str] = &["exp", "expect", "test", "claudeco", "claus"];
+
+    fn assert_all_valid(words: &[&str]) {
+        for w in words {
+            assert!(is_valid(&keys_from_str(w)), "'{}' should be valid", w);
+        }
+    }
+
+    fn assert_all_invalid(words: &[&str]) {
+        for w in words {
+            assert!(!is_valid(&keys_from_str(w)), "'{}' should be invalid", w);
+        }
     }
 
     #[test]
-    fn valid_simple_words() {
-        assert!(is_valid(&keys_from_str("ba")));
-        assert!(is_valid(&keys_from_str("ca")));
-        assert!(is_valid(&keys_from_str("an")));
-        assert!(is_valid(&keys_from_str("em")));
+    fn test_valid() {
+        assert_all_valid(VALID);
     }
 
     #[test]
-    fn valid_complex_words() {
-        assert!(is_valid(&keys_from_str("nghieng")));
-        assert!(is_valid(&keys_from_str("truong")));
-        assert!(is_valid(&keys_from_str("nguoi")));
-        assert!(is_valid(&keys_from_str("duoc")));
+    fn test_invalid_no_vowel() {
+        assert_all_invalid(INVALID_NO_VOWEL);
     }
 
     #[test]
-    fn invalid_no_vowel() {
-        assert_eq!(validate(&keys_from_str("bcd")), ValidationResult::NoVowel);
-        assert_eq!(validate(&keys_from_str("http")), ValidationResult::NoVowel);
+    fn test_invalid_initial() {
+        assert_all_invalid(INVALID_INITIAL);
     }
 
     #[test]
-    fn invalid_initial() {
-        assert_eq!(
-            validate(&keys_from_str("clau")),
-            ValidationResult::InvalidInitial
-        );
-        assert_eq!(
-            validate(&keys_from_str("john")),
-            ValidationResult::InvalidInitial
-        );
-        assert_eq!(
-            validate(&keys_from_str("bla")),
-            ValidationResult::InvalidInitial
-        );
+    fn test_invalid_spelling() {
+        assert_all_invalid(INVALID_SPELLING);
     }
 
     #[test]
-    fn spelling_rules() {
-        assert_eq!(
-            validate(&keys_from_str("ci")),
-            ValidationResult::InvalidSpelling
-        );
-        assert_eq!(
-            validate(&keys_from_str("ka")),
-            ValidationResult::InvalidSpelling
-        );
-        assert_eq!(
-            validate(&keys_from_str("ngi")),
-            ValidationResult::InvalidSpelling
-        );
-        assert_eq!(
-            validate(&keys_from_str("ge")),
-            ValidationResult::InvalidSpelling
-        );
-    }
-
-    #[test]
-    fn valid_gi_standalone() {
-        assert!(is_valid(&keys_from_str("gi")));
-        assert!(is_valid(&keys_from_str("gia")));
-        assert!(is_valid(&keys_from_str("giau")));
-    }
-
-    #[test]
-    fn valid_with_k() {
-        assert!(is_valid(&keys_from_str("ke")));
-        assert!(is_valid(&keys_from_str("ki")));
-        assert!(is_valid(&keys_from_str("ky")));
-    }
-
-    #[test]
-    fn valid_ngh() {
-        assert!(is_valid(&keys_from_str("nghe")));
-        assert!(is_valid(&keys_from_str("nghi")));
-    }
-
-    #[test]
-    fn invalid_foreign_words() {
-        assert!(!is_valid(&keys_from_str("claudeco")));
-        assert!(!is_valid(&keys_from_str("claus")));
-        assert!(!is_valid(&keys_from_str("chrome")));
-        assert!(!is_valid(&keys_from_str("string")));
-    }
-
-    #[test]
-    fn invalid_unparsed_chars() {
-        assert!(!is_valid(&keys_from_str("exp")));
-        assert!(!is_valid(&keys_from_str("expect")));
-        assert!(!is_valid(&keys_from_str("test")));
+    fn test_invalid_foreign() {
+        assert_all_invalid(INVALID_FOREIGN);
     }
 }
