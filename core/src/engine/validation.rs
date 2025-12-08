@@ -1,7 +1,7 @@
 //! Vietnamese Syllable Validation
 //!
-//! Validates if a buffer represents a valid Vietnamese syllable.
-//! Used to prevent transforming non-Vietnamese words (Claus, HTTP, etc.)
+//! Rule-based validation for Vietnamese syllables.
+//! Each rule is a simple function that returns Some(error) if invalid, None if OK.
 
 use super::syllable::{parse, Syllable};
 use crate::data::keys;
@@ -22,29 +22,120 @@ impl ValidationResult {
     }
 }
 
-/// Valid single initial consonants in Vietnamese
-const VALID_SINGLE_INITIALS: &[u16] = &[
-    keys::B,
-    keys::C,
-    keys::D,
-    // đ is handled specially (stroke flag)
-    keys::G,
-    keys::H,
-    keys::K,
-    keys::L,
-    keys::M,
-    keys::N,
-    keys::P,
-    keys::Q,
-    keys::R,
-    keys::S,
-    keys::T,
-    keys::V,
-    keys::X,
+// =============================================================================
+// VALIDATION RULES - Each rule is a simple check function
+// =============================================================================
+
+/// Rule type: takes buffer keys and parsed syllable, returns error or None
+type Rule = fn(&[u16], &Syllable) -> Option<ValidationResult>;
+
+/// All validation rules in order of priority
+const RULES: &[Rule] = &[
+    rule_has_vowel,
+    rule_valid_initial,
+    rule_all_chars_parsed,
+    rule_spelling,
+    rule_valid_final,
+];
+
+// =============================================================================
+// RULE IMPLEMENTATIONS
+// =============================================================================
+
+/// Rule 1: Must have at least one vowel
+fn rule_has_vowel(_keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
+    if syllable.is_empty() {
+        return Some(ValidationResult::NoVowel);
+    }
+    None
+}
+
+/// Rule 2: Initial consonant must be valid Vietnamese
+fn rule_valid_initial(keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
+    if syllable.initial.is_empty() {
+        return None; // No initial = starts with vowel, OK
+    }
+
+    let initial: Vec<u16> = syllable.initial.iter().map(|&i| keys[i]).collect();
+
+    let is_valid = match initial.len() {
+        1 => VALID_INITIALS_1.contains(&initial[0]),
+        2 => VALID_INITIALS_2.iter().any(|p| p[0] == initial[0] && p[1] == initial[1]),
+        3 => initial[0] == keys::N && initial[1] == keys::G && initial[2] == keys::H,
+        _ => false,
+    };
+
+    if !is_valid {
+        return Some(ValidationResult::InvalidInitial);
+    }
+    None
+}
+
+/// Rule 3: All characters must be parsed into syllable structure
+fn rule_all_chars_parsed(keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
+    let parsed = syllable.initial.len()
+        + syllable.glide.map_or(0, |_| 1)
+        + syllable.vowel.len()
+        + syllable.final_c.len();
+
+    if parsed != keys.len() {
+        return Some(ValidationResult::InvalidFinal);
+    }
+    None
+}
+
+/// Rule 4: Vietnamese spelling rules (c/k, g/gh, ng/ngh)
+fn rule_spelling(keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
+    if syllable.initial.is_empty() || syllable.vowel.is_empty() {
+        return None;
+    }
+
+    let initial: Vec<u16> = syllable.initial.iter().map(|&i| keys[i]).collect();
+    let first_vowel = keys[syllable.glide.unwrap_or(syllable.vowel[0])];
+
+    // Check all spelling rules
+    for &(consonant, vowels, _msg) in SPELLING_RULES {
+        if initial == consonant && vowels.contains(&first_vowel) {
+            return Some(ValidationResult::InvalidSpelling);
+        }
+    }
+
+    None
+}
+
+/// Rule 5: Final consonant must be valid
+fn rule_valid_final(keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
+    if syllable.final_c.is_empty() {
+        return None;
+    }
+
+    let final_c: Vec<u16> = syllable.final_c.iter().map(|&i| keys[i]).collect();
+
+    let is_valid = match final_c.len() {
+        1 => VALID_FINALS_1.contains(&final_c[0]),
+        2 => VALID_FINALS_2.iter().any(|p| p[0] == final_c[0] && p[1] == final_c[1]),
+        _ => false,
+    };
+
+    if !is_valid {
+        return Some(ValidationResult::InvalidFinal);
+    }
+    None
+}
+
+// =============================================================================
+// DATA TABLES
+// =============================================================================
+
+/// Valid single initial consonants
+const VALID_INITIALS_1: &[u16] = &[
+    keys::B, keys::C, keys::D, keys::G, keys::H, keys::K, keys::L,
+    keys::M, keys::N, keys::P, keys::Q, keys::R, keys::S, keys::T,
+    keys::V, keys::X,
 ];
 
 /// Valid double initial consonants
-const VALID_DOUBLE_INITIALS: &[[u16; 2]] = &[
+const VALID_INITIALS_2: &[[u16; 2]] = &[
     [keys::C, keys::H], // ch
     [keys::G, keys::H], // gh
     [keys::G, keys::I], // gi
@@ -57,10 +148,41 @@ const VALID_DOUBLE_INITIALS: &[[u16; 2]] = &[
     [keys::T, keys::R], // tr
 ];
 
-/// Valid triple initial consonant
-const VALID_TRIPLE_INITIAL: [u16; 3] = [keys::N, keys::G, keys::H]; // ngh
+/// Valid single final consonants
+const VALID_FINALS_1: &[u16] = &[
+    keys::C, keys::M, keys::N, keys::P, keys::T,
+    keys::I, keys::Y, keys::O, keys::U, // semi-vowels
+];
 
-/// Validate buffer as Vietnamese syllable
+/// Valid double final consonants
+const VALID_FINALS_2: &[[u16; 2]] = &[
+    [keys::C, keys::H], // ch
+    [keys::N, keys::G], // ng
+    [keys::N, keys::H], // nh
+];
+
+/// Spelling rules: (consonant, invalid_vowels, description)
+/// If consonant + vowel matches, it's INVALID
+const SPELLING_RULES: &[(&[u16], &[u16], &str)] = &[
+    // c before e, i, y → invalid (should use k)
+    (&[keys::C], &[keys::E, keys::I, keys::Y], "c before e/i/y"),
+    // k before a, o, u → invalid (should use c)
+    (&[keys::K], &[keys::A, keys::O, keys::U], "k before a/o/u"),
+    // g before e → invalid (should use gh)
+    (&[keys::G], &[keys::E], "g before e"),
+    // ng before e, i → invalid (should use ngh)
+    (&[keys::N, keys::G], &[keys::E, keys::I], "ng before e/i"),
+    // gh before a, o, u → invalid (should use g)
+    (&[keys::G, keys::H], &[keys::A, keys::O, keys::U], "gh before a/o/u"),
+    // ngh before a, o, u → invalid (should use ng)
+    (&[keys::N, keys::G, keys::H], &[keys::A, keys::O, keys::U], "ngh before a/o/u"),
+];
+
+// =============================================================================
+// PUBLIC API
+// =============================================================================
+
+/// Validate buffer as Vietnamese syllable - runs all rules
 pub fn validate(buffer_keys: &[u16]) -> ValidationResult {
     if buffer_keys.is_empty() {
         return ValidationResult::NoVowel;
@@ -68,24 +190,11 @@ pub fn validate(buffer_keys: &[u16]) -> ValidationResult {
 
     let syllable = parse(buffer_keys);
 
-    // Must have vowel
-    if syllable.is_empty() {
-        return ValidationResult::NoVowel;
-    }
-
-    // Validate initial consonant
-    if let Some(result) = validate_initial(buffer_keys, &syllable) {
-        return result;
-    }
-
-    // Validate spelling rules
-    if let Some(result) = validate_spelling(buffer_keys, &syllable) {
-        return result;
-    }
-
-    // Validate final consonant
-    if let Some(result) = validate_final(buffer_keys, &syllable) {
-        return result;
+    // Run all rules in order
+    for rule in RULES {
+        if let Some(error) = rule(buffer_keys, &syllable) {
+            return error;
+        }
     }
 
     ValidationResult::Valid
@@ -96,162 +205,9 @@ pub fn is_valid(buffer_keys: &[u16]) -> bool {
     validate(buffer_keys).is_valid()
 }
 
-/// Validate initial consonant
-fn validate_initial(keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
-    let initial_len = syllable.initial.len();
-
-    if initial_len == 0 {
-        // No initial - syllable starts with vowel, OK
-        return None;
-    }
-
-    // Get all initial keys
-    let initial_keys: Vec<u16> = syllable.initial.iter().map(|&i| keys[i]).collect();
-
-    // Check if it's a valid Vietnamese initial
-    match initial_len {
-        1 => {
-            let k = initial_keys[0];
-            if !VALID_SINGLE_INITIALS.contains(&k) {
-                // Could be 'd' which becomes 'đ', check for it
-                if k != keys::D {
-                    return Some(ValidationResult::InvalidInitial);
-                }
-            }
-        }
-        2 => {
-            let pattern = [initial_keys[0], initial_keys[1]];
-            if !VALID_DOUBLE_INITIALS.contains(&pattern) {
-                return Some(ValidationResult::InvalidInitial);
-            }
-        }
-        3 => {
-            if [initial_keys[0], initial_keys[1], initial_keys[2]] != VALID_TRIPLE_INITIAL {
-                return Some(ValidationResult::InvalidInitial);
-            }
-        }
-        _ => return Some(ValidationResult::InvalidInitial),
-    }
-
-    None
-}
-
-/// Validate Vietnamese spelling rules
-///
-/// Rules:
-/// - c before e, ê, i, y → must use k
-/// - k before a, ă, â, o, ô, ơ, u, ư → must use c
-/// - g before e, ê, i → must use gh
-/// - ng before e, ê, i → must use ngh
-fn validate_spelling(buffer_keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
-    if syllable.initial.is_empty() || syllable.vowel.is_empty() {
-        return None;
-    }
-
-    let first_vowel_idx = syllable.glide.unwrap_or(syllable.vowel[0]);
-    let first_vowel = buffer_keys[first_vowel_idx];
-
-    let initial_keys: Vec<u16> = syllable.initial.iter().map(|&i| buffer_keys[i]).collect();
-
-    // Single consonant spelling rules
-    if initial_keys.len() == 1 {
-        let consonant = initial_keys[0];
-
-        // c before e, ê, i, y → invalid (should use k)
-        if consonant == keys::C && matches!(first_vowel, keys::E | keys::I | keys::Y) {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-
-        // k before a, o, u → invalid (should use c)
-        // Note: k + ă, â, ô, ơ, ư are also invalid but we check base vowels here
-        if consonant == keys::K && matches!(first_vowel, keys::A | keys::O | keys::U) {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-
-        // g before e → invalid (should use gh)
-        // Note: g before i is allowed for "gi" (gì, gì đó) - i can be the only vowel
-        if consonant == keys::G && first_vowel == keys::E {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-    }
-
-    // Double consonant spelling rules
-    if initial_keys.len() == 2 {
-        // ng before e, ê, i → invalid (should use ngh)
-        if initial_keys == [keys::N, keys::G] && matches!(first_vowel, keys::E | keys::I) {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-
-        // gh before a, o, u → invalid (should use g)
-        if initial_keys == [keys::G, keys::H] && matches!(first_vowel, keys::A | keys::O | keys::U)
-        {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-    }
-
-    // Triple consonant spelling rules
-    if initial_keys.len() == 3 {
-        // ngh before a, o, u → invalid (should use ng)
-        if initial_keys == [keys::N, keys::G, keys::H]
-            && matches!(first_vowel, keys::A | keys::O | keys::U)
-        {
-            return Some(ValidationResult::InvalidSpelling);
-        }
-    }
-
-    None
-}
-
-/// Validate final consonant combinations
-fn validate_final(buffer_keys: &[u16], syllable: &Syllable) -> Option<ValidationResult> {
-    let final_len = syllable.final_c.len();
-
-    if final_len == 0 {
-        return None;
-    }
-
-    // Valid finals: c, ch, m, n, ng, nh, p, t, i, y, o, u
-    let valid_single = [
-        keys::C,
-        keys::M,
-        keys::N,
-        keys::P,
-        keys::T,
-        keys::I,
-        keys::Y,
-        keys::O,
-        keys::U,
-    ];
-
-    let valid_double = [
-        [keys::C, keys::H], // ch
-        [keys::N, keys::G], // ng
-        [keys::N, keys::H], // nh
-    ];
-
-    // Get final keys
-    let final_keys: Vec<u16> = syllable.final_c.iter().map(|&i| buffer_keys[i]).collect();
-
-    match final_len {
-        1 => {
-            let k = final_keys[0];
-            if !valid_single.contains(&k) {
-                return Some(ValidationResult::InvalidFinal);
-            }
-        }
-        2 => {
-            if !valid_double.contains(&[final_keys[0], final_keys[1]]) {
-                return Some(ValidationResult::InvalidFinal);
-            }
-        }
-        _ => return Some(ValidationResult::InvalidFinal),
-    }
-
-    // Note: Vowel + final combinations (-ch, -nh) are validated at base vowel level
-    // to allow diacritics like ă and ê
-
-    None
-}
+// =============================================================================
+// TESTS
+// =============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -315,60 +271,28 @@ mod tests {
 
     #[test]
     fn invalid_initial() {
-        // "cl" is not valid Vietnamese initial - clau has vowel 'a'
-        assert_eq!(
-            validate(&keys_from_str("clau")),
-            ValidationResult::InvalidInitial
-        );
-        // "j" is not valid Vietnamese initial - john has vowel 'o'
-        assert_eq!(
-            validate(&keys_from_str("john")),
-            ValidationResult::InvalidInitial
-        );
-        // "bl" is not valid Vietnamese initial
-        assert_eq!(
-            validate(&keys_from_str("bla")),
-            ValidationResult::InvalidInitial
-        );
+        assert_eq!(validate(&keys_from_str("clau")), ValidationResult::InvalidInitial);
+        assert_eq!(validate(&keys_from_str("john")), ValidationResult::InvalidInitial);
+        assert_eq!(validate(&keys_from_str("bla")), ValidationResult::InvalidInitial);
     }
 
     #[test]
     fn spelling_rules() {
-        // c before i → invalid (should use k)
-        assert_eq!(
-            validate(&keys_from_str("ci")),
-            ValidationResult::InvalidSpelling
-        );
-        // k before a → invalid (should use c)
-        assert_eq!(
-            validate(&keys_from_str("ka")),
-            ValidationResult::InvalidSpelling
-        );
-        // ng before i → invalid (should use ngh)
-        assert_eq!(
-            validate(&keys_from_str("ngi")),
-            ValidationResult::InvalidSpelling
-        );
-        // g before e → invalid (should use gh)
-        assert_eq!(
-            validate(&keys_from_str("ge")),
-            ValidationResult::InvalidSpelling
-        );
+        assert_eq!(validate(&keys_from_str("ci")), ValidationResult::InvalidSpelling);
+        assert_eq!(validate(&keys_from_str("ka")), ValidationResult::InvalidSpelling);
+        assert_eq!(validate(&keys_from_str("ngi")), ValidationResult::InvalidSpelling);
+        assert_eq!(validate(&keys_from_str("ge")), ValidationResult::InvalidSpelling);
     }
 
     #[test]
     fn valid_gi_standalone() {
-        // "gi" alone is valid (gì = what)
         assert!(is_valid(&keys_from_str("gi")));
-        // "gia" is valid (giá = price)
         assert!(is_valid(&keys_from_str("gia")));
-        // "giau" is valid (giàu = rich)
         assert!(is_valid(&keys_from_str("giau")));
     }
 
     #[test]
     fn valid_with_k() {
-        // k + e, i, y is valid
         assert!(is_valid(&keys_from_str("ke")));
         assert!(is_valid(&keys_from_str("ki")));
         assert!(is_valid(&keys_from_str("ky")));
@@ -376,8 +300,22 @@ mod tests {
 
     #[test]
     fn valid_ngh() {
-        // ngh + e, i is valid
         assert!(is_valid(&keys_from_str("nghe")));
         assert!(is_valid(&keys_from_str("nghi")));
+    }
+
+    #[test]
+    fn invalid_foreign_words() {
+        assert!(!is_valid(&keys_from_str("claudeco")));
+        assert!(!is_valid(&keys_from_str("claus")));
+        assert!(!is_valid(&keys_from_str("chrome")));
+        assert!(!is_valid(&keys_from_str("string")));
+    }
+
+    #[test]
+    fn invalid_unparsed_chars() {
+        assert!(!is_valid(&keys_from_str("exp")));
+        assert!(!is_valid(&keys_from_str("expect")));
+        assert!(!is_valid(&keys_from_str("test")));
     }
 }

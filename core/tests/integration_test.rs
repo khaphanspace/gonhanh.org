@@ -298,3 +298,44 @@ fn alternating_vowel_modifier() {
     // But with single engine instance, buffer accumulates
     assert!(!result.is_empty());
 }
+
+// ============================================================
+// FOREIGN WORDS: Should NOT transform
+// ============================================================
+
+#[test]
+fn foreign_word_claudeco_not_transformed() {
+    let mut e = Engine::new();
+    // "claudeco" has invalid initial "cl" → stroke should NOT apply
+    let result = type_word(&mut e, "claudecod");
+    // Should remain as normal "d", not "đ"
+    assert!(
+        !result.contains('đ'),
+        "claudeco+d should not become đ, got: {}",
+        result
+    );
+}
+
+#[test]
+fn foreign_word_no_tone() {
+    let mut e = Engine::new();
+    // "expect" is invalid → tone modifiers should not apply
+    let result = type_word(&mut e, "expects");
+    assert!(
+        !result.contains('é'),
+        "expect+s should not add tone, got: {}",
+        result
+    );
+}
+
+#[test]
+fn foreign_word_exp_no_circumflex() {
+    let mut e = Engine::new();
+    // "exp" is invalid → circumflex should not apply when typing 'e'
+    let result = type_word(&mut e, "expe");
+    assert!(
+        !result.contains('ê'),
+        "exp+e should not become eêp, got: {}",
+        result
+    );
+}
