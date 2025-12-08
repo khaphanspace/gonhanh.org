@@ -349,6 +349,21 @@ mod tests {
             validate(&keys_from_str("ngi")),
             ValidationResult::InvalidSpelling
         );
+        // g before e → invalid (should use gh)
+        assert_eq!(
+            validate(&keys_from_str("ge")),
+            ValidationResult::InvalidSpelling
+        );
+    }
+
+    #[test]
+    fn valid_gi_standalone() {
+        // "gi" alone is valid (gì = what)
+        assert!(is_valid(&keys_from_str("gi")));
+        // "gia" is valid (giá = price)
+        assert!(is_valid(&keys_from_str("gia")));
+        // "giau" is valid (giàu = rich)
+        assert!(is_valid(&keys_from_str("giau")));
     }
 
     #[test]
