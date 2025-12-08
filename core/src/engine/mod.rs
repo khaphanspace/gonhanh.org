@@ -241,8 +241,11 @@ impl Engine {
             }
 
             // Validate buffer before applying stroke
+            // Only validate if buffer has vowels (complete syllable)
+            // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
             let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-            if !is_valid(&buffer_keys) {
+            let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
+            if has_vowel && !is_valid(&buffer_keys) {
                 return None;
             }
 
