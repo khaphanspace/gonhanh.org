@@ -54,9 +54,6 @@ func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled")
 func ime_enabled(_ enabled: Bool)
 
-@_silgen_name("ime_modern")
-func ime_modern(_ modern: Bool)
-
 @_silgen_name("ime_clear")
 func ime_clear()
 
@@ -125,11 +122,6 @@ class RustBridge {
     static func setEnabled(_ enabled: Bool) {
         ime_enabled(enabled)
         debugLog("[RustBridge] Engine enabled: \(enabled)")
-    }
-
-    /// Set modern orthography (true=oà, false=òa)
-    static func setModern(_ modern: Bool) {
-        ime_modern(modern)
     }
 
     /// Clear buffer (new session, e.g., on mouse click)

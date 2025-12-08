@@ -101,20 +101,6 @@ pub extern "C" fn ime_enabled(enabled: bool) {
     }
 }
 
-/// Set tone placement style.
-///
-/// # Arguments
-/// * `modern` - true for modern style (hoà), false for classic (hòa)
-///
-/// No-op if engine not initialized.
-#[no_mangle]
-pub extern "C" fn ime_modern(modern: bool) {
-    let mut guard = ENGINE.lock().unwrap();
-    if let Some(ref mut e) = *guard {
-        e.set_modern(modern);
-    }
-}
-
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation, mouse click, focus change).
