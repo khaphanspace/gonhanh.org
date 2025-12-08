@@ -1,4 +1,4 @@
-//! GoNhanh Vietnamese IME Core
+//! Gõ Nhanh Vietnamese IME Core
 //!
 //! Simple Vietnamese input method engine supporting Telex and VNI.
 //!

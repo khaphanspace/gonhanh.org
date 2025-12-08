@@ -1,4 +1,4 @@
-# Contributing to GoNhanh
+# Contributing to Gõ Nhanh
 
 Thank you for your interest in contributing! 🎉
 

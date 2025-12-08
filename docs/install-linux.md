@@ -1,10 +1,10 @@
-# Hướng dẫn cài đặt GoNhanh trên Linux
+# Hướng dẫn cài đặt Gõ Nhanh trên Linux
 
 > **Lưu ý:** Phiên bản Linux hiện đang trong giai đoạn phát triển (Planned).
 
 ## Trạng thái hiện tại
 
-GoNhanh cho Linux dự kiến sẽ hỗ trợ **IBus** engine để tương thích tốt với GNOME, KDE và các môi trường Desktop khác (bao gồm cả Wayland).
+Gõ Nhanh cho Linux dự kiến sẽ hỗ trợ **IBus** engine để tương thích tốt với GNOME, KDE và các môi trường Desktop khác (bao gồm cả Wayland).
 
 ## Lộ trình phát triển
 

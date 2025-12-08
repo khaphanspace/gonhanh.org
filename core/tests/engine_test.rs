@@ -439,3 +439,4 @@ fn edge_invalid_not_transformed() {
     // Note: 's' at the end might trigger mark, but 'http' part stays
     assert!(result.contains("http"));
 }
+

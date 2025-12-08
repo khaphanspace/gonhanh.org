@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" alt="GoNhanh Logo" width="128" height="128">
+  <img src="assets/logo.png" alt="Gõ Nhanh Logo" width="128" height="128">
 </p>
 
-<h1 align="center">GoNhanh (Gõ Nhanh)</h1>
+<h1 align="center">Gõ Nhanh</h1>
 
 <p align="center">
   <img src="https://img.shields.io/github/downloads/khaphanspace/gonhanh.org/total?label=Downloads" />
@@ -17,7 +17,7 @@
   <img src="https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg" alt="CI">
 </p>
 
-<p align="center"><strong>GoNhanh</strong> - Bộ gõ tiếng Việt hiện đại, hiệu suất cao dành cho macOS. <br>
+<p align="center"><strong>Gõ Nhanh</strong> - Bộ gõ tiếng Việt hiện đại, hiệu suất cao dành cho macOS. <br>
 Kết hợp sức mạnh của <strong>Rust</strong> (Core Engine) và <strong>SwiftUI</strong> (Native UI) để mang lại trải nghiệm gõ phím mượt mà, ổn định và bảo mật.</p>
 
 ## 📥 Cài đặt
@@ -30,7 +30,7 @@ Kết hợp sức mạnh của <strong>Rust</strong> (Core Engine) và <strong>S
 
 ## 🚀 Tính năng nổi bật
 
-GoNhanh hướng tới sự **Chuẩn hóa - Hiệu suất - Tiện dụng**:
+Gõ Nhanh hướng tới sự **Chuẩn hóa - Hiệu suất - Tiện dụng**:
 
 - **Core Engine (Rust)**: Xử lý dấu thông minh, độ trễ < 1ms, bộ nhớ cực thấp (~5MB).
 - **Native UI (SwiftUI)**: Giao diện tối giản trên Menu Bar, hỗ trợ Light/Dark mode.
@@ -67,11 +67,11 @@ GoNhanh hướng tới sự **Chuẩn hóa - Hiệu suất - Tiện dụng**:
 
 Tôi (**Kha Phan**) bắt đầu dự án này vì các bộ gõ hiện tại thường xuyên gặp lỗi khi tôi làm việc với **Claude Code**.
 
-Từ nhu cầu giải quyết vấn đề cá nhân, GoNhanh được phát triển thành một sản phẩm hoàn thiện dành tặng cộng đồng. Đây cũng là sự tiếp nối và kế thừa từ **UniKey**, **OpenKey** và **EVKey**.
+Từ nhu cầu giải quyết vấn đề cá nhân, Gõ Nhanh được phát triển thành một sản phẩm hoàn thiện dành tặng cộng đồng. Đây cũng là sự tiếp nối và kế thừa từ **UniKey**, **OpenKey** và **EVKey**.
 
 ## So sánh
 
-|                |      GoNhanh       |        EVKey        |    OpenKey     |    GoTiengViet    |     UniKey     |
+|                |      Gõ Nhanh      |        EVKey        |    OpenKey     |    GoTiengViet    |     UniKey     |
 | :------------- | :----------------: | :-----------------: | :------------: | :---------------: | :------------: |
 | **Trạng thái** | 🟢 **Phát triển**  | 🔴 Ngừng phát triển |   🟡 Bảo trì   | 🟡 Ngừng cập nhật |   🟢 Ổn định   |
 | macOS          |         ✅         |         ✅          |       ✅       |        ✅         |       ❌       |
@@ -85,9 +85,9 @@ Từ nhu cầu giải quyết vấn đề cá nhân, GoNhanh được phát tri�
 
 Nếu cần chuyển mã hay dùng bảng mã cũ, dùng UniKey/EVKey/OpenKey.
 
-### Tại sao chọn GoNhanh?
+### Tại sao chọn Gõ Nhanh?
 
-| Vấn đề                                     |    Bộ gõ khác / Mặc định     |         GoNhanh          |
+| Vấn đề                                     |    Bộ gõ khác / Mặc định     |        Gõ Nhanh          |
 | :----------------------------------------- | :--------------------------: | :----------------------: |
 | **Dính chữ Chrome/Edge** (`aa` → `aâ`)     | ⚠️ Tắt autocomplete thủ công |      ✅ Tự động fix      |
 | **Lặp chữ Google Docs** (`được` → `đđược`) |  ⚠️ Bật "Sửa lỗi" thủ công   |      ✅ Tự động fix      |
@@ -159,4 +159,4 @@ Chi tiết: [docs/vietnamese-language-system.md](docs/vietnamese-language-system
 
 ## License
 
-Copyright © 2025 GoNhanh Contributors. [GNU GPLv3](LICENSE).
+Copyright © 2025 Gõ Nhanh Contributors. [GNU GPLv3](LICENSE).

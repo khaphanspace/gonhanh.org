@@ -40,5 +40,5 @@ body:
   - type: input
     id: version
     attributes:
-      label: Phiên bản GoNhanh
+      label: Phiên bản Gõ Nhanh
       placeholder: "1.0.0"

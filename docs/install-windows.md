@@ -1,10 +1,10 @@
-# Hướng dẫn cài đặt GoNhanh trên Windows
+# Hướng dẫn cài đặt Gõ Nhanh trên Windows
 
 > **Lưu ý:** Phiên bản Windows hiện đang trong giai đoạn phát triển (Planned).
 
 ## Trạng thái hiện tại
 
-GoNhanh cho Windows đang được phát triển sử dụng **WPF (Windows Presentation Foundation)** kết hợp với lõi **Rust**.
+Gõ Nhanh cho Windows đang được phát triển sử dụng **WPF (Windows Presentation Foundation)** kết hợp với lõi **Rust**.
 
 ## Dành cho Developers
 

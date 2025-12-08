@@ -11,7 +11,7 @@ NEXT_MAJOR := $(shell echo $(VER) | awk -F. '{print $$1+1".0.0"}')
 .DEFAULT_GOAL := help
 
 help: ## Show this help
-	@echo "⚡ GoNhanh - Vietnamese Input Method Engine"
+	@echo "⚡ Gõ Nhanh - Vietnamese Input Method Engine"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
