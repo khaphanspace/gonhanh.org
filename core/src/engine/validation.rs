@@ -319,3 +319,61 @@ mod tests {
         assert!(!is_valid(&keys_from_str("test")));
     }
 }
+
+#[cfg(test)]
+mod debug_tests {
+    use super::*;
+
+    fn keys_from_str(s: &str) -> Vec<u16> {
+        s.chars()
+            .filter_map(|c| match c.to_ascii_lowercase() {
+                'a' => Some(keys::A),
+                'e' => Some(keys::E),
+                'p' => Some(keys::P),
+                'x' => Some(keys::X),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn debug_exxp() {
+        let keys = keys_from_str("exxp");
+        println!("exxp valid: {:?}", validate(&keys));
+        assert!(!is_valid(&keys), "exxp should be invalid");
+    }
+}
+
+#[cfg(test)]
+mod debug_exxpe {
+    use super::super::*;
+    use crate::data::keys;
+
+    fn char_to_key(c: char) -> u16 {
+        match c.to_ascii_lowercase() {
+            'a' => keys::A, 'e' => keys::E, 'p' => keys::P, 'x' => keys::X,
+            _ => 255,
+        }
+    }
+
+    #[test]
+    fn trace_exxpe() {
+        let mut e = Engine::new();
+        let input = "exxpe";
+        
+        println!("\nTyping: {}", input);
+        for c in input.chars() {
+            let key = char_to_key(c);
+            let r = e.on_key(key, false, false);
+            print!("  '{}' (key={}) → action={}, bs={}, count={}", c, key, r.action, r.backspace, r.count);
+            if r.action == Action::Send as u8 {
+                let chars: String = (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect();
+                println!(", chars=\"{}\"", chars);
+            } else {
+                println!();
+            }
+        }
+    }
+}
