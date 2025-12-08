@@ -381,7 +381,7 @@ private func sendTextReplacement(backspaceCount: Int, chars: [Character]) {
     }
 }
 
-/// Terminal-friendly: backspace then type
+/// Default method: backspace then type
 private func sendTextReplacementWithBackspace(backspaceCount: Int, chars: [Character]) {
     guard let source = CGEventSource(stateID: .privateState) else {
         debugLog("[Send] Failed to create CGEventSource")
