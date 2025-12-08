@@ -168,9 +168,9 @@ fn validate_spelling(buffer_keys: &[u16], syllable: &Syllable) -> Option<Validat
             return Some(ValidationResult::InvalidSpelling);
         }
 
-        // g before e, i → invalid (should use gh)
-        // Note: gi is separate initial
-        if consonant == keys::G && matches!(first_vowel, keys::E | keys::I) {
+        // g before e → invalid (should use gh)
+        // Note: g before i is allowed for "gi" (gì, gì đó) - i can be the only vowel
+        if consonant == keys::G && first_vowel == keys::E {
             return Some(ValidationResult::InvalidSpelling);
         }
     }
