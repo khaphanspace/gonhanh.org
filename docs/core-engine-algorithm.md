@@ -1,9 +1,13 @@
 # GoNhanh Core Typing Engine - Decision Tree Documentation
 
-> Tài liệu thuật toán và logic engine gõ tiếng Việt theo dạng cây quyết định.
+> Tài liệu thuật toán và logic engine gõ tiếng Việt **hiện tại** theo dạng cây quyết định.
 
 **Tài liệu liên quan**:
+- [core-engine-algorithm-v2.md](./core-engine-algorithm-v2.md) - **Thuật toán đề xuất V2** (pattern-based, validation-first)
 - [vietnamese-language-system.md](./vietnamese-language-system.md) - Hệ thống chữ viết tiếng Việt & Quy tắc âm vị học
+
+> **Lưu ý**: Tài liệu này mô tả thuật toán **hiện tại (V1)** với cách tiếp cận case-by-case.
+> Xem [V2](./core-engine-algorithm-v2.md) cho thiết kế mới với pattern-based replacement và validation.
 
 ---
 
