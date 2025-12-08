@@ -2,6 +2,9 @@
 
 > Tài liệu thuật toán và logic engine gõ tiếng Việt theo dạng cây quyết định.
 
+**Tài liệu liên quan**:
+- [vietnamese-language-system.md](./vietnamese-language-system.md) - Hệ thống chữ viết tiếng Việt & Quy tắc âm vị học
+
 ---
 
 ## 1. TỔNG QUAN CẤU TRÚC ENGINE
@@ -655,7 +658,158 @@ GÕ "Việt" BẰNG TELEX
 
 ---
 
-## 9. TÓM TẮT
+## 9. VALIDATION ÂM TIẾT TIẾNG VIỆT
+
+> **Tham khảo đầy đủ**: [vietnamese-language-system.md](./vietnamese-language-system.md) - Section 4.4, 6.5, và 12
+
+### 9.1 Tại sao cần Validation?
+
+```
+MỤC ĐÍCH:
+│
+├── Xác định buffer hiện tại có phải là từ tiếng Việt hợp lệ
+│   trước khi áp dụng transformation (dấu thanh/dấu phụ)
+│
+├── VÍ DỤ:
+│   ├── "Duoc" + j → "Được" ✓ (tiếng Việt hợp lệ)
+│   ├── "Clau" + s → "Claus" (không phải tiếng Việt - giữ nguyên)
+│   ├── "HTTP" + s → "HTTPs" (không có nguyên âm - giữ nguyên)
+│   └── "John" + s → "Johns" ("J" không có trong tiếng Việt)
+│
+└── LỢI ÍCH:
+    ├── Tránh biến đổi từ tiếng Anh/từ mượn
+    ├── Cho phép gõ code, email, URL không bị ảnh hưởng
+    └── Tăng trải nghiệm người dùng
+```
+
+### 9.2 Decision Tree: Validation Pipeline
+
+```
+is_valid_vietnamese_syllable(buffer)
+│
+├─► STEP 1: Kiểm tra có nguyên âm không
+│   ├── Không có nguyên âm → INVALID
+│   └── Có nguyên âm → tiếp tục
+│
+├─► STEP 2: Xác định phụ âm đầu (C₁)
+│   ├── Nếu có C₁:
+│   │   ├── C₁ ∈ {b,c,d,đ,g,h,k,l,m,n,p,q,r,s,t,v,x}? → OK
+│   │   ├── C₁ ∈ {ch,gh,gi,kh,ng,nh,ph,qu,th,tr}? → OK
+│   │   ├── C₁ = "ngh"? → OK
+│   │   └── else → INVALID (vd: cl, bl, j, f, w, z)
+│   │
+│   └── Kiểm tra quy tắc chính tả:
+│       ├── "c" trước e,ê,i,y? → INVALID (phải dùng "k")
+│       ├── "k" trước a,ă,â,o,ô,ơ,u,ư? → INVALID (phải dùng "c")
+│       ├── "g" trước e,ê,i? → INVALID (phải dùng "gh")
+│       ├── "gh" trước a,ă,â,o,ô,ơ,u,ư? → INVALID
+│       ├── "ng" trước e,ê,i? → INVALID (phải dùng "ngh")
+│       └── "ngh" trước a,ă,â,o,ô,ơ,u,ư? → INVALID
+│
+├─► STEP 3: Xác định nguyên âm (V)
+│   ├── Nguyên âm đơn: a,ă,â,e,ê,i,o,ô,ơ,u,ư,y
+│   ├── Nguyên âm đôi: ai,ao,au,âu,ây,eo,êu,ia,iê,iu,oa,oă,oe...
+│   └── Nguyên âm ba: iêu,yêu,ươi,ươu,uôi,oai,oay,oeo,uây,uyê
+│
+├─► STEP 4: Xác định âm cuối (C₂)
+│   ├── Phụ âm cuối hợp lệ: c,ch,m,n,ng,nh,p,t
+│   ├── Bán nguyên âm cuối: i,y,o,u
+│   └── Kiểm tra kết hợp:
+│       ├── -ch chỉ sau a,ă,ê,i
+│       ├── -nh chỉ sau a,ă,ê,i,y
+│       └── -ng không sau e,ê
+│
+└─► STEP 5: Kiểm tra quy tắc thanh điệu + âm cuối
+    │
+    └── Nếu có âm cuối tắc (p,t,c,ch):
+        └── Chỉ cho phép thanh sắc hoặc nặng
+            ├── ✓ cấp, cập, mát, mạt
+            └── ✗ cảp, cãp, cap, càp (không tồn tại)
+```
+
+### 9.3 Danh sách Phụ âm đầu KHÔNG HỢP LỆ
+
+```
+INVALID_INITIALS - Reject ngay khi gặp:
+│
+├── Chữ cái không có trong tiếng Việt:
+│   └── f, j, w, z
+│
+├── Cụm phụ âm (consonant clusters):
+│   ├── *l: bl, cl, fl, gl, pl, sl
+│   ├── *r: br, cr, dr, fr, gr, pr, str
+│   ├── s*: sc, sk, sm, sn, sp, st, sw
+│   └── *w: dw, tw, sw
+│
+└── Vi phạm quy tắc chính tả:
+    ├── ce, ci (phải là ke, ki)
+    ├── ka, ko (phải là ca, co)
+    ├── nge, ngi (phải là nghe, nghi)
+    └── gha, ngha (phải là ga, nga)
+```
+
+### 9.4 Quy tắc Thanh điệu + Âm cuối Tắc
+
+```
+TONE + FINAL STOP CONSONANT RULE
+│
+├── Âm cuối tắc: p, t, c, ch
+│
+├── CHỈ ĐƯỢC mang thanh sắc (1) hoặc nặng (5)
+│   │
+│   ├── ✓ Hợp lệ:
+│   │   ├── cấp, cập (sắc, nặng + p)
+│   │   ├── mát, mạt (sắc, nặng + t)
+│   │   ├── các, cạc (sắc, nặng + c)
+│   │   └── ách, ạch (sắc, nặng + ch)
+│   │
+│   └── ✗ KHÔNG hợp lệ:
+│       ├── *cảp, *cãp, *cap, *càp (hỏi, ngã, ngang, huyền + p)
+│       ├── *mảt, *mãt, *mat, *màt
+│       ├── *cảc, *cãc, *cac, *càc
+│       └── *ảch, *ãch, *ach, *àch
+│
+└── ÁP DỤNG:
+    ├── Khi user gõ dấu thanh không hợp lệ với âm cuối tắc:
+    │   ├── Không apply dấu
+    │   └── Hoặc thông báo/ignore
+    │
+    └── VÍ DỤ:
+        └── "cap" + r (hỏi) → không apply (không tồn tại *cảp)
+```
+
+### 9.5 Implementation Notes
+
+```rust
+// Suggested validation check before transformation
+
+fn should_apply_transformation(buffer: &[Char], mark: Option<u8>) -> bool {
+    // 1. Check if buffer is valid Vietnamese
+    if !is_valid_vietnamese_syllable(buffer) {
+        return false;
+    }
+
+    // 2. If applying mark (dấu thanh), check tone+final rule
+    if let Some(mark_value) = mark {
+        if let Some(final_c) = get_final_consonant(buffer) {
+            if is_stop_consonant(final_c) {
+                // Only allow sắc (1) or nặng (5)
+                return matches!(mark_value, 1 | 5);
+            }
+        }
+    }
+
+    true
+}
+
+fn is_stop_consonant(c: &str) -> bool {
+    matches!(c, "p" | "t" | "c" | "ch")
+}
+```
+
+---
+
+## 10. TÓM TẮT
 
 ```
 GONHANH ENGINE SUMMARY
@@ -681,11 +835,37 @@ GONHANH ENGINE SUMMARY
 │   ├── UO compound (uo → ươ với cả u và o)
 │   └── Delayed mode (VNI: dung9 → đung)
 │
+├── VALIDATION (ĐỀ XUẤT)
+│   ├── Kiểm tra buffer có phải tiếng Việt hợp lệ
+│   ├── Áp dụng quy tắc chính tả (c/k, g/gh, ng/ngh)
+│   ├── Áp dụng quy tắc thanh điệu + âm cuối tắc
+│   └── Tránh biến đổi từ tiếng Anh/code/URL
+│
 └── OUTPUT
     ├── Unicode precomposed characters
     ├── Backspace count + new chars
     └── Rebuild từ vị trí thay đổi
 ```
+
+---
+
+## Changelog
+
+- **2025-12-08**: Bổ sung Section 9 - Validation Âm tiết Tiếng Việt
+  - Thêm decision tree cho validation pipeline
+  - Danh sách phụ âm đầu không hợp lệ
+  - Quy tắc thanh điệu + âm cuối tắc
+  - Implementation notes với pseudo-code
+  - Liên kết đến vietnamese-language-system.md
+
+- **2025-12-08**: Tạo tài liệu Decision Tree
+  - Tổng quan cấu trúc engine
+  - Cấu trúc dữ liệu (Char, Result)
+  - 4-stage pipeline xử lý phím
+  - Input method rules (Telex, VNI)
+  - Thuật toán đặt dấu thanh (Phonology)
+  - Các cơ chế đặc biệt (double-key revert, mark repositioning, UO compound, Qu detection)
+  - Character composition và rebuild output
 
 ---
 
