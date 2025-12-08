@@ -259,7 +259,13 @@ impl Engine {
     }
 
     /// Try to apply tone transformation by scanning buffer for targets
-    fn try_tone(&mut self, key: u16, caps: bool, tone_type: ToneType, targets: &[u16]) -> Option<Result> {
+    fn try_tone(
+        &mut self,
+        key: u16,
+        caps: bool,
+        tone_type: ToneType,
+        targets: &[u16],
+    ) -> Option<Result> {
         if self.buf.is_empty() {
             return None;
         }

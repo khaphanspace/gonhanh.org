@@ -213,7 +213,8 @@ impl ShortcutTable {
     /// Rebuild sorted triggers list (longest first)
     fn rebuild_sorted_triggers(&mut self) {
         self.sorted_triggers = self.shortcuts.keys().cloned().collect();
-        self.sorted_triggers.sort_by(|a, b| b.len().cmp(&a.len()));
+        self.sorted_triggers
+            .sort_by_key(|s| std::cmp::Reverse(s.len()));
     }
 
     /// Check if shortcut table is empty

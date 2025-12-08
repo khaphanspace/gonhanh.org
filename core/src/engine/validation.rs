@@ -247,27 +247,8 @@ fn validate_final(buffer_keys: &[u16], syllable: &Syllable) -> Option<Validation
         _ => return Some(ValidationResult::InvalidFinal),
     }
 
-    // Check vowel + final combinations
-    // -ch only after a, ă, ê, i
-    // -nh only after a, ă, ê, i, y
-    if final_len == 2 && !syllable.vowel.is_empty() {
-        let last_vowel = buffer_keys[*syllable.vowel.last().unwrap()];
-
-        // -ch constraint
-        if final_keys == [keys::C, keys::H] {
-            if !matches!(last_vowel, keys::A | keys::E | keys::I) {
-                // Allow ă and ê which are a and e with diacritics
-                // This is checked at base level
-            }
-        }
-
-        // -nh constraint
-        if final_keys == [keys::N, keys::H] {
-            if !matches!(last_vowel, keys::A | keys::E | keys::I | keys::Y) {
-                // Similar - base level check
-            }
-        }
-    }
+    // Note: Vowel + final combinations (-ch, -nh) are validated at base vowel level
+    // to allow diacritics like ă and ê
 
     None
 }

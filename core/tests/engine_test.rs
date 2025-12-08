@@ -53,31 +53,19 @@ fn syllable_double_initial() {
 #[test]
 fn syllable_triple_initial() {
     // Triple consonant initial (ngh)
-    telex(&[
-        ("nghe", "nghe"),
-        ("nghi", "nghi"),
-        ("nghieng", "nghieng"),
-    ]);
+    telex(&[("nghe", "nghe"), ("nghi", "nghi"), ("nghieng", "nghieng")]);
 }
 
 #[test]
 fn syllable_gi_initial() {
     // gi + vowel = gi is initial
-    telex(&[
-        ("gia", "gia"),
-        ("giau", "giau"),
-        ("gieo", "gieo"),
-    ]);
+    telex(&[("gia", "gia"), ("giau", "giau"), ("gieo", "gieo")]);
 }
 
 #[test]
 fn syllable_qu_initial() {
     // qu + vowel = qu is initial
-    telex(&[
-        ("qua", "qua"),
-        ("quan", "quan"),
-        ("quoc", "quoc"),
-    ]);
+    telex(&[("qua", "qua"), ("quan", "quan"), ("quoc", "quoc")]);
 }
 
 #[test]
@@ -96,11 +84,7 @@ fn syllable_vowel_only() {
 #[test]
 fn syllable_glide_oa() {
     // o as glide before a
-    telex(&[
-        ("hoa", "hoa"),
-        ("khoa", "khoa"),
-        ("toa", "toa"),
-    ]);
+    telex(&[("hoa", "hoa"), ("khoa", "khoa"), ("toa", "toa")]);
 }
 
 // ============================================================
@@ -110,11 +94,7 @@ fn syllable_glide_oa() {
 #[test]
 fn validation_valid_simple() {
     // Valid simple words should transform
-    telex(&[
-        ("bas", "bá"),
-        ("caf", "cà"),
-        ("dar", "dả"),
-    ]);
+    telex(&[("bas", "bá"), ("caf", "cà"), ("dar", "dả")]);
 }
 
 #[test]
@@ -130,39 +110,25 @@ fn validation_valid_complex() {
 #[test]
 fn validation_spelling_k_before_eiy() {
     // k must be used before e, i, y
-    telex(&[
-        ("kes", "ké"),
-        ("kis", "kí"),
-        ("kys", "ký"),
-    ]);
+    telex(&[("kes", "ké"), ("kis", "kí"), ("kys", "ký")]);
 }
 
 #[test]
 fn validation_spelling_c_before_aou() {
     // c must be used before a, o, u
-    telex(&[
-        ("cas", "cá"),
-        ("cos", "có"),
-        ("cus", "cú"),
-    ]);
+    telex(&[("cas", "cá"), ("cos", "có"), ("cus", "cú")]);
 }
 
 #[test]
 fn validation_spelling_gh_before_eiy() {
     // gh must be used before e, i
-    telex(&[
-        ("ghes", "ghé"),
-        ("ghis", "ghí"),
-    ]);
+    telex(&[("ghes", "ghé"), ("ghis", "ghí")]);
 }
 
 #[test]
 fn validation_spelling_ngh_before_eiy() {
     // ngh must be used before e, i
-    telex(&[
-        ("nghes", "nghé"),
-        ("nghis", "nghí"),
-    ]);
+    telex(&[("nghes", "nghé"), ("nghis", "nghí")]);
 }
 
 // ============================================================
@@ -208,12 +174,7 @@ fn tone_circumflex_oo() {
 #[test]
 fn tone_circumflex_delayed() {
     // Delayed circumflex: vowel + consonant + same_vowel → circumflex + consonant
-    telex(&[
-        ("oio", "ôi"),
-        ("aia", "âi"),
-        ("aua", "âu"),
-        ("eie", "êi"),
-    ]);
+    telex(&[("oio", "ôi"), ("aia", "âi"), ("aua", "âu"), ("eie", "êi")]);
 }
 
 #[test]
@@ -256,7 +217,7 @@ fn tone_breve_aw() {
 fn tone_uo_compound() {
     // ươ compound - both get horn
     telex(&[
-        ("dduowc", "đươc"),  // dd for đ
+        ("dduowc", "đươc"), // dd for đ
         ("uow", "ươ"),
         ("muown", "mươn"),
     ]);
@@ -332,23 +293,13 @@ fn mark_nang() {
 
 #[test]
 fn stroke_dd() {
-    telex(&[
-        ("dd", "đ"),
-        ("dda", "đa"),
-        ("ddi", "đi"),
-        ("ddo", "đo"),
-    ]);
+    telex(&[("dd", "đ"), ("dda", "đa"), ("ddi", "đi"), ("ddo", "đo")]);
 }
 
 #[test]
 fn stroke_delayed() {
     // Delayed stroke: d + vowel + d → đ + vowel
-    telex(&[
-        ("dod", "đo"),
-        ("dad", "đa"),
-        ("did", "đi"),
-        ("dud", "đu"),
-    ]);
+    telex(&[("dod", "đo"), ("dad", "đa"), ("did", "đi"), ("dud", "đu")]);
 }
 
 #[test]
@@ -368,11 +319,7 @@ fn stroke_in_word() {
 #[test]
 fn revert_tone_double_key() {
     // aaa → aa (revert â back to aa)
-    telex(&[
-        ("aaa", "aa"),
-        ("eee", "ee"),
-        ("ooo", "oo"),
-    ]);
+    telex(&[("aaa", "aa"), ("eee", "ee"), ("ooo", "oo")]);
 }
 
 #[test]
@@ -391,9 +338,7 @@ fn revert_mark_double_key() {
 fn revert_stroke_double_key() {
     // ddd → đd (đ + d because third d is just added)
     // Note: This is correct behavior - dd makes đ, third d just adds d
-    telex(&[
-        ("ddd", "đd"),
-    ]);
+    telex(&[("ddd", "đd")]);
 }
 
 #[test]
@@ -410,26 +355,17 @@ fn triple_same_key() {
 
 #[test]
 fn vni_tone_circumflex() {
-    vni(&[
-        ("a6", "â"),
-        ("e6", "ê"),
-        ("o6", "ô"),
-    ]);
+    vni(&[("a6", "â"), ("e6", "ê"), ("o6", "ô")]);
 }
 
 #[test]
 fn vni_tone_horn() {
-    vni(&[
-        ("o7", "ơ"),
-        ("u7", "ư"),
-    ]);
+    vni(&[("o7", "ơ"), ("u7", "ư")]);
 }
 
 #[test]
 fn vni_tone_breve() {
-    vni(&[
-        ("a8", "ă"),
-    ]);
+    vni(&[("a8", "ă")]);
 }
 
 #[test]
@@ -445,10 +381,7 @@ fn vni_marks() {
 
 #[test]
 fn vni_stroke() {
-    vni(&[
-        ("d9", "đ"),
-        ("d9a", "đa"),
-    ]);
+    vni(&[("d9", "đ"), ("d9a", "đa")]);
 }
 
 // ============================================================
@@ -458,10 +391,7 @@ fn vni_stroke() {
 #[test]
 fn edge_gi_with_mark() {
     // gi + au + mark = giàu
-    telex(&[
-        ("giauf", "giàu"),
-        ("giaus", "giáu"),
-    ]);
+    telex(&[("giauf", "giàu"), ("giaus", "giáu")]);
 }
 
 #[test]
@@ -470,7 +400,7 @@ fn edge_qu_with_mark() {
     telex(&[
         ("quas", "quá"),
         ("quaf", "quà"),
-        ("quoocs", "quốc"),  // Need oo for ô
+        ("quoocs", "quốc"), // Need oo for ô
     ]);
 }
 
@@ -478,12 +408,12 @@ fn edge_qu_with_mark() {
 fn edge_mixed_modifiers() {
     // Tone + mark combinations
     telex(&[
-        ("aas", "ấ"),   // â + sắc
-        ("ees", "ế"),   // ê + sắc
-        ("oos", "ố"),   // ô + sắc
-        ("ows", "ớ"),   // ơ + sắc
-        ("uws", "ứ"),   // ư + sắc
-        ("aws", "ắ"),   // ă + sắc
+        ("aas", "ấ"), // â + sắc
+        ("ees", "ế"), // ê + sắc
+        ("oos", "ố"), // ô + sắc
+        ("ows", "ớ"), // ơ + sắc
+        ("uws", "ứ"), // ư + sắc
+        ("aws", "ắ"), // ă + sắc
     ]);
 }
 
