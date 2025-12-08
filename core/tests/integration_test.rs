@@ -1,7 +1,7 @@
 //! Integration Tests - Engine state, settings, method switching
 
 mod common;
-use common::{assert_action, assert_passthrough, engine_classic, engine_modern, telex, type_word};
+use common::{assert_action, assert_passthrough, telex, type_word};
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::{Action, Engine};
 
