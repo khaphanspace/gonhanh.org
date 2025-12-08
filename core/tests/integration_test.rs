@@ -196,21 +196,14 @@ fn clear_resets_state() {
 }
 
 // ============================================================
-// ORTHOGRAPHY: Modern vs Classic
+// ORTHOGRAPHY: Modern style (hoà, not hòa)
 // ============================================================
 
 #[test]
 fn modern_orthography_hoa() {
-    let mut e = engine_modern();
+    let mut e = Engine::new();
     let result = type_word(&mut e, "hoaf");
     assert_eq!(result, "hoà"); // Modern: tone on last vowel
-}
-
-#[test]
-fn classic_orthography_hoa() {
-    let mut e = engine_classic();
-    let result = type_word(&mut e, "hoaf");
-    assert_eq!(result, "hòa"); // Classic: tone on main vowel
 }
 
 const MODERN_ORTHO_CASES: &[(&str, &str)] = &[
@@ -221,29 +214,12 @@ const MODERN_ORTHO_CASES: &[(&str, &str)] = &[
     ("hoaj", "hoạ"),
 ];
 
-const CLASSIC_ORTHO_CASES: &[(&str, &str)] = &[
-    ("hoaf", "hòa"),
-    ("hoas", "hóa"),
-    ("hoar", "hỏa"),
-    ("hoax", "hõa"),
-    ("hoaj", "họa"),
-];
-
 #[test]
 fn modern_orthography_full() {
     for (input, expected) in MODERN_ORTHO_CASES {
-        let mut e = engine_modern();
+        let mut e = Engine::new();
         let result = type_word(&mut e, input);
         assert_eq!(result, *expected, "Modern: {} → {}", input, result);
-    }
-}
-
-#[test]
-fn classic_orthography_full() {
-    for (input, expected) in CLASSIC_ORTHO_CASES {
-        let mut e = engine_classic();
-        let result = type_word(&mut e, input);
-        assert_eq!(result, *expected, "Classic: {} → {}", input, result);
     }
 }
 
