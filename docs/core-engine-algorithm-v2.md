@@ -64,20 +64,24 @@ VẤN ĐỀ:
 ```
 NGUYÊN TẮC V2:
 │
-├── 1. PATTERN-BASED REPLACEMENT
-│   └── Khi detect modifier → đọc lại TOÀN BỘ buffer → replace theo pattern
+├── 1. VALIDATION FIRST (★ QUAN TRỌNG NHẤT)
+│   └── Khi detect modifier → VALIDATE buffer có phải tiếng Việt không?
+│       ├── Không care buffer là gì, chỉ care có hợp lệ không
+│       ├── "nghieng" hợp lệ? → YES → cho phép transform
+│       ├── "claus" hợp lệ? → NO → không transform
+│       └── Nếu INVALID → không làm gì, thêm key vào buffer bình thường
 │
-├── 2. LONGEST-MATCH-FIRST
-│   └── Tìm pattern dài trước, ngắn sau
-│       ├── iêng > iên > iê > i
-│       ├── ươi > ươ > ư
-│       └── oai > oa > a
+├── 2. PATTERN-BASED REPLACEMENT
+│   └── Nếu VALID → đọc lại TOÀN BỘ buffer → replace theo pattern
 │
-├── 3. VALIDATION BEFORE TRANSFORMATION
-│   └── Kiểm tra buffer có phải tiếng Việt hợp lệ TRƯỚC khi áp dụng
+├── 3. LONGEST-MATCH-FIRST (cho vị trí đặt dấu)
+│   └── Tìm pattern nguyên âm dài nhất để xác định VỊ TRÍ đặt dấu
+│       ├── "nghieng" + 'e' → tìm "ieng" → "iêng"
+│       ├── "nguoi" + 'w' → tìm "uoi" → "ươi"
+│       └── Không phải để filter, mà để biết đặt dấu ở đâu
 │
 └── 4. FLEXIBLE ORDER
-    └── Thứ tự gõ không quan trọng (as = sa = á)
+    └── Thứ tự gõ không quan trọng
 ```
 
 ### 2.2 Pipeline mới
@@ -194,38 +198,96 @@ is_modifier(key, buffer)
 
 ## 4. PATTERN REPLACEMENT ENGINE
 
-### 4.1 Pattern Priority (Longest-First)
+### 4.1 Luồng xử lý chính
 
 ```
-PATTERN_PRIORITY:
+LUỒNG XỬ LÝ KHI DETECT MODIFIER:
 │
-├── NGUYÊN ÂM BA (3 chars) - Ưu tiên cao nhất
-│   ├── "ieng" → "iêng"  (với tone modifier)
-│   ├── "uong" → "ương"  (với 'w')
-│   ├── "uoui" → "ươi"
-│   └── ...
+├── STEP 1: VALIDATE (★ LUÔN ĐẦU TIÊN)
+│   │
+│   │   is_valid_vietnamese_syllable(buffer)?
+│   │
+│   ├── NO → return (thêm key vào buffer, không transform)
+│   │   └── VD: "claus" + 's' → "clauss"
+│   │
+│   └── YES → tiếp tục STEP 2
+│       └── VD: "nghieng" + 'e' → tiếp tục
 │
-├── NGUYÊN ÂM ĐÔI (2 chars)
-│   ├── "uo" → "ươ" (với 'w')
-│   ├── "ua" → "ưa" (với 'w')
-│   ├── "aa" → "â"
-│   ├── "ee" → "ê"
-│   ├── "oo" → "ô"
-│   ├── "aw" → "ă"
-│   ├── "ow" → "ơ"
-│   ├── "uw" → "ư"
-│   └── ...
+├── STEP 2: TÌM PATTERN NGUYÊN ÂM (longest-first cho VỊ TRÍ)
+│   │
+│   │   Mục đích: Xác định đặt dấu/biến đổi ở ĐÂU trong buffer
+│   │
+│   ├── Tìm nguyên âm ba trước: iêng, ươi, oai, uôi, ...
+│   ├── Rồi nguyên âm đôi: iê, ươ, uô, oa, ai, ao, ...
+│   └── Cuối cùng nguyên âm đơn: a, e, i, o, u, ...
 │
-├── PHỤ ÂM ĐẶC BIỆT (2 chars)
-│   └── "dd" → "đ"
+├── STEP 3: ÁP DỤNG TRANSFORMATION
+│   │
+│   ├── Tone modifier (aa, aw, ow, dd, ...):
+│   │   └── Biến đổi nguyên âm/phụ âm tương ứng
+│   │
+│   └── Mark modifier (s, f, r, x, j, ...):
+│       └── Đặt dấu thanh lên vị trí đã xác định
 │
-└── NGUYÊN ÂM ĐƠN (1 char) - Ưu tiên thấp nhất
-    ├── "a" + mark → "á/à/ả/ã/ạ"
-    ├── "e" + mark → "é/è/ẻ/ẽ/ẹ"
-    └── ...
+└── STEP 4: OUTPUT
+    └── Rebuild và trả về kết quả
+
+────────────────────────────────────────────────────────────
+
+VÍ DỤ THỰC TẾ:
+
+"nghieng" + 'e' (Telex ee → mũ)
+├── Validate: ngh + ieng → VALID ✓
+├── Tìm pattern: "ieng" là nguyên âm (i + e + ng? hoặc ie + ng)
+├── 'e' trigger "ee" → mũ trên 'e' trong "ie"
+├── Transform: ie → iê
+└── Output: "nghiêng" ✓
+
+"duoc" + 'w' (Telex w → móc)
+├── Validate: d + uoc → VALID ✓
+├── Tìm pattern: "uo" là nguyên âm đôi
+├── 'w' trigger móc trên "uo"
+├── Transform: uo → ươ (cả u và o)
+└── Output: "dược" ✓
+
+"nguoi" + 'w' + 'f' (Telex)
+├── "nguoi" + 'w':
+│   ├── Validate: ng + uoi → VALID ✓
+│   ├── Tìm pattern: "uoi" là nguyên âm (uo + i)
+│   ├── Transform: uo → ươ
+│   └── Kết quả: "ngươi"
+│
+└── "ngươi" + 'f':
+    ├── Validate: ng + ươi → VALID ✓
+    ├── Tìm pattern: "ươi" là nguyên âm ba
+    ├── Vị trí dấu: giữa (ơ)
+    └── Output: "người" ✓
 ```
 
-### 4.2 Algorithm: Apply Patterns
+### 4.2 Pattern cho Tone Modifiers
+
+```
+TONE PATTERNS (biến đổi nguyên âm/phụ âm):
+│
+├── MŨ (^): Telex aa/ee/oo hoặc VNI 6
+│   ├── a → â
+│   ├── e → ê
+│   └── o → ô
+│
+├── MÓC/TRĂNG: Telex w hoặc VNI 7/8
+│   ├── a + 'w' hoặc '8' → ă (trăng)
+│   ├── o + 'w' hoặc '7' → ơ (móc)
+│   ├── u + 'w' hoặc '7' → ư (móc)
+│   │
+│   └── ĐẶC BIỆT: uo compound
+│       ├── Nếu buffer có "uo" liền kề
+│       └── Transform CẢ HAI: uo → ươ
+│
+└── GẠCH NGANG: Telex dd hoặc VNI 9
+    └── d → đ (bất kỳ vị trí trong buffer)
+```
+
+### 4.3 Algorithm: Apply Patterns
 
 ```
 apply_patterns(buffer_string, modifier_key)
@@ -316,7 +378,7 @@ apply_mark_patterns(buffer, mark_key)
 └── Apply mark to buffer[target_pos]
 ```
 
-### 4.3 Ví dụ: Pattern Matching cho "Dod"
+### 4.4 Ví dụ: Pattern Matching cho "Dod"
 
 ```
 CASE: "Dod" + enter (trong Telex, 'd' cuối là modifier nếu trước đó có 'd')
@@ -660,10 +722,10 @@ fn on_key_v2(key: Key, caps: bool) -> Result {
 GONHANH ENGINE V2 SUMMARY
 │
 ├── NGUYÊN TẮC CHÍNH
-│   ├── Pattern-based replacement (không case-by-case)
-│   ├── Longest-match-first priority
-│   ├── Validation before transformation
-│   └── Flexible input order
+│   ├── 1. VALIDATION FIRST - Luôn validate buffer trước
+│   ├── 2. Pattern-based replacement (không case-by-case)
+│   ├── 3. Longest-match-first cho vị trí đặt dấu
+│   └── 4. Flexible input order
 │
 ├── VALIDATION
 │   ├── Kiểm tra syllable structure
