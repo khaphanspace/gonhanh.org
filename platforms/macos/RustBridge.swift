@@ -373,13 +373,12 @@ private enum KeyCode {
 /// - Default: Use backspace (works for most apps including Terminal)
 /// - Autocomplete apps (Chrome/Excel): Use Shift+Left selection (fixes "dính chữ")
 private func sendTextReplacement(backspaceCount: Int, chars: [Character]) {
-    // Dispatch to high-priority queue to avoid blocking event tap callback
-    DispatchQueue.global(qos: .userInteractive).async {
-        if needsSelectionWorkaround() {
-            sendTextReplacementWithSelection(backspaceCount: backspaceCount, chars: chars)
-        } else {
-            sendTextReplacementWithBackspace(backspaceCount: backspaceCount, chars: chars)
-        }
+    // Run synchronously to ensure events are sent before callback returns
+    // This prevents race condition where next key arrives before backspace is processed
+    if needsSelectionWorkaround() {
+        sendTextReplacementWithSelection(backspaceCount: backspaceCount, chars: chars)
+    } else {
+        sendTextReplacementWithBackspace(backspaceCount: backspaceCount, chars: chars)
     }
 }
 
@@ -394,7 +393,7 @@ private func sendTextReplacementWithBackspace(backspaceCount: Int, chars: [Chara
     }
     debugLog("[Send:BS] CGEventSource created OK")
 
-    // Send backspaces
+    // Send backspaces with micro-delay between each
     for i in 0..<backspaceCount {
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: KeyCode.backspace, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: KeyCode.backspace, keyDown: false) else {
@@ -403,12 +402,16 @@ private func sendTextReplacementWithBackspace(backspaceCount: Int, chars: [Chara
         }
         down.post(tap: .cgSessionEventTap)
         up.post(tap: .cgSessionEventTap)
+        // Micro-delay between backspaces to ensure each is processed
+        if i < backspaceCount - 1 {
+            usleep(200) // 0.2ms between backspaces
+        }
         debugLog("[Send:BS] Backspace \(i+1)/\(backspaceCount) sent")
     }
 
-    // Small delay to ensure backspaces are processed before typing
+    // Delay after all backspaces before typing replacement
     if backspaceCount > 0 {
-        usleep(1000) // 1ms delay
+        usleep(800) // 0.8ms delay
         debugLog("[Send:BS] Delay after backspaces")
     }
 
@@ -425,6 +428,9 @@ private func sendTextReplacementWithBackspace(backspaceCount: Int, chars: [Chara
     up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
     down.post(tap: .cgSessionEventTap)
     up.post(tap: .cgSessionEventTap)
+
+    // Small delay after posting to let events propagate before next key
+    usleep(500) // 0.5ms
     debugLog("[Send:BS] DONE - Unicode event posted")
 }
 
