@@ -240,6 +240,12 @@ impl Engine {
                 }
             }
 
+            // Validate buffer before applying stroke
+            let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+            if !is_valid(&buffer_keys) {
+                return None;
+            }
+
             // Mark as stroked
             if let Some(c) = self.buf.get_mut(pos) {
                 c.stroke = true;
