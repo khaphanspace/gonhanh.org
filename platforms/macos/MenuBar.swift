@@ -32,6 +32,7 @@ class MenuBarController {
     private var statusItem: NSStatusItem!
     private var onboardingWindow: NSWindow?
     private var aboutWindow: NSWindow?
+    private var updateWindow: NSWindow?
     private var toggleState: ToggleState?
 
     private var isEnabled = true
@@ -288,6 +289,20 @@ class MenuBarController {
     }
 
     @objc private func checkForUpdates() {
+        if updateWindow == nil {
+            let controller = NSHostingController(rootView: UpdateView())
+            let window = NSWindow(contentViewController: controller)
+            window.title = "Kiểm tra cập nhật"
+            window.styleMask = [.titled, .closable]
+            window.setContentSize(controller.view.fittingSize)
+            window.center()
+            window.isReleasedWhenClosed = false
+            updateWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        updateWindow?.makeKeyAndOrderFront(nil)
+
+        // Trigger update check when window opens
         UpdateManager.shared.checkForUpdatesManually()
     }
 }

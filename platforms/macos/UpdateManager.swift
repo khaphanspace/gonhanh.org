@@ -7,6 +7,7 @@ enum UpdateState {
     case idle
     case checking
     case available(UpdateInfo)
+    case upToDate
     case downloading(progress: Double)
     case readyToInstall(dmgPath: URL)
     case error(String)
@@ -34,14 +35,13 @@ class UpdateManager: NSObject, ObservableObject {
 
     // MARK: - Public API
 
-    /// Check for updates manually (shows UI feedback)
+    /// Check for updates manually (UI will show in UpdateView)
     func checkForUpdatesManually() {
         checkForUpdates(silent: false)
     }
 
     /// Check for updates silently (background check)
     func checkForUpdatesSilently() {
-        // Only check if enough time has passed
         if let lastCheck = lastCheckDate,
            Date().timeIntervalSince(lastCheck) < autoCheckInterval {
             return
@@ -65,22 +65,8 @@ class UpdateManager: NSObject, ObservableObject {
         // Open the DMG file
         NSWorkspace.shared.open(dmgPath)
 
-        // Show instructions
-        let alert = NSAlert()
-        alert.messageText = "Cài đặt cập nhật"
-        alert.informativeText = """
-        1. Kéo GoNhanh vào thư mục Applications
-        2. Thay thế phiên bản cũ khi được hỏi
-        3. Khởi động lại GoNhanh
-
-        Lưu ý: GoNhanh sẽ tự động thoát sau khi bạn nhấn OK.
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK, Thoát để cài đặt")
-        alert.addButton(withTitle: "Để sau")
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            // Quit the app to allow replacement
+        // Quit the app to allow replacement
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             NSApp.terminate(nil)
         }
     }
@@ -123,93 +109,21 @@ class UpdateManager: NSObject, ObservableObject {
 
                 self.state = .available(info)
 
-                if !silent {
-                    self.showUpdateAvailableAlert(info)
-                } else {
-                    // Show notification for background check
+                // Only show notification for background check
+                if silent {
                     self.showUpdateNotification(info)
                 }
 
             case .upToDate:
-                self.state = .idle
-                if !silent {
-                    self.showUpToDateAlert()
-                }
+                self.state = .upToDate
 
             case .error(let message):
                 self.state = .error(message)
-                if !silent {
-                    self.showErrorAlert(message)
-                }
             }
         }
     }
 
-    // MARK: - UI Alerts
-
-    private func showUpdateAvailableAlert(_ info: UpdateInfo) {
-        let alert = NSAlert()
-        alert.messageText = "Có phiên bản mới!"
-        alert.informativeText = """
-        Phiên bản \(info.version) đã sẵn sàng.
-        Phiên bản hiện tại: \(AppMetadata.version)
-
-        \(formatReleaseNotes(info.releaseNotes))
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Tải về")
-        alert.addButton(withTitle: "Để sau")
-        alert.addButton(withTitle: "Bỏ qua phiên bản này")
-
-        NSApp.activate(ignoringOtherApps: true)
-
-        let response = alert.runModal()
-        switch response {
-        case .alertFirstButtonReturn:
-            downloadUpdate(info)
-        case .alertThirdButtonReturn:
-            skipVersion(info.version)
-        default:
-            state = .idle
-        }
-    }
-
-    private func showUpToDateAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Bạn đang dùng phiên bản mới nhất"
-        alert.informativeText = "GoNhanh \(AppMetadata.version) là phiên bản mới nhất."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
-    }
-
-    private func showErrorAlert(_ message: String) {
-        let alert = NSAlert()
-        alert.messageText = "Không thể kiểm tra cập nhật"
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
-    }
-
-    private func showDownloadCompleteAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Tải về hoàn tất"
-        alert.informativeText = "Bản cập nhật đã sẵn sàng để cài đặt."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Cài đặt ngay")
-        alert.addButton(withTitle: "Để sau")
-
-        NSApp.activate(ignoringOtherApps: true)
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            installUpdate()
-        }
-    }
+    // MARK: - Notification (for background check only)
 
     private func showUpdateNotification(_ info: UpdateInfo) {
         let notification = NSUserNotification()
@@ -221,37 +135,24 @@ class UpdateManager: NSObject, ObservableObject {
 
         NSUserNotificationCenter.default.deliver(notification)
     }
-
-    private func formatReleaseNotes(_ notes: String) -> String {
-        // Truncate long release notes
-        let maxLength = 300
-        if notes.count > maxLength {
-            return String(notes.prefix(maxLength)) + "..."
-        }
-        return notes
-    }
 }
 
 // MARK: - URLSession Download Delegate
 
 extension UpdateManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        // Move to Downloads folder
         let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
         let destinationURL = downloadsURL.appendingPathComponent("GoNhanh.dmg")
 
         do {
-            // Remove existing file if any
             try? FileManager.default.removeItem(at: destinationURL)
             try FileManager.default.moveItem(at: location, to: destinationURL)
 
             downloadedDMGPath = destinationURL
             state = .readyToInstall(dmgPath: destinationURL)
 
-            showDownloadCompleteAlert()
-
         } catch {
-            state = .error("Failed to save update: \(error.localizedDescription)")
+            state = .error("Không thể lưu file: \(error.localizedDescription)")
         }
     }
 
@@ -265,7 +166,7 @@ extension UpdateManager: URLSessionDownloadDelegate {
             if (error as NSError).code == NSURLErrorCancelled {
                 state = .idle
             } else {
-                state = .error("Download failed: \(error.localizedDescription)")
+                state = .error("Tải về thất bại: \(error.localizedDescription)")
             }
         }
     }
