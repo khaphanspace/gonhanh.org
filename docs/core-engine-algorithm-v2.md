@@ -196,189 +196,266 @@ is_modifier(key, buffer)
 
 ---
 
-## 4. PATTERN REPLACEMENT ENGINE
+## 4. THUẬT TOÁN XỬ LÝ
 
-### 4.1 Luồng xử lý chính
+> **Tham khảo**: [vietnamese-language-system.md](./vietnamese-language-system.md) - Cấu trúc âm tiết & quy tắc
+
+### 4.1 Cấu trúc Âm tiết (Syllable Structure)
 
 ```
-LUỒNG XỬ LÝ KHI DETECT MODIFIER:
+CẤU TRÚC ÂM TIẾT TIẾNG VIỆT:
 │
-├── STEP 1: VALIDATE (★ LUÔN ĐẦU TIÊN)
-│   │
-│   │   is_valid_vietnamese_syllable(buffer)?
-│   │
-│   ├── NO → return (thêm key vào buffer, không transform)
-│   │   └── VD: "claus" + 's' → "clauss"
-│   │
-│   └── YES → tiếp tục STEP 2
-│       └── VD: "nghieng" + 'e' → tiếp tục
+│   Syllable = (C₁)(G)V(C₂) + T
 │
-├── STEP 2: TÌM PATTERN NGUYÊN ÂM (longest-first cho VỊ TRÍ)
-│   │
-│   │   Mục đích: Xác định đặt dấu/biến đổi ở ĐÂU trong buffer
-│   │
-│   ├── Tìm nguyên âm ba trước: iêng, ươi, oai, uôi, ...
-│   ├── Rồi nguyên âm đôi: iê, ươ, uô, oa, ai, ao, ...
-│   └── Cuối cùng nguyên âm đơn: a, e, i, o, u, ...
+├── C₁ = Phụ âm đầu (Initial consonant) - TÙY CHỌN
+│   ├── Đơn: b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
+│   ├── Đôi: ch, gh, gi, kh, ng, nh, ph, qu, th, tr
+│   └── Ba: ngh
 │
-├── STEP 3: ÁP DỤNG TRANSFORMATION
-│   │
-│   ├── Tone modifier (aa, aw, ow, dd, ...):
-│   │   └── Biến đổi nguyên âm/phụ âm tương ứng
-│   │
-│   └── Mark modifier (s, f, r, x, j, ...):
-│       └── Đặt dấu thanh lên vị trí đã xác định
+├── G = Âm đệm (Glide/Medial) - TÙY CHỌN
+│   └── o, u
 │
-└── STEP 4: OUTPUT
-    └── Rebuild và trả về kết quả
+├── V = Nguyên âm chính (Vowel Nucleus) - BẮT BUỘC
+│   ├── Đơn: a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
+│   ├── Đôi: ai, ao, au, âu, ây, eo, êu, ia, iê, iu, oa, oă, oe, oi, ôi, ơi, ...
+│   └── Ba: iêu, yêu, ươi, ươu, uôi, oai, oay, oeo, uây, uyê
+│
+├── C₂ = Âm cuối (Final) - TÙY CHỌN
+│   ├── Phụ âm: c, ch, m, n, ng, nh, p, t
+│   └── Bán nguyên âm: i, y, o, u
+│
+└── T = Thanh điệu (Tone) - LUÔN CÓ (mặc định = ngang)
+```
+
+### 4.2 Thuật toán Parse Syllable
+
+```
+parse_syllable(buffer) → Syllable { initial, glide, vowel, final }
+│
+├── STEP 1: Tìm phụ âm đầu (longest-first)
+│   │
+│   │   Thử match từ đầu buffer:
+│   │
+│   ├── 3 chars: "ngh" → nếu match → initial = "ngh"
+│   │
+│   ├── 2 chars: "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr"
+│   │   └── nếu match → initial = matched
+│   │
+│   ├── 1 char: b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
+│   │   └── nếu match → initial = matched
+│   │
+│   └── không match → initial = None (bắt đầu bằng nguyên âm)
+│
+├── STEP 2: Sau initial, tìm âm đệm (glide)
+│   │
+│   ├── Nếu char tiếp theo là 'o' hoặc 'u':
+│   │   ├── Kiểm tra char sau đó có phải nguyên âm không?
+│   │   │   ├── YES và thỏa điều kiện âm đệm → glide = 'o' hoặc 'u'
+│   │   │   └── NO → không phải glide, là nguyên âm chính
+│   │   │
+│   │   └── Điều kiện âm đệm:
+│   │       ├── 'o' + (a, ă, e) → oa, oă, oe
+│   │       └── 'u' + (a, â, ê, y, yê) → qua, quâ, quê, quy (sau 'qu')
+│   │
+│   └── Không phải → glide = None
+│
+├── STEP 3: Tìm nguyên âm chính (longest-first)
+│   │
+│   │   Từ vị trí hiện tại, thử match:
+│   │
+│   ├── 3 chars (nguyên âm ba):
+│   │   └── iêu, yêu, ươi, ươu, uôi, oai, oay, oeo, uây, uyê
+│   │
+│   ├── 2 chars (nguyên âm đôi):
+│   │   └── ai, ao, au, âu, ây, eo, êu, ia, iê, iu, oa, oă, oe, ...
+│   │
+│   └── 1 char (nguyên âm đơn):
+│       └── a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
+│
+├── STEP 4: Phần còn lại = âm cuối
+│   │
+│   ├── 2 chars: ch, ng, nh
+│   ├── 1 char: c, m, n, p, t, i, y, o, u
+│   └── Không có → final = None
+│
+└── RETURN Syllable { initial, glide, vowel, final }
 
 ────────────────────────────────────────────────────────────
 
-VÍ DỤ THỰC TẾ:
+VÍ DỤ PARSE:
 
-"nghieng" + 'e' (Telex ee → mũ)
-├── Validate: ngh + ieng → VALID ✓
-├── Tìm pattern: "ieng" là nguyên âm (i + e + ng? hoặc ie + ng)
-├── 'e' trigger "ee" → mũ trên 'e' trong "ie"
-├── Transform: ie → iê
-└── Output: "nghiêng" ✓
+"nghieng" → parse:
+├── initial = "ngh" (3 chars match)
+├── glide = None
+├── vowel = "ie" (2 chars: iê pattern)
+├── final = "ng" (2 chars)
+└── Syllable { "ngh", None, "ie", "ng" }
 
-"duoc" + 'w' (Telex w → móc)
-├── Validate: d + uoc → VALID ✓
-├── Tìm pattern: "uo" là nguyên âm đôi
-├── 'w' trigger móc trên "uo"
-├── Transform: uo → ươ (cả u và o)
-└── Output: "dược" ✓
+"duoc" → parse:
+├── initial = "d" (1 char)
+├── glide = None (u không phải glide vì sau không phải a,â,ê,y)
+├── vowel = "uo" (2 chars: compound vowel)
+├── final = "c"
+└── Syllable { "d", None, "uo", "c" }
 
-"nguoi" + 'w' + 'f' (Telex)
-├── "nguoi" + 'w':
-│   ├── Validate: ng + uoi → VALID ✓
-│   ├── Tìm pattern: "uoi" là nguyên âm (uo + i)
-│   ├── Transform: uo → ươ
-│   └── Kết quả: "ngươi"
-│
-└── "ngươi" + 'f':
-    ├── Validate: ng + ươi → VALID ✓
-    ├── Tìm pattern: "ươi" là nguyên âm ba
-    ├── Vị trí dấu: giữa (ơ)
-    └── Output: "người" ✓
+"hoa" → parse:
+├── initial = "h" (1 char)
+├── glide = "o" (o + a = âm đệm + nguyên âm)
+├── vowel = "a"
+├── final = None
+└── Syllable { "h", "o", "a", None }
+
+"qua" → parse:
+├── initial = "qu" (2 chars, đặc biệt)
+├── glide = None (u đã thuộc "qu")
+├── vowel = "a"
+├── final = None
+└── Syllable { "qu", None, "a", None }
 ```
 
-### 4.2 Pattern cho Tone Modifiers
+### 4.3 Thuật toán Validation
 
 ```
-TONE PATTERNS (biến đổi nguyên âm/phụ âm):
+is_valid_vietnamese(buffer) → bool
 │
-├── MŨ (^): Telex aa/ee/oo hoặc VNI 6
-│   ├── a → â
-│   ├── e → ê
-│   └── o → ô
-│
-├── MÓC/TRĂNG: Telex w hoặc VNI 7/8
-│   ├── a + 'w' hoặc '8' → ă (trăng)
-│   ├── o + 'w' hoặc '7' → ơ (móc)
-│   ├── u + 'w' hoặc '7' → ư (móc)
+├── STEP 1: Parse syllable
 │   │
-│   └── ĐẶC BIỆT: uo compound
-│       ├── Nếu buffer có "uo" liền kề
-│       └── Transform CẢ HAI: uo → ươ
+│   │   syllable = parse_syllable(buffer)
+│   │
+│   └── Nếu không parse được (không có vowel) → return false
 │
-└── GẠCH NGANG: Telex dd hoặc VNI 9
-    └── d → đ (bất kỳ vị trí trong buffer)
-```
-
-### 4.3 Algorithm: Apply Patterns
-
-```
-apply_patterns(buffer_string, modifier_key)
+├── STEP 2: Validate phụ âm đầu
+│   │
+│   ├── Nếu có initial:
+│   │   ├── initial ∈ VALID_INITIALS? → OK
+│   │   └── Kiểm tra spelling rules:
+│   │       ├── "c" + (e,ê,i,y) → INVALID (phải dùng "k")
+│   │       ├── "k" + (a,ă,â,o,ô,ơ,u,ư) → INVALID (phải dùng "c")
+│   │       ├── "g" + (e,ê,i) → INVALID (phải dùng "gh")
+│   │       ├── "gh" + (a,ă,â,o,ô,ơ,u,ư) → INVALID
+│   │       ├── "ng" + (e,ê,i) → INVALID (phải dùng "ngh")
+│   │       └── "ngh" + (a,ă,â,o,ô,ơ,u,ư) → INVALID
+│   │
+│   └── Nếu không có initial → OK (syllable bắt đầu bằng vowel)
 │
-├── Xác định loại modifier
-│   ├── TONE_MODIFIER → apply_tone_patterns()
-│   ├── MARK_MODIFIER → apply_mark_patterns()
-│   └── REMOVE_MODIFIER → apply_remove_patterns()
+├── STEP 3: Validate nguyên âm
+│   │
+│   └── vowel ∈ VALID_VOWELS? → OK (luôn đúng nếu parse thành công)
 │
-└── Trả về transformed string
+├── STEP 4: Validate âm cuối
+│   │
+│   ├── Nếu có final:
+│   │   ├── final ∈ VALID_FINALS?
+│   │   └── Kiểm tra vowel + final combination:
+│   │       ├── -ch chỉ sau a, ă, ê, i
+│   │       ├── -nh chỉ sau a, ă, ê, i, y
+│   │       └── -ng không sau e, ê
+│   │
+│   └── Nếu không có final → OK
+│
+└── STEP 5: return true (VALID)
 
 ────────────────────────────────────────────────────────────
 
-apply_tone_patterns(buffer, tone_key)
+VÍ DỤ VALIDATION:
+
+"nghieng" → parse thành công → validate từng phần → VALID ✓
+"claus" → initial="cl" ∉ VALID_INITIALS → INVALID ✗
+"john" → initial="j" ∉ VALID_INITIALS → INVALID ✗
+"http" → không có vowel → INVALID ✗
+"duoc" → parse OK, validate OK → VALID ✓
+```
+
+### 4.4 Thuật toán Transformation
+
+```
+apply_transformation(syllable, modifier_key) → transformed_buffer
 │
-├── CASE: Telex 'w' hoặc VNI '7'/'8'
+├── CASE 1: TONE MODIFIER (aa, aw, ow, dd, ...)
 │   │
-│   ├── TÌM PATTERN DÀI TRƯỚC:
-│   │   │
-│   │   ├── "uo" trong buffer?
-│   │   │   └── YES → replace "uo" với "ươ" (cả u và o)
-│   │   │
-│   │   ├── "ua" trong buffer? (không có 'q' trước)
-│   │   │   └── YES → replace "ua" với "ưa"
-│   │   │
-│   │   └── Fallback to single char:
-│   │       ├── 'a' → 'ă' (với 'w' hoặc '8')
-│   │       ├── 'o' → 'ơ' (với 'w' hoặc '7')
-│   │       └── 'u' → 'ư' (với 'w' hoặc '7')
+│   │   Biến đổi ký tự trong vowel hoặc initial
 │   │
-│   └── Reposition mark nếu cần
+│   ├── Telex 'a' (khi buffer đã có 'a') hoặc VNI '6':
+│   │   └── Tìm 'a' trong vowel → 'a' + '6' = 'â'
+│   │   └── Tìm 'e' trong vowel → 'e' + '6' = 'ê'
+│   │   └── Tìm 'o' trong vowel → 'o' + '6' = 'ô'
+│   │
+│   ├── Telex 'w' hoặc VNI '7'/'8':
+│   │   ├── Nếu vowel chứa "uo" liền nhau:
+│   │   │   └── Transform BOTH: u→ư, o→ơ (uo → ươ)
+│   │   ├── Else tìm trong vowel:
+│   │   │   ├── 'a' + '8' = 'ă'
+│   │   │   ├── 'o' + '7' = 'ơ'
+│   │   │   └── 'u' + '7' = 'ư'
+│   │
+│   └── Telex 'd' (khi buffer đã có 'd') hoặc VNI '9':
+│       └── Tìm 'd' hoặc 'D' trong initial → 'd' → 'đ'
 │
-├── CASE: Telex 'aa'/'ee'/'oo' hoặc VNI '6'
+├── CASE 2: MARK MODIFIER (s, f, r, x, j, ...)
 │   │
-│   ├── Tìm nguyên âm target
-│   │   ├── 'a' → 'â'
-│   │   ├── 'e' → 'ê'
-│   │   └── 'o' → 'ô'
+│   │   Thêm dấu thanh vào nguyên âm
 │   │
-│   └── Reposition mark nếu cần
+│   ├── Xác định mark_value:
+│   │   ├── s/1 → sắc
+│   │   ├── f/2 → huyền
+│   │   ├── r/3 → hỏi
+│   │   ├── x/4 → ngã
+│   │   └── j/5 → nặng
+│   │
+│   ├── VALIDATE: Tone + Final Rule
+│   │   ├── Nếu final ∈ {p, t, c, ch}:
+│   │   │   └── Chỉ cho phép sắc (1) hoặc nặng (5)
+│   │   │   └── Khác → REJECT, không transform
+│   │
+│   └── Xác định VỊ TRÍ đặt dấu (dựa trên vowel đã parse):
+│       │
+│       │   find_mark_position(syllable) → vị trí trong vowel
+│       │
+│       ├── vowel.len == 1:
+│       │   └── Đặt trên nguyên âm đó
+│       │
+│       ├── vowel.len == 2:
+│       │   ├── Có final? → đặt trên vowel[1] (thứ 2)
+│       │   ├── là âm đệm pair (oa, oe, uy)? → đặt trên vowel[1]
+│       │   ├── là main+glide pair (ai, ao, au)? → đặt trên vowel[0]
+│       │   ├── là compound (ươ, uô, iê)? → đặt trên vowel[1]
+│       │   └── có dấu phụ sẵn (ư, ơ, ô, ê, â, ă)? → ưu tiên nó
+│       │
+│       └── vowel.len == 3:
+│           └── Đặt trên vowel[1] (giữa)
 │
-└── CASE: Telex 'dd' hoặc VNI '9'
-    │
-    ├── TÌM 'd' TRONG BUFFER (bất kỳ vị trí)
-    │   ├── Found at position i
-    │   └── buffer[i] = 'đ'
-    │
-    └── LƯU Ý: "Dod" → tìm 'd' ở vị trí 0 → "Đod" → xóa 'd' cuối → "Đo"
+└── CASE 3: REMOVE MODIFIER (z, 0)
+    └── Xóa dấu thanh hoặc dấu phụ cuối cùng
 
 ────────────────────────────────────────────────────────────
 
-apply_mark_patterns(buffer, mark_key)
-│
-├── mark_value = get_mark_value(mark_key)
-│   ├── 's'/1 → sắc
-│   ├── 'f'/2 → huyền
-│   ├── 'r'/3 → hỏi
-│   ├── 'x'/4 → ngã
-│   └── 'j'/5 → nặng
-│
-├── VALIDATE: Tone + Final Consonant Rule
-│   ├── final = get_final_consonant(buffer)
-│   ├── if final ∈ {p, t, c, ch}:
-│   │   └── if mark_value ∉ {sắc, nặng}:
-│   │       └── return buffer (không apply, không hợp lệ)
-│
-├── TÌM VỊ TRÍ ĐẶT DẤU (Phonology Algorithm)
-│   │
-│   ├── Thu thập nguyên âm
-│   │   └── vowels = collect_vowels(buffer)
-│   │
-│   ├── LONGEST PATTERN FIRST:
-│   │   │
-│   │   ├── 3 nguyên âm? (iêu, ươi, oai, ...)
-│   │   │   └── Đặt dấu theo quy tắc nguyên âm ba
-│   │   │
-│   │   ├── 2 nguyên âm?
-│   │   │   ├── Có phụ âm cuối? → dấu trên nguyên âm thứ 2
-│   │   │   ├── oa, oe, uy? → dấu trên nguyên âm thứ 2
-│   │   │   ├── ai, ao, au? → dấu trên nguyên âm thứ 1
-│   │   │   └── ươ, uô, iê? → dấu trên nguyên âm thứ 2
-│   │   │
-│   │   └── 1 nguyên âm?
-│   │       └── Đặt dấu trực tiếp
-│   │
-│   └── target_pos = find_tone_position(vowels, ...)
-│
-└── Apply mark to buffer[target_pos]
+VÍ DỤ TRANSFORMATION:
+
+"nghieng" + 'e' (Telex ee):
+├── syllable = { "ngh", None, "ie", "ng" }
+├── Modifier = 'e' → tìm 'e' trong vowel "ie"
+├── Transform: 'e' → 'ê'
+├── New vowel = "iê"
+└── Result: "nghiêng"
+
+"duoc" + 'w' (Telex w):
+├── syllable = { "d", None, "uo", "c" }
+├── Modifier = 'w' → vowel có "uo" compound
+├── Transform BOTH: u→ư, o→ơ
+├── New vowel = "ươ"
+└── Result: "dược"
+
+"duoc" + 'j' (Telex j = nặng):
+├── syllable = { "d", None, "uo", "c" }
+├── Modifier = 'j' → mark = nặng (5)
+├── Validate: final = "c" (stop) → chỉ cho sắc/nặng → nặng OK ✓
+├── Find position: vowel="uo", len=2, has_final=true → pos=1 (o)
+├── Apply mark: 'o' + nặng = 'ọ'
+└── Result: "duọc"
+    └── Sau đó nếu + 'w' → "dược"
 ```
 
-### 4.4 Ví dụ: Pattern Matching cho "Dod"
+### 4.5 Ví dụ: Pattern Matching cho "Dod"
 
 ```
 CASE: "Dod" + enter (trong Telex, 'd' cuối là modifier nếu trước đó có 'd')
