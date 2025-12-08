@@ -793,16 +793,416 @@ fn on_key_v2(key: Key, caps: bool) -> Result {
 
 ---
 
-## 10. TÓM TẮT
+## 10. BẢNG GÕ TẮT (SHORTCUT TABLE)
+
+### 10.1 Tổng quan
+
+```
+SHORTCUT TABLE - GÕ TẮT:
+│
+├── MỤC ĐÍCH
+│   ├── Cho phép user định nghĩa các từ viết tắt
+│   ├── Tự động expand thành từ/cụm từ đầy đủ
+│   └── Tăng tốc độ gõ cho các từ thường dùng
+│
+├── VÍ DỤ:
+│   ├── "w" → "ư"
+│   ├── "vn" → "Việt Nam"
+│   ├── "hcm" → "Hồ Chí Minh"
+│   ├── "tphcm" → "Thành phố Hồ Chí Minh"
+│   ├── "dc" → "được"
+│   ├── "ko" → "không"
+│   └── "bth" → "bình thường"
+│
+└── ĐẶC ĐIỂM:
+    ├── User-configurable
+    ├── Trigger khi gặp word boundary
+    ├── Ưu tiên cao hơn Vietnamese transformation
+    └── Case-sensitive hoặc case-insensitive (tùy config)
+```
+
+### 10.2 Cấu trúc dữ liệu
+
+```rust
+/// Một shortcut entry
+struct Shortcut {
+    /// Từ viết tắt (trigger)
+    trigger: String,
+
+    /// Từ/cụm từ thay thế
+    replacement: String,
+
+    /// Điều kiện trigger
+    condition: TriggerCondition,
+
+    /// Case handling
+    case_mode: CaseMode,
+
+    /// Enabled/disabled
+    enabled: bool,
+}
+
+/// Điều kiện để trigger shortcut
+enum TriggerCondition {
+    /// Trigger ngay khi match (không cần thêm gì)
+    Immediate,
+
+    /// Trigger khi gặp space/enter sau trigger word
+    OnWordBoundary,
+
+    /// Trigger khi gặp ký tự cụ thể
+    OnChar(char),
+
+    /// Trigger khi gặp bất kỳ non-alphanumeric
+    OnPunctuation,
+}
+
+/// Cách xử lý case
+enum CaseMode {
+    /// Giữ nguyên replacement như đã định nghĩa
+    Exact,
+
+    /// Match case của trigger
+    /// "vn" → "Việt Nam", "VN" → "VIỆT NAM", "Vn" → "Việt Nam"
+    MatchCase,
+
+    /// Case-insensitive match, giữ nguyên replacement
+    IgnoreCase,
+}
+
+/// Bảng shortcut
+struct ShortcutTable {
+    shortcuts: Vec<Shortcut>,
+
+    /// Index để lookup nhanh theo trigger
+    trigger_index: HashMap<String, usize>,
+}
+```
+
+### 10.3 Pipeline tích hợp
+
+```
+SHORTCUT PIPELINE (TÍCH HỢP VÀO V2):
+│
+on_key(key, caps)
+│
+├─► [is_break(key)?] ──► clear buffer ──► return NONE
+│
+├─► [key == DELETE?] ──► pop buffer ──► return NONE
+│
+│   ╔══════════════════════════════════════════════════════════╗
+│   ║  ★ SHORTCUT CHECK - ƯU TIÊN CAO NHẤT                    ║
+│   ╚══════════════════════════════════════════════════════════╝
+│
+├─► [STEP 0: Check Shortcut] ◄────────────── ★ MỚI
+│   │
+│   ├── is_shortcut_trigger(buffer, key)?
+│   │   │
+│   │   ├── Tìm trong shortcut_table
+│   │   │   └── trigger_word = buffer_to_string()
+│   │   │
+│   │   ├── Kiểm tra condition:
+│   │   │   ├── Immediate → match ngay
+│   │   │   ├── OnWordBoundary → key là space/enter/punctuation?
+│   │   │   ├── OnChar(c) → key == c?
+│   │   │   └── OnPunctuation → !key.is_alphanumeric()?
+│   │   │
+│   │   └── Nếu match:
+│   │       ├── Apply case transformation (nếu MatchCase)
+│   │       ├── backspace_count = trigger.len()
+│   │       ├── output = replacement + (key nếu OnWordBoundary)
+│   │       └── return Result::send(backspace_count, output)
+│   │
+│   └── Không match → tiếp tục pipeline bình thường
+│
+├─► [is_modifier(key)?] ──► Vietnamese transformation (như cũ)
+│   │
+│   ... (các bước V2 như đã định nghĩa)
+│
+└─► [is_letter(key)?] ──► push to buffer ──► return NONE
+```
+
+### 10.4 Thuật toán Shortcut Matching
+
+```
+shortcut_match(buffer, key, table) → Option<ShortcutResult>
+│
+├── STEP 1: Lấy trigger string từ buffer
+│   └── trigger = buffer_to_string().to_lowercase() // nếu IgnoreCase
+│
+├── STEP 2: Lookup trong table
+│   │
+│   ├── exact_match = table.get(trigger)
+│   │
+│   └── Nếu không tìm thấy → return None
+│
+├── STEP 3: Kiểm tra condition
+│   │
+│   ├── Immediate:
+│   │   └── return Some(match) // trigger ngay
+│   │
+│   ├── OnWordBoundary:
+│   │   ├── key ∈ {' ', '\n', '\t', '.', ',', ';', ':', '!', '?'}?
+│   │   │   ├── YES → return Some(match)
+│   │   │   └── NO → return None
+│   │
+│   ├── OnChar(expected):
+│   │   ├── key == expected?
+│   │   │   ├── YES → return Some(match)
+│   │   │   └── NO → return None
+│   │
+│   └── OnPunctuation:
+│       ├── !key.is_alphanumeric()?
+│       │   ├── YES → return Some(match)
+│       │   └── NO → return None
+│
+├── STEP 4: Apply case transformation
+│   │
+│   ├── CaseMode::Exact:
+│   │   └── output = replacement (giữ nguyên)
+│   │
+│   ├── CaseMode::MatchCase:
+│   │   ├── trigger all uppercase? → output = replacement.to_uppercase()
+│   │   ├── trigger first char upper? → output = replacement.capitalize()
+│   │   └── else → output = replacement
+│   │
+│   └── CaseMode::IgnoreCase:
+│       └── output = replacement (giữ nguyên)
+│
+└── STEP 5: Return result
+    └── ShortcutResult {
+            backspace_count: trigger.len(),
+            output: output,
+            include_trigger_key: condition != Immediate,
+        }
+
+────────────────────────────────────────────────────────────
+
+VÍ DỤ MATCHING:
+
+"vn" + SPACE (condition = OnWordBoundary):
+├── buffer = ['v', 'n']
+├── trigger = "vn"
+├── key = ' ' (space)
+├── Lookup: shortcut_table["vn"] = { replacement: "Việt Nam", condition: OnWordBoundary }
+├── Check condition: ' ' is word boundary → YES
+├── CaseMode: MatchCase
+│   └── "vn" is lowercase → output = "Việt Nam"
+├── backspace_count = 2
+├── output = "Việt Nam "  // bao gồm space
+└── Result::send(2, "Việt Nam ")
+
+"VN" + SPACE (condition = OnWordBoundary, CaseMode = MatchCase):
+├── buffer = ['V', 'N']
+├── trigger = "VN"
+├── Check: "VN".to_lowercase() = "vn" → match
+├── CaseMode: MatchCase
+│   └── "VN" is all uppercase → output = "VIỆT NAM"
+└── Result::send(2, "VIỆT NAM ")
+
+"w" (condition = Immediate):
+├── buffer = ['w']
+├── Lookup: shortcut_table["w"] = { replacement: "ư", condition: Immediate }
+├── Immediate → trigger ngay, không cần thêm key
+├── backspace_count = 1
+└── Result::send(1, "ư")
+```
+
+### 10.5 Conflict Resolution
+
+```
+CONFLICT RESOLUTION:
+│
+├── NGUYÊN TẮC: Shortcut > Vietnamese Transformation
+│   │
+│   ├── Shortcut được check TRƯỚC modifier detection
+│   │
+│   └── VÍ DỤ: "w" được định nghĩa là shortcut → "ư"
+│       ├── Không cần Vietnamese transformation
+│       └── Trigger ngay khi gõ 'w'
+│
+├── LONGEST MATCH FIRST
+│   │
+│   ├── Nếu có nhiều shortcut có thể match:
+│   │   ├── "h" → "họ"
+│   │   ├── "hcm" → "Hồ Chí Minh"
+│   │   │
+│   │   └── Khi buffer = "hcm":
+│   │       ├── Ưu tiên "hcm" (dài nhất)
+│   │       └── Không trigger "h"
+│   │
+│   └── Implementation:
+│       └── Sort shortcuts by trigger length DESC
+│
+├── EXACT vs PREFIX MATCH
+│   │
+│   ├── Default: EXACT match only
+│   │   └── "vn" chỉ match "vn", không match "vna"
+│   │
+│   └── Nếu muốn prefix match → dùng condition OnWordBoundary
+│
+└── ESCAPE MECHANISM
+    │
+    ├── Để gõ chính xác trigger word:
+    │   ├── Double-key: "vn" + 'n' → "vnn" (cancel shortcut)
+    │   └── Escape key: Ctrl+\ hoặc ký tự escape
+    │
+    └── Config option: escape_char
+```
+
+### 10.6 Storage Format
+
+```
+SHORTCUT FILE FORMAT (JSON):
+│
+├── File location: ~/.gonhanh/shortcuts.json
+│
+└── Format:
+
+{
+  "version": 1,
+  "shortcuts": [
+    {
+      "trigger": "vn",
+      "replacement": "Việt Nam",
+      "condition": "on_word_boundary",
+      "case_mode": "match_case",
+      "enabled": true
+    },
+    {
+      "trigger": "w",
+      "replacement": "ư",
+      "condition": "immediate",
+      "case_mode": "exact",
+      "enabled": true
+    },
+    {
+      "trigger": "hcm",
+      "replacement": "Hồ Chí Minh",
+      "condition": "on_word_boundary",
+      "case_mode": "match_case",
+      "enabled": true
+    },
+    {
+      "trigger": "dc",
+      "replacement": "được",
+      "condition": "on_word_boundary",
+      "case_mode": "match_case",
+      "enabled": true
+    },
+    {
+      "trigger": "ko",
+      "replacement": "không",
+      "condition": "on_word_boundary",
+      "case_mode": "match_case",
+      "enabled": true
+    }
+  ]
+}
+
+────────────────────────────────────────────────────────────
+
+CONDITION VALUES:
+├── "immediate"        → Trigger ngay
+├── "on_word_boundary" → Trigger khi space/enter/punctuation
+├── "on_char:X"        → Trigger khi gặp ký tự X
+└── "on_punctuation"   → Trigger khi gặp punctuation
+
+CASE_MODE VALUES:
+├── "exact"       → Giữ nguyên replacement
+├── "match_case"  → Match case của trigger
+└── "ignore_case" → Case-insensitive trigger, giữ nguyên replacement
+```
+
+### 10.7 Default Shortcuts
+
+```
+DEFAULT SHORTCUTS (Built-in):
+│
+├── NGUYÊN ÂM ĐẶC BIỆT (condition: immediate)
+│   ├── "w" → "ư"      // Telex-style shortcut
+│   └── (optional, user có thể disable)
+│
+├── TỪ VIẾT TẮT THÔNG DỤNG (condition: on_word_boundary)
+│   ├── "dc"   → "được"
+│   ├── "ko"   → "không"
+│   ├── "bth"  → "bình thường"
+│   ├── "ns"   → "nói chuyện"
+│   ├── "oy"   → "okay"
+│   ├── "ntn"  → "như thế nào"
+│   └── "lun"  → "luôn"
+│
+├── ĐỊA DANH (condition: on_word_boundary)
+│   ├── "vn"    → "Việt Nam"
+│   ├── "hcm"   → "Hồ Chí Minh"
+│   ├── "tphcm" → "Thành phố Hồ Chí Minh"
+│   ├── "hn"    → "Hà Nội"
+│   ├── "dn"    → "Đà Nẵng"
+│   └── "sg"    → "Sài Gòn"
+│
+└── TỔ CHỨC (condition: on_word_boundary)
+    ├── "byt"  → "Bộ Y tế"
+    ├── "bgd"  → "Bộ Giáo dục"
+    └── "cp"   → "Chính phủ"
+```
+
+### 10.8 API cho User Configuration
+
+```rust
+/// API để quản lý shortcuts
+impl ShortcutTable {
+    /// Load từ file
+    fn load_from_file(path: &Path) -> Result<Self, Error>;
+
+    /// Save ra file
+    fn save_to_file(&self, path: &Path) -> Result<(), Error>;
+
+    /// Thêm shortcut mới
+    fn add(&mut self, shortcut: Shortcut) -> Result<(), Error>;
+
+    /// Xóa shortcut
+    fn remove(&mut self, trigger: &str) -> bool;
+
+    /// Update shortcut
+    fn update(&mut self, trigger: &str, shortcut: Shortcut) -> Result<(), Error>;
+
+    /// Enable/disable
+    fn set_enabled(&mut self, trigger: &str, enabled: bool);
+
+    /// Lookup
+    fn lookup(&self, trigger: &str) -> Option<&Shortcut>;
+
+    /// Get all shortcuts
+    fn list(&self) -> &[Shortcut];
+
+    /// Import từ file khác (CSV, JSON)
+    fn import(&mut self, source: &Path) -> Result<usize, Error>;
+
+    /// Export ra file
+    fn export(&self, dest: &Path, format: ExportFormat) -> Result<(), Error>;
+}
+```
+
+---
+
+## 11. TÓM TẮT
 
 ```
 GONHANH ENGINE V2 SUMMARY
 │
 ├── NGUYÊN TẮC CHÍNH
-│   ├── 1. VALIDATION FIRST - Luôn validate buffer trước
-│   ├── 2. Pattern-based replacement (không case-by-case)
-│   ├── 3. Longest-match-first cho vị trí đặt dấu
-│   └── 4. Flexible input order
+│   ├── 1. SHORTCUT FIRST - Check bảng gõ tắt trước tiên
+│   ├── 2. VALIDATION FIRST - Validate buffer trước khi transform
+│   ├── 3. Pattern-based replacement (không case-by-case)
+│   ├── 4. Longest-match-first cho vị trí đặt dấu
+│   └── 5. Flexible input order
+│
+├── SHORTCUT TABLE (★ MỚI)
+│   ├── User-defined abbreviations ("vn" → "Việt Nam")
+│   ├── Multiple trigger conditions (immediate, on_word_boundary)
+│   ├── Case handling (exact, match_case, ignore_case)
+│   ├── Ưu tiên cao hơn Vietnamese transformation
+│   └── Configurable via ~/.gonhanh/shortcuts.json
 │
 ├── VALIDATION
 │   ├── Kiểm tra syllable structure
@@ -830,6 +1230,15 @@ GONHANH ENGINE V2 SUMMARY
 ---
 
 ## Changelog
+
+- **2025-12-08**: Bổ sung Bảng gõ tắt (Shortcut Table)
+  - Thêm Section 10: BẢNG GÕ TẮT
+  - Cấu trúc dữ liệu (Shortcut, TriggerCondition, CaseMode)
+  - Pipeline tích hợp (Shortcut check ưu tiên cao nhất)
+  - Thuật toán matching và conflict resolution
+  - Storage format (JSON)
+  - Default shortcuts
+  - API cho user configuration
 
 - **2025-12-08**: Tạo tài liệu V2
   - Phân tích vấn đề với V1 (case-by-case processing)
