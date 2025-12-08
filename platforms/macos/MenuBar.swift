@@ -110,14 +110,15 @@ class MenuBarController {
     }
 
     private func createStatusIcon(text: String) -> NSImage {
-        let size: CGFloat = 18
-        let image = NSImage(size: NSSize(width: size, height: size))
+        let width: CGFloat = 22
+        let height: CGFloat = 16
+        let image = NSImage(size: NSSize(width: width, height: height))
 
         image.lockFocus()
 
-        // Background trắng bo góc
-        let rect = NSRect(x: 0, y: 0, width: size, height: size)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
+        // Background trắng bo góc nhẹ
+        let rect = NSRect(x: 0, y: 0, width: width, height: height)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
         NSColor.white.setFill()
         path.fill()
 
@@ -129,8 +130,8 @@ class MenuBarController {
         ]
         let textSize = text.size(withAttributes: attrs)
         let textRect = NSRect(
-            x: (size - textSize.width) / 2,
-            y: (size - textSize.height) / 2,
+            x: (width - textSize.width) / 2,
+            y: (height - textSize.height) / 2,
             width: textSize.width,
             height: textSize.height
         )
