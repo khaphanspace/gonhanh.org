@@ -1,11 +1,14 @@
-//! Common test utilities
+//! Common test utilities - DRY helpers for all test modules
 
 #![allow(dead_code)]
 
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::{Action, Engine};
 
-/// Convert character to key code
+// ============================================================
+// KEY MAPPING
+// ============================================================
+
 pub fn char_to_key(c: char) -> u16 {
     match c.to_ascii_lowercase() {
         'a' => keys::A,
@@ -50,7 +53,11 @@ pub fn char_to_key(c: char) -> u16 {
     }
 }
 
-/// Simulate typing a word or sentence, returns the resulting string on screen
+// ============================================================
+// TYPING SIMULATION
+// ============================================================
+
+/// Simulate typing, returns screen output
 pub fn type_word(e: &mut Engine, input: &str) -> String {
     let mut screen = String::new();
     for c in input.chars() {
@@ -90,39 +97,137 @@ pub fn type_word(e: &mut Engine, input: &str) -> String {
     screen
 }
 
-/// Run Telex test cases
-pub fn run_telex(cases: &[(&str, &str)]) {
+// ============================================================
+// TEST RUNNERS - Dynamic test execution from data arrays
+// ============================================================
+
+/// Input method type
+#[derive(Clone, Copy, Debug)]
+pub enum Method {
+    Telex,
+    Vni,
+}
+
+/// Orthography mode
+#[derive(Clone, Copy, Debug)]
+pub enum Ortho {
+    Modern,
+    Classic,
+}
+
+/// Test case definition
+pub struct Case<'a> {
+    pub input: &'a str,
+    pub expected: &'a str,
+}
+
+impl<'a> From<(&'a str, &'a str)> for Case<'a> {
+    fn from((input, expected): (&'a str, &'a str)) -> Self {
+        Self { input, expected }
+    }
+}
+
+/// Run test cases with method
+pub fn run(method: Method, cases: &[(&str, &str)]) {
     for (input, expected) in cases {
         let mut e = Engine::new();
+        if matches!(method, Method::Vni) {
+            e.set_method(1);
+        }
         let result = type_word(&mut e, input);
+        let method_name = match method {
+            Method::Telex => "Telex",
+            Method::Vni => "VNI",
+        };
         assert_eq!(
             result, *expected,
-            "\n[Telex] '{}' → '{}' (expected '{}')",
-            input, result, expected
+            "\n[{}] '{}' → '{}' (expected '{}')",
+            method_name, input, result, expected
         );
     }
 }
 
-/// Run VNI test cases
-pub fn run_vni(cases: &[(&str, &str)]) {
+/// Run with orthography setting
+pub fn run_with_ortho(method: Method, ortho: Ortho, cases: &[(&str, &str)]) {
     for (input, expected) in cases {
         let mut e = Engine::new();
-        e.set_method(1);
+        if matches!(method, Method::Vni) {
+            e.set_method(1);
+        }
+        e.set_modern(matches!(ortho, Ortho::Modern));
         let result = type_word(&mut e, input);
         assert_eq!(
             result, *expected,
-            "\n[VNI] '{}' → '{}' (expected '{}')",
-            input, result, expected
+            "\n[{:?}/{:?}] '{}' → '{}' (expected '{}')",
+            method, ortho, input, result, expected
         );
     }
 }
 
-/// Test single Telex case
-pub fn test_telex(input: &str, expected: &str) {
-    run_telex(&[(input, expected)]);
+/// Shorthand: Telex tests
+pub fn telex(cases: &[(&str, &str)]) {
+    run(Method::Telex, cases);
 }
 
-/// Test single VNI case
-pub fn test_vni(input: &str, expected: &str) {
-    run_vni(&[(input, expected)]);
+/// Shorthand: VNI tests
+pub fn vni(cases: &[(&str, &str)]) {
+    run(Method::Vni, cases);
+}
+
+/// Run same cases for both methods (with different inputs)
+pub fn both(telex_cases: &[(&str, &str)], vni_cases: &[(&str, &str)]) {
+    telex(telex_cases);
+    vni(vni_cases);
+}
+
+// ============================================================
+// ENGINE STATE HELPERS
+// ============================================================
+
+pub fn engine_telex() -> Engine {
+    Engine::new()
+}
+
+pub fn engine_vni() -> Engine {
+    let mut e = Engine::new();
+    e.set_method(1);
+    e
+}
+
+pub fn engine_modern() -> Engine {
+    let mut e = Engine::new();
+    e.set_modern(true);
+    e
+}
+
+pub fn engine_classic() -> Engine {
+    let mut e = Engine::new();
+    e.set_modern(false);
+    e
+}
+
+// ============================================================
+// ASSERTION HELPERS
+// ============================================================
+
+/// Assert engine action
+pub fn assert_action(e: &mut Engine, key: u16, caps: bool, ctrl: bool, expected: Action) {
+    let r = e.on_key(key, caps, ctrl);
+    assert_eq!(
+        r.action,
+        expected as u8,
+        "Expected {:?} for key {}",
+        expected,
+        key
+    );
+}
+
+/// Assert pass-through (no transformation)
+pub fn assert_passthrough(e: &mut Engine, key: u16) {
+    assert_action(e, key, false, false, Action::None);
+}
+
+/// Assert transformation happens
+pub fn assert_transforms(e: &mut Engine, key: u16) {
+    assert_action(e, key, false, false, Action::Send);
 }
