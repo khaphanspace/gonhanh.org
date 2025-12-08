@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct OnboardingView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var step = 0
     @State private var hasPermission = false
     @State private var selectedMode: InputMode = .telex
@@ -16,6 +17,7 @@ struct OnboardingView: View {
             footer
         }
         .frame(width: 480)
+        .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white)
         .onAppear {
             hasPermission = AXIsProcessTrusted()
             if UserDefaults.standard.bool(forKey: SettingsKey.permissionGranted) && hasPermission {
@@ -31,32 +33,35 @@ struct OnboardingView: View {
     @ViewBuilder
     private var content: some View {
         switch step {
-        case 0:  WelcomeStep()
-        case 1:  PermissionStep()
-        case 2:  ReadyStep()
-        case 10: SuccessStep()
-        case 11: SetupStep(selectedMode: $selectedMode)
+        case 0:  WelcomeStep(colorScheme: colorScheme)
+        case 1:  PermissionStep(colorScheme: colorScheme)
+        case 2:  ReadyStep(colorScheme: colorScheme)
+        case 10: SuccessStep(colorScheme: colorScheme)
+        case 11: SetupStep(colorScheme: colorScheme, selectedMode: $selectedMode)
         default: EmptyView()
         }
     }
 
     private var footer: some View {
         HStack {
-            HStack(spacing: 6) {
+            // Step indicators
+            HStack(spacing: 8) {
                 ForEach(0..<totalSteps, id: \.self) { i in
                     Circle()
-                        .fill(i == stepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
-                        .frame(width: 6, height: 6)
+                        .fill(i == stepIndex ? Color.accentColor : (colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.15)))
+                        .frame(width: 8, height: 8)
                 }
             }
             Spacer()
             if step == 1 {
                 Button("Quay lại") { step = 0 }
+                    .foregroundStyle(.secondary)
             }
             primaryButton
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
     }
 
     @ViewBuilder
@@ -97,102 +102,122 @@ struct OnboardingView: View {
 // MARK: - Steps
 
 private struct WelcomeStep: View {
+    let colorScheme: ColorScheme
+
     var body: some View {
         StepLayout {
             Image(nsImage: AppMetadata.logo)
                 .resizable()
-                .frame(width: 80, height: 80)
+                .frame(width: 88, height: 88)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
 
             Text("Chào mừng đến với \(AppMetadata.name)")
-                .font(.title.bold())
+                .font(.system(size: 24, weight: .bold, design: .rounded))
 
             Text(AppMetadata.tagline)
+                .font(.body)
                 .foregroundStyle(.secondary)
         }
     }
 }
 
 private struct PermissionStep: View {
+    let colorScheme: ColorScheme
+
     var body: some View {
         StepLayout {
-            Image(systemName: "hand.raised.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.orange)
+            iconCircle(icon: "hand.raised.fill", color: .orange, colorScheme: colorScheme)
 
             Text("Cấp quyền Accessibility")
-                .font(.title.bold())
+                .font(.system(size: 24, weight: .bold, design: .rounded))
 
             Text("Bật \(AppMetadata.name) trong System Settings để gõ tiếng Việt.")
+                .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Mở Privacy & Security → Accessibility", systemImage: "1.circle.fill")
-                Label("Bật công tắc bên cạnh \(AppMetadata.name)", systemImage: "2.circle.fill")
+            VStack(alignment: .leading, spacing: 12) {
+                instructionRow(number: "1", text: "Mở Privacy & Security → Accessibility")
+                instructionRow(number: "2", text: "Bật công tắc bên cạnh \(AppMetadata.name)")
             }
-            .font(.callout)
-            .foregroundStyle(.secondary)
             .padding(.top, 8)
+        }
+    }
+
+    private func instructionRow(number: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Text(number)
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Color.accentColor))
+
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.secondary)
         }
     }
 }
 
 private struct ReadyStep: View {
+    let colorScheme: ColorScheme
+
     var body: some View {
         StepLayout {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.green)
+            iconCircle(icon: "checkmark.shield.fill", color: .green, colorScheme: colorScheme)
 
             Text("Đã cấp quyền")
-                .font(.title.bold())
+                .font(.system(size: 24, weight: .bold, design: .rounded))
 
             Text("Nhấn \"Khởi động lại\" để áp dụng.")
+                .font(.body)
                 .foregroundStyle(.secondary)
         }
     }
 }
 
 private struct SuccessStep: View {
+    let colorScheme: ColorScheme
+
     var body: some View {
         StepLayout {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
+            iconCircle(icon: "checkmark.circle.fill", color: .green, colorScheme: colorScheme, size: 88)
 
             Text("Sẵn sàng hoạt động")
-                .font(.title.bold())
+                .font(.system(size: 24, weight: .bold, design: .rounded))
 
             Text("\(AppMetadata.name) đã được cấp quyền thành công.")
+                .font(.body)
                 .foregroundStyle(.secondary)
         }
     }
 }
 
 private struct SetupStep: View {
+    let colorScheme: ColorScheme
     @Binding var selectedMode: InputMode
 
     var body: some View {
         StepLayout {
-            Image(systemName: "keyboard")
-                .font(.system(size: 40))
-                .foregroundStyle(.blue)
+            iconCircle(icon: "keyboard", color: .blue, colorScheme: colorScheme)
 
             Text("Chọn kiểu gõ")
-                .font(.title.bold())
+                .font(.system(size: 24, weight: .bold, design: .rounded))
 
             Text("Có thể thay đổi sau trong menu.")
+                .font(.body)
                 .foregroundStyle(.secondary)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 ForEach(InputMode.allCases, id: \.rawValue) { mode in
-                    ModeOption(mode: mode, isSelected: selectedMode == mode) {
+                    ModeOption(colorScheme: colorScheme, mode: mode, isSelected: selectedMode == mode) {
                         selectedMode = mode
                     }
                 }
             }
-            .frame(maxWidth: 260)
-            .padding(.top, 8)
+            .frame(maxWidth: 280)
+            .padding(.top, 12)
         }
     }
 }
@@ -208,40 +233,64 @@ private struct StepLayout<Content: View>: View {
             content
             Spacer()
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, 48)
+    }
+}
+
+private func iconCircle(icon: String, color: Color, colorScheme: ColorScheme, size: CGFloat = 80) -> some View {
+    ZStack {
+        Circle()
+            .fill(color.opacity(colorScheme == .dark ? 0.2 : 0.1))
+            .frame(width: size, height: size)
+        Image(systemName: icon)
+            .font(.system(size: size * 0.45))
+            .foregroundStyle(color)
     }
 }
 
 private struct ModeOption: View {
+    let colorScheme: ColorScheme
     let mode: InputMode
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(mode.name)
                         .font(.headline)
+                        .foregroundStyle(.primary)
                     Text(mode.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
                     .foregroundStyle(isSelected ? .blue : .secondary.opacity(0.4))
             }
-            .padding(10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05))
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected
+                        ? Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.08)
+                        : (colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03)))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : .clear)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 1.5)
             )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
     }
 }
 

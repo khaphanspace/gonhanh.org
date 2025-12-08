@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct UpdateView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var updateManager = UpdateManager.shared
 
     var body: some View {
@@ -10,6 +11,7 @@ struct UpdateView: View {
             footer
         }
         .frame(width: 360)
+        .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white)
     }
 
     @ViewBuilder
@@ -41,15 +43,17 @@ struct UpdateView: View {
             Image(nsImage: AppMetadata.logo)
                 .resizable()
                 .frame(width: 64, height: 64)
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
 
-            VStack(spacing: 4) {
-                Text("Phiên bản \(AppMetadata.version)")
-                    .font(.title3)
-                if let lastCheck = updateManager.lastCheckDate {
-                    Text("Kiểm tra lần cuối: \(lastCheck.formatted(.relative(presentation: .named)))")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+            Text(AppMetadata.name)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+
+            versionBadge(label: "Phiên bản", value: AppMetadata.version)
+
+            if let lastCheck = updateManager.lastCheckDate {
+                Text("Kiểm tra lần cuối: \(lastCheck.formatted(.relative(presentation: .named)))")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
 
             Spacer()
@@ -62,7 +66,7 @@ struct UpdateView: View {
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private var checkingView: some View {
@@ -73,27 +77,24 @@ struct UpdateView: View {
                 .scaleEffect(1.5)
 
             Text("Đang kiểm tra...")
-                .font(.title3)
+                .font(.system(size: 18, weight: .medium, design: .rounded))
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private var upToDateView: some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
+            iconCircle(icon: "checkmark", color: .green)
 
             Text("Đã cập nhật mới nhất")
-                .font(.title3.bold())
+                .font(.system(size: 18, weight: .bold, design: .rounded))
 
-            Text("Phiên bản \(AppMetadata.version)")
-                .foregroundStyle(.secondary)
+            versionBadge(label: "Phiên bản", value: AppMetadata.version)
 
             Spacer()
 
@@ -104,41 +105,27 @@ struct UpdateView: View {
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private func availableView(_ info: UpdateInfo) -> some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image(systemName: "arrow.down.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.blue)
+            iconCircle(icon: "arrow.down", color: .blue)
 
             Text("Có phiên bản mới")
-                .font(.title3.bold())
+                .font(.system(size: 18, weight: .bold, design: .rounded))
 
             // Version comparison
-            HStack(spacing: 20) {
-                VStack(spacing: 2) {
-                    Text("Hiện tại")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Text(AppMetadata.version)
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 16) {
+                versionBadge(label: "Hiện tại", value: AppMetadata.version)
 
                 Image(systemName: "arrow.right")
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
 
-                VStack(spacing: 2) {
-                    Text("Mới")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Text(info.version)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.green)
-                }
+                versionBadge(label: "Mới", value: info.version, highlight: true)
             }
 
             // Release notes
@@ -149,31 +136,33 @@ struct UpdateView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 100)
+                .frame(maxHeight: 80)
                 .padding(10)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.secondary.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
                 )
             }
 
             Spacer()
 
             // Actions
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Button("Tải về") {
                     updateManager.downloadUpdate(info)
                 }
                 .buttonStyle(.borderedProminent)
 
-                HStack(spacing: 16) {
+                HStack(spacing: 20) {
                     Button("Để sau") {
                         updateManager.state = .idle
                     }
+                    .foregroundStyle(.secondary)
+
                     Button("Bỏ qua") {
                         updateManager.skipVersion(info.version)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                 }
                 .font(.callout)
             }
@@ -181,7 +170,7 @@ struct UpdateView: View {
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private func downloadingView(_ progress: Double) -> some View {
@@ -190,44 +179,43 @@ struct UpdateView: View {
 
             ZStack {
                 Circle()
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 4)
-                    .frame(width: 60, height: 60)
+                    .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08), lineWidth: 4)
+                    .frame(width: 64, height: 64)
 
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 64, height: 64)
                     .rotationEffect(.degrees(-90))
 
                 Text("\(Int(progress * 100))%")
-                    .font(.caption.bold())
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
             }
 
             Text("Đang tải về...")
-                .font(.title3)
+                .font(.system(size: 18, weight: .medium, design: .rounded))
 
             Spacer()
 
             Button("Hủy") {
                 updateManager.cancelDownload()
             }
+            .foregroundStyle(.secondary)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private var readyView: some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
+            iconCircle(icon: "checkmark", color: .green)
 
             Text("Sẵn sàng cài đặt")
-                .font(.title3.bold())
+                .font(.system(size: 18, weight: .bold, design: .rounded))
 
             Text("Ứng dụng sẽ thoát để cài đặt")
                 .font(.callout)
@@ -244,23 +232,22 @@ struct UpdateView: View {
                 updateManager.state = .idle
             }
             .font(.callout)
+            .foregroundStyle(.secondary)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
     }
 
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.orange)
+            iconCircle(icon: "exclamationmark", color: .orange)
 
             Text("Lỗi kết nối")
-                .font(.title3.bold())
+                .font(.system(size: 18, weight: .bold, design: .rounded))
 
             Text(message)
                 .font(.callout)
@@ -277,18 +264,63 @@ struct UpdateView: View {
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
+    }
+
+    // MARK: - Components
+
+    private func iconCircle(icon: String, color: Color) -> some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                .frame(width: 64, height: 64)
+
+            Image(systemName: icon)
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func versionBadge(label: String, value: String, highlight: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(highlight ? .green : .secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04))
+        )
     }
 
     // MARK: - Footer
 
     private var footer: some View {
         Link(destination: URL(string: AppMetadata.repository + "/releases")!) {
-            Label("Xem trên GitHub", systemImage: "arrow.up.right")
-                .font(.caption)
+            HStack(spacing: 4) {
+                Text("Xem trên GitHub")
+                Image(systemName: "arrow.up.right")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
+        .background(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
     }
 }
 
