@@ -1,7 +1,7 @@
 {
   "name": "gonhanh",
   "version": "1.0.0",
-  "description": "Gõ Nhanh - Vietnamese input method automation",
+  "description": "Gõ Nhanh - Vietnamese input method",
   "author": "Kha Phan <nhatkha1407@gmail.com>",
   "scripts": {
     "semantic-release": "semantic-release"
@@ -10,7 +10,9 @@
     "semantic-release": "^23.0.0"
   },
   "release": {
-    "branches": ["main"],
+    "branches": [
+      "main"
+    ],
     "plugins": [
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
