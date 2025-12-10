@@ -4,6 +4,13 @@
 </h1>
 
 <p align="center">
+  <strong>Bộ gõ tiếng Việt miễn phí, nhanh, ổn định cho macOS.</strong><br>
+  Cài là dùng. Không quảng cáo. Không thu thập dữ liệu.
+</p>
+
+<br/>
+
+<p align="center">
   <img src="https://img.shields.io/github/downloads/khaphanspace/gonhanh.org/total?label=Downloads" />
   <img src="https://img.shields.io/github/v/release/khaphanspace/gonhanh.org?label=Latest%20Release" />
   <img src="https://img.shields.io/github/last-commit/khaphanspace/gonhanh.org" />
@@ -12,11 +19,6 @@
   <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="License: GPL-3.0">
   <img src="https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg" alt="CI">
-</p>
-
-<p align="center">
-  <strong>Bộ gõ tiếng Việt miễn phí, nhanh, ổn định cho macOS.</strong><br>
-  Cài là dùng. Không quảng cáo. Không thu thập dữ liệu.
 </p>
 
 ---
