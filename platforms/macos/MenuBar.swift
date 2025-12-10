@@ -33,6 +33,7 @@ class MenuBarController {
     private var onboardingWindow: NSWindow?
     private var aboutWindow: NSWindow?
     private var updateWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private var toggleState: ToggleState?
 
     private var isEnabled = true
@@ -171,6 +172,13 @@ class MenuBarController {
         menu.addItem(vni)
         menu.addItem(.separator())
 
+        // Settings
+        let settings = NSMenuItem(title: "Cài đặt...", action: #selector(showSettings), keyEquivalent: ",")
+        settings.keyEquivalentModifierMask = .command
+        settings.target = self
+        menu.addItem(settings)
+        menu.addItem(.separator())
+
         // About & Help
         let about = NSMenuItem(title: "Giới thiệu \(AppMetadata.name)", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
@@ -287,6 +295,24 @@ class MenuBarController {
 
     @objc private func openHelp() {
         NSWorkspace.shared.open(URL(string: AppMetadata.issuesURL)!)
+    }
+
+    @objc private func showSettings() {
+        if settingsWindow == nil {
+            let controller = NSHostingController(rootView: MainSettingsView())
+            let window = NSWindow(contentViewController: controller)
+            window.title = "\(AppMetadata.name) - Cài đặt"
+            window.styleMask = NSWindow.StyleMask([.titled, .closable, .miniaturizable])
+            window.setContentSize(NSSize(width: 700, height: 520))
+            window.center()
+            window.isReleasedWhenClosed = false
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = NSWindow.TitleVisibility.hidden
+            window.backgroundColor = NSColor(red: 0x28/255.0, green: 0x28/255.0, blue: 0x28/255.0, alpha: 1)
+            settingsWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func checkForUpdates() {
