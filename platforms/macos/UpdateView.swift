@@ -29,6 +29,8 @@ struct UpdateView: View {
             downloadingView(progress)
         case .readyToInstall:
             readyView
+        case .installing:
+            installingView
         case .error(let message):
             errorView(message)
         }
@@ -239,10 +241,6 @@ struct UpdateView: View {
             Text("Sẵn sàng cài đặt")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
 
-            Text("Ứng dụng sẽ thoát để cài đặt")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
             Spacer()
 
             Button("Cài đặt ngay") {
@@ -255,6 +253,26 @@ struct UpdateView: View {
             }
             .font(.callout)
             .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 24)
+    }
+
+    private var installingView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Đang cài đặt...")
+                .font(.system(size: 18, weight: .medium, design: .rounded))
+
+            Text("Ứng dụng sẽ tự khởi động lại")
+                .font(.callout)
+                .foregroundStyle(.secondary)
 
             Spacer()
         }

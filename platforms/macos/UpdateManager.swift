@@ -10,6 +10,7 @@ enum UpdateState {
     case upToDate
     case downloading(progress: Double)
     case readyToInstall(dmgPath: URL)
+    case installing
     case error(String)
 }
 
@@ -58,17 +59,86 @@ class UpdateManager: NSObject, ObservableObject {
         downloadTask?.resume()
     }
 
-    /// Install the downloaded update
+    /// Install the downloaded update (auto-install)
     func installUpdate() {
         guard case .readyToInstall(let dmgPath) = state else { return }
 
-        // Open the DMG file
-        NSWorkspace.shared.open(dmgPath)
+        state = .installing
 
-        // Quit the app to allow replacement
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApp.terminate(nil)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = self?.performAutoInstall(dmgPath: dmgPath)
+
+            DispatchQueue.main.async {
+                if let error = result {
+                    self?.state = .error(error)
+                }
+            }
         }
+    }
+
+    /// Perform the actual auto-install process
+    private func performAutoInstall(dmgPath: URL) -> String? {
+        // 1. Mount DMG
+        let mountPoint = "/Volumes/GoNhanh"
+
+        let mountResult = shell("hdiutil attach '\(dmgPath.path)' -nobrowse -quiet -mountpoint '\(mountPoint)'")
+        if mountResult.status != 0 {
+            return "Không thể mount DMG: \(mountResult.output)"
+        }
+
+        defer {
+            // Always unmount
+            shell("hdiutil detach '\(mountPoint)' -quiet -force")
+        }
+
+        // 2. Find .app in mounted volume
+        let appName = "GoNhanh.app"
+        let sourceApp = "\(mountPoint)/\(appName)"
+        let destApp = "/Applications/\(appName)"
+
+        guard FileManager.default.fileExists(atPath: sourceApp) else {
+            return "Không tìm thấy \(appName) trong DMG"
+        }
+
+        // 3. Remove old app and copy new one
+        let copyResult = shell("""
+            rm -rf '\(destApp)' && cp -R '\(sourceApp)' '\(destApp)'
+            """)
+
+        if copyResult.status != 0 {
+            return "Không thể cài đặt: \(copyResult.output)"
+        }
+
+        // 4. Restart app
+        DispatchQueue.main.async {
+            let newAppURL = URL(fileURLWithPath: destApp)
+            NSWorkspace.shared.openApplication(at: newAppURL, configuration: .init())
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NSApp.terminate(nil)
+            }
+        }
+
+        return nil
+    }
+
+    @discardableResult
+    private func shell(_ command: String) -> (output: String, status: Int32) {
+        let process = Process()
+        let pipe = Pipe()
+
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", command]
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        try? process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        return (output.trimmingCharacters(in: .whitespacesAndNewlines), process.terminationStatus)
     }
 
     /// Skip this version
