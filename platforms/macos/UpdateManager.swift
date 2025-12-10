@@ -83,7 +83,7 @@ class UpdateManager: NSObject, ObservableObject {
 
         let mountResult = shell("hdiutil attach '\(dmgPath.path)' -nobrowse -quiet -mountpoint '\(mountPoint)'")
         if mountResult.status != 0 {
-            return "Không thể mount DMG: \(mountResult.output)"
+            return "Không thể mở file cài đặt. Vui lòng thử tải lại."
         }
 
         defer {
@@ -97,7 +97,7 @@ class UpdateManager: NSObject, ObservableObject {
         let destApp = "/Applications/\(appName)"
 
         guard FileManager.default.fileExists(atPath: sourceApp) else {
-            return "Không tìm thấy \(appName) trong DMG"
+            return "File cài đặt bị lỗi. Vui lòng thử tải lại."
         }
 
         // 3. Remove old app and copy new one
@@ -106,7 +106,7 @@ class UpdateManager: NSObject, ObservableObject {
             """)
 
         if copyResult.status != 0 {
-            return "Không thể cài đặt: \(copyResult.output)"
+            return "Không có quyền cài vào Applications. Hãy di chuyển app vào thư mục khác."
         }
 
         // 4. Restart app
