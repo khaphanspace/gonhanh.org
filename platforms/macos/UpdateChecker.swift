@@ -83,75 +83,93 @@ class UpdateChecker {
 
     private func parseResponse(data: Data, completion: @escaping (UpdateCheckResult) -> Void) {
         do {
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                DispatchQueue.main.async {
-                    completion(.error("Invalid JSON format"))
-                }
+            // Parse as array of releases
+            guard let releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                DispatchQueue.main.async { completion(.error("Invalid JSON format")) }
                 return
             }
 
-            // Extract version from tag_name (e.g., "v1.0.10" -> "1.0.10")
-            guard let tagName = json["tag_name"] as? String else {
-                DispatchQueue.main.async {
-                    completion(.error("Missing version tag"))
-                }
-                return
-            }
-
-            let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
             let currentVersion = AppMetadata.version
 
-            // Use Rust core for version comparison
+            // Find the highest version release (not draft/prerelease)
+            var bestRelease: [String: Any]?
+            var bestVersion = ""
+
+            for release in releases {
+                guard let tagName = release["tag_name"] as? String,
+                      release["draft"] as? Bool != true,
+                      release["prerelease"] as? Bool != true else { continue }
+
+                let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
+
+                // Compare with current best
+                if bestVersion.isEmpty {
+                    bestVersion = version
+                    bestRelease = release
+                } else {
+                    let cmp = bestVersion.withCString { bestPtr in
+                        version.withCString { verPtr in
+                            version_compare(bestPtr, verPtr)
+                        }
+                    }
+                    if cmp < 0 { // version > bestVersion
+                        bestVersion = version
+                        bestRelease = release
+                    }
+                }
+            }
+
+            guard let release = bestRelease, !bestVersion.isEmpty else {
+                DispatchQueue.main.async { completion(.upToDate) }
+                return
+            }
+
+            // Check if update available
             let hasUpdate = currentVersion.withCString { currentPtr in
-                latestVersion.withCString { latestPtr in
+                bestVersion.withCString { latestPtr in
                     version_has_update(currentPtr, latestPtr)
                 }
             }
 
-            if hasUpdate == 1 {
-                // Parse additional info
-                let releaseNotes = json["body"] as? String ?? ""
-                let htmlURL = json["html_url"] as? String ?? ""
+            guard hasUpdate == 1 else {
+                DispatchQueue.main.async { completion(.upToDate) }
+                return
+            }
 
-                // Find DMG download URL from assets
-                var downloadURL: URL?
-                if let assets = json["assets"] as? [[String: Any]] {
-                    for asset in assets {
-                        if let name = asset["name"] as? String,
-                           name.lowercased().hasSuffix(".dmg"),
-                           let urlString = asset["browser_download_url"] as? String,
-                           let url = URL(string: urlString) {
-                            downloadURL = url
-                            break
-                        }
+            // Find DMG download URL
+            var downloadURL: URL?
+            if let assets = release["assets"] as? [[String: Any]] {
+                for asset in assets {
+                    if let name = asset["name"] as? String,
+                       name.lowercased().hasSuffix(".dmg"),
+                       let urlString = asset["browser_download_url"] as? String,
+                       let url = URL(string: urlString) {
+                        downloadURL = url
+                        break
                     }
                 }
-
-                // Fallback to default download URL
-                let finalDownloadURL = downloadURL ?? URL(string: "\(downloadBaseURL)/GoNhanh.dmg")!
-
-                // Parse published date
-                var publishedAt: Date?
-                if let publishedString = json["published_at"] as? String {
-                    let formatter = ISO8601DateFormatter()
-                    publishedAt = formatter.date(from: publishedString)
-                }
-
-                let updateInfo = UpdateInfo(
-                    version: latestVersion,
-                    downloadURL: finalDownloadURL,
-                    releaseNotes: releaseNotes,
-                    publishedAt: publishedAt
-                )
-
-                DispatchQueue.main.async {
-                    completion(.available(updateInfo))
-                }
-            } else {
-                DispatchQueue.main.async {
-                    completion(.upToDate)
-                }
             }
+
+            guard let finalDownloadURL = downloadURL else {
+                DispatchQueue.main.async { completion(.error("No DMG found in release")) }
+                return
+            }
+
+            // Parse metadata
+            let releaseNotes = release["body"] as? String ?? ""
+            var publishedAt: Date?
+            if let publishedString = release["published_at"] as? String {
+                publishedAt = ISO8601DateFormatter().date(from: publishedString)
+            }
+
+            let updateInfo = UpdateInfo(
+                version: bestVersion,
+                downloadURL: finalDownloadURL,
+                releaseNotes: releaseNotes,
+                publishedAt: publishedAt
+            )
+
+            DispatchQueue.main.async { completion(.available(updateInfo)) }
 
         } catch {
             DispatchQueue.main.async {
