@@ -4,42 +4,205 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Colors -->
-            <Color x:Key="PrimaryColor">#2563EB</Color>
-            <Color x:Key="PrimaryHoverColor">#1D4ED8</Color>
-            <Color x:Key="BackgroundColor">#FFFFFF</Color>
-            <Color x:Key="TextColor">#1F2937</Color>
-            <Color x:Key="SecondaryTextColor">#6B7280</Color>
+            <!-- ==================== -->
+            <!-- Design Tokens - Easy AI Notebook HIG -->
+            <!-- ==================== -->
 
-            <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
-            <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
-            <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
-            <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
-            <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryTextColor}"/>
+            <!-- Brand Colors - Warm Indigo (Primary) -->
+            <Color x:Key="AccentColor">#5046e5</Color>
+            <Color x:Key="AccentHoverColor">#4338ca</Color>
+            <Color x:Key="AccentActiveColor">#3730a3</Color>
+            <Color x:Key="AccentSubtleColor">#eef2ff</Color>
+            <Color x:Key="AccentMutedColor">#c7d2fe</Color>
 
-            <!-- Button Style -->
+            <!-- Brand Colors - Warm Amber (AI) -->
+            <Color x:Key="AIColor">#f59e0b</Color>
+            <Color x:Key="AISubtleColor">#fffbeb</Color>
+            <Color x:Key="AIMutedColor">#fde68a</Color>
+
+            <!-- Ink (Text) Colors -->
+            <Color x:Key="InkColor">#1a1a1a</Color>
+            <Color x:Key="InkSecondaryColor">#525252</Color>
+            <Color x:Key="InkTertiaryColor">#8a8a8a</Color>
+            <Color x:Key="InkQuaternaryColor">#b3b3b3</Color>
+
+            <!-- Surface (Background) Colors -->
+            <Color x:Key="SurfaceColor">#ffffff</Color>
+            <Color x:Key="SurfaceSecondaryColor">#fafafa</Color>
+            <Color x:Key="SurfaceTertiaryColor">#f5f5f5</Color>
+            <Color x:Key="SurfaceElevatedColor">#ffffff</Color>
+
+            <!-- Border Colors -->
+            <Color x:Key="BorderColor">#e5e5e5</Color>
+            <Color x:Key="BorderSubtleColor">#f0f0f0</Color>
+
+            <!-- Semantic Colors -->
+            <Color x:Key="SuccessColor">#10b981</Color>
+            <Color x:Key="SuccessSubtleColor">#ecfdf5</Color>
+            <Color x:Key="WarningColor">#f59e0b</Color>
+            <Color x:Key="WarningSubtleColor">#fffbeb</Color>
+            <Color x:Key="ErrorColor">#ef4444</Color>
+            <Color x:Key="ErrorSubtleColor">#fef2f2</Color>
+            <Color x:Key="InfoColor">#3b82f6</Color>
+            <Color x:Key="InfoSubtleColor">#eff6ff</Color>
+
+            <!-- Legacy Aliases (for backward compatibility) -->
+            <Color x:Key="PrimaryColor">#5046e5</Color>
+            <Color x:Key="PrimaryHoverColor">#4338ca</Color>
+            <Color x:Key="BackgroundColor">#ffffff</Color>
+            <Color x:Key="TextColor">#1a1a1a</Color>
+            <Color x:Key="SecondaryTextColor">#525252</Color>
+
+            <!-- ==================== -->
+            <!-- Brushes -->
+            <!-- ==================== -->
+
+            <!-- Accent Brushes -->
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
+            <SolidColorBrush x:Key="AccentActiveBrush" Color="{StaticResource AccentActiveColor}"/>
+            <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentSubtleColor}"/>
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMutedColor}"/>
+
+            <!-- AI Brushes -->
+            <SolidColorBrush x:Key="AIBrush" Color="{StaticResource AIColor}"/>
+            <SolidColorBrush x:Key="AISubtleBrush" Color="{StaticResource AISubtleColor}"/>
+            <SolidColorBrush x:Key="AIMutedBrush" Color="{StaticResource AIMutedColor}"/>
+
+            <!-- Ink (Text) Brushes -->
+            <SolidColorBrush x:Key="InkBrush" Color="{StaticResource InkColor}"/>
+            <SolidColorBrush x:Key="InkSecondaryBrush" Color="{StaticResource InkSecondaryColor}"/>
+            <SolidColorBrush x:Key="InkTertiaryBrush" Color="{StaticResource InkTertiaryColor}"/>
+            <SolidColorBrush x:Key="InkQuaternaryBrush" Color="{StaticResource InkQuaternaryColor}"/>
+
+            <!-- Surface (Background) Brushes -->
+            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="{StaticResource SurfaceSecondaryColor}"/>
+            <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{StaticResource SurfaceTertiaryColor}"/>
+            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{StaticResource SurfaceElevatedColor}"/>
+
+            <!-- Border Brushes -->
+            <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
+            <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtleColor}"/>
+
+            <!-- Semantic Brushes -->
+            <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+            <SolidColorBrush x:Key="SuccessSubtleBrush" Color="{StaticResource SuccessSubtleColor}"/>
+            <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
+            <SolidColorBrush x:Key="WarningSubtleBrush" Color="{StaticResource WarningSubtleColor}"/>
+            <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}"/>
+            <SolidColorBrush x:Key="ErrorSubtleBrush" Color="{StaticResource ErrorSubtleColor}"/>
+            <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}"/>
+            <SolidColorBrush x:Key="InfoSubtleBrush" Color="{StaticResource InfoSubtleColor}"/>
+
+            <!-- Legacy Aliases (for backward compatibility) -->
+            <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource AccentColor}"/>
+            <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource AccentHoverColor}"/>
+            <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="TextBrush" Color="{StaticResource InkColor}"/>
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource InkSecondaryColor}"/>
+
+            <!-- ==================== -->
+            <!-- Component Styles -->
+            <!-- ==================== -->
+
+            <!-- Primary Button - md size (36px height) -->
             <Style x:Key="PrimaryButton" TargetType="Button">
-                <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Padding" Value="16,8"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="6"
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="8"
                                     Padding="{TemplateBinding Padding}">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentActiveBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
-                    </Trigger>
-                </Style.Triggers>
+            </Style>
+
+            <!-- Secondary Button -->
+            <Style x:Key="SecondaryButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource SurfaceElevatedBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceTertiaryBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Ghost Button -->
+            <Style x:Key="GhostButton" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource InkSecondaryBrush}"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceTertiaryBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

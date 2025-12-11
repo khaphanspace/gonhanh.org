@@ -14,86 +14,87 @@ struct AboutView: View {
             footer
         }
         .frame(width: 360)
-        .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white)
+        .background(Color.adaptiveSurface(colorScheme))
     }
 
     // MARK: - Header
     private var header: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.Spacing.space2) {
             Image(nsImage: AppMetadata.logo)
                 .resizable()
                 .frame(width: 80, height: 80)
                 .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
 
             Text(AppMetadata.name)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.text2xl, weight: .bold, design: .rounded))
 
             Text(AppMetadata.tagline)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
 
             // Version badge
-            HStack(spacing: 12) {
+            HStack(spacing: DesignTokens.Spacing.space3) {
                 versionBadge(label: "Version", value: AppMetadata.version)
                 versionBadge(label: "Build", value: AppMetadata.buildNumber)
             }
-            .padding(.top, 4)
+            .padding(.top, DesignTokens.Spacing.space1)
         }
-        .padding(.vertical, 24)
-        .padding(.horizontal, 32)
+        .padding(.vertical, DesignTokens.Spacing.space6)
+        .padding(.horizontal, DesignTokens.Spacing.space8)
     }
 
     private func versionBadge(label: String, value: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignTokens.Spacing.space1) {
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.inkTertiary)
             Text(value)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04))
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.sm)
+                .fill(Color.adaptiveSurfaceSecondary(colorScheme))
         )
     }
 
     // MARK: - Info Section
     private var infoSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DesignTokens.Spacing.space3) {
             infoRow(icon: "person.fill", title: "Developer", value: AppMetadata.author)
             infoRow(icon: "envelope.fill", title: "Contact", value: AppMetadata.authorEmail, isLink: true, url: "mailto:\(AppMetadata.authorEmail)")
             infoRow(icon: "hammer.fill", title: "Built with", value: AppMetadata.techStack)
             infoRow(icon: "doc.text.fill", title: "License", value: AppMetadata.license)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 24)
+        .padding(.vertical, DesignTokens.Spacing.space4)
+        .padding(.horizontal, DesignTokens.Spacing.space6)
     }
 
     private func infoRow(icon: String, title: String, value: String, isLink: Bool = false, url: String? = nil) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignTokens.Spacing.space3) {
             Image(systemName: icon)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .font(.system(size: DesignTokens.Typography.textXs))
+                .foregroundStyle(Color.inkSecondary)
                 .frame(width: 20)
 
             Text(title)
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .frame(width: 80, alignment: .leading)
 
             if isLink, let urlString = url, let linkURL = URL(string: urlString) {
                 Link(value, destination: linkURL)
                     .font(.callout)
                     .fontWeight(.medium)
+                    .foregroundStyle(Color.accent)
             } else {
                 Text(value)
                     .font(.callout)
                     .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.adaptiveInk(colorScheme))
             }
 
             Spacer()
@@ -102,33 +103,33 @@ struct AboutView: View {
 
     // MARK: - Links Section
     private var linksSection: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: DesignTokens.Spacing.space4) {
             linkButton(icon: "globe", title: "Website", url: AppMetadata.website)
             linkButton(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
             linkButton(icon: "exclamationmark.bubble.fill", title: "Issues", url: AppMetadata.issuesURL)
             linkButton(icon: "link", title: "LinkedIn", url: AppMetadata.authorLinkedin)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 24)
+        .padding(.vertical, DesignTokens.Spacing.space4)
+        .padding(.horizontal, DesignTokens.Spacing.space6)
     }
 
     private func linkButton(icon: String, title: String, url: String) -> some View {
         Link(destination: URL(string: url)!) {
-            VStack(spacing: 6) {
+            VStack(spacing: DesignTokens.Spacing.space1_5) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.system(size: DesignTokens.Typography.textBase))
                 Text(title)
                     .font(.caption2)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, DesignTokens.Spacing.space2)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.md)
+                    .fill(Color.adaptiveSurfaceSecondary(colorScheme))
             )
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.inkSecondary)
         .onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.push()
@@ -142,10 +143,10 @@ struct AboutView: View {
     private var footer: some View {
         Text(AppMetadata.copyright)
             .font(.caption2)
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(Color.inkTertiary)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
+            .padding(.vertical, DesignTokens.Spacing.space3)
+            .background(Color.adaptiveSurfaceSecondary(colorScheme))
     }
 }
 

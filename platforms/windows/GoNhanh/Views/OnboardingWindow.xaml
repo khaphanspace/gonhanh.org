@@ -5,7 +5,7 @@
         Height="500" Width="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{StaticResource SurfaceBrush}">
 
     <Grid>
         <!-- Page Container -->
@@ -31,11 +31,11 @@
                         <TextBlock Text="GoNhanh"
                                    FontSize="36"
                                    FontWeight="Bold"
-                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Foreground="{StaticResource AccentBrush}"
                                    HorizontalAlignment="Center"/>
                         <TextBlock Text="Gõ Tiếng Việt Nhanh"
                                    FontSize="16"
-                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   Foreground="{StaticResource InkSecondaryBrush}"
                                    HorizontalAlignment="Center"
                                    Margin="0,8,0,0"/>
 
@@ -43,7 +43,7 @@
                                    TextAlignment="Center"
                                    Margin="0,40,0,0"
                                    FontSize="14"
-                                   Foreground="{StaticResource TextBrush}">
+                                   Foreground="{StaticResource InkBrush}">
                             <Run Text="Bộ gõ tiếng Việt hiện đại, nhẹ và nhanh."/>
                             <LineBreak/>
                             <LineBreak/>
@@ -75,17 +75,17 @@
                         <TextBlock Text="Chọn kiểu gõ"
                                    FontSize="24"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextBrush}"/>
+                                   Foreground="{StaticResource InkBrush}"/>
                         <TextBlock Text="Bạn quen dùng kiểu gõ nào?"
                                    FontSize="14"
-                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   Foreground="{StaticResource InkSecondaryBrush}"
                                    Margin="0,8,0,0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" VerticalAlignment="Center">
-                        <Border BorderBrush="#E5E7EB"
+                        <Border BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
+                                CornerRadius="12"
                                 Padding="16"
                                 Margin="0,0,0,12"
                                 Cursor="Hand"
@@ -97,15 +97,15 @@
                                              FontSize="15"
                                              IsChecked="True"/>
                                 <TextBlock Text="aa → â   ow → ơ   dd → đ   s → sắc   f → huyền"
-                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource InkSecondaryBrush}"
                                            Margin="20,4,0,0"
                                            FontSize="13"/>
                             </StackPanel>
                         </Border>
 
-                        <Border BorderBrush="#E5E7EB"
+                        <Border BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
+                                CornerRadius="12"
                                 Padding="16"
                                 Cursor="Hand"
                                 MouseDown="SelectVni_Click">
@@ -115,7 +115,7 @@
                                              FontWeight="SemiBold"
                                              FontSize="15"/>
                                 <TextBlock Text="a6 → â   o7 → ơ   d9 → đ   1 → sắc   2 → huyền"
-                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource InkSecondaryBrush}"
                                            Margin="20,4,0,0"
                                            FontSize="13"/>
                             </StackPanel>
@@ -124,7 +124,7 @@
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Content="Quay lại"
-                                Padding="16,8"
+                                Style="{StaticResource SecondaryButton}"
                                 Margin="0,0,12,0"
                                 Click="PrevPage_Click"/>
                         <Button Content="Tiếp theo"
@@ -147,14 +147,14 @@
                         <TextBlock Text="Sẵn sàng!"
                                    FontSize="32"
                                    FontWeight="Bold"
-                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Foreground="{StaticResource AccentBrush}"
                                    HorizontalAlignment="Center"/>
 
                         <TextBlock TextWrapping="Wrap"
                                    TextAlignment="Center"
                                    Margin="0,24,0,0"
                                    FontSize="14"
-                                   Foreground="{StaticResource TextBrush}">
+                                   Foreground="{StaticResource InkBrush}">
                             <Run Text="GoNhanh đang chạy trong khay hệ thống (system tray)."/>
                             <LineBreak/>
                             <LineBreak/>
@@ -165,14 +165,14 @@
                             <Run Text="• Bật/tắt bộ gõ"/>
                         </TextBlock>
 
-                        <Border Background="#F3F4F6"
-                                CornerRadius="8"
+                        <Border Background="{StaticResource SurfaceTertiaryBrush}"
+                                CornerRadius="12"
                                 Padding="16"
                                 Margin="0,24,0,0">
                             <TextBlock TextWrapping="Wrap"
                                        TextAlignment="Center"
                                        FontSize="13"
-                                       Foreground="{StaticResource SecondaryTextBrush}">
+                                       Foreground="{StaticResource InkSecondaryBrush}">
                                 <Run Text="Mẹo: " FontWeight="SemiBold"/>
                                 <Run Text="Nhấp đúp vào biểu tượng để nhanh chóng bật/tắt bộ gõ."/>
                             </TextBlock>
@@ -194,9 +194,9 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Bottom"
                     Margin="0,0,0,20">
-            <Ellipse x:Name="Dot1" Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="4"/>
-            <Ellipse x:Name="Dot2" Width="8" Height="8" Fill="#E5E7EB" Margin="4"/>
-            <Ellipse x:Name="Dot3" Width="8" Height="8" Fill="#E5E7EB" Margin="4"/>
+            <Ellipse x:Name="Dot1" Width="8" Height="8" Fill="{StaticResource AccentBrush}" Margin="4"/>
+            <Ellipse x:Name="Dot2" Width="8" Height="8" Fill="{StaticResource BorderBrush}" Margin="4"/>
+            <Ellipse x:Name="Dot3" Width="8" Height="8" Fill="{StaticResource BorderBrush}" Margin="4"/>
         </StackPanel>
     </Grid>
 </Window>

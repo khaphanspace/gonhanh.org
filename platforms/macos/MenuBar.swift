@@ -18,7 +18,7 @@ struct ToggleWrapperView: View {
     var body: some View {
         Toggle("", isOn: $state.isOn)
             .toggleStyle(.switch)
-            .tint(.green)
+            .tint(Color.success)
             .onChange(of: state.isOn) { _ in
                 state.onToggle?()
             }

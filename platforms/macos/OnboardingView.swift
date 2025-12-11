@@ -46,7 +46,7 @@ struct OnboardingView: View {
             HStack(spacing: 6) {
                 ForEach(0..<totalSteps, id: \.self) { i in
                     Circle()
-                        .fill(i == stepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(i == stepIndex ? Color.accent : Color.border)
                         .frame(width: 6, height: 6)
                 }
             }
@@ -56,8 +56,8 @@ struct OnboardingView: View {
             }
             primaryButton
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, DesignTokens.Spacing.space5)
+        .padding(.vertical, DesignTokens.Spacing.space4)
     }
 
     @ViewBuilder
@@ -108,7 +108,7 @@ private struct WelcomeStep: View {
                 .font(.title2.bold())
 
             Text(AppMetadata.tagline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -118,22 +118,22 @@ private struct PermissionStep: View {
         StepLayout {
             Image(systemName: "hand.raised.fill")
                 .font(.system(size: 40))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.warning)
 
             Text("Cấp quyền Accessibility")
                 .font(.title2.bold())
 
             Text("Bật \(AppMetadata.name) trong System Settings để gõ tiếng Việt.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .multilineTextAlignment(.center)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.space2) {
                 Label("Mở Privacy & Security → Accessibility", systemImage: "1.circle.fill")
                 Label("Bật công tắc bên cạnh \(AppMetadata.name)", systemImage: "2.circle.fill")
             }
             .font(.callout)
-            .foregroundStyle(.secondary)
-            .padding(.top, 4)
+            .foregroundStyle(Color.inkSecondary)
+            .padding(.top, DesignTokens.Spacing.space1)
         }
     }
 }
@@ -143,13 +143,13 @@ private struct ReadyStep: View {
         StepLayout {
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 40))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.success)
 
             Text("Đã cấp quyền")
                 .font(.title2.bold())
 
             Text("Nhấn \"Khởi động lại\" để áp dụng.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -159,13 +159,13 @@ private struct SuccessStep: View {
         StepLayout {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.success)
 
             Text("Sẵn sàng hoạt động")
                 .font(.title2.bold())
 
             Text("\(AppMetadata.name) đã được cấp quyền thành công.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
     }
 }
@@ -177,15 +177,15 @@ private struct SetupStep: View {
         StepLayout {
             Image(systemName: "keyboard")
                 .font(.system(size: 40))
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.info)
 
             Text("Chọn kiểu gõ")
                 .font(.title2.bold())
 
             Text("Có thể thay đổi sau trong menu.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
 
-            VStack(spacing: 8) {
+            VStack(spacing: DesignTokens.Spacing.space2) {
                 ForEach(InputMode.allCases, id: \.rawValue) { mode in
                     ModeOption(mode: mode, isSelected: selectedMode == mode) {
                         selectedMode = mode
@@ -193,7 +193,7 @@ private struct SetupStep: View {
                 }
             }
             .frame(maxWidth: 260)
-            .padding(.top, 8)
+            .padding(.top, DesignTokens.Spacing.space2)
         }
     }
 }
@@ -205,28 +205,28 @@ private struct ModeOption: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DesignTokens.Spacing.space3) {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.space0_5) {
                     Text(mode.name)
                         .font(.headline)
                     Text(mode.description)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.4))
+                    .foregroundStyle(isSelected ? Color.accent : Color.inkTertiary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.05))
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.md)
+                    .fill(isSelected ? Color.accentSubtle : Color.surfaceTertiary)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.md)
+                    .stroke(isSelected ? Color.accentMuted : .clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -239,12 +239,12 @@ private struct StepLayout<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DesignTokens.Spacing.space3) {
             Spacer()
             content
             Spacer()
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, DesignTokens.Spacing.space10)
     }
 }
 

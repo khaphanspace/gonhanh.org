@@ -5,7 +5,7 @@
         Height="400" Width="340"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{StaticResource SurfaceBrush}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -19,24 +19,24 @@
             <TextBlock Text="GoNhanh"
                        FontSize="24"
                        FontWeight="Bold"
-                       Foreground="{StaticResource PrimaryBrush}"
+                       Foreground="{StaticResource AccentBrush}"
                        HorizontalAlignment="Center"/>
             <TextBlock Text="(Gõ Nhanh)"
                        FontSize="13"
-                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Foreground="{StaticResource InkSecondaryBrush}"
                        HorizontalAlignment="Center"
                        Margin="0,2,0,0"/>
             <TextBlock x:Name="VersionText"
                        Text="Version 1.0.0"
                        FontSize="11"
-                       Foreground="#9CA3AF"
+                       Foreground="{StaticResource InkTertiaryBrush}"
                        HorizontalAlignment="Center"
                        Margin="0,4,0,0"/>
 
             <!-- Tagline -->
             <TextBlock Text="Bộ gõ tiếng Việt hiệu suất cao"
                        FontSize="13"
-                       Foreground="{StaticResource TextBrush}"
+                       Foreground="{StaticResource InkBrush}"
                        HorizontalAlignment="Center"
                        Margin="0,20,0,0"/>
 
@@ -45,18 +45,19 @@
                 <TextBlock x:Name="AuthorText"
                            FontSize="13"
                            FontWeight="Medium"
-                           Foreground="{StaticResource TextBrush}"
+                           Foreground="{StaticResource InkBrush}"
                            HorizontalAlignment="Center"/>
                 <TextBlock HorizontalAlignment="Center" Margin="0,4,0,0">
                     <Hyperlink x:Name="EmailLink"
                                RequestNavigate="Hyperlink_RequestNavigate"
-                               Foreground="{StaticResource SecondaryTextBrush}">
+                               Foreground="{StaticResource AccentBrush}">
                         <Run x:Name="EmailText" FontSize="12"/>
                     </Hyperlink>
                 </TextBlock>
                 <TextBlock HorizontalAlignment="Center" Margin="0,4,0,0">
                     <Hyperlink x:Name="LinkedInLink"
-                               RequestNavigate="Hyperlink_RequestNavigate">
+                               RequestNavigate="Hyperlink_RequestNavigate"
+                               Foreground="{StaticResource AccentBrush}">
                         <Run Text="LinkedIn" FontSize="12"/>
                     </Hyperlink>
                 </TextBlock>
@@ -68,16 +69,18 @@
                         Margin="0,24,0,0">
                 <TextBlock>
                     <Hyperlink x:Name="WebsiteLink"
-                               RequestNavigate="Hyperlink_RequestNavigate">
+                               RequestNavigate="Hyperlink_RequestNavigate"
+                               Foreground="{StaticResource AccentBrush}">
                         <Run Text="Website" FontSize="13"/>
                     </Hyperlink>
                 </TextBlock>
                 <TextBlock Text="  •  "
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{StaticResource InkTertiaryBrush}"
                            FontSize="13"/>
                 <TextBlock>
                     <Hyperlink x:Name="GitHubLink"
-                               RequestNavigate="Hyperlink_RequestNavigate">
+                               RequestNavigate="Hyperlink_RequestNavigate"
+                               Foreground="{StaticResource AccentBrush}">
                         <Run Text="GitHub" FontSize="13"/>
                     </Hyperlink>
                 </TextBlock>
@@ -86,12 +89,13 @@
 
         <!-- Footer -->
         <Border Grid.Row="1"
-                BorderBrush="#E5E7EB"
+                BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,1,0,0"
-                Padding="0,12">
+                Padding="0,12"
+                Background="{StaticResource SurfaceSecondaryBrush}">
             <TextBlock x:Name="CopyrightText"
                        FontSize="10"
-                       Foreground="#9CA3AF"
+                       Foreground="{StaticResource InkTertiaryBrush}"
                        HorizontalAlignment="Center"/>
         </Border>
     </Grid>

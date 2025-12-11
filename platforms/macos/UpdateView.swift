@@ -11,7 +11,7 @@ struct UpdateView: View {
             footer
         }
         .frame(width: 360)
-        .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white)
+        .background(Color.adaptiveSurface(colorScheme))
     }
 
     @ViewBuilder
@@ -37,7 +37,7 @@ struct UpdateView: View {
     // MARK: - States
 
     private var idleView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
             Image(nsImage: AppMetadata.logo)
@@ -46,14 +46,14 @@ struct UpdateView: View {
                 .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
 
             Text(AppMetadata.name)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textXl, weight: .bold, design: .rounded))
 
             versionBadge(label: "Phiên bản", value: AppMetadata.version)
 
             if let lastCheck = updateManager.lastCheckDate {
                 Text("Kiểm tra lần cuối: \(lastCheck.formatted(.relative(presentation: .named)))")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.inkTertiary)
             }
 
             Spacer()
@@ -62,37 +62,38 @@ struct UpdateView: View {
                 updateManager.checkForUpdatesManually()
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.accent)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     private var checkingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
             ProgressView()
                 .scaleEffect(1.5)
 
             Text("Đang kiểm tra...")
-                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textLg, weight: .medium, design: .rounded))
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     private var upToDateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
-            iconCircle(icon: "checkmark", color: .green)
+            iconCircle(icon: "checkmark", color: Color.success)
 
             Text("Đã cập nhật mới nhất")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textLg, weight: .bold, design: .rounded))
 
             versionBadge(label: "Phiên bản", value: AppMetadata.version)
 
@@ -105,78 +106,79 @@ struct UpdateView: View {
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     private func availableView(_ info: UpdateInfo) -> some View {
         VStack(spacing: 0) {
             // Header
-            VStack(spacing: 12) {
+            VStack(spacing: DesignTokens.Spacing.space3) {
                 ZStack {
                     Circle()
-                        .fill(Color.accentColor.opacity(0.15))
+                        .fill(Color.accent.opacity(0.15))
                         .frame(width: 56, height: 56)
 
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.accent)
                 }
 
                 Text("Có phiên bản mới")
                     .font(.system(size: 17, weight: .semibold))
 
                 // Version comparison
-                HStack(spacing: 8) {
+                HStack(spacing: DesignTokens.Spacing.space2) {
                     Text(AppMetadata.version)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
 
                     Image(systemName: "arrow.right")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.inkTertiary)
 
                     Text(info.version)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.success)
                         .fontWeight(.medium)
                 }
                 .font(.system(size: 13, design: .monospaced))
             }
             .padding(.top, 28)
-            .padding(.bottom, 20)
+            .padding(.bottom, DesignTokens.Spacing.space5)
 
             // Release notes
             let notes = info.releaseNotes.trimmingCharacters(in: .whitespacesAndNewlines)
             if !notes.isEmpty {
                 ScrollView {
                     Text(notes)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: DesignTokens.Typography.textXs))
+                        .foregroundStyle(Color.inkSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .lineSpacing(3)
                 }
                 .frame(maxHeight: 100)
-                .padding(12)
+                .padding(DesignTokens.Spacing.space3)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.md)
+                        .fill(Color.adaptiveSurfaceSecondary(colorScheme))
                 )
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+                .padding(.horizontal, DesignTokens.Spacing.space6)
+                .padding(.bottom, DesignTokens.Spacing.space5)
             }
 
             // Actions
-            VStack(spacing: 12) {
+            VStack(spacing: DesignTokens.Spacing.space3) {
                 Button {
                     updateManager.downloadUpdate(info)
                 } label: {
                     Text("Cập nhật ngay")
                         .font(.system(size: 13, weight: .medium))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, DesignTokens.Spacing.space2)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color.accent)
                 .controlSize(.large)
 
-                HStack(spacing: 24) {
+                HStack(spacing: DesignTokens.Spacing.space6) {
                     Button("Để sau") {
                         updateManager.state = .idle
                     }
@@ -184,84 +186,84 @@ struct UpdateView: View {
                     Button("Bỏ qua phiên bản này") {
                         updateManager.skipVersion(info.version)
                     }
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.inkTertiary)
                 }
-                .font(.system(size: 12))
+                .font(.system(size: DesignTokens.Typography.textXs))
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
+            .padding(.horizontal, DesignTokens.Spacing.space6)
+            .padding(.bottom, DesignTokens.Spacing.space6)
         }
     }
 
     private func downloadingView(_ progress: Double) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
             ZStack {
                 Circle()
-                    .stroke(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08), lineWidth: 4)
+                    .stroke(Color.adaptiveBorder(colorScheme), lineWidth: 4)
                     .frame(width: 64, height: 64)
 
                 Circle()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .stroke(Color.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 64, height: 64)
                     .rotationEffect(.degrees(-90))
 
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: DesignTokens.Typography.textSm, weight: .bold, design: .rounded))
             }
 
             Text("Đang tải về...")
-                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textLg, weight: .medium, design: .rounded))
 
             Spacer()
 
             Button("Hủy") {
                 updateManager.cancelDownload()
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.inkSecondary)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     private var installingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
             ProgressView()
                 .scaleEffect(1.5)
 
             Text("Đang cài đặt...")
-                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textLg, weight: .medium, design: .rounded))
 
             Text("Ứng dụng sẽ tự khởi động lại")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.space4) {
             Spacer()
 
-            iconCircle(icon: "exclamationmark", color: .orange)
+            iconCircle(icon: "exclamationmark", color: Color.warning)
 
             Text("Lỗi kết nối")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: DesignTokens.Typography.textLg, weight: .bold, design: .rounded))
 
             Text(message)
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .multilineTextAlignment(.center)
 
             Spacer()
@@ -270,11 +272,12 @@ struct UpdateView: View {
                 updateManager.checkForUpdatesManually()
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.accent)
 
             Spacer()
         }
         .padding(.horizontal, 28)
-        .padding(.vertical, 24)
+        .padding(.vertical, DesignTokens.Spacing.space6)
     }
 
     // MARK: - Components
@@ -292,20 +295,20 @@ struct UpdateView: View {
     }
 
     private func versionBadge(label: String, value: String, highlight: Bool = false) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignTokens.Spacing.space1) {
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Color.inkTertiary)
             Text(value)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundStyle(highlight ? .green : .secondary)
+                .foregroundStyle(highlight ? Color.success : Color.inkSecondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.04))
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.sm)
+                .fill(Color.adaptiveSurfaceSecondary(colorScheme))
         )
     }
 
@@ -313,17 +316,17 @@ struct UpdateView: View {
 
     private var footer: some View {
         Link(destination: URL(string: AppMetadata.repository + "/releases")!) {
-            HStack(spacing: 4) {
+            HStack(spacing: DesignTokens.Spacing.space1) {
                 Text("Xem trên GitHub")
                 Image(systemName: "arrow.up.right")
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.inkSecondary)
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(colorScheme == .dark ? Color.white.opacity(0.02) : Color.black.opacity(0.02))
+        .padding(.vertical, DesignTokens.Spacing.space3)
+        .background(Color.adaptiveSurfaceSecondary(colorScheme))
         .onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.push()
