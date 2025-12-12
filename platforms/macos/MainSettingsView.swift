@@ -13,6 +13,14 @@ enum SettingsTab: String, CaseIterable {
     case method = "Kiểu gõ"
     case shortcut = "Gõ tắt"
     case exclude = "Ngoại lệ"
+
+    var icon: String {
+        switch self {
+        case .method: return "keyboard"
+        case .shortcut: return "text.badge.plus"
+        case .exclude: return "xmark.app"
+        }
+    }
 }
 
 // MARK: - App State
@@ -352,15 +360,70 @@ struct SettingsPageView: View {
     @State private var selectedTab: SettingsTab = .method
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            // Tab bar
-            HStack(spacing: 4) {
-                ForEach(SettingsTab.allCases, id: \.self) { tab in
-                    tabButton(tab)
-                }
-            }
+        HStack(alignment: .top, spacing: 20) {
+            // Vertical Sidebar (TablePlus style)
+            settingsSidebar
 
             // Content
+            settingsContent
+        }
+    }
+
+    // MARK: - Settings Sidebar
+
+    private var settingsSidebar: some View {
+        VStack(spacing: 2) {
+            ForEach(SettingsTab.allCases, id: \.self) { tab in
+                sidebarButton(tab)
+            }
+            Spacer()
+        }
+        .padding(8)
+        .frame(width: 140)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .opacity(0.6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func sidebarButton(_ tab: SettingsTab) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedTab = tab
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 13))
+                    .foregroundColor(selectedTab == tab ? .white : Color(hex: "888888"))
+                    .frame(width: 18)
+
+                Text(tab.rawValue)
+                    .font(.system(size: 13, weight: selectedTab == tab ? .medium : .regular))
+                    .foregroundColor(selectedTab == tab ? .white : Color(hex: "888888"))
+
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(selectedTab == tab ? Color.white.opacity(0.12) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Settings Content
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
             switch selectedTab {
             case .method:
                 methodContent
@@ -369,75 +432,83 @@ struct SettingsPageView: View {
             case .exclude:
                 excludeContent
             }
-
             Spacer()
         }
-    }
-
-    private func tabButton(_ tab: SettingsTab) -> some View {
-        Button {
-            selectedTab = tab
-        } label: {
-            Text(tab.rawValue)
-                .font(.system(size: 13))
-                .foregroundColor(selectedTab == tab ? .white : Color(hex: "888888"))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(selectedTab == tab ? Color.white.opacity(0.1) : Color.clear)
-                )
-        }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Method Content
 
     private var methodContent: some View {
-        VStack(spacing: 8) {
-            methodOption(
-                method: .telex,
-                description: "aa → â · dd → đ · s → sắc"
-            )
-            methodOption(
-                method: .vni,
-                description: "a6 → â · d9 → đ · 1 → sắc"
-            )
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Chọn kiểu gõ")
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "6b6b6b"))
+
+            VStack(spacing: 8) {
+                methodOption(
+                    method: .telex,
+                    description: "aa → â · dd → đ · s → sắc"
+                )
+                methodOption(
+                    method: .vni,
+                    description: "a6 → â · d9 → đ · 1 → sắc"
+                )
+            }
         }
     }
 
     private func methodOption(method: InputMode, description: String) -> some View {
         Button {
-            appState.currentMethod = method
+            withAnimation(.easeInOut(duration: 0.15)) {
+                appState.currentMethod = method
+            }
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 14) {
+                // Icon
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(
+                        appState.currentMethod == method
+                            ? (method == .telex ? Color.blue : Color.orange)
+                            : Color.white.opacity(0.08)
+                    )
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Text(method.shortName)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(appState.currentMethod == method ? .white : Color(hex: "888888"))
+                    )
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(method.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                     Text(description)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundColor(Color(hex: "6b6b6b"))
                 }
 
                 Spacer()
 
                 if appState.currentMethod == method {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.blue)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(method == .telex ? .blue : .orange)
                 }
             }
-            .padding(16)
+            .padding(14)
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(appState.currentMethod == method ? Color.blue.opacity(0.15) : Color.clear)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(
-                                appState.currentMethod == method ? Color.blue : Color.clear,
-                                lineWidth: 1
-                            )
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.ultraThinMaterial)
+                    .opacity(appState.currentMethod == method ? 0.8 : 0.4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        appState.currentMethod == method
+                            ? (method == .telex ? Color.blue.opacity(0.5) : Color.orange.opacity(0.5))
+                            : Color.white.opacity(0.06),
+                        lineWidth: 1
                     )
             )
         }
@@ -448,103 +519,143 @@ struct SettingsPageView: View {
 
     private var shortcutContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Spacer()
-                Button("Thêm") {
-                    // TODO: Add shortcut
-                }
-                .foregroundColor(.blue)
-                .font(.system(size: 14))
-            }
-
-            VStack(spacing: 0) {
-                ForEach(Array(appState.shortcuts.enumerated()), id: \.element.id) { index, shortcut in
-                    listRow {
-                        HStack {
-                            Text(shortcut.key)
-                                .foregroundColor(Color(hex: "6b6b6b"))
-                            Text("→ \(shortcut.value)")
-                                .foregroundColor(.white)
-
-                            Spacer()
-
-                            Button("Xoá") {
-                                appState.shortcuts.remove(at: index)
-                            }
-                            .foregroundColor(.red)
-                            .font(.system(size: 12))
-                        }
-                    }
-
-                    if index < appState.shortcuts.count - 1 {
-                        Divider()
-                            .background(Color.white.opacity(0.06))
-                    }
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.05))
-            )
-
+            shortcutHeader
+            shortcutList
             Text("Gõ từ viết tắt để chèn nhanh cụm từ.")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(Color(hex: "4a4a4a"))
         }
+    }
+
+    private var shortcutHeader: some View {
+        HStack {
+            Text("Từ viết tắt")
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "6b6b6b"))
+
+            Spacer()
+
+            Button {
+                // TODO: Add shortcut
+            } label: {
+                Label("Thêm", systemImage: "plus")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.blue.opacity(0.15)))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var shortcutList: some View {
+        VStack(spacing: 0) {
+            ForEach(appState.shortcuts) { shortcut in
+                shortcutRow(shortcut)
+            }
+        }
+        .background(GlassCard())
+    }
+
+    private func shortcutRow(_ shortcut: ShortcutItem) -> some View {
+        HStack {
+            Text(shortcut.key)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundColor(Color(hex: "9a9a9a"))
+                .frame(width: 50, alignment: .leading)
+
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10))
+                .foregroundColor(Color(hex: "4a4a4a"))
+
+            Text(shortcut.value)
+                .font(.system(size: 13))
+                .foregroundColor(.white)
+
+            Spacer()
+
+            Button {
+                if let index = appState.shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
+                    appState.shortcuts.remove(at: index)
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "555555"))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     // MARK: - Exclude Content
 
     private var excludeContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Spacer()
-                Button("Thêm") {
-                    // TODO: Add excluded app
-                }
-                .foregroundColor(.blue)
-                .font(.system(size: 14))
-            }
-
-            VStack(spacing: 0) {
-                ForEach(Array(appState.excludedApps.enumerated()), id: \.offset) { index, app in
-                    listRow {
-                        HStack {
-                            Text(app)
-                                .foregroundColor(.white)
-
-                            Spacer()
-
-                            Button("Xoá") {
-                                appState.excludedApps.remove(at: index)
-                            }
-                            .foregroundColor(.red)
-                            .font(.system(size: 12))
-                        }
-                    }
-
-                    if index < appState.excludedApps.count - 1 {
-                        Divider()
-                            .background(Color.white.opacity(0.06))
-                    }
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.05))
-            )
-
+            excludeHeader
+            excludeList
             Text("Tắt bộ gõ trong các app này.")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(Color(hex: "4a4a4a"))
         }
     }
 
-    private func listRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .font(.system(size: 14))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+    private var excludeHeader: some View {
+        HStack {
+            Text("Ứng dụng ngoại lệ")
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "6b6b6b"))
+
+            Spacer()
+
+            Button {
+                // TODO: Add excluded app
+            } label: {
+                Label("Thêm", systemImage: "plus")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.blue.opacity(0.15)))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var excludeList: some View {
+        VStack(spacing: 0) {
+            ForEach(appState.excludedApps.indices, id: \.self) { index in
+                excludeRow(app: appState.excludedApps[index], index: index)
+            }
+        }
+        .background(GlassCard())
+    }
+
+    private func excludeRow(app: String, index: Int) -> some View {
+        HStack {
+            Image(systemName: "app.fill")
+                .font(.system(size: 14))
+                .foregroundColor(Color(hex: "6b6b6b"))
+
+            Text(app)
+                .font(.system(size: 13))
+                .foregroundColor(.white)
+
+            Spacer()
+
+            Button {
+                appState.excludedApps.remove(at: index)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "555555"))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
@@ -714,6 +825,19 @@ struct UpdatePageView: View {
 }
 
 // MARK: - Components
+
+struct GlassCard: View {
+    var cornerRadius: CGFloat = 12
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Color(hex: "2a2a2a"))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color(hex: "3a3a3a"), lineWidth: 1)
+            )
+    }
+}
 
 struct KeyboardBadge: View {
     let text: String
