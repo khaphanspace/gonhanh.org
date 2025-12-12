@@ -47,10 +47,17 @@
 - **Documentation**: C/FFI comments in code blocks (see lib.rs examples)
 
 ### Testing
-- **Coverage**: Every module must have `#[cfg(test)] mod tests { }`
+- **Coverage**: Every module must have `#[cfg(test)] mod tests { }` and integration tests in `core/tests/`
 - **Parametrization**: Use `#[rstest]` for multiple test cases
-- **Integration**: `core/tests/` directory for full pipeline tests
+- **Integration**: `core/tests/` directory for full pipeline tests (160+ tests, 2100+ lines)
+- **Test Files**:
+  - `unit_test.rs` - Individual module tests
+  - `typing_test.rs` - Full keystroke sequences (Telex + VNI)
+  - `engine_test.rs` - Engine state + initialization
+  - `integration_test.rs` - End-to-end keystroke→output
+  - `paragraph_test.rs` - Multi-word paragraph typing
 - **Naming**: `test_feature_case_expected` (e.g., `test_telex_a_s_returns_á`)
+- **Run**: `make test` or `cd core && cargo test`
 
 ### Examples
 ```rust
@@ -298,6 +305,7 @@ pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result { }
 - **MINOR**: New features, backward compatible
 - **PATCH**: Bug fixes only
 - **Release**: Tag with `v` prefix (e.g., `v1.2.3`)
+- **Current Version**: v1.0.21+ (macOS + Windows production-ready)
 
 ## Pull Request Guidelines
 
@@ -310,5 +318,6 @@ pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result { }
 
 ---
 
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-10
 **Enforced By**: GitHub Actions CI (`ci.yml`)
+**Test Coverage**: 160+ integration tests across 5 test files in `core/tests/`

@@ -3,77 +3,80 @@
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           macOS Application                          │
-│                                                                      │
-│  ┌────────────────────────────────┐     ┌──────────────────────┐   │
-│  │      SwiftUI Menu Bar          │     │   Update Manager     │   │
-│  │   • Input method selector      │     │   • GitHub releases  │   │
-│  │   • Enable/disable toggle      │     │   • Check version    │   │
-│  │   • About/Settings windows     │     │                      │   │
-│  └───────────────┬────────────────┘     └──────────────────────┘   │
-│                  │                                                   │
-│  ┌───────────────┴────────────────────────────────────────────┐    │
-│  │              CGEventTap Keyboard Hook                      │    │
-│  │   • Intercepts keyDown events system-wide                 │    │
-│  │   • Forwards to RustBridge for processing                │    │
-│  │   • Smart text replacement (backspace vs selection)      │    │
-│  └───────────────┬────────────────────────────────────────────┘    │
-│                  │                                                   │
-│  ┌───────────────┴────────────────────────────────────────────┐    │
-│  │           RustBridge (FFI Layer)                           │    │
-│  │   • C ABI function calls to Rust engine                  │    │
-│  │   • Memory-safe pointer handling                         │    │
-│  │   • Thread-safe (uses Mutex internally)                  │    │
-│  └───────────────┬────────────────────────────────────────────┘    │
-└──────────────────┼───────────────────────────────────────────────────┘
-                   │
-                   ↓ extern "C" function calls
-┌──────────────────────────────────────────────────────────────────────┐
-│                    Rust Core Engine                                   │
-│                                                                       │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                  Input Method Layer                          │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │   │
-│  │  │ Input::Telex │  │ Input::VNI   │  │ Input::Shortcut   │  │   │
-│  │  │              │  │              │  │ (user-defined)    │  │   │
-│  │  │ a+s → sắc    │  │ a+1 → sắc    │  │ custom expansions │  │   │
-│  │  └──────────────┘  └──────────────┘  └───────────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                              ↓                                        │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │              Engine Processing Pipeline                      │   │
-│  │                                                              │   │
-│  │  1. Input:  Keycode → Tone type (sắc, huyền, etc.)       │   │
-│  │                                                              │   │
-│  │  2. Buffer: Append to 64-char circular buffer              │   │
-│  │             Track marks/tones for each char                │   │
-│  │                                                              │   │
-│  │  3. Validation: Check against Vietnamese phonology         │   │
-│  │                 ✓ Valid consonant clusters at start        │   │
-│  │                 ✓ Valid vowel patterns                     │   │
-│  │                 ✓ Correct tone placement                   │   │
-│  │                                                              │   │
-│  │  4. Transform: Apply diacritics + vowel modifiers          │   │
-│  │                • Longest-match-first for multi-char        │   │
-│  │                • Support circumflex (â, ô, ê)             │   │
-│  │                • Support horn/breve (ă, ơ, ư)             │   │
-│  │                                                              │   │
-│  │  5. Shortcut:  Expand user abbreviations if matched        │   │
-│  │                                                              │   │
-│  │  6. Output:    Return action + backspace + output chars    │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                              ↓                                        │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │           Data & Validation Rules (static tables)            │   │
-│  │  • Vowel table: 72 entries (12 bases × 6 marks)            │   │
-│  │  • Consonant clusters: Valid initial sequences             │   │
-│  │  • Vowel groups: Valid combinations                        │   │
-│  │  • macOS keycodes: a-z, space, backspace                   │   │
-│  │  • Telex/VNI mappings: Key → tone/mark                     │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────┐   ┌──────────────────────────────────────────┐
+│         macOS Application                │   │      Windows Application                 │
+│                                          │   │                                          │
+│  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
+│  │     SwiftUI Menu Bar           │     │   │  │   WPF System Tray UI           │     │
+│  │  • Input method selector       │     │   │  │  • Input method selector       │     │
+│  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
+│  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │
+│  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
+│               │                          │   │               │                          │
+│  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
+│  │ CGEventTap Keyboard Hook        │     │   │  │ SetWindowsHookEx Keyboard Hook  │     │
+│  │ • Intercepts keyDown events     │     │   │  │ • Intercepts WH_KEYBOARD_LL     │     │
+│  │ • Smart text replacement        │     │   │  │ • SendInput for text            │     │
+│  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
+│               │                          │   │               │                          │
+│  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
+│  │    RustBridge (FFI Layer)       │     │   │  │   RustBridge.cs (P/Invoke)     │     │
+│  │  • C ABI function calls         │     │   │  │  • P/Invoke DLL function calls  │     │
+│  │  • Pointer safety handling      │     │   │  │  • UTF-32 interop               │     │
+│  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
+└───────────────┼──────────────────────────┘   └───────────────┼──────────────────────────┘
+                │                                               │
+                └───────────────────┬──────────────────────────┘
+                                    │
+                         extern "C" / P/Invoke
+                                    ↓
+         ┌─────────────────────────────────────────────┐
+         │     Rust Core Engine (Platform-Agnostic)   │
+         │     7-Stage Validation-First Pipeline       │
+         └─────────────────────────────────────────────┘
+                            ↓
+         ┌─────────────────────────────────────────────┐
+         │          Input Method Layer                 │
+         │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+         │  │ Telex    │  │ VNI      │  │ Shortcut │  │
+         │  │ s/f/r/x/j   1-5/6-8/9  │  │ Priority │  │
+         │  └──────────┘  └──────────┘  └──────────┘  │
+         └─────────────────────────────────────────────┘
+                            ↓
+         ┌─────────────────────────────────────────────┐
+         │     7-Stage Processing Pipeline             │
+         │  1. Stroke (đ/Đ)                           │
+         │  2. Tone Marks (sắc/huyền/hỏi/ngã/nặng)    │
+         │  3. Vowel Marks (circumflex/horn/breve)    │
+         │  4. Mark Removal (revert)                  │
+         │  5. W-Vowel (Telex "w"→"ư")               │
+         │  6. Normal Letter                          │
+         │  7. Shortcut Expansion                     │
+         └─────────────────────────────────────────────┘
+                            ↓
+         ┌─────────────────────────────────────────────┐
+         │  Validation Rules (Before Transform)        │
+         │  1. Must have vowel                         │
+         │  2. Valid initials only                     │
+         │  3. All chars parsed                        │
+         │  4. Spelling rules (c/k/g restrictions)     │
+         │  5. Valid finals only                       │
+         └─────────────────────────────────────────────┘
+                            ↓
+         ┌─────────────────────────────────────────────┐
+         │  Transform & Data Layer                     │
+         │  • Vowel table: 72 entries                  │
+         │  • Character mappings                       │
+         │  • Phonology constants                      │
+         └─────────────────────────────────────────────┘
+                            ↓
+         ┌─────────────────────────────────────────────┐
+         │  Result Structure                           │
+         │  • action: None/Send/Restore                │
+         │  • backspace: N chars to delete             │
+         │  • chars: [u32; 32] UTF-32 output          │
+         │  • count: valid char count                  │
+         └─────────────────────────────────────────────┘
 ```
 
 ## Data Flow: Keystroke to Output
@@ -486,6 +489,8 @@ Visible to user as transformed or original text
 
 ---
 
-**Last Updated**: 2025-12-09
-**Architecture Version**: 1.0
+**Last Updated**: 2025-12-10
+**Architecture Version**: 2.0 (Validation-First, Cross-Platform)
+**Platforms**: macOS (v1.0.21+, CGEventTap), Windows (production, SetWindowsHookEx), Linux (planned)
 **Diagram Format**: ASCII (compatible with all documentation viewers)
+**Codebase Metrics**: 99,444 tokens, 380,026 chars, 78 files (per repomix analysis)

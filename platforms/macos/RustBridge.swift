@@ -4,9 +4,8 @@ import AppKit
 
 // MARK: - Debug Logging
 
-/// Smart debug logging - only active when /tmp/gonhanh_debug.log exists
-/// Enable: touch /tmp/gonhanh_debug.log
-/// Disable: rm /tmp/gonhanh_debug.log
+/// Debug logging - only active when /tmp/gonhanh_debug.log exists
+/// Enable: touch /tmp/gonhanh_debug.log | Disable: rm /tmp/gonhanh_debug.log
 private enum Log {
     private static let logPath = "/tmp/gonhanh_debug.log"
     private static var isEnabled: Bool { FileManager.default.fileExists(atPath: logPath) }
@@ -23,26 +22,137 @@ private enum Log {
         handle.closeFile()
     }
 
-    // Concise log methods
     static func key(_ code: UInt16, _ result: String) { write("K:\(code) → \(result)") }
     static func transform(_ bs: Int, _ chars: String) { write("T: ←\(bs) \"\(chars)\"") }
     static func send(_ method: String, _ bs: Int, _ chars: String) { write("S:\(method) ←\(bs) \"\(chars)\"") }
     static func method(_ name: String) { write("M: \(name)") }
-    static func ax(_ role: String?, _ app: String) { write("AX: \(role ?? "?") @\(app.split(separator: ".").last ?? "")") }
-    static func event(_ msg: String) { write("E: \(msg)") }
     static func info(_ msg: String) { write("I: \(msg)") }
     static func skip() { write("K: skip (self)") }
+    static func queue(_ msg: String) { write("Q: \(msg)") }
+}
+
+// MARK: - Method Detection
+
+private enum Method { case fast, slow, selection }
+
+// MARK: - Text Injector (Async with Serial Queue)
+
+/// Handles text injection with proper sequencing to prevent race conditions
+private class TextInjector {
+    static let shared = TextInjector()
+
+    /// Serial queue ensures text injections happen one at a time
+    private let queue = DispatchQueue(label: "org.gonhanh.textinjector", qos: .userInteractive)
+
+    /// Semaphore to block keyboard callback until injection completes
+    private let completionSemaphore = DispatchSemaphore(value: 1)
+
+    /// Track if currently processing to handle rapid keystrokes
+    private var isProcessing = false
+
+    private init() {}
+
+    /// Inject text replacement synchronously (blocks until complete)
+    /// This ensures the next keystroke waits for current injection to finish
+    func injectSync(backspace bs: Int, text: String, method: Method, delays: (UInt32, UInt32, UInt32)) {
+        // Wait for any previous injection to complete
+        completionSemaphore.wait()
+        defer { completionSemaphore.signal() }
+
+        isProcessing = true
+        defer { isProcessing = false }
+
+        Log.queue("start bs=\(bs) text=\"\(text)\"")
+
+        switch method {
+        case .selection:
+            performSelectionInjection(bs: bs, text: text)
+        case .slow, .fast:
+            performBackspaceInjection(bs: bs, text: text, delays: delays)
+        }
+
+        // Additional settle time for slow apps
+        let settleTime: UInt32 = method == .slow ? 20000 : 5000  // 20ms or 5ms
+        usleep(settleTime)
+
+        Log.queue("done")
+    }
+
+    private func performBackspaceInjection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
+        guard let src = CGEventSource(stateID: .privateState) else { return }
+
+        // Send backspaces
+        for _ in 0..<bs {
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0x33, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0x33, keyDown: false) else { continue }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(delays.0)
+        }
+
+        // Wait after backspaces
+        if bs > 0 { usleep(delays.1) }
+
+        // Send text
+        let utf16 = Array(text.utf16)
+        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
+        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
+        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
+        dn.post(tap: .cgSessionEventTap)
+        up.post(tap: .cgSessionEventTap)
+        usleep(delays.2)
+
+        Log.send("bs", bs, text)
+    }
+
+    private func performSelectionInjection(bs: Int, text: String) {
+        guard let src = CGEventSource(stateID: .privateState) else { return }
+
+        // Select characters with Shift+Left
+        for _ in 0..<bs {
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0x7B, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0x7B, keyDown: false) else { continue }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.flags = .maskShift
+            up.flags = .maskShift
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(1000)  // 1ms between selections
+        }
+
+        // Small delay after selection
+        if bs > 0 { usleep(3000) }
+
+        // Type replacement text
+        let utf16 = Array(text.utf16)
+        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
+        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
+        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
+        dn.post(tap: .cgSessionEventTap)
+        up.post(tap: .cgSessionEventTap)
+        usleep(2000)  // 2ms after text
+
+        Log.send("sel", bs, text)
+    }
 }
 
 // MARK: - FFI (Rust Bridge)
 
-/// FFI Result struct - must match Rust #[repr(C)]
 private struct ImeResult {
     var chars: (UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
                 UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
                 UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
                 UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32)
-    var action: UInt8      // 0=None, 1=Send, 2=Restore
+    var action: UInt8
     var backspace: UInt8
     var count: UInt8
     var _pad: UInt8
@@ -67,13 +177,12 @@ class RustBridge {
         Log.info("Engine initialized")
     }
 
-    /// Process key → (backspaceCount, newChars) or nil
     static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false) -> (Int, [Character])? {
         guard isInitialized, let ptr = ime_key_ext(keyCode, caps, ctrl, shift) else { return nil }
         defer { ime_free(ptr) }
 
         let r = ptr.pointee
-        guard r.action == 1 else { return nil }  // 1 = Send
+        guard r.action == 1 else { return nil }
 
         let chars = withUnsafePointer(to: r.chars) { p in
             p.withMemoryRebound(to: UInt32.self, capacity: 32) { bound in
@@ -171,22 +280,19 @@ class KeyboardHookManager {
 
 // MARK: - Keyboard Callback
 
-private let kEventMarker: Int64 = 0x474E4820  // "GNH " - marks self-generated events
+private let kEventMarker: Int64 = 0x474E4820  // "GNH "
 
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
 
-    // Re-enable if disabled
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = KeyboardHookManager.shared.getTap() { CGEvent.tapEnable(tap: tap, enable: true) }
-        Log.event("tap re-enabled")
         return Unmanaged.passUnretained(event)
     }
 
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
 
-    // Skip self-generated events
     if event.getIntegerValueField(.eventSourceUserData) == kEventMarker {
         Log.skip()
         return Unmanaged.passUnretained(event)
@@ -218,13 +324,11 @@ private func keyboardCallback(
 
 // MARK: - Text Replacement
 
-private enum Method { case fast, slow, selection }
-
-private func detectMethod() -> Method {
+private func detectMethod() -> (Method, (UInt32, UInt32, UInt32)) {
     guard let app = NSWorkspace.shared.frontmostApplication,
-          let bundleId = app.bundleIdentifier else { return .fast }
+          let bundleId = app.bundleIdentifier else { return (.fast, (200, 800, 500)) }
 
-    // Try to get AX role
+    // Selection method for autocomplete contexts
     let systemWide = AXUIElementCreateSystemWide()
     var focused: CFTypeRef?
     var role: String?
@@ -236,98 +340,33 @@ private func detectMethod() -> Method {
         role = roleVal as? String
     }
 
-    let shortId = bundleId.split(separator: ".").last.map(String.init) ?? bundleId
-    Log.ax(role, shortId)
-
-    // Selection method for autocomplete contexts
-    if role == "AXComboBox" { Log.method("sel:combo"); return .selection }
+    if role == "AXComboBox" { Log.method("sel:combo"); return (.selection, (0, 0, 0)) }
 
     let browsers = ["com.google.Chrome", "com.apple.Safari", "company.thebrowser.Browser"]
-    if browsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return .selection }
+    if browsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return (.selection, (0, 0, 0)) }
+    if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { Log.method("sel:jb"); return (.selection, (0, 0, 0)) }
+    if bundleId == "com.microsoft.Excel" { Log.method("sel:excel"); return (.selection, (0, 0, 0)) }
+    if bundleId == "com.microsoft.Word" { Log.method("sel:word"); return (.selection, (0, 0, 0)) }
 
-    if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { Log.method("sel:jb"); return .selection }
-    if bundleId == "com.microsoft.Excel" { Log.method("sel:excel"); return .selection }
-    if bundleId == "com.microsoft.Word" { Log.method("sel:word"); return .selection }
+    // Electron apps (Claude Code) - higher delays
+    if bundleId == "com.todesktop.230313mzl4w4u92" { Log.method("slow:claude"); return (.slow, (8000, 15000, 8000)) }
 
-    // Slow method for terminal apps
-    let terminals = ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "com.apple.Terminal",
+    // Terminal apps - medium delays
+    let terminals = ["com.microsoft.VSCode", "com.apple.Terminal",
                      "com.googlecode.iterm2", "io.alacritty", "com.github.wez.wezterm",
                      "com.google.antigravity", "dev.warp.Warp-Stable"]
-    if terminals.contains(bundleId) { Log.method("slow:term"); return .slow }
+    if terminals.contains(bundleId) { Log.method("slow:term"); return (.slow, (1500, 3000, 2000)) }
 
     Log.method("fast")
-    return .fast
+    return (.fast, (200, 800, 500))
 }
 
 private func sendReplacement(backspace bs: Int, chars: [Character]) {
-    let method = detectMethod()
+    let (method, delays) = detectMethod()
     let str = String(chars)
 
-    switch method {
-    case .selection: sendWithSelection(bs: bs, str: str)
-    case .slow:      sendWithBackspace(bs: bs, str: str, delayMs: (1500, 3000, 2000))
-    case .fast:      sendWithBackspace(bs: bs, str: str, delayMs: (200, 800, 500))
-    }
-}
-
-private func sendWithBackspace(bs: Int, str: String, delayMs: (UInt32, UInt32, UInt32)) {
-    guard let src = CGEventSource(stateID: .privateState) else { return }
-
-    // Send backspaces
-    for _ in 0..<bs {
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0x33, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0x33, keyDown: false) else { continue }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-        usleep(delayMs.0)
-    }
-
-    if bs > 0 { usleep(delayMs.1) }
-
-    // Send unicode
-    let utf16 = Array(str.utf16)
-    guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-          let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-    dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-    up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-    dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-    up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-    dn.post(tap: .cgSessionEventTap)
-    up.post(tap: .cgSessionEventTap)
-    usleep(delayMs.2)
-
-    Log.send("bs", bs, str)
-}
-
-private func sendWithSelection(bs: Int, str: String) {
-    guard let src = CGEventSource(stateID: .privateState) else { return }
-
-    // Select with Shift+Left
-    for _ in 0..<bs {
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0x7B, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0x7B, keyDown: false) else { continue }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.flags = .maskShift
-        up.flags = .maskShift
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-    }
-
-    // Replace selection
-    let utf16 = Array(str.utf16)
-    guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-          let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-    dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-    up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-    dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-    up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-    dn.post(tap: .cgSessionEventTap)
-    up.post(tap: .cgSessionEventTap)
-
-    Log.send("sel", bs, str)
+    // Use TextInjector for synchronized text injection
+    TextInjector.shared.injectSync(backspace: bs, text: str, method: method, delays: delays)
 }
 
 // MARK: - Notifications

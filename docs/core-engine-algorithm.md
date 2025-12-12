@@ -1,159 +1,137 @@
-# GoNhanh Core Typing Engine V2 - Proposed Algorithm
+# GoNhanh Core Typing Engine
 
-> Tài liệu thuật toán đề xuất cho engine gõ tiếng Việt thế hệ mới.
+> Tài liệu thuật toán cho engine gõ tiếng Việt.
 
 **Tài liệu liên quan**:
-- [core-engine-algorithm.md](./core-engine-algorithm.md) - Thuật toán hiện tại (v1)
 - [vietnamese-language-system.md](./vietnamese-language-system.md) - Hệ thống chữ viết tiếng Việt & Quy tắc âm vị học
+- [validation-algorithm.md](./validation-algorithm.md) - Chi tiết 5 quy tắc validation
+- [system-architecture.md](./system-architecture.md) - Kiến trúc tổng thể
 
 ---
 
-## 1. VẤN ĐỀ VỚI THUẬT TOÁN HIỆN TẠI (V1)
+## 1. NGUYÊN TẮC THIẾT KẾ
 
-### 1.1 Hạn chế của Case-by-Case Processing
-
-```
-VẤN ĐỀ:
-│
-├── Xử lý theo từng case riêng lẻ, kiểm tra prev + current
-│   ├── Stage 1: is_d(key, prev) → dd → đ
-│   ├── Stage 2: is_tone_for(key, vowels) → aa → â
-│   ├── Stage 3: is_mark(key) → s → sắc
-│   └── Stage 4: is_remove(key) → z → xóa
-│
-├── BUG: Không xử lý được các pattern phức tạp
-│   │
-│   ├── "Dod" → Kỳ vọng: "Đo"
-│   │   └── Thực tế: "Dod" (không nhận vì expect "Ddo")
-│   │
-│   ├── "truongw" → Kỳ vọng: "trương"
-│   │   └── Cần xử lý uo → ươ đồng thời
-│   │
-│   └── Thứ tự gõ ảnh hưởng kết quả
-│       ├── "as" → "á" ✓
-│       └── "sa" → "sa" (không thành "á")
-│
-└── NGUYÊN NHÂN:
-    ├── Chỉ kiểm tra immediate context (prev + current)
-    ├── Không đọc lại toàn bộ buffer
-    └── Không có pattern matching đa ký tự
-```
-
-### 1.2 Thiếu Validation
+### 1.1 Core Principles
 
 ```
-VẤN ĐỀ:
-│
-├── Không kiểm tra buffer có phải tiếng Việt hợp lệ
-│   ├── "Claus" + s → áp dụng dấu sắc (sai!)
-│   ├── "John" + s → áp dụng dấu sắc (sai!)
-│   └── "HTTP" + s → áp dụng dấu sắc (sai!)
-│
-└── HẬU QUẢ:
-    ├── Gõ code bị ảnh hưởng
-    ├── Gõ tiếng Anh bị biến đổi
-    └── UX kém
-```
-
----
-
-## 2. KIẾN TRÚC ĐỀ XUẤT (V2)
-
-### 2.1 Nguyên tắc thiết kế
-
-```
-NGUYÊN TẮC V2:
+NGUYÊN TẮC:
 │
 ├── 1. VALIDATION FIRST (★ QUAN TRỌNG NHẤT)
 │   └── Khi detect modifier → VALIDATE buffer có phải tiếng Việt không?
-│       ├── Không care buffer là gì, chỉ care có hợp lệ không
 │       ├── "nghieng" hợp lệ? → YES → cho phép transform
 │       ├── "claus" hợp lệ? → NO → không transform
 │       └── Nếu INVALID → không làm gì, thêm key vào buffer bình thường
 │
 ├── 2. PATTERN-BASED REPLACEMENT
-│   └── Nếu VALID → đọc lại TOÀN BỘ buffer → replace theo pattern
+│   └── Nếu VALID → scan TOÀN BỘ buffer → apply pattern
+│       ├── Không case-by-case (prev + current)
+│       └── Scan toàn bộ để tìm pattern
 │
-├── 3. LONGEST-MATCH-FIRST (cho vị trí đặt dấu)
-│   └── Tìm pattern nguyên âm dài nhất để xác định VỊ TRÍ đặt dấu
-│       ├── "nghieng" + 'e' → tìm "ieng" → "iêng"
-│       ├── "nguoi" + 'w' → tìm "uoi" → "ươi"
-│       └── Không phải để filter, mà để biết đặt dấu ở đâu
+├── 3. LONGEST-MATCH-FIRST
+│   └── Cho vị trí đặt dấu và matching finals
+│       ├── "nghieng" → tìm "ieng" → đặt dấu đúng
+│       └── "ch", "ng", "nh" match trước "c", "n"
 │
-└── 4. FLEXIBLE ORDER
-    └── Thứ tự gõ không quan trọng
+└── 4. DOUBLE-KEY REVERT
+    └── Nhấn cùng phím 2 lần → revert transformation
+        ├── "aa" → "â", "aa" → "aa" (revert)
+        └── "ss" → "á", "ss" → "as" (revert)
 ```
 
-### 2.2 Pipeline mới
+---
+
+## 2. 7-STAGE PIPELINE
+
+### 2.1 Main Processing Flow
 
 ```
-V2 PIPELINE
+on_key_ext(key, caps, ctrl, shift) → Result
 │
-on_key(key, caps)
+├─► [!enabled || ctrl?] ──► clear buffer ──► return NONE
 │
-├─► [is_break(key)?] ──► clear buffer ──► return NONE
+├─► [is_break(key)?] ──► check shortcuts ──► clear buffer ──► return
 │
 ├─► [key == DELETE?] ──► pop buffer ──► return NONE
 │
-├─► [is_modifier(key)?] ..................... ★ ĐIỂM KHÁC BIỆT
-│   │
-│   │   ╔══════════════════════════════════════════════════════════╗
-│   │   ║  MODIFIER DETECTED → TRIGGER PATTERN REPLACEMENT        ║
-│   │   ╚══════════════════════════════════════════════════════════╝
-│   │
-│   ├── STEP 1: Validate buffer
-│   │   ├── is_valid_vietnamese_syllable(buffer)?
-│   │   │   ├── YES → tiếp tục
-│   │   │   └── NO → return NONE (giữ nguyên, thêm key vào buffer)
-│   │
-│   ├── STEP 2: Read entire buffer
-│   │   └── raw_string = buffer_to_string()
-│   │
-│   ├── STEP 3: Apply pattern replacement (longest-first)
-│   │   └── transformed = apply_patterns(raw_string, modifier_key)
-│   │
-│   ├── STEP 4: Validate result
-│   │   └── is_valid_vietnamese_syllable(transformed)?
-│   │
-│   └── STEP 5: Output
-│       └── return Result::send(backspace_count, transformed)
-│
-└─► [is_letter(key)?] ──► push to buffer ──► return NONE
+└─► process(key, caps, shift)
+    │
+    ├── STAGE 1: Stroke (d → đ)
+    │   └── try_stroke() - scan buffer for un-stroked 'd'
+    │
+    ├── STAGE 2: Tone (circumflex/horn/breve)
+    │   └── try_tone() - apply aa→â, ow→ơ, aw→ă patterns
+    │
+    ├── STAGE 3: Mark (sắc/huyền/hỏi/ngã/nặng)
+    │   └── try_mark() - find vowel position, apply mark
+    │
+    ├── STAGE 4: Remove (z/0)
+    │   └── handle_remove() - clear mark or tone
+    │
+    ├── STAGE 5: W-Vowel (Telex only)
+    │   └── try_w_as_vowel() - "w" → "ư" với validation
+    │
+    ├── STAGE 6: Normal Letter
+    │   └── handle_normal_letter() - push to buffer
+    │
+    └── STAGE 7: Word Boundary Shortcut
+        └── try_word_boundary_shortcut() - expand abbreviations
+
+Ref: core/src/engine/mod.rs:179-229
+```
+
+### 2.2 Result Structure
+
+```rust
+/// FFI Result - 36 bytes
+#[repr(C)]
+pub struct Result {
+    pub chars: [u32; 32],  // UTF-32 codepoints
+    pub action: u8,        // 0=None, 1=Send, 2=Restore
+    pub backspace: u8,     // Characters to delete
+    pub count: u8,         // Valid chars count
+    pub _pad: u8,          // Alignment padding
+}
+
+Ref: core/src/engine/mod.rs:40-47
 ```
 
 ---
 
 ## 3. MODIFIER DETECTION
 
-### 3.1 Bảng Modifier Keys
+### 3.1 Telex Modifiers
 
 ```
-MODIFIERS = TONE_MODIFIERS ∪ MARK_MODIFIERS
-
 TELEX:
 ├── TONE_MODIFIERS (dấu phụ):
-│   ├── 'a' → có thể là aa (mũ) hoặc aw (trăng)
-│   ├── 'e' → có thể là ee (mũ)
-│   ├── 'o' → có thể là oo (mũ) hoặc ow (móc)
-│   ├── 'w' → móc/trăng
-│   └── 'd' → có thể là dd (đ)
+│   ├── 'a' → aa (â - circumflex)
+│   ├── 'e' → ee (ê - circumflex)
+│   ├── 'o' → oo (ô - circumflex)
+│   ├── 'w' → horn (ơ, ư) hoặc breve (ă)
+│   └── 'd' → dd (đ - stroke)
 │
 ├── MARK_MODIFIERS (dấu thanh):
-│   ├── 's' → sắc
-│   ├── 'f' → huyền
-│   ├── 'r' → hỏi
-│   ├── 'x' → ngã
-│   └── 'j' → nặng
+│   ├── 's' → sắc (1)
+│   ├── 'f' → huyền (2)
+│   ├── 'r' → hỏi (3)
+│   ├── 'x' → ngã (4)
+│   └── 'j' → nặng (5)
 │
 └── REMOVE_MODIFIER:
     └── 'z' → xóa dấu
 
+Ref: core/src/input/telex.rs
+```
+
+### 3.2 VNI Modifiers
+
+```
 VNI:
 ├── TONE_MODIFIERS:
-│   ├── '6' → mũ (â, ê, ô)
-│   ├── '7' → móc (ơ, ư)
-│   ├── '8' → trăng (ă)
-│   └── '9' → đ
+│   ├── '6' → circumflex (â, ê, ô)
+│   ├── '7' → horn (ơ, ư)
+│   ├── '8' → breve (ă)
+│   └── '9' → stroke (đ)
 │
 ├── MARK_MODIFIERS:
 │   ├── '1' → sắc
@@ -164,496 +142,282 @@ VNI:
 │
 └── REMOVE_MODIFIER:
     └── '0' → xóa dấu
-```
 
-### 3.2 Decision: Is Modifier?
-
-```
-is_modifier(key, buffer)
-│
-├─► [buffer.is_empty()?]
-│   └── return false (không có gì để transform)
-│
-├─► [key ∈ MARK_MODIFIERS?]
-│   └── return true
-│
-├─► [key ∈ REMOVE_MODIFIER?]
-│   └── return true
-│
-├─► [key ∈ TONE_MODIFIERS?]
-│   │
-│   ├── Telex special cases:
-│   │   ├── 'a' → check if buffer has 'a' (aa pattern)
-│   │   ├── 'e' → check if buffer has 'e' (ee pattern)
-│   │   ├── 'o' → check if buffer has 'o' (oo pattern)
-│   │   ├── 'w' → check if buffer has a, o, u
-│   │   └── 'd' → check if buffer has 'd' (dd pattern)
-│   │
-│   └── return true if pattern possible
-│
-└── return false
+Ref: core/src/input/vni.rs
 ```
 
 ---
 
-## 4. THUẬT TOÁN XỬ LÝ
+## 4. SYLLABLE PARSING
 
-> **Tham khảo**: [vietnamese-language-system.md](./vietnamese-language-system.md) - Cấu trúc âm tiết & quy tắc
-
-### 4.1 Cấu trúc Âm tiết (Syllable Structure)
+### 4.1 Vietnamese Syllable Structure
 
 ```
-CẤU TRÚC ÂM TIẾT TIẾNG VIỆT:
+CẤU TRÚC ÂM TIẾT:
 │
-│   Syllable = (C₁)(G)V(C₂) + T
+│   Syllable = (C₁)(G)V(C₂)
 │
-├── C₁ = Phụ âm đầu (Initial consonant) - TÙY CHỌN
-│   ├── Đơn: b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
-│   ├── Đôi: ch, gh, gi, kh, ng, nh, ph, qu, th, tr
-│   └── Ba: ngh
+├── C₁ = Phụ âm đầu (Initial) - TÙY CHỌN
+│   ├── Đơn: b, c, d, g, h, k, l, m, n, p, q, r, s, t, v, x (16)
+│   ├── Đôi: ch, gh, gi, kh, ng, nh, ph, qu, th, tr (10)
+│   └── Ba: ngh (1)
 │
-├── G = Âm đệm (Glide/Medial) - TÙY CHỌN
-│   └── o, u
+├── G = Âm đệm (Glide) - TÙY CHỌN
+│   └── o (oa, oe), u (uy, ue)
 │
-├── V = Nguyên âm chính (Vowel Nucleus) - BẮT BUỘC
-│   ├── Đơn: a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
-│   ├── Đôi: ai, ao, au, âu, ây, eo, êu, ia, iê, iu, oa, oă, oe, oi, ôi, ơi, ...
-│   └── Ba: iêu, yêu, ươi, ươu, uôi, oai, oay, oeo, uây, uyê
+├── V = Nguyên âm chính (Vowel) - BẮT BUỘC
+│   └── a, ă, â, e, ê, i, o, ô, ơ, u, ư, y (12)
 │
-├── C₂ = Âm cuối (Final) - TÙY CHỌN
-│   ├── Phụ âm: c, ch, m, n, ng, nh, p, t
-│   └── Bán nguyên âm: i, y, o, u
-│
-└── T = Thanh điệu (Tone) - LUÔN CÓ (mặc định = ngang)
+└── C₂ = Âm cuối (Final) - TÙY CHỌN
+    ├── Phụ âm: c, m, n, p, t (5)
+    ├── Đôi: ch, ng, nh (3)
+    └── Bán nguyên âm: i, y, o, u (4)
+
+Ref: core/src/engine/syllable.rs, core/src/data/constants.rs
 ```
 
-### 4.2 Thuật toán Parse Syllable
+### 4.2 Parse Algorithm
 
 ```
-parse_syllable(buffer) → Syllable { initial, glide, vowel, final }
+parse(buffer_keys) → Syllable { initial, glide, vowel, final_c }
 │
-├── STEP 1: Tìm phụ âm đầu (longest-first)
-│   │
-│   │   Thử match từ đầu buffer:
-│   │
-│   ├── 3 chars: "ngh" → nếu match → initial = "ngh"
-│   │
-│   ├── 2 chars: "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr"
-│   │   └── nếu match → initial = matched
-│   │
-│   ├── 1 char: b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
-│   │   └── nếu match → initial = matched
-│   │
-│   └── không match → initial = None (bắt đầu bằng nguyên âm)
+├── STEP 1: Find first vowel position
+│   ├── Special: "gi" + vowel → gi is initial
+│   └── Special: "qu" + vowel → qu is initial
 │
-├── STEP 2: Sau initial, tìm âm đệm (glide)
-│   │
-│   ├── Nếu char tiếp theo là 'o' hoặc 'u':
-│   │   ├── Kiểm tra char sau đó có phải nguyên âm không?
-│   │   │   ├── YES và thỏa điều kiện âm đệm → glide = 'o' hoặc 'u'
-│   │   │   └── NO → không phải glide, là nguyên âm chính
-│   │   │
-│   │   └── Điều kiện âm đệm:
-│   │       ├── 'o' + (a, ă, e) → oa, oă, oe
-│   │       └── 'u' + (a, â, ê, y, yê) → qua, quâ, quê, quy (sau 'qu')
-│   │
-│   └── Không phải → glide = None
+├── STEP 2: Identify glide
+│   ├── o + (a, e) → glide
+│   └── u + (y, e) when not after "qu" → glide
 │
-├── STEP 3: Tìm nguyên âm chính (longest-first)
-│   │
-│   │   Từ vị trí hiện tại, thử match:
-│   │
-│   ├── 3 chars (nguyên âm ba):
-│   │   └── iêu, yêu, ươi, ươu, uôi, oai, oay, oeo, uây, uyê
-│   │
-│   ├── 2 chars (nguyên âm đôi):
-│   │   └── ai, ao, au, âu, ây, eo, êu, ia, iê, iu, oa, oă, oe, ...
-│   │
-│   └── 1 char (nguyên âm đơn):
-│       └── a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
+├── STEP 3: Identify vowel nucleus
+│   └── Consecutive vowels after glide
 │
-├── STEP 4: Phần còn lại = âm cuối
-│   │
-│   ├── 2 chars: ch, ng, nh
-│   ├── 1 char: c, m, n, p, t, i, y, o, u
-│   └── Không có → final = None
-│
-└── RETURN Syllable { initial, glide, vowel, final }
+└── STEP 4: Match final consonant (longest-first)
+    ├── 2 chars: ch, ng, nh
+    └── 1 char: c, m, n, p, t, i, y, o, u
 
-────────────────────────────────────────────────────────────
+Ref: core/src/engine/syllable.rs:50-159
+```
 
+### 4.3 Parse Examples
+
+```
 VÍ DỤ PARSE:
 
-"nghieng" → parse:
-├── initial = "ngh" (3 chars match)
+"nghieng":
+├── initial = [0,1,2] → "ngh" (3 chars)
 ├── glide = None
-├── vowel = "ie" (2 chars: iê pattern)
-├── final = "ng" (2 chars)
-└── Syllable { "ngh", None, "ie", "ng" }
+├── vowel = [3,4] → "ie" (2 chars)
+├── final_c = [5,6] → "ng" (2 chars)
+└── Result: valid ✓
 
-"duoc" → parse:
-├── initial = "d" (1 char)
-├── glide = None (u không phải glide vì sau không phải a,â,ê,y)
-├── vowel = "uo" (2 chars: compound vowel)
-├── final = "c"
-└── Syllable { "d", None, "uo", "c" }
+"hoa":
+├── initial = [0] → "h"
+├── glide = Some(1) → "o"
+├── vowel = [2] → "a"
+├── final_c = []
+└── Result: valid ✓
 
-"hoa" → parse:
-├── initial = "h" (1 char)
-├── glide = "o" (o + a = âm đệm + nguyên âm)
-├── vowel = "a"
-├── final = None
-└── Syllable { "h", "o", "a", None }
+"qua":
+├── initial = [0,1] → "qu" (u thuộc initial)
+├── glide = None
+├── vowel = [2] → "a"
+├── final_c = []
+└── Result: valid ✓
 
-"qua" → parse:
-├── initial = "qu" (2 chars, đặc biệt)
-├── glide = None (u đã thuộc "qu")
-├── vowel = "a"
-├── final = None
-└── Syllable { "qu", None, "a", None }
-```
-
-### 4.3 Thuật toán Validation
-
-```
-is_valid_vietnamese(buffer) → bool
-│
-├── STEP 1: Parse syllable
-│   │
-│   │   syllable = parse_syllable(buffer)
-│   │
-│   └── Nếu không parse được (không có vowel) → return false
-│
-├── STEP 2: Validate phụ âm đầu
-│   │
-│   ├── Nếu có initial:
-│   │   ├── initial ∈ VALID_INITIALS? → OK
-│   │   └── Kiểm tra spelling rules:
-│   │       ├── "c" + (e,ê,i,y) → INVALID (phải dùng "k")
-│   │       ├── "k" + (a,ă,â,o,ô,ơ,u,ư) → INVALID (phải dùng "c")
-│   │       ├── "g" + (e,ê,i) → INVALID (phải dùng "gh")
-│   │       ├── "gh" + (a,ă,â,o,ô,ơ,u,ư) → INVALID
-│   │       ├── "ng" + (e,ê,i) → INVALID (phải dùng "ngh")
-│   │       └── "ngh" + (a,ă,â,o,ô,ơ,u,ư) → INVALID
-│   │
-│   └── Nếu không có initial → OK (syllable bắt đầu bằng vowel)
-│
-├── STEP 3: Validate nguyên âm
-│   │
-│   └── vowel ∈ VALID_VOWELS? → OK (luôn đúng nếu parse thành công)
-│
-├── STEP 4: Validate âm cuối
-│   │
-│   ├── Nếu có final:
-│   │   ├── final ∈ VALID_FINALS?
-│   │   └── Kiểm tra vowel + final combination:
-│   │       ├── -ch chỉ sau a, ă, ê, i
-│   │       ├── -nh chỉ sau a, ă, ê, i, y
-│   │       └── -ng không sau e, ê
-│   │
-│   └── Nếu không có final → OK
-│
-└── STEP 5: return true (VALID)
-
-────────────────────────────────────────────────────────────
-
-VÍ DỤ VALIDATION:
-
-"nghieng" → parse thành công → validate từng phần → VALID ✓
-"claus" → initial="cl" ∉ VALID_INITIALS → INVALID ✗
-"john" → initial="j" ∉ VALID_INITIALS → INVALID ✗
-"http" → không có vowel → INVALID ✗
-"duoc" → parse OK, validate OK → VALID ✓
-```
-
-### 4.4 Thuật toán Transformation
-
-```
-apply_transformation(syllable, modifier_key) → transformed_buffer
-│
-├── CASE 1: TONE MODIFIER (aa, aw, ow, dd, ...)
-│   │
-│   │   Biến đổi ký tự trong vowel hoặc initial
-│   │
-│   ├── Telex 'a' (khi buffer đã có 'a') hoặc VNI '6':
-│   │   └── Tìm 'a' trong vowel → 'a' + '6' = 'â'
-│   │   └── Tìm 'e' trong vowel → 'e' + '6' = 'ê'
-│   │   └── Tìm 'o' trong vowel → 'o' + '6' = 'ô'
-│   │
-│   ├── Telex 'w' hoặc VNI '7'/'8':
-│   │   ├── Nếu vowel chứa "uo" liền nhau:
-│   │   │   └── Transform BOTH: u→ư, o→ơ (uo → ươ)
-│   │   ├── Else tìm trong vowel:
-│   │   │   ├── 'a' + '8' = 'ă'
-│   │   │   ├── 'o' + '7' = 'ơ'
-│   │   │   └── 'u' + '7' = 'ư'
-│   │
-│   └── Telex 'd' (khi buffer đã có 'd') hoặc VNI '9':
-│       └── Tìm 'd' hoặc 'D' trong initial → 'd' → 'đ'
-│
-├── CASE 2: MARK MODIFIER (s, f, r, x, j, ...)
-│   │
-│   │   Thêm dấu thanh vào nguyên âm
-│   │
-│   ├── Xác định mark_value:
-│   │   ├── s/1 → sắc
-│   │   ├── f/2 → huyền
-│   │   ├── r/3 → hỏi
-│   │   ├── x/4 → ngã
-│   │   └── j/5 → nặng
-│   │
-│   ├── VALIDATE: Tone + Final Rule
-│   │   ├── Nếu final ∈ {p, t, c, ch}:
-│   │   │   └── Chỉ cho phép sắc (1) hoặc nặng (5)
-│   │   │   └── Khác → REJECT, không transform
-│   │
-│   └── Xác định VỊ TRÍ đặt dấu (dựa trên vowel đã parse):
-│       │
-│       │   find_mark_position(syllable) → vị trí trong vowel
-│       │
-│       ├── vowel.len == 1:
-│       │   └── Đặt trên nguyên âm đó
-│       │
-│       ├── vowel.len == 2:
-│       │   ├── Có final? → đặt trên vowel[1] (thứ 2)
-│       │   ├── là âm đệm pair (oa, oe, uy)? → đặt trên vowel[1]
-│       │   ├── là main+glide pair (ai, ao, au)? → đặt trên vowel[0]
-│       │   ├── là compound (ươ, uô, iê)? → đặt trên vowel[1]
-│       │   └── có dấu phụ sẵn (ư, ơ, ô, ê, â, ă)? → ưu tiên nó
-│       │
-│       └── vowel.len == 3:
-│           └── Đặt trên vowel[1] (giữa)
-│
-└── CASE 3: REMOVE MODIFIER (z, 0)
-    └── Xóa dấu thanh hoặc dấu phụ cuối cùng
-
-────────────────────────────────────────────────────────────
-
-VÍ DỤ TRANSFORMATION:
-
-"nghieng" + 'e' (Telex ee):
-├── syllable = { "ngh", None, "ie", "ng" }
-├── Modifier = 'e' → tìm 'e' trong vowel "ie"
-├── Transform: 'e' → 'ê'
-├── New vowel = "iê"
-└── Result: "nghiêng"
-
-"duoc" + 'w' (Telex w):
-├── syllable = { "d", None, "uo", "c" }
-├── Modifier = 'w' → vowel có "uo" compound
-├── Transform BOTH: u→ư, o→ơ
-├── New vowel = "ươ"
-└── Result: "dược"
-
-"duoc" + 'j' (Telex j = nặng):
-├── syllable = { "d", None, "uo", "c" }
-├── Modifier = 'j' → mark = nặng (5)
-├── Validate: final = "c" (stop) → chỉ cho sắc/nặng → nặng OK ✓
-├── Find position: vowel="uo", len=2, has_final=true → pos=1 (o)
-├── Apply mark: 'o' + nặng = 'ọ'
-└── Result: "duọc"
-    └── Sau đó nếu + 'w' → "dược"
-```
-
-### 4.5 Ví dụ: Pattern Matching cho "Dod"
-
-```
-CASE: "Dod" + enter (trong Telex, 'd' cuối là modifier nếu trước đó có 'd')
-
-LUỒNG XỬ LÝ MỚI:
-│
-├── User gõ: D → o → d
-│
-├── Khi gõ 'd':
-│   ├── buffer = ['D', 'o', 'd']
-│   ├── is_modifier('d', buffer)?
-│   │   └── Check: buffer có 'd' hoặc 'D'? → YES (vị trí 0)
-│   │   └── return true
-│   │
-│   ├── STEP 1: Validate "Dod"
-│   │   ├── C₁ = "d" ∈ VALID_INITIALS ✓
-│   │   ├── V = "o" ∈ VALID_VOWELS ✓
-│   │   └── is_valid = true
-│   │
-│   ├── STEP 2: Read buffer → "Dod"
-│   │
-│   ├── STEP 3: Apply patterns
-│   │   ├── Modifier = 'd' (Telex dd → đ)
-│   │   ├── Tìm 'd' hoặc 'D' trong buffer
-│   │   ├── Found 'D' at position 0
-│   │   ├── Transform: 'D' → 'Đ'
-│   │   ├── Remove trigger 'd' at position 2
-│   │   └── Result: "Đo"
-│   │
-│   └── STEP 4: Output
-│       └── Result::send(3, "Đo")
-│
-└── OUTPUT: "Đo" ✓
-
-SO SÁNH VỚI V1:
-│
-├── V1: "Dod" → Không match vì check prev=='d' && key=='d'
-│   └── prev='o', key='d' → không match → output "Dod"
-│
-└── V2: "Dod" → Scan buffer, tìm 'd' bất kỳ → match → "Đo"
+"giau":
+├── initial = [0,1] → "gi" (i thuộc initial vì sau có vowel)
+├── glide = None
+├── vowel = [2,3] → "au"
+├── final_c = []
+└── Result: valid ✓
 ```
 
 ---
 
-## 5. VALIDATION PIPELINE
+## 5. VALIDATION RULES
 
-### 5.1 Khi nào Validate?
-
-```
-VALIDATION TIMING:
-│
-├── TRƯỚC khi apply transformation
-│   └── is_valid_vietnamese_syllable(buffer)?
-│       ├── YES → tiếp tục transform
-│       └── NO → không transform, thêm key vào buffer như bình thường
-│
-└── SAU khi transform (optional)
-    └── Đảm bảo kết quả vẫn hợp lệ
-```
-
-### 5.2 Validation Algorithm
+### 5.1 Five Validation Rules
 
 ```
-is_valid_vietnamese_syllable(buffer)
+RULES: (chạy theo thứ tự)
 │
-├─► STEP 1: Normalize buffer
-│   └── input = buffer.to_lowercase().remove_marks()
+├── Rule 1: Must have vowel
+│   └── syllable.vowel.is_empty()? → InvalidNoVowel
 │
-├─► STEP 2: Check vowel exists
-│   ├── has_vowel(input)?
-│   │   ├── NO → return false ("HTTP", "CTRL")
-│   │   └── YES → continue
+├── Rule 2: Valid initial consonant
+│   └── initial ∈ VALID_INITIALS? (16 single + 10 double + ngh)
 │
-├─► STEP 3: Parse syllable structure
-│   │
-│   │   parse_syllable(input) → {
-│   │       initial: Option<String>,  // C₁
-│   │       vowel: String,            // V (required)
-│   │       final: Option<String>     // C₂
-│   │   }
-│   │
-│   ├── Identify initial consonant (longest match first)
-│   │   ├── "ngh" match? → initial = "ngh"
-│   │   ├── "ng", "nh", "ch", "gh", "gi", "kh", "ph", "qu", "th", "tr" match?
-│   │   ├── Single consonant match?
-│   │   └── No match → initial = None (vowel-initial syllable)
-│   │
-│   ├── Identify vowel (longest match first)
-│   │   ├── Triple vowels: iêu, yêu, ươi, ươu, uôi, oai, oay, oeo, uây, uyê
-│   │   ├── Double vowels: ai, ao, au, âu, ây, eo, êu, ia, iê, ...
-│   │   └── Single vowels: a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
-│   │
-│   └── Remainder = final consonant
+├── Rule 3: All chars parsed
+│   └── initial.len + glide.len + vowel.len + final.len == buffer.len
 │
-├─► STEP 4: Validate initial consonant
-│   │
-│   ├── initial ∈ VALID_INITIALS?
-│   │   └── NO → return false ("Clau", "John", "Black")
-│   │
-│   └── Check spelling rules:
-│       ├── "c" before e,ê,i,y? → return false
-│       ├── "k" before a,ă,â,o,ô,ơ,u,ư? → return false
-│       ├── "g" before e,ê,i? → return false
-│       ├── "gh" before a,ă,â,o,ô,ơ,u,ư? → return false
-│       ├── "ng" before e,ê,i? → return false
-│       └── "ngh" before a,ă,â,o,ô,ơ,u,ư? → return false
+├── Rule 4: Spelling rules
+│   ├── c + (e,i,y) → INVALID (dùng k)
+│   ├── k + (a,o,u) → INVALID (dùng c)
+│   ├── g + (e) → INVALID (dùng gh)
+│   ├── ng + (e,i) → INVALID (dùng ngh)
+│   ├── gh + (a,o,u) → INVALID (dùng g)
+│   └── ngh + (a,o,u) → INVALID (dùng ng)
 │
-├─► STEP 5: Validate vowel
-│   └── vowel ∈ VALID_VOWELS? (should always be true if parsed)
-│
-├─► STEP 6: Validate final consonant
-│   │
-│   ├── final ∈ VALID_FINALS?
-│   │   └── c, ch, m, n, ng, nh, p, t, i, y, o, u
-│   │
-│   └── Check vowel+final combination:
-│       ├── -ch only after a, ă, ê, i
-│       ├── -nh only after a, ă, ê, i, y
-│       └── -ng not after e, ê
-│
-└─► return true
+└── Rule 5: Valid final consonant
+    └── final ∈ VALID_FINALS? (c,m,n,p,t + ch,ng,nh + semi-vowels)
+
+Ref: core/src/engine/validation.rs:34-40
 ```
 
-### 5.3 Validation Examples
+### 5.2 Validation Examples
 
 ```
 VALIDATION EXAMPLES:
-│
-├── "duoc" → VALID
-│   ├── initial = "d" ✓
-│   ├── vowel = "uo" ✓
-│   ├── final = "c" ✓
-│   └── Can apply 'j' → "được" ✓
-│
-├── "clau" → INVALID
-│   ├── initial = "cl" ✗ (not in VALID_INITIALS)
-│   └── 's' pressed → ignore, output "claus"
-│
-├── "john" → INVALID
-│   ├── initial = "j" ✗ (not in Vietnamese)
-│   └── 's' pressed → ignore, output "johns"
-│
-├── "http" → INVALID
-│   ├── No vowel found ✗
-│   └── Any modifier → ignore
-│
-├── "nguoi" → VALID
-│   ├── initial = "ng" ✓
-│   ├── vowel = "uoi" (→ "ươi") ✓
-│   ├── final = none ✓
-│   └── Can apply 'w' → "người" ✓
-│
-└── "cap" + 'r' (hỏi) → INVALID TONE
-    ├── Syllable valid: c + a + p ✓
-    ├── But: p is stop consonant
-    ├── hỏi (3) not allowed with -p
-    └── Reject → output "capr" or ignore 'r'
+
+"duoc" → VALID ✓
+├── initial = "d" ✓
+├── vowel = "uo" ✓
+└── final = "c" ✓
+
+"clau" → INVALID ✗
+└── initial = "cl" ∉ VALID_INITIALS
+
+"john" → INVALID ✗
+└── initial = "j" ∉ VALID_INITIALS
+
+"http" → INVALID ✗
+└── No vowel found
+
+"ci" → INVALID ✗
+└── Spelling rule: c + i → phải dùng k
 ```
 
 ---
 
-## 6. UO COMPOUND HANDLING
+## 6. TRANSFORMATION
 
-### 6.1 Nguyên tắc
+### 6.1 Stroke Transformation (d → đ)
+
+```
+apply_stroke(buffer) → TransformResult
+│
+├── Scan buffer for 'd' with stroke = false
+│   └── Found at any position → mark stroke = true
+│
+├── Example: "Dod"
+│   ├── buffer = ['D', 'o', 'd']
+│   ├── First 'd' at position 0
+│   ├── Mark D.stroke = true
+│   └── Result: "Đo" (remove trigger 'd')
+│
+└── Double-key revert: "Đo" + 'd' → "Dod"
+
+Ref: core/src/engine/transform.rs:224-234
+```
+
+### 6.2 Tone Transformation (circumflex/horn/breve)
+
+```
+apply_tone(buffer, key, tone_value, method) → TransformResult
+│
+├── Find target vowels based on key and method
+│
+├── Telex patterns:
+│   ├── aa → find 'a' → tone = CIRCUMFLEX
+│   ├── ee → find 'e' → tone = CIRCUMFLEX
+│   ├── oo → find 'o' → tone = CIRCUMFLEX
+│   └── w → find a/o/u → tone = HORN
+│
+├── VNI patterns:
+│   ├── 6 → find a/e/o → tone = CIRCUMFLEX
+│   ├── 7 → find o/u → tone = HORN
+│   └── 8 → find a → tone = HORN (breve)
+│
+└── UO COMPOUND SPECIAL:
+    ├── Buffer có "uo" hoặc "ou" adjacent
+    ├── Apply HORN to BOTH
+    └── Example: "duoc" + 'w' → "dươc"
+
+Ref: core/src/engine/transform.rs:59-87
+```
+
+### 6.3 Mark Transformation (sắc/huyền/hỏi/ngã/nặng)
+
+```
+apply_mark(buffer, mark_value, modern) → TransformResult
+│
+├── Collect vowels from buffer
+│
+├── Find mark position using Phonology rules
+│   ├── Single vowel → đặt trên nó
+│   ├── Double vowel + có final → đặt trên vowel thứ 2
+│   ├── Double vowel + không final → đặt trên vowel thứ 1
+│   └── Triple vowel → đặt trên vowel giữa
+│
+├── Clear existing marks first
+│
+└── Apply new mark at position
+
+Ref: core/src/engine/transform.rs:192-218
+```
+
+### 6.4 Tone Placement Rules
+
+```
+find_tone_position(vowels, has_final, modern, has_qu) → position
+│
+├── Single vowel: return vowel position
+│
+├── Double vowel:
+│   ├── Có final? → return vowel[1]
+│   ├── Có dấu phụ (ư,ơ,ô,ê,â,ă)? → return nó
+│   ├── Pattern oa, oe, uy? → return vowel[1]
+│   ├── Pattern ai, ao, au? → return vowel[0]
+│   └── Default → return vowel[0]
+│
+└── Triple vowel: return vowel[1] (giữa)
+
+Ref: core/src/data/vowel.rs (Phonology::find_tone_position)
+```
+
+---
+
+## 7. UO COMPOUND HANDLING
 
 ```
 UO COMPOUND:
 │
 ├── Khi gặp 'w' (Telex) hoặc '7' (VNI)
 │
-├── TÌM PATTERN "uo" hoặc "ou" trong buffer
-│   ├── Found → Apply móc cho CẢ HAI
+├── Scan for "uo" hoặc "ou" ADJACENT trong buffer
+│   ├── Found → Apply HORN to BOTH
 │   │   ├── u → ư
 │   │   └── o → ơ
 │   │
-│   └── Not found → Apply cho single vowel
+│   └── Not found → Apply to single vowel
 │
 └── VÍ DỤ:
     ├── "truong" + 'w' → "trương"
-    │   ├── Tìm "uo" tại vị trí 2-3
-    │   ├── u → ư
-    │   ├── o → ơ
+    │   ├── Found "uo" at positions 2-3
+    │   ├── u → ư, o → ơ
     │   └── Result: "trương"
     │
+    ├── "nguoi" + 'w' → "ngươi"
+    │   ├── Found "uo" at positions 2-3
+    │   └── Result: "ngươi"
+    │
     └── "mua" + 'w' → "mưa"
-        ├── Tìm "ua" (không phải "uo")
-        ├── Chỉ u → ư
+        ├── "ua" (not "uo")
+        ├── Only u → ư
         └── Result: "mưa"
+
+Ref: core/src/engine/transform.rs:154-190
 ```
 
 ---
 
-## 7. DOUBLE-KEY REVERT (V2)
+## 8. DOUBLE-KEY REVERT
 
-### 7.1 Cơ chế
+### 8.1 Mechanism
 
 ```
-DOUBLE-KEY REVERT (V2):
+DOUBLE-KEY REVERT:
 │
 ├── Lưu last_transform = { key, pattern, result }
 │
@@ -669,585 +433,283 @@ DOUBLE-KEY REVERT (V2):
 │   │
 │   └── Save current transformation
 │
+└── Transform Types tracked:
+    ├── Mark(key, mark_value)
+    ├── Tone(key, tone_value)
+    ├── Stroke(key)
+    ├── WAsVowel
+    └── WShortcutSkipped
+
+Ref: core/src/engine/mod.rs:77-85
+```
+
+### 8.2 Revert Examples
+
+```
+VÍ DỤ REVERT:
+
+"a" + 'a' → "â" (save: Tone(key:'a'))
+"â" + 'a' → "aa" (revert: â → a, add 'a')
+
+"a" + 's' → "á" (save: Mark(key:'s'))
+"á" + 's' → "as" (revert: á → a, add 's')
+
+"d" + 'd' → "đ" (save: Stroke(key:'d'))
+"đ" + 'd' → "dd" (revert: đ → d, add 'd')
+
+"w" → "ư" (save: WAsVowel)
+"ư" + 'w' → "w" (revert: ư → w)
+```
+
+---
+
+## 9. W-AS-VOWEL (TELEX)
+
+```
+try_w_as_vowel(caps) → Option<Result>
+│
+├── Chỉ trong Telex mode
+│
+├── Skip nếu last_transform == WShortcutSkipped
+│
+├── Revert check:
+│   └── last_transform == WAsVowel? → revert to "w"
+│
+├── Try transformation:
+│   ├── Push U with HORN to buffer
+│   ├── Validate: is_valid(buffer)?
+│   │   ├── YES → return "ư"
+│   │   └── NO → pop U, return None
+│
 └── VÍ DỤ:
-    │
-    ├── "a" + 'a' → "â" (save: {key:'a', result:'â'})
-    │   └── 'a' again → revert to "a" + add 'a' → "aa"
-    │
-    ├── "a" + 's' → "á" (save: {key:'s', result:'á'})
-    │   └── 's' again → revert to "a" + add 's' → "as"
-    │
-    └── "truong" + 'w' → "trương"
-        └── 'w' again → "truongw" (revert compound)
+    ├── "w" alone → "ư" (valid syllable)
+    ├── "nhw" → "như" (valid: nh + ư)
+    ├── "kw" → "kw" (invalid: k cannot precede ư)
+    └── "ww" → "w" (revert)
+
+Ref: core/src/engine/mod.rs:261-300
 ```
 
 ---
 
-## 8. SO SÁNH V1 vs V2
+## 10. SHORTCUT TABLE
 
-```
-┌─────────────────────┬─────────────────────────┬─────────────────────────┐
-│       Tính năng     │          V1             │          V2             │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Processing          │ Case-by-case            │ Pattern-based           │
-│                     │ (prev + current)        │ (full buffer scan)      │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Pattern matching    │ Immediate context only  │ Longest-match-first     │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Validation          │ Không có                │ Trước khi transform     │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ "Dod" → ?           │ "Dod" (bug)             │ "Đo" ✓                  │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ "Claus" + s → ?     │ "Cláus" (sai)           │ "Clauss" (giữ nguyên)   │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ "HTTP" + s → ?      │ Có thể lỗi              │ "HTTPs" (giữ nguyên)    │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Gõ linh hoạt        │ Thứ tự quan trọng       │ Thứ tự linh hoạt        │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Code/Email/URL      │ Bị ảnh hưởng            │ Không ảnh hưởng         │
-├─────────────────────┼─────────────────────────┼─────────────────────────┤
-│ Tone+Stop rule      │ Không enforce           │ Enforce (cấp ✓, cảp ✗) │
-└─────────────────────┴─────────────────────────┴─────────────────────────┘
-```
-
----
-
-## 9. IMPLEMENTATION ROADMAP
-
-### 9.1 Các bước triển khai
-
-```
-IMPLEMENTATION STEPS:
-│
-├── PHASE 1: Validation Module
-│   ├── Implement is_valid_vietnamese_syllable()
-│   ├── Implement parse_syllable()
-│   ├── Add VALID_INITIALS, VALID_VOWELS, VALID_FINALS constants
-│   └── Add spelling rule checks (c/k, g/gh, ng/ngh)
-│
-├── PHASE 2: Pattern Matching Engine
-│   ├── Define PATTERN_PRIORITY list
-│   ├── Implement longest_match_first() algorithm
-│   ├── Implement apply_tone_patterns()
-│   └── Implement apply_mark_patterns()
-│
-├── PHASE 3: Modifier Detection
-│   ├── Refactor is_modifier() to scan buffer
-│   ├── Handle Telex special cases (aa, dd, etc.)
-│   └── Handle VNI modifiers (1-9, 0)
-│
-├── PHASE 4: Main Pipeline
-│   ├── Integrate validation into on_key()
-│   ├── Replace case-by-case handlers with pattern engine
-│   └── Maintain double-key revert mechanism
-│
-└── PHASE 5: Testing
-    ├── Test "Dod" → "Đo"
-    ├── Test validation (Clau, John, HTTP)
-    ├── Test tone+stop rule (cấp ✓, cảp ✗)
-    ├── Test UO compound (trương, người)
-    └── Regression tests for all existing features
-```
-
-### 9.2 Data Structures
+### 10.1 Data Structures
 
 ```rust
-// Proposed data structures for V2
-
-/// Modifier type
-enum ModifierType {
-    Tone(ToneModifier),   // aa, aw, ow, dd, 6, 7, 8, 9
-    Mark(MarkModifier),   // s, f, r, x, j, 1-5
-    Remove,               // z, 0
+/// Shortcut entry
+pub struct Shortcut {
+    pub trigger: String,        // "vn"
+    pub replacement: String,    // "Việt Nam"
+    pub condition: TriggerCondition,
+    pub case_mode: CaseMode,
+    pub enabled: bool,
+    pub input_method: InputMethod,
 }
 
-/// Pattern for replacement
-struct Pattern {
-    input: &'static str,   // "uo", "aa", "dd"
-    output: &'static str,  // "ươ", "â", "đ"
-    priority: u8,          // Higher = try first
+/// Trigger conditions
+pub enum TriggerCondition {
+    Immediate,      // Trigger ngay khi match
+    OnWordBoundary, // Trigger khi space/enter/punctuation
 }
 
-/// Syllable structure
-struct Syllable {
-    initial: Option<String>,  // C₁
-    vowel: String,            // V (required)
-    final_c: Option<String>,  // C₂
+/// Case handling
+pub enum CaseMode {
+    Exact,     // Giữ nguyên replacement
+    MatchCase, // "VN" → "VIỆT NAM", "vn" → "Việt Nam"
 }
 
-/// Validation result
-enum ValidationResult {
-    Valid,
-    InvalidInitial(String),
-    InvalidVowel,
-    InvalidFinal(String),
-    InvalidToneFinal { tone: u8, final_c: String },
-    NoVowel,
+/// Input method filter
+pub enum InputMethod {
+    All,    // Apply cho tất cả
+    Telex,  // Chỉ Telex
+    Vni,    // Chỉ VNI
 }
 
-/// Main engine entry point (V2)
-fn on_key_v2(key: Key, caps: bool) -> Result {
-    // ... implementation following the V2 pipeline
-}
+Ref: core/src/engine/shortcut.rs:20-53
+```
+
+### 10.2 Matching Algorithm
+
+```
+try_match(buffer, key_char, is_word_boundary, method) → Option<ShortcutMatch>
+│
+├── STEP 1: Lookup (longest-match-first)
+│   └── sorted_triggers sorted by length DESC
+│
+├── STEP 2: Check condition
+│   ├── Immediate → match ngay
+│   └── OnWordBoundary → key là space/punctuation?
+│
+├── STEP 3: Apply case transformation
+│   ├── Exact → giữ nguyên
+│   ├── MatchCase:
+│   │   ├── All uppercase → replacement.to_uppercase()
+│   │   ├── First uppercase → capitalize
+│   │   └── Lowercase → giữ nguyên
+│
+└── STEP 4: Return result
+    └── ShortcutMatch { backspace_count, output, include_trigger_key }
+
+Ref: core/src/engine/shortcut.rs:278-314
 ```
 
 ---
 
-## 10. BẢNG GÕ TẮT (SHORTCUT TABLE)
+## 11. DATA STRUCTURES
 
-### 10.1 Tổng quan
-
-```
-SHORTCUT TABLE - GÕ TẮT:
-│
-├── MỤC ĐÍCH
-│   ├── Cho phép user định nghĩa các từ viết tắt
-│   ├── Tự động expand thành từ/cụm từ đầy đủ
-│   └── Tăng tốc độ gõ cho các từ thường dùng
-│
-├── VÍ DỤ:
-│   ├── "w" → "ư"
-│   ├── "vn" → "Việt Nam"
-│   ├── "hcm" → "Hồ Chí Minh"
-│   ├── "tphcm" → "Thành phố Hồ Chí Minh"
-│   ├── "dc" → "được"
-│   ├── "ko" → "không"
-│   └── "bth" → "bình thường"
-│
-└── ĐẶC ĐIỂM:
-    ├── User-configurable
-    ├── Trigger khi gặp word boundary
-    ├── Ưu tiên cao hơn Vietnamese transformation
-    └── Case-sensitive hoặc case-insensitive (tùy config)
-```
-
-### 10.2 Cấu trúc dữ liệu
+### 11.1 Buffer
 
 ```rust
-/// Một shortcut entry
-struct Shortcut {
-    /// Từ viết tắt (trigger)
-    trigger: String,
-
-    /// Từ/cụm từ thay thế
-    replacement: String,
-
-    /// Điều kiện trigger
-    condition: TriggerCondition,
-
-    /// Case handling
-    case_mode: CaseMode,
-
-    /// Enabled/disabled
-    enabled: bool,
+/// Circular buffer - fixed 32 chars
+pub struct Buffer {
+    data: [Char; MAX],  // MAX = 32
+    len: usize,
 }
 
-/// Điều kiện để trigger shortcut
-enum TriggerCondition {
-    /// Trigger ngay khi match (không cần thêm gì)
-    Immediate,
-
-    /// Trigger khi gặp space/enter sau trigger word
-    OnWordBoundary,
-
-    /// Trigger khi gặp ký tự cụ thể
-    OnChar(char),
-
-    /// Trigger khi gặp bất kỳ non-alphanumeric
-    OnPunctuation,
+/// Single character with modifiers
+pub struct Char {
+    pub key: u16,     // Virtual keycode
+    pub caps: bool,   // Uppercase?
+    pub tone: u8,     // 0=none, 1=circumflex, 2=horn
+    pub mark: u8,     // 0=none, 1-5=sắc/huyền/hỏi/ngã/nặng
+    pub stroke: bool, // d → đ
 }
 
-/// Cách xử lý case
-enum CaseMode {
-    /// Giữ nguyên replacement như đã định nghĩa
-    Exact,
-
-    /// Match case của trigger
-    /// "vn" → "Việt Nam", "VN" → "VIỆT NAM", "Vn" → "Việt Nam"
-    MatchCase,
-
-    /// Case-insensitive match, giữ nguyên replacement
-    IgnoreCase,
-}
-
-/// Bảng shortcut
-struct ShortcutTable {
-    shortcuts: Vec<Shortcut>,
-
-    /// Index để lookup nhanh theo trigger
-    trigger_index: HashMap<String, usize>,
-}
+Ref: core/src/engine/buffer.rs
 ```
 
-### 10.3 Pipeline tích hợp
-
-```
-SHORTCUT PIPELINE (TÍCH HỢP VÀO V2):
-│
-on_key(key, caps)
-│
-├─► [is_break(key)?] ──► clear buffer ──► return NONE
-│
-├─► [key == DELETE?] ──► pop buffer ──► return NONE
-│
-│   ╔══════════════════════════════════════════════════════════╗
-│   ║  ★ SHORTCUT CHECK - ƯU TIÊN CAO NHẤT                    ║
-│   ╚══════════════════════════════════════════════════════════╝
-│
-├─► [STEP 0: Check Shortcut] ◄────────────── ★ MỚI
-│   │
-│   ├── is_shortcut_trigger(buffer, key)?
-│   │   │
-│   │   ├── Tìm trong shortcut_table
-│   │   │   └── trigger_word = buffer_to_string()
-│   │   │
-│   │   ├── Kiểm tra condition:
-│   │   │   ├── Immediate → match ngay
-│   │   │   ├── OnWordBoundary → key là space/enter/punctuation?
-│   │   │   ├── OnChar(c) → key == c?
-│   │   │   └── OnPunctuation → !key.is_alphanumeric()?
-│   │   │
-│   │   └── Nếu match:
-│   │       ├── Apply case transformation (nếu MatchCase)
-│   │       ├── backspace_count = trigger.len()
-│   │       ├── output = replacement + (key nếu OnWordBoundary)
-│   │       └── return Result::send(backspace_count, output)
-│   │
-│   └── Không match → tiếp tục pipeline bình thường
-│
-├─► [is_modifier(key)?] ──► Vietnamese transformation (như cũ)
-│   │
-│   ... (các bước V2 như đã định nghĩa)
-│
-└─► [is_letter(key)?] ──► push to buffer ──► return NONE
-```
-
-### 10.4 Thuật toán Shortcut Matching
-
-```
-shortcut_match(buffer, key, table) → Option<ShortcutResult>
-│
-├── STEP 1: Lấy trigger string từ buffer
-│   └── trigger = buffer_to_string().to_lowercase() // nếu IgnoreCase
-│
-├── STEP 2: Lookup trong table
-│   │
-│   ├── exact_match = table.get(trigger)
-│   │
-│   └── Nếu không tìm thấy → return None
-│
-├── STEP 3: Kiểm tra condition
-│   │
-│   ├── Immediate:
-│   │   └── return Some(match) // trigger ngay
-│   │
-│   ├── OnWordBoundary:
-│   │   ├── key ∈ {' ', '\n', '\t', '.', ',', ';', ':', '!', '?'}?
-│   │   │   ├── YES → return Some(match)
-│   │   │   └── NO → return None
-│   │
-│   ├── OnChar(expected):
-│   │   ├── key == expected?
-│   │   │   ├── YES → return Some(match)
-│   │   │   └── NO → return None
-│   │
-│   └── OnPunctuation:
-│       ├── !key.is_alphanumeric()?
-│       │   ├── YES → return Some(match)
-│       │   └── NO → return None
-│
-├── STEP 4: Apply case transformation
-│   │
-│   ├── CaseMode::Exact:
-│   │   └── output = replacement (giữ nguyên)
-│   │
-│   ├── CaseMode::MatchCase:
-│   │   ├── trigger all uppercase? → output = replacement.to_uppercase()
-│   │   ├── trigger first char upper? → output = replacement.capitalize()
-│   │   └── else → output = replacement
-│   │
-│   └── CaseMode::IgnoreCase:
-│       └── output = replacement (giữ nguyên)
-│
-└── STEP 5: Return result
-    └── ShortcutResult {
-            backspace_count: trigger.len(),
-            output: output,
-            include_trigger_key: condition != Immediate,
-        }
-
-────────────────────────────────────────────────────────────
-
-VÍ DỤ MATCHING:
-
-"vn" + SPACE (condition = OnWordBoundary):
-├── buffer = ['v', 'n']
-├── trigger = "vn"
-├── key = ' ' (space)
-├── Lookup: shortcut_table["vn"] = { replacement: "Việt Nam", condition: OnWordBoundary }
-├── Check condition: ' ' is word boundary → YES
-├── CaseMode: MatchCase
-│   └── "vn" is lowercase → output = "Việt Nam"
-├── backspace_count = 2
-├── output = "Việt Nam "  // bao gồm space
-└── Result::send(2, "Việt Nam ")
-
-"VN" + SPACE (condition = OnWordBoundary, CaseMode = MatchCase):
-├── buffer = ['V', 'N']
-├── trigger = "VN"
-├── Check: "VN".to_lowercase() = "vn" → match
-├── CaseMode: MatchCase
-│   └── "VN" is all uppercase → output = "VIỆT NAM"
-└── Result::send(2, "VIỆT NAM ")
-
-"w" (condition = Immediate):
-├── buffer = ['w']
-├── Lookup: shortcut_table["w"] = { replacement: "ư", condition: Immediate }
-├── Immediate → trigger ngay, không cần thêm key
-├── backspace_count = 1
-└── Result::send(1, "ư")
-```
-
-### 10.5 Conflict Resolution
-
-```
-CONFLICT RESOLUTION:
-│
-├── NGUYÊN TẮC: Shortcut > Vietnamese Transformation
-│   │
-│   ├── Shortcut được check TRƯỚC modifier detection
-│   │
-│   └── VÍ DỤ: "w" được định nghĩa là shortcut → "ư"
-│       ├── Không cần Vietnamese transformation
-│       └── Trigger ngay khi gõ 'w'
-│
-├── LONGEST MATCH FIRST
-│   │
-│   ├── Nếu có nhiều shortcut có thể match:
-│   │   ├── "h" → "họ"
-│   │   ├── "hcm" → "Hồ Chí Minh"
-│   │   │
-│   │   └── Khi buffer = "hcm":
-│   │       ├── Ưu tiên "hcm" (dài nhất)
-│   │       └── Không trigger "h"
-│   │
-│   └── Implementation:
-│       └── Sort shortcuts by trigger length DESC
-│
-├── EXACT vs PREFIX MATCH
-│   │
-│   ├── Default: EXACT match only
-│   │   └── "vn" chỉ match "vn", không match "vna"
-│   │
-│   └── Nếu muốn prefix match → dùng condition OnWordBoundary
-│
-└── ESCAPE MECHANISM
-    │
-    ├── Để gõ chính xác trigger word:
-    │   ├── Double-key: "vn" + 'n' → "vnn" (cancel shortcut)
-    │   └── Escape key: Ctrl+\ hoặc ký tự escape
-    │
-    └── Config option: escape_char
-```
-
-### 10.6 Storage Format
-
-```
-SHORTCUT FILE FORMAT (JSON):
-│
-├── File location: ~/.gonhanh/shortcuts.json
-│
-└── Format:
-
-{
-  "version": 1,
-  "shortcuts": [
-    {
-      "trigger": "vn",
-      "replacement": "Việt Nam",
-      "condition": "on_word_boundary",
-      "case_mode": "match_case",
-      "enabled": true
-    },
-    {
-      "trigger": "w",
-      "replacement": "ư",
-      "condition": "immediate",
-      "case_mode": "exact",
-      "enabled": true
-    },
-    {
-      "trigger": "hcm",
-      "replacement": "Hồ Chí Minh",
-      "condition": "on_word_boundary",
-      "case_mode": "match_case",
-      "enabled": true
-    },
-    {
-      "trigger": "dc",
-      "replacement": "được",
-      "condition": "on_word_boundary",
-      "case_mode": "match_case",
-      "enabled": true
-    },
-    {
-      "trigger": "ko",
-      "replacement": "không",
-      "condition": "on_word_boundary",
-      "case_mode": "match_case",
-      "enabled": true
-    }
-  ]
-}
-
-────────────────────────────────────────────────────────────
-
-CONDITION VALUES:
-├── "immediate"        → Trigger ngay
-├── "on_word_boundary" → Trigger khi space/enter/punctuation
-├── "on_char:X"        → Trigger khi gặp ký tự X
-└── "on_punctuation"   → Trigger khi gặp punctuation
-
-CASE_MODE VALUES:
-├── "exact"       → Giữ nguyên replacement
-├── "match_case"  → Match case của trigger
-└── "ignore_case" → Case-insensitive trigger, giữ nguyên replacement
-```
-
-### 10.7 Default Shortcuts
-
-```
-DEFAULT SHORTCUTS (Built-in):
-│
-├── NGUYÊN ÂM ĐẶC BIỆT (condition: immediate)
-│   ├── "w" → "ư"      // Telex-style shortcut
-│   └── (optional, user có thể disable)
-│
-├── TỪ VIẾT TẮT THÔNG DỤNG (condition: on_word_boundary)
-│   ├── "dc"   → "được"
-│   ├── "ko"   → "không"
-│   ├── "bth"  → "bình thường"
-│   ├── "ns"   → "nói chuyện"
-│   ├── "oy"   → "okay"
-│   ├── "ntn"  → "như thế nào"
-│   └── "lun"  → "luôn"
-│
-├── ĐỊA DANH (condition: on_word_boundary)
-│   ├── "vn"    → "Việt Nam"
-│   ├── "hcm"   → "Hồ Chí Minh"
-│   ├── "tphcm" → "Thành phố Hồ Chí Minh"
-│   ├── "hn"    → "Hà Nội"
-│   ├── "dn"    → "Đà Nẵng"
-│   └── "sg"    → "Sài Gòn"
-│
-└── TỔ CHỨC (condition: on_word_boundary)
-    ├── "byt"  → "Bộ Y tế"
-    ├── "bgd"  → "Bộ Giáo dục"
-    └── "cp"   → "Chính phủ"
-```
-
-### 10.8 API cho User Configuration
+### 11.2 Vowel Table
 
 ```rust
-/// API để quản lý shortcuts
-impl ShortcutTable {
-    /// Load từ file
-    fn load_from_file(path: &Path) -> Result<Self, Error>;
+/// 72-entry vowel lookup (12 bases × 5 marks + tones)
+const VOWELS: [(u32, u32, u32, u32, u32, u32); 72] = [
+    // (base, sắc, huyền, hỏi, ngã, nặng)
+    ('a', 'á', 'à', 'ả', 'ã', 'ạ'),
+    ('ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ'),
+    ('â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ'),
+    // ... 12 bases × 6 variants
+];
 
-    /// Save ra file
-    fn save_to_file(&self, path: &Path) -> Result<(), Error>;
-
-    /// Thêm shortcut mới
-    fn add(&mut self, shortcut: Shortcut) -> Result<(), Error>;
-
-    /// Xóa shortcut
-    fn remove(&mut self, trigger: &str) -> bool;
-
-    /// Update shortcut
-    fn update(&mut self, trigger: &str, shortcut: Shortcut) -> Result<(), Error>;
-
-    /// Enable/disable
-    fn set_enabled(&mut self, trigger: &str, enabled: bool);
-
-    /// Lookup
-    fn lookup(&self, trigger: &str) -> Option<&Shortcut>;
-
-    /// Get all shortcuts
-    fn list(&self) -> &[Shortcut];
-
-    /// Import từ file khác (CSV, JSON)
-    fn import(&mut self, source: &Path) -> Result<usize, Error>;
-
-    /// Export ra file
-    fn export(&self, dest: &Path, format: ExportFormat) -> Result<(), Error>;
-}
+Ref: core/src/data/chars.rs
 ```
 
 ---
 
-## 11. TÓM TẮT
+## 12. FFI INTERFACE
+
+```rust
+/// Initialize engine
+#[no_mangle]
+pub extern "C" fn ime_init() -> *mut Engine
+
+/// Process keystroke
+#[no_mangle]
+pub extern "C" fn ime_key(engine: *mut Engine, key: u16, caps: bool, ctrl: bool) -> Result
+
+/// Process keystroke with Shift
+#[no_mangle]
+pub extern "C" fn ime_key_ext(engine: *mut Engine, key: u16, caps: bool, ctrl: bool, shift: bool) -> Result
+
+/// Set input method (0=Telex, 1=VNI)
+#[no_mangle]
+pub extern "C" fn ime_method(engine: *mut Engine, method: u8)
+
+/// Enable/disable engine
+#[no_mangle]
+pub extern "C" fn ime_enabled(engine: *mut Engine, enabled: bool)
+
+/// Clear buffer
+#[no_mangle]
+pub extern "C" fn ime_clear(engine: *mut Engine)
+
+/// Free engine
+#[no_mangle]
+pub extern "C" fn ime_free(engine: *mut Engine)
+
+Ref: core/src/lib.rs
+```
+
+---
+
+## 13. EXAMPLES
+
+### 13.1 Complete Flow: "được"
 
 ```
-GONHANH ENGINE V2 SUMMARY
-│
-├── NGUYÊN TẮC CHÍNH
-│   ├── 1. SHORTCUT FIRST - Check bảng gõ tắt trước tiên
-│   ├── 2. VALIDATION FIRST - Validate buffer trước khi transform
-│   ├── 3. Pattern-based replacement (không case-by-case)
-│   ├── 4. Longest-match-first cho vị trí đặt dấu
-│   └── 5. Flexible input order
-│
-├── SHORTCUT TABLE (★ MỚI)
-│   ├── User-defined abbreviations ("vn" → "Việt Nam")
-│   ├── Multiple trigger conditions (immediate, on_word_boundary)
-│   ├── Case handling (exact, match_case, ignore_case)
-│   ├── Ưu tiên cao hơn Vietnamese transformation
-│   └── Configurable via ~/.gonhanh/shortcuts.json
-│
-├── VALIDATION
-│   ├── Kiểm tra syllable structure
-│   ├── Áp dụng quy tắc chính tả (c/k, g/gh, ng/ngh)
-│   ├── Áp dụng quy tắc tone+stop consonant
-│   └── Bảo vệ từ tiếng Anh/code/URL
-│
-├── PATTERN ENGINE
-│   ├── Scan toàn bộ buffer
-│   ├── Match patterns dài trước
-│   ├── UO compound handling
-│   └── Flexible 'd' position for đ
-│
-├── SỬA BUG
-│   ├── "Dod" → "Đo" ✓
-│   ├── "Claus" không bị transform ✓
-│   └── Thứ tự gõ linh hoạt ✓
-│
-└── BACKWARD COMPATIBLE
-    ├── Giữ double-key revert
-    ├── Giữ Telex/VNI rules
-    └── Giữ Unicode output format
+User types: d → u → o → c → w → j
+
+1. 'd':
+   ├── Stage 1-5: not modifier
+   ├── Stage 6: push 'd' to buffer
+   └── buffer = ['d']
+
+2. 'u':
+   ├── Stage 1-5: not modifier
+   ├── Stage 6: push 'u' to buffer
+   └── buffer = ['d', 'u']
+
+3. 'o':
+   ├── Stage 1-5: not modifier
+   ├── Stage 6: push 'o' to buffer
+   └── buffer = ['d', 'u', 'o']
+
+4. 'c':
+   ├── Stage 1-5: not modifier
+   ├── Stage 6: push 'c' to buffer
+   └── buffer = ['d', 'u', 'o', 'c']
+
+5. 'w' (horn modifier):
+   ├── Stage 2: try_tone()
+   │   ├── Validate: "duoc" → VALID ✓
+   │   ├── Find UO compound at positions 1-2
+   │   ├── Apply HORN to both: u→ư, o→ơ
+   │   └── Return: backspace=3, "ươc"
+   └── Output: delete "uoc", type "ươc" → "dươc"
+
+6. 'j' (nặng modifier):
+   ├── Stage 3: try_mark()
+   │   ├── Validate: "dươc" → VALID ✓
+   │   ├── Collect vowels: [ư, ơ]
+   │   ├── Find position: has_final=true → pos=1 (ơ)
+   │   ├── Apply mark: ơ + nặng → ợ
+   │   └── Return: backspace=2, "ợc"
+   └── Output: delete "ơc", type "ợc" → "dượC"
+
+Final: "được" ✓
+```
+
+### 13.2 Validation Rejection: "Claus"
+
+```
+User types: C → l → a → u → s
+
+1-4. 'C', 'l', 'a', 'u':
+   ├── All normal letters
+   └── buffer = ['C', 'l', 'a', 'u']
+
+5. 's' (mark modifier):
+   ├── Stage 3: try_mark()
+   │   ├── Validate: "Clau" → INVALID ✗
+   │   │   └── initial = "cl" ∉ VALID_INITIALS
+   │   └── Return None (không transform)
+   ├── Stage 6: push 's' to buffer
+   └── buffer = ['C', 'l', 'a', 'u', 's']
+
+Final: "Claus" (không bị biến đổi) ✓
 ```
 
 ---
 
 ## Changelog
 
-- **2025-12-08**: Bổ sung Bảng gõ tắt (Shortcut Table)
-  - Thêm Section 10: BẢNG GÕ TẮT
-  - Cấu trúc dữ liệu (Shortcut, TriggerCondition, CaseMode)
-  - Pipeline tích hợp (Shortcut check ưu tiên cao nhất)
-  - Thuật toán matching và conflict resolution
-  - Storage format (JSON)
-  - Default shortcuts
-  - API cho user configuration
-
-- **2025-12-08**: Tạo tài liệu V2
-  - Phân tích vấn đề với V1 (case-by-case processing)
-  - Thiết kế kiến trúc mới (pattern-based, validation-first)
-  - Chi tiết validation pipeline
-  - Chi tiết pattern replacement engine
-  - So sánh V1 vs V2
-  - Implementation roadmap
+- **2025-12-10**: Viết lại hoàn toàn
+  - Loại bỏ V1/V2 terminology
+  - Đối chiếu với code thực tế trong core/src/
+  - Thêm references đến source files
+  - Cập nhật cấu trúc theo 7-stage pipeline
+  - Thêm ví dụ thực tế với flow chi tiết
 
 ---
 
-*Tài liệu thiết kế cho GoNhanh Core Engine V2*
+*Tài liệu thuật toán GoNhanh Core Engine*

@@ -9,7 +9,7 @@ enum UpdateState {
     case available(UpdateInfo)
     case upToDate
     case downloading(progress: Double)
-    case readyToInstall(dmgPath: URL)
+    case installing
     case error(String)
 }
 
@@ -22,9 +22,9 @@ class UpdateManager: NSObject, ObservableObject {
     @Published var lastCheckDate: Date?
 
     private var downloadTask: URLSessionDownloadTask?
-    private var downloadedDMGPath: URL?
+    private var downloadingVersion: String?
 
-    private let autoCheckInterval: TimeInterval = 24 * 60 * 60  // 24 hours
+    private let autoCheckInterval: TimeInterval = 24 * 60 * 60
     private let autoCheckKey = "gonhanh.update.lastCheck"
     private let skipVersionKey = "gonhanh.update.skipVersion"
 
@@ -35,49 +35,32 @@ class UpdateManager: NSObject, ObservableObject {
 
     // MARK: - Public API
 
-    /// Check for updates manually (UI will show in UpdateView)
     func checkForUpdatesManually() {
         checkForUpdates(silent: false)
     }
 
-    /// Check for updates silently (background check)
     func checkForUpdatesSilently() {
-        if let lastCheck = lastCheckDate,
-           Date().timeIntervalSince(lastCheck) < autoCheckInterval {
+        guard let lastCheck = lastCheckDate,
+              Date().timeIntervalSince(lastCheck) >= autoCheckInterval else {
             return
         }
         checkForUpdates(silent: true)
     }
 
-    /// Download the update
     func downloadUpdate(_ info: UpdateInfo) {
         state = .downloading(progress: 0)
+        downloadingVersion = info.version
 
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
         downloadTask = session.downloadTask(with: info.downloadURL)
         downloadTask?.resume()
     }
 
-    /// Install the downloaded update
-    func installUpdate() {
-        guard case .readyToInstall(let dmgPath) = state else { return }
-
-        // Open the DMG file
-        NSWorkspace.shared.open(dmgPath)
-
-        // Quit the app to allow replacement
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApp.terminate(nil)
-        }
-    }
-
-    /// Skip this version
     func skipVersion(_ version: String) {
         UserDefaults.standard.set(version, forKey: skipVersionKey)
         state = .idle
     }
 
-    /// Cancel ongoing download
     func cancelDownload() {
         downloadTask?.cancel()
         downloadTask = nil
@@ -87,32 +70,23 @@ class UpdateManager: NSObject, ObservableObject {
     // MARK: - Private Methods
 
     private func checkForUpdates(silent: Bool) {
-        if !silent {
-            state = .checking
-        }
+        if !silent { state = .checking }
 
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self = self else { return }
 
-            // Save check date
             self.lastCheckDate = Date()
             UserDefaults.standard.set(self.lastCheckDate, forKey: self.autoCheckKey)
 
             switch result {
             case .available(let info):
-                // Check if user skipped this version
-                let skippedVersion = UserDefaults.standard.string(forKey: self.skipVersionKey)
-                if silent && skippedVersion == info.version {
+                let skipped = UserDefaults.standard.string(forKey: self.skipVersionKey)
+                if silent && skipped == info.version {
                     self.state = .idle
                     return
                 }
-
                 self.state = .available(info)
-
-                // Only show notification for background check
-                if silent {
-                    self.showUpdateNotification(info)
-                }
+                if silent { self.showUpdateNotification(info) }
 
             case .upToDate:
                 self.state = .upToDate
@@ -123,56 +97,146 @@ class UpdateManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Notification (for background check only)
-
     private func showUpdateNotification(_ info: UpdateInfo) {
         let notification = NSUserNotification()
         notification.title = "GoNhanh - Có phiên bản mới"
-        notification.informativeText = "Phiên bản \(info.version) đã sẵn sàng để tải về."
+        notification.informativeText = "Phiên bản \(info.version) đã sẵn sàng."
         notification.soundName = NSUserNotificationDefaultSoundName
         notification.hasActionButton = true
         notification.actionButtonTitle = "Xem"
-
         NSUserNotificationCenter.default.deliver(notification)
+    }
+
+    // MARK: - Install
+
+    private func install(dmgPath: URL) {
+        state = .installing
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = self.prepareInstall(dmgPath: dmgPath)
+
+            DispatchQueue.main.async {
+                switch result {
+                case .success(tempApp: let tempApp):
+                    self.relaunchWithNewApp(tempApp: tempApp)
+                case .failure(error: let error):
+                    self.state = .error(error)
+                }
+            }
+        }
+    }
+
+    private enum InstallResult {
+        case success(tempApp: String)
+        case failure(error: String)
+    }
+
+    private func prepareInstall(dmgPath: URL) -> InstallResult {
+        let appName = "GoNhanh.app"
+
+        // Unmount any existing GoNhanh volumes
+        shell("hdiutil detach /Volumes/GoNhanh -force 2>/dev/null")
+        shell("for v in /Volumes/GoNhanh*; do hdiutil detach \"$v\" -force 2>/dev/null; done")
+
+        // Mount DMG
+        let mountOutput = shell("hdiutil attach '\(dmgPath.path)' -nobrowse")
+        guard mountOutput.ok else {
+            return .failure(error: "Không thể mở file cài đặt.")
+        }
+
+        // Parse mount point from hdiutil output
+        let lines = mountOutput.output.components(separatedBy: "\n")
+        var mountPoint = ""
+        for line in lines.reversed() {
+            if line.contains("/Volumes/") {
+                if let range = line.range(of: "/Volumes/") {
+                    mountPoint = String(line[range.lowerBound...]).trimmingCharacters(in: .whitespaces)
+                    break
+                }
+            }
+        }
+
+        let sourceApp = "\(mountPoint)/\(appName)"
+
+        guard !mountPoint.isEmpty, FileManager.default.fileExists(atPath: sourceApp) else {
+            shell("hdiutil detach '\(mountPoint)' -force 2>/dev/null")
+            return .failure(error: "File cài đặt bị lỗi.")
+        }
+
+        // Copy to temp location
+        let tempApp = "/tmp/GoNhanh-update.app"
+        shell("rm -rf '\(tempApp)'")
+        guard shell("cp -R '\(sourceApp)' '\(tempApp)'").ok else {
+            shell("hdiutil detach '\(mountPoint)' -force")
+            return .failure(error: "Không thể chuẩn bị cài đặt.")
+        }
+
+        // Unmount DMG
+        shell("hdiutil detach '\(mountPoint)' -force")
+
+        return .success(tempApp: tempApp)
+    }
+
+    private func relaunchWithNewApp(tempApp: String) {
+        let destApp = "/Applications/GoNhanh.app"
+        let script = "sleep 0.5 && rm -rf '\(destApp)' && mv '\(tempApp)' '\(destApp)' && open '\(destApp)'"
+
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", script]
+        try? task.run()
+
+        NSApp.terminate(nil)
+    }
+
+    @discardableResult
+    private func shell(_ command: String) -> (output: String, ok: Bool) {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", command]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        try? process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+        return (output.trimmingCharacters(in: .whitespacesAndNewlines), process.terminationStatus == 0)
     }
 }
 
 // MARK: - URLSession Download Delegate
 
 extension UpdateManager: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let destinationURL = downloadsURL.appendingPathComponent("GoNhanh.dmg")
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        let tempDir = FileManager.default.temporaryDirectory
+        let version = downloadingVersion ?? "latest"
+        let dmgPath = tempDir.appendingPathComponent("GoNhanh-\(version).dmg")
 
         do {
-            // Remove old file if exists
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
+            if FileManager.default.fileExists(atPath: dmgPath.path) {
+                try FileManager.default.removeItem(at: dmgPath)
             }
-
-            // Copy instead of move to avoid cross-volume errors
-            try FileManager.default.copyItem(at: location, to: destinationURL)
-
-            downloadedDMGPath = destinationURL
-            state = .readyToInstall(dmgPath: destinationURL)
-
+            try FileManager.default.copyItem(at: location, to: dmgPath)
+            install(dmgPath: dmgPath)
         } catch {
             state = .error("Không thể lưu file: \(error.localizedDescription)")
         }
     }
 
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        state = .downloading(progress: progress)
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        state = .downloading(progress: Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            if (error as NSError).code == NSURLErrorCancelled {
-                state = .idle
-            } else {
-                state = .error("Tải về thất bại: \(error.localizedDescription)")
-            }
+        guard let error = error else { return }
+        if (error as NSError).code == NSURLErrorCancelled {
+            state = .idle
+        } else {
+            state = .error("Tải về thất bại: \(error.localizedDescription)")
         }
     }
 }

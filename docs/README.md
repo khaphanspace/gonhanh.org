@@ -172,13 +172,22 @@ Always include documentation updates in the same PR as code changes.
 
 ## Statistics
 
-- **Rust Code**: ~3,500 lines (core engine)
-- **Swift Code**: ~765 lines (macOS UI)
-- **Tests**: 160+ integration tests
-- **Documentation**: 1,090 lines (this folder)
+- **Rust Code**: ~3,500 lines (core engine, platform-agnostic)
+- **Swift Code**: ~1,700 lines (macOS UI + bridge)
+- **C# Code**: ~1,400 lines (Windows UI + bridge)
+- **Tests**: 160+ integration tests, 2100+ lines
+- **Documentation**: 2,200+ lines (this folder + CLAUDE.md)
 - **Coverage**: 100% of modules documented
+- **Platforms**: macOS (production), Windows (production), Linux (placeholder)
+
+### Build Statistics
+- **Total Repository**: ~100,800 tokens, 385,000+ characters (repomix analysis)
+- **Rust only**: ~51,159 tokens
+- **All platforms**: ~100,838 tokens
 
 ---
 
-**Last Updated**: 2025-12-09
-**Status**: Ready for team review and contributor onboarding
+**Last Updated**: 2025-12-10
+**Status**: Production-ready for team development
+**Platforms**: macOS (v1.0.21+), Windows (production), Linux (planned)
+**Repository**: https://github.com/khaphanspace/gonhanh.org

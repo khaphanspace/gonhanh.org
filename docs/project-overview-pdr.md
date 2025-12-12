@@ -2,14 +2,15 @@
 
 ## Project Vision
 
-Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS that enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, SwiftUI for native macOS integration, and validated patterns for Vietnamese phonology.
+Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS and Windows with a platform-agnostic Rust core. It enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, native UI (SwiftUI on macOS, WPF on Windows), and validation-first transformation pipeline for Vietnamese phonology.
 
 ## Product Goals
 
 1. **Performance**: Sub-millisecond keystroke latency (<1ms)
-2. **Reliability**: Comprehensive validation-first transformation pipeline
-3. **User Experience**: Seamless platform integration via CGEventTap keyboard hook
-4. **Memory Efficiency**: ~5MB memory footprint with optimized binary packaging
+2. **Reliability**: Validation-first architecture (phonology rules checked BEFORE transformation)
+3. **Cross-Platform**: macOS + Windows + Linux (planned) with consistent core engine
+4. **User Experience**: Seamless platform integration (CGEventTap on macOS, SetWindowsHookEx on Windows)
+5. **Memory Efficiency**: ~5MB memory footprint with optimized binary packaging
 
 ## Target Users
 
@@ -64,49 +65,75 @@ Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for mac
 ## Architecture Overview
 
 ```
-User Keystroke (CGEventTap)
+User Keystroke (CGEventTap/SetWindowsHookEx)
         ↓
-   RustBridge (FFI Bridge)
+   Platform Bridge (RustBridge.swift / RustBridge.cs)
         ↓
-   Rust Engine (ime_key)
-    ├─ Buffer Management (circular 64-char)
-    ├─ Validation (Vietnamese syllable rules)
-    ├─ Transform (diacritics + tone modifiers)
-    └─ Shortcut Lookup (user-defined abbreviations)
+   Rust Engine (ime_key) - Validation-First 7-Stage Pipeline
+    ├─ Stage 1: Stroke Detection (đ/Đ)
+    ├─ Stage 2: Tone Mark Detection (sắc/huyền/hỏi/ngã/nặng)
+    ├─ Stage 3: Vowel Mark Detection (circumflex/horn/breve)
+    ├─ Stage 4: Mark Removal (revert previous marks)
+    ├─ Stage 5: W-Vowel Handling (Telex-specific, "w"→"ư")
+    ├─ Stage 6: Normal Letter Processing (pass-through)
+    └─ Stage 7: Shortcut Expansion (user-defined abbreviations)
+        ↓
+   Validation (5 Vietnamese Phonology Rules) - Applied BEFORE Transform
+    ├─ Rule 1: Must have vowel
+    ├─ Rule 2: Valid initial consonants only
+    ├─ Rule 3: All characters parsed
+    ├─ Rule 4: Spelling rules (c/k/g restrictions)
+    └─ Rule 5: Valid final consonants only
+        ↓
+   Transform & Output (apply diacritics, tone marks)
         ↓
    Result (action, backspace count, output chars)
         ↓
-   SwiftUI (Send text or pass through)
+   Platform UI (SwiftUI on macOS, WPF on Windows - Send text or pass through)
 ```
 
 ## Success Metrics
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Keystroke latency | <1ms | ~0.2-0.5ms |
-| Memory usage | <10MB | ~5MB |
-| Test coverage | >90% | 160+ tests |
-| macOS compatibility | 10.15+ | Validated |
-| User satisfaction | 4.5/5 stars | Active community |
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| Keystroke latency | <1ms | ~0.2-0.5ms | ✓ Exceeds |
+| Memory usage | <10MB | ~5MB | ✓ Exceeds |
+| Test coverage | >90% | 160+ tests, 2100+ lines | ✓ Exceeds |
+| macOS compatibility | 10.15+ | 10.15+ universal binary | ✓ Met |
+| Code quality | Zero warnings | `cargo clippy -D warnings` | ✓ Met |
+| Cross-platform | macOS + Windows | Both production-ready | ✓ Met |
 
 ## Roadmap
 
-### Phase 1: macOS (Complete)
+### Phase 1: macOS (Complete - v1.0.21+)
 - Telex + VNI input methods
 - Menu bar app with settings
 - Auto-launch on login
 - Update checker via GitHub releases
+- Validation-first architecture
+- Shortcut system with priority matching
 
-### Phase 2: Cross-Platform (Planned)
-- **Windows 10/11**: DirectX keyboard hook + C# WPF UI
-- **Linux**: X11/Wayland event hook + Qt UI
+### Phase 2: Cross-Platform (Partial - Windows Complete)
+
+**Windows 10/11 (Complete)**
+- SetWindowsHookEx keyboard hook
+- WPF/.NET 8 UI with system tray
+- Registry-based settings persistence
 - Feature parity with macOS version
+- Compiled DLL shared with macOS core
+
+**Linux (Planned)**
+- X11/Wayland event hook integration
+- Qt or GTK UI
+- XDG config for settings persistence
+- Feature parity with macOS/Windows
 
 ### Phase 3: Enhanced Features (Future)
 - Cloud sync for user preferences
 - Machine learning for shortcut suggestions
 - Dictionary lookup integration
 - Advanced diacritics editor
+- Mobile support (iOS/Android)
 
 ## Development Standards
 
@@ -183,6 +210,7 @@ Examples:
 
 ---
 
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-10
 **Status**: Active Development
+**Platforms**: macOS (v1.0.21+), Windows (production), Linux (planned)
 **Repository**: https://github.com/khaphanspace/gonhanh.org

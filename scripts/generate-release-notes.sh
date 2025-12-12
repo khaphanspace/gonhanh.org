@@ -9,15 +9,15 @@
 VERSION="${1:-next}"
 FROM_REF="$2"
 
-# Determine starting point - prefer local tag (GitHub release may not exist yet)
+# Determine starting point - prefer GitHub release (actual published release)
 if [ -z "$FROM_REF" ]; then
-    # Get most recent tag from local git
-    FROM_REF=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+    # Get most recent release from GitHub (not local tags which may not be released yet)
+    FROM_REF=$(gh release view --json tagName -q .tagName 2>/dev/null || echo "")
 fi
 
-# Fallback: get from GitHub release
+# Fallback: get from local tag
 if [ -z "$FROM_REF" ]; then
-    FROM_REF=$(gh release view --json tagName -q .tagName 2>/dev/null || echo "")
+    FROM_REF=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 fi
 
 # Final fallback: last 20 commits
@@ -43,7 +43,14 @@ fi
 
 echo "📊 Found $(echo "$COMMITS" | wc -l | tr -d ' ') commits" >&2
 
-opencode run --format json "Tạo release notes cho version $VERSION của 'Gõ Nhanh' (Vietnamese IME for macOS).
+# Try AI-generated release notes first
+PROMPT="Tạo release notes cho version $VERSION của 'Gõ Nhanh' (Vietnamese IME for macOS).
+Quy tắc:
+- Phân tích code changes để hiểu thay đổi thực sự, không chỉ dựa vào commit message
+- Nhóm theo: 🐛 Sửa lỗi, ⚡ Cải thiện, 🔧 Khác (bỏ section rỗng)
+- Mỗi item: 1 dòng, súc tích, mô tả user-facing changes
+- Viết tiếng Việt (có thể dùng keywords tiếng Anh như build, config, API...)
+- Chỉ output markdown, không giải thích thêm
 
 ## Commits:
 $COMMITS
@@ -53,10 +60,26 @@ $DIFF_STAT
 
 ## Code changes (snippet):
 $DIFF_CONTENT
+"
 
-Quy tắc:
-- Phân tích code changes để hiểu thay đổi thực sự, không chỉ dựa vào commit message
-- Nhóm theo: 🐛 Sửa lỗi, ⚡ Cải thiện, 🔧 Khác (bỏ section rỗng)
-- Mỗi item: 1 dòng, súc tích, mô tả user-facing changes
-- Viết tiếng Việt (có thể dùng keywords tiếng Anh như build, config, API...)
-- Chỉ output markdown, không giải thích thêm" 2>/dev/null | jq -r 'select(.type == "text") | .part.text'
+# Try opencode first, with timeout (macOS compatible)
+AI_OUTPUT=""
+if command -v opencode &> /dev/null; then
+    # Use perl timeout for macOS compatibility (no coreutils needed)
+    AI_OUTPUT=$(perl -e 'alarm 60; exec @ARGV' opencode run --format json "$PROMPT" 2>/dev/null | jq -r 'select(.type == "text") | .part.text' 2>/dev/null || echo "")
+fi
+
+# If AI output is valid (non-empty and has actual content), use it
+if [ -n "$AI_OUTPUT" ] && [ ${#AI_OUTPUT} -gt 20 ]; then
+    echo "$AI_OUTPUT"
+    echo ""
+    echo "> Release note được tạo tự động bởi AI. Cảm ơn bạn đã sử dụng Gõ Nhanh."
+else
+    # Fallback: generate simple release notes from commits
+    echo "⚠️  AI generation failed, using fallback" >&2
+    echo "## What's Changed"
+    echo ""
+    echo "$COMMITS"
+    echo ""
+    echo "**Full Changelog**: https://github.com/khaphanspace/gonhanh.org/compare/$FROM_REF...$VERSION"
+fi
