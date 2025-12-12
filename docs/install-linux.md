@@ -1,71 +1,31 @@
 # Hướng dẫn cài đặt Gõ Nhanh trên Linux
 
-## Yêu cầu hệ thống
+## Cài đặt (1 lệnh)
+
+```bash
+curl -fsSL https://gonhanh.vn/install-linux.sh | bash
+```
+
+Xong! Restart Fcitx5 và thêm Gõ Nhanh trong `fcitx5-configtool`.
+
+---
+
+## Cài đặt thủ công
+
+### Yêu cầu
 
 - Ubuntu 22.04+ / Fedora 38+ / Arch Linux
-- Fcitx5 input method framework
-- Wayland hoặc X11
+- Fcitx5 (`sudo apt install fcitx5 fcitx5-configtool`)
 
-## Cài đặt nhanh
-
-### 1. Cài đặt Fcitx5 (nếu chưa có)
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install fcitx5 fcitx5-configtool
-```
-
-**Fedora:**
-```bash
-sudo dnf install fcitx5 fcitx5-configtool
-```
-
-**Arch Linux:**
-```bash
-sudo pacman -S fcitx5 fcitx5-configtool
-```
-
-### 2. Tải và cài đặt Gõ Nhanh
+### Các bước
 
 ```bash
-# Tải bản release mới nhất
-curl -LO https://github.com/user/gonhanh/releases/latest/download/gonhanh-linux-x64.tar.gz
+# 1. Tải và cài đặt
+curl -LO https://github.com/khaphanspace/gonhanh.org/releases/latest/download/gonhanh-linux.tar.gz
+tar xzf gonhanh-linux.tar.gz && cd gonhanh-linux && ./install.sh
 
-# Giải nén và cài đặt
-tar xzf gonhanh-linux-x64.tar.gz
-cd gonhanh-*-linux-x64
-./install.sh
-```
-
-### 3. Cấu hình Fcitx5
-
-```bash
-# Khởi động lại Fcitx5
-fcitx5 -r &
-
-# Mở cấu hình
-fcitx5-configtool
-```
-
-Trong Fcitx5 Configuration:
-1. Vào **Input Method** tab
-2. Click **Add Input Method**
-3. Tìm và chọn **GoNhanh**
-4. Click **OK**
-
-### 4. Thiết lập biến môi trường
-
-Thêm vào `~/.bashrc` hoặc `~/.zshrc`:
-
-```bash
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-```
-
-Sau đó logout/login hoặc chạy:
-```bash
-source ~/.bashrc
+# 2. Restart và cấu hình
+fcitx5 -r && fcitx5-configtool  # Input Method → Add → GoNhanh
 ```
 
 ## Sử dụng

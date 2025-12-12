@@ -116,8 +116,7 @@ jobs:
 
       - name: Package
         run: |
-          V="${GITHUB_REF_NAME#v}"
-          PKG="gonhanh-$V-linux-x64"
+          PKG="gonhanh-linux"
           mkdir -p "$PKG/lib" "$PKG/share/fcitx5/addon" "$PKG/share/fcitx5/inputmethod"
 
           cp platforms/linux/build/gonhanh.so "$PKG/lib/"
@@ -125,8 +124,6 @@ jobs:
           cp platforms/linux/data/gonhanh-addon.conf "$PKG/share/fcitx5/addon/gonhanh.conf"
           cp platforms/linux/data/gonhanh.conf "$PKG/share/fcitx5/inputmethod/"
           cp platforms/linux/README.md "$PKG/"
-
-          # Copy install script to root (it detects ../lib structure)
           cp platforms/linux/scripts/install.sh "$PKG/"
           chmod +x "$PKG/install.sh"
 
