@@ -124,8 +124,11 @@ jobs:
           cp core/target/release/libgonhanh_core.so "$PKG/lib/"
           cp platforms/linux/data/gonhanh-addon.conf "$PKG/share/fcitx5/addon/gonhanh.conf"
           cp platforms/linux/data/gonhanh.conf "$PKG/share/fcitx5/inputmethod/"
-          cp platforms/linux/scripts/install.sh "$PKG/"
           cp platforms/linux/README.md "$PKG/"
+
+          # Copy install script to root (it detects ../lib structure)
+          cp platforms/linux/scripts/install.sh "$PKG/"
+          chmod +x "$PKG/install.sh"
 
           tar -czvf "$PKG.tar.gz" "$PKG"
 
