@@ -78,8 +78,10 @@ void GoNhanhEngine::keyEvent(const fcitx::InputMethodEntry& entry,
     }
 
     // Skip if Ctrl or Alt is held (shortcuts)
-    if (key.states() & (fcitx::KeyState::Ctrl | fcitx::KeyState::Alt |
-                        fcitx::KeyState::Super)) {
+    auto states = key.states();
+    if (states.test(fcitx::KeyState::Ctrl) ||
+        states.test(fcitx::KeyState::Alt) ||
+        states.test(fcitx::KeyState::Super)) {
         RustBridge::clear();
         return;
     }
@@ -92,9 +94,9 @@ void GoNhanhEngine::keyEvent(const fcitx::InputMethodEntry& entry,
     }
 
     // Get modifier states
-    bool caps = (key.states() & fcitx::KeyState::CapsLock) != 0;
-    bool ctrl = (key.states() & fcitx::KeyState::Ctrl) != 0;
-    bool shift = (key.states() & fcitx::KeyState::Shift) != 0;
+    bool caps = states.test(fcitx::KeyState::CapsLock);
+    bool ctrl = states.test(fcitx::KeyState::Ctrl);
+    bool shift = states.test(fcitx::KeyState::Shift);
 
     // For letters: Shift XORs CapsLock (Shift+A with CapsLock = lowercase)
     if (KeycodeMap::isLetterKey(keysym)) {
