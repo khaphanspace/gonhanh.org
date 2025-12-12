@@ -3,7 +3,7 @@
 ## Cài đặt (1 lệnh)
 
 ```bash
-curl -fsSL https://gonhanh.vn/install-linux.sh | bash
+curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
 ```
 
 Xong! Restart Fcitx5 và thêm Gõ Nhanh trong `fcitx5-configtool`.
