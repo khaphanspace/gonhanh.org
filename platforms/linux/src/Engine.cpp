@@ -1,17 +1,40 @@
 #include "Engine.h"
 #include "KeycodeMap.h"
+#include <fstream>
+#include <cstdlib>
 
 namespace GoNhanh {
+
+// Load method from config file
+static InputMethod loadMethodFromConfig() {
+    const char* home = std::getenv("HOME");
+    if (!home) return InputMethod::Telex;
+
+    std::string path = std::string(home) + "/.config/gonhanh/method";
+    std::ifstream file(path);
+    if (!file) return InputMethod::Telex;
+
+    std::string method;
+    std::getline(file, method);
+
+    if (method == "vni" || method == "VNI") {
+        return InputMethod::VNI;
+    }
+    return InputMethod::Telex;
+}
 
 GoNhanhEngine::GoNhanhEngine(fcitx::Instance* instance)
     : fcitxInstance_(instance)
     , factory_([](fcitx::InputContext& ic) {
         return new GoNhanhState(&ic);
     })
+    , currentMethod_(loadMethodFromConfig())
 {
     // Initialize Rust core
     RustBridge::initialize();
-    GONHANH_INFO() << "GoNhanh engine initialized";
+    RustBridge::setMethod(currentMethod_);
+    GONHANH_INFO() << "GoNhanh engine initialized (method: "
+                   << (currentMethod_ == InputMethod::Telex ? "Telex" : "VNI") << ")";
 
     // Register input context property factory
     instance->inputContextManager().registerProperty("goNhanhState", &factory_);

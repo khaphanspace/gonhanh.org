@@ -12,10 +12,23 @@ fcitx5 -r && fcitx5-configtool
 
 ---
 
+## Cấu hình
+
+**Chuyển sang VNI:**
+```bash
+mkdir -p ~/.config/gonhanh && echo "vni" > ~/.config/gonhanh/method
+fcitx5 -r
+```
+
+**Chuyển về Telex (mặc định):**
+```bash
+echo "telex" > ~/.config/gonhanh/method
+fcitx5 -r
+```
+
 ## Phím tắt
 
 - **Ctrl+Space** - Bật/tắt bộ gõ
-- Mặc định: Telex
 
 ## Gỡ cài đặt
 
