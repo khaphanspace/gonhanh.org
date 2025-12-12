@@ -379,10 +379,16 @@ impl Engine {
 
         // Normal case: find last matching target
         if target_positions.is_empty() {
-            for (i, c) in self.buf.iter().enumerate().rev() {
-                if targets.contains(&c.key) && c.tone == tone::NONE {
-                    target_positions.push(i);
-                    break;
+            // For horn modifier, apply smart vowel selection based on Vietnamese phonology
+            if tone_type == ToneType::Horn {
+                target_positions = self.find_horn_target(targets);
+            } else {
+                // Non-horn modifiers: use standard target matching
+                for (i, c) in self.buf.iter().enumerate().rev() {
+                    if targets.contains(&c.key) && c.tone == tone::NONE {
+                        target_positions.push(i);
+                        break;
+                    }
                 }
             }
         }
@@ -467,6 +473,92 @@ impl Engine {
             }
         }
         false
+    }
+
+    /// Find target position for horn modifier (w key in Telex, 7/8 in VNI)
+    ///
+    /// Rules based on Vietnamese phonology:
+    /// - 'oa' medial pair: apply breve to 'a' (main vowel) - only if 'a' is in targets
+    /// - 'ua' with consonant before (mua, chua): apply horn to 'u'
+    /// - 'ua' without consonant or with 'q': apply breve to 'a' - only if 'a' is in targets
+    /// - Otherwise: apply to last matching target vowel, prioritizing u/o over a
+    fn find_horn_target(&self, targets: &[u16]) -> Vec<usize> {
+        let mut result = Vec::new();
+
+        // Find vowel positions that match targets
+        let vowels: Vec<(usize, u16)> = self
+            .buf
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| targets.contains(&c.key) && c.tone == tone::NONE)
+            .map(|(i, c)| (i, c.key))
+            .collect();
+
+        if vowels.is_empty() {
+            return result;
+        }
+
+        // Only apply special pair logic if 'a' is in targets (Telex mode)
+        // VNI mode uses 7 for horn (targets=[O,U]) and 8 for breve (targets=[A])
+        let has_a_target = targets.contains(&keys::A);
+
+        if has_a_target {
+            // Check for adjacent vowel pairs in the full buffer
+            for i in 0..self.buf.len().saturating_sub(1) {
+                let c1 = self.buf.get(i);
+                let c2 = self.buf.get(i + 1);
+
+                if let (Some(ch1), Some(ch2)) = (c1, c2) {
+                    if !keys::is_vowel(ch1.key) || !keys::is_vowel(ch2.key) {
+                        continue;
+                    }
+
+                    // 'oa' medial pair: apply breve to 'a'
+                    if ch1.key == keys::O && ch2.key == keys::A && ch2.tone == tone::NONE {
+                        result.push(i + 1);
+                        return result;
+                    }
+
+                    // 'ua' pair: check for preceding consonant
+                    if ch1.key == keys::U && ch2.key == keys::A {
+                        let preceding = if i > 0 {
+                            self.buf.get(i - 1).map(|c| c.key)
+                        } else {
+                            None
+                        };
+
+                        // If preceded by consonant (except 'q'), 'u' is main vowel
+                        let has_consonant_not_q = preceding
+                            .map(|k| keys::is_consonant(k) && k != keys::Q)
+                            .unwrap_or(false);
+
+                        if has_consonant_not_q && ch1.tone == tone::NONE {
+                            // 'Cua' pattern (mua, chua): apply horn to 'u'
+                            result.push(i);
+                        } else if ch2.tone == tone::NONE {
+                            // 'qua' or standalone 'ua': apply breve to 'a'
+                            result.push(i + 1);
+                        }
+                        return result;
+                    }
+                }
+            }
+        }
+
+        // No special pair found, use standard priority: u/o first, then a
+        for &(pos, k) in vowels.iter().rev() {
+            if k == keys::U || k == keys::O {
+                result.push(pos);
+                return result;
+            }
+        }
+
+        // No u/o found, apply to last matching target (could be 'a' in Telex)
+        if let Some(&(pos, _)) = vowels.last() {
+            result.push(pos);
+        }
+
+        result
     }
 
     /// Reposition mark after tone change

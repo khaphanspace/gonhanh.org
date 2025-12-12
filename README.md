@@ -40,7 +40,7 @@
 | **Nhấn đúp để hủy** | `aa` → `â`, nhấn `a` thêm lần nữa → `aa` |
 | **Nhanh & Nhẹ** | Độ trễ <1ms, chỉ dùng ~5MB RAM |
 | **Hoạt động mọi nơi** | Terminal, VS Code, Chrome, Word, Excel... |
-| **Ctrl+Space** | Chuyển đổi Anh/Việt nhanh chóng |
+| **Control+Space** | Chuyển đổi Anh/Việt nhanh chóng |
 | **Tự khởi động** | Chạy cùng hệ thống, không cần bật thủ công |
 
 ### Cam kết "Ba Không"

@@ -228,7 +228,7 @@ class KeyboardHookManager {
 
         RustBridge.initialize()
 
-        let mask: CGEventMask = 1 << CGEventType.keyDown.rawValue
+        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
         let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
                                     options: .defaultTap, eventsOfInterest: mask,
                                     callback: keyboardCallback, userInfo: nil)
@@ -281,6 +281,7 @@ class KeyboardHookManager {
 // MARK: - Keyboard Callback
 
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
+private var wasCtrlShiftPressed = false  // Track Ctrl+Shift state for toggle detection
 
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
@@ -291,7 +292,25 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
+    let flags = event.flags
+
+    // Handle Ctrl+Shift toggle (modifier-only shortcut)
+    if type == .flagsChanged {
+        let isCtrlShift = flags.contains(.maskControl) && flags.contains(.maskShift) && !flags.contains(.maskCommand)
+        if isCtrlShift {
+            wasCtrlShiftPressed = true
+        } else if wasCtrlShiftPressed {
+            // Ctrl+Shift was pressed and now one is released - toggle
+            wasCtrlShiftPressed = false
+            DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+        }
+        return Unmanaged.passUnretained(event)
+    }
+
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
+
+    // Reset Ctrl+Shift state if any key is pressed while modifiers are held
+    wasCtrlShiftPressed = false
 
     if event.getIntegerValueField(.eventSourceUserData) == kEventMarker {
         Log.skip()
@@ -299,10 +318,15 @@ private func keyboardCallback(
     }
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-    let flags = event.flags
 
     // Ctrl+Space = toggle Vietnamese
     if keyCode == 0x31 && flags.contains(.maskControl) && !flags.contains(.maskCommand) {
+        DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+        return nil
+    }
+
+    // Alt+Z = toggle Vietnamese (Z keycode = 0x06)
+    if keyCode == 0x06 && flags.contains(.maskAlternate) && !flags.contains(.maskCommand) {
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
         return nil
     }

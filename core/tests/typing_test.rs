@@ -395,6 +395,9 @@ const TELEX_MARK_REPOSITION: &[(&str, &str)] = &[
     // ua vs qua
     ("muaf", "mùa"),
     ("chuas", "chúa"),
+    ("chuwa", "chưa"), // horn on u, not breve on a
+    ("thuwa", "thưa"), // horn on u
+    ("muwa", "mưa"),   // rain - horn on u
     ("ruaf", "rùa"),
     ("luas", "lúa"),
     ("suwax", "sữa"),
@@ -422,6 +425,10 @@ const TELEX_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tangw", "tăng"),
     ("tuow", "tươ"),
     ("nguoiw", "ngươi"),
+    // ua + w -> ưa (horn on u, not breve on a)
+    ("chuaw", "chưa"),
+    ("thuaw", "thưa"),
+    ("muaw", "mưa"),
 ];
 
 const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
@@ -430,6 +437,101 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tang8", "tăng"),
     ("dung9", "đung"),
     ("Dung9", "Đung"),
+];
+
+// ============================================================
+// DELAYED TONE MARKS - Typing tone after completing the word
+// ============================================================
+
+const TELEX_DELAYED_TONE: &[(&str, &str)] = &[
+    // Single vowel words - tone at end
+    ("bas", "bá"),
+    ("caf", "cà"),
+    ("mar", "mả"),
+    ("lax", "lã"),
+    ("taj", "tạ"),
+    // oa/oe patterns - tone on second vowel
+    ("hoaf", "hoà"),
+    ("loas", "loá"),
+    ("hoej", "hoẹ"),
+    // ai/ao/au patterns - tone on first vowel
+    ("mais", "mái"),
+    ("laof", "lào"),
+    ("daur", "dảu"),
+    ("tais", "tái"),
+    ("caof", "cào"),
+    ("baur", "bảu"),
+    // Common single vowel words with delayed tone
+    ("lams", "lám"),
+    ("lamf", "làm"),
+    ("cons", "cón"),
+    ("bonf", "bòn"),
+    // Words with final consonant - tone on vowel before final
+    ("bangs", "báng"),
+    ("dangf", "dàng"),
+    ("mangr", "mảng"),
+    ("tangx", "tãng"),
+    ("sangj", "sạng"),
+    // Words with circumflex (ô/ê/â) - need double vowel first
+    ("khoongf", "khồng"),
+    ("hoongf", "hồng"),
+    ("coongs", "cống"),
+    ("toongs", "tống"),
+    // Words with horn (ư/ơ) - uw/ow
+    ("tuwf", "từ"),
+    ("cuwf", "cừ"),
+    ("tows", "tớ"),
+    ("howf", "hờ"),
+];
+
+const VNI_DELAYED_TONE: &[(&str, &str)] = &[
+    // Single vowel words - tone at end
+    ("ba1", "bá"),
+    ("ca2", "cà"),
+    ("ma3", "mả"),
+    ("la4", "lã"),
+    ("ta5", "tạ"),
+    // oa/oe patterns - tone on second vowel
+    ("hoa2", "hoà"),
+    ("loa1", "loá"),
+    ("hoe5", "hoẹ"),
+    // ai/ao/au patterns - tone on first vowel
+    ("mai1", "mái"),
+    ("lao2", "lào"),
+    ("dau3", "dảu"),
+    ("tai1", "tái"),
+    ("cao2", "cào"),
+    ("bau3", "bảu"),
+    // Common single vowel words with delayed tone
+    ("lam1", "lám"),
+    ("lam2", "làm"),
+    ("con1", "cón"),
+    ("bon2", "bòn"),
+    // Words with final consonant - tone on vowel before final
+    ("bang1", "báng"),
+    ("dang2", "dàng"),
+    ("mang3", "mảng"),
+    ("tang4", "tãng"),
+    ("sang5", "sạng"),
+    // Words with circumflex (ô/ê/â) - need mark first (6)
+    ("khong62", "khồng"),
+    ("hong62", "hồng"),
+    ("cong61", "cống"),
+    ("tong61", "tống"),
+    // Words with horn (ư/ơ) - need mark (7)
+    ("tu72", "từ"),
+    ("cu72", "cừ"),
+    ("to71", "tớ"),
+    ("ho72", "hờ"),
+    // Words with ươ - delayed marks then tone (duong + 9 + 7 + 2)
+    ("duong972", "đường"),
+    ("truong72", "trường"),
+    ("nuoc71", "nước"),
+    ("nguoi72", "người"),
+    // Words with đ - delayed (d + 9)
+    ("di9", "đi"),
+    ("do91", "đó"),
+    ("dang92", "đàng"),
 ];
 
 // ============================================================
@@ -569,4 +671,14 @@ fn telex_delayed_patterns() {
 #[test]
 fn vni_delayed_patterns() {
     vni(VNI_DELAYED_PATTERNS);
+}
+
+#[test]
+fn telex_delayed_tone() {
+    telex(TELEX_DELAYED_TONE);
+}
+
+#[test]
+fn vni_delayed_tone() {
+    vni(VNI_DELAYED_TONE);
 }

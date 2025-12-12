@@ -177,10 +177,20 @@ fn find_horn_targets(buffer_keys: &[u16], vowel_positions: &[usize]) -> Vec<usiz
         }
     }
 
-    // No compound found, apply to single vowel (last a, o, or u)
+    // No compound found, prioritize u/o (horn: ư, ơ) over a (breve: ă)
+    // First try to find u or o for horn transformation
     for &pos in vowel_positions.iter().rev() {
         let k = buffer_keys[pos];
-        if matches!(k, keys::A | keys::O | keys::U) {
+        if matches!(k, keys::O | keys::U) {
+            targets.push(pos);
+            return targets;
+        }
+    }
+
+    // If no u/o found, apply breve to a
+    for &pos in vowel_positions.iter().rev() {
+        let k = buffer_keys[pos];
+        if k == keys::A {
             targets.push(pos);
             break;
         }
