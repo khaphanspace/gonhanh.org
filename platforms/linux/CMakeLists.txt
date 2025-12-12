@@ -50,9 +50,17 @@ set_target_properties(gonhanh PROPERTIES
     INSTALL_RPATH "$ORIGIN/../../lib;$ORIGIN/../.."
 )
 
-# Get Fcitx5 addon install paths
-pkg_get_variable(FCITX5_ADDON_DIR fcitx5 addondir)
-pkg_get_variable(FCITX5_LIB_DIR fcitx5 libdir)
+# Get Fcitx5 addon install paths (with fallback for CI)
+pkg_get_variable(FCITX5_ADDON_DIR Fcitx5Core addondir)
+pkg_get_variable(FCITX5_LIB_DIR Fcitx5Core libdir)
+
+# Fallback to standard paths if pkg-config doesn't provide them
+if(NOT FCITX5_ADDON_DIR)
+    set(FCITX5_ADDON_DIR "${CMAKE_INSTALL_PREFIX}/share/fcitx5/addon")
+endif()
+if(NOT FCITX5_LIB_DIR)
+    set(FCITX5_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+endif()
 
 # Install targets
 install(TARGETS gonhanh
