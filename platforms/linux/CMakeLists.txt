@@ -4,10 +4,10 @@ project(fcitx5-gonhanh VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Fcitx5
+# Find Fcitx5 (Ubuntu package names: Fcitx5Core, Fcitx5Module)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(Fcitx5Core REQUIRED IMPORTED_TARGET fcitx5)
-pkg_check_modules(Fcitx5Module REQUIRED IMPORTED_TARGET fcitx5-module)
+pkg_check_modules(Fcitx5Core REQUIRED IMPORTED_TARGET Fcitx5Core)
+pkg_check_modules(Fcitx5Module REQUIRED IMPORTED_TARGET Fcitx5Module)
 
 # Rust core library path
 set(RUST_LIB_DIR "${CMAKE_SOURCE_DIR}/../../core/target/release")
