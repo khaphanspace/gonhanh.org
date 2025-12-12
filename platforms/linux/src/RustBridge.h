@@ -76,11 +76,11 @@ public:
     // Clear the input buffer (call on word boundaries)
     static void clear();
 
+    // Convert UTF-32 codepoint to UTF-8 string (public for testing)
+    static std::string codePointToUtf8(uint32_t cp);
+
 private:
     static bool initialized_;
-
-    // Convert UTF-32 codepoint to UTF-8 string
-    static std::string codePointToUtf8(uint32_t cp);
 };
 
 #endif // GONHANH_RUST_BRIDGE_H
