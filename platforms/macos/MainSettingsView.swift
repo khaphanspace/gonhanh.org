@@ -56,20 +56,44 @@ class AppState: ObservableObject {
 
     @Published var shortcuts: [ShortcutItem] = [
         ShortcutItem(key: "vn", value: "Việt Nam"),
+        ShortcutItem(key: "hn", value: "Hà Nội"),
         ShortcutItem(key: "hcm", value: "Hồ Chí Minh"),
-        ShortcutItem(key: "sdt", value: "0912 345 678")
+        ShortcutItem(key: "tphcm", value: "Thành phố Hồ Chí Minh")
     ]
 
-    @Published var excludedApps: [ExcludedApp] = [
-        ExcludedApp(bundleId: "com.apple.Terminal", name: "Terminal", icon: NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")),
-        ExcludedApp(bundleId: "com.microsoft.VSCode", name: "Visual Studio Code", icon: NSWorkspace.shared.icon(forFile: "/Applications/Visual Studio Code.app"))
+    @Published var excludedApps: [ExcludedApp] = []
+
+    // Dev apps that typically don't need Vietnamese input
+    private static let defaultExcludedApps: [(bundleId: String, name: String, path: String)] = [
+        ("com.apple.Terminal", "Terminal", "/System/Applications/Utilities/Terminal.app"),
+        ("com.googlecode.iterm2", "iTerm", "/Applications/iTerm.app"),
+        ("com.microsoft.VSCode", "Visual Studio Code", "/Applications/Visual Studio Code.app"),
+        ("com.tableplus.TablePlus", "TablePlus", "/Applications/TablePlus.app"),
+        ("com.jetbrains.datagrip", "DataGrip", "/Applications/DataGrip.app"),
+        ("com.apple.dt.Xcode", "Xcode", "/Applications/Xcode.app"),
+        ("com.sequel-ace.sequel-ace", "Sequel Ace", "/Applications/Sequel Ace.app"),
+        ("com.postmanlabs.mac", "Postman", "/Applications/Postman.app"),
     ]
 
     init() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
         toggleShortcut = KeyboardShortcut.load()
+        excludedApps = Self.detectInstalledExcludedApps()
         checkForUpdates()
+    }
+
+    /// Only add apps to excluded list if they are actually installed
+    private static func detectInstalledExcludedApps() -> [ExcludedApp] {
+        let fileManager = FileManager.default
+        return defaultExcludedApps.compactMap { app in
+            guard fileManager.fileExists(atPath: app.path) else { return nil }
+            return ExcludedApp(
+                bundleId: app.bundleId,
+                name: app.name,
+                icon: NSWorkspace.shared.icon(forFile: app.path)
+            )
+        }
     }
 
     func checkForUpdates() {
