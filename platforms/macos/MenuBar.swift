@@ -41,6 +41,8 @@ struct MenuPopoverView: View {
     let onClose: () -> Void
     let onOpenSettings: () -> Void
 
+    @State private var shortcut = KeyboardShortcut.load()
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -52,6 +54,9 @@ struct MenuPopoverView: View {
             quitSection
         }
         .frame(width: 240)
+        .onReceive(NotificationCenter.default.publisher(for: .shortcutChanged)) { _ in
+            shortcut = KeyboardShortcut.load()
+        }
     }
 
     private var header: some View {
@@ -66,7 +71,7 @@ struct MenuPopoverView: View {
                 HStack(spacing: 4) {
                     Text(state.isEnabled ? state.currentMethod.name : "Đã tắt")
                     Text("·").foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    Text("⌃Space").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    Text(shortcut.displayParts.joined()).foregroundColor(Color(NSColor.tertiaryLabelColor))
                 }
                 .font(.system(size: 11))
                 .foregroundColor(Color(NSColor.secondaryLabelColor))
@@ -389,6 +394,7 @@ class MenuBarController: NSObject {
     }
 
     @objc private func handleMenuStateChanged() {
+        menuState.load()
         updateStatusButton()
     }
 

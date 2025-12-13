@@ -33,6 +33,7 @@ class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
             RustBridge.setEnabled(isEnabled)
+            NotificationCenter.default.post(name: .menuStateChanged, object: nil)
         }
     }
 
@@ -40,6 +41,7 @@ class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(currentMethod.rawValue, forKey: SettingsKey.method)
             RustBridge.setMethod(currentMethod.rawValue)
+            NotificationCenter.default.post(name: .menuStateChanged, object: nil)
         }
     }
 
