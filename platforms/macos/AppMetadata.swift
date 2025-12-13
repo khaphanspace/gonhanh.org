@@ -24,6 +24,7 @@ enum AppMetadata {
     static let website = "https://gonhanh.org"
     static let repository = "https://github.com/khaphanspace/gonhanh.org"
     static let issuesURL = "https://github.com/khaphanspace/gonhanh.org/issues"
+    static let sponsorURL = "https://github.com/sponsors/khaphanspace"
     static let authorLinkedin = "https://www.linkedin.com/in/khaphanspace"
 
     // Legal

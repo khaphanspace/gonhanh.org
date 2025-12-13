@@ -449,49 +449,100 @@ struct SettingsPageView: View {
 
 struct AboutPageView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            HStack(spacing: 16) {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // App Info - Centered
+            VStack(spacing: 12) {
                 Image(nsImage: AppMetadata.logo)
                     .resizable()
-                    .frame(width: 64, height: 64)
+                    .frame(width: 80, height: 80)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AppMetadata.name)
-                        .font(.system(size: 18, weight: .bold))
-                    Text("Bộ gõ tiếng Việt nhanh và nhẹ")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(NSColor.secondaryLabelColor))
-                    Text("v\(AppMetadata.version)")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                }
-                Spacer()
+                Text(AppMetadata.name)
+                    .font(.system(size: 20, weight: .bold))
+
+                Text("Bộ gõ tiếng Việt nhanh và nhẹ")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+
+                Text("Phiên bản \(AppMetadata.version)")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
 
-            // Links
-            SectionView(title: "LIÊN KẾT") {
-                LinkRow(icon: "chevron.left.forwardslash.chevron.right", title: "Mã nguồn GitHub", url: AppMetadata.repository)
-                Divider().padding(.leading, 40)
-                LinkRow(icon: "book", title: "Hướng dẫn sử dụng", url: AppMetadata.website)
-                Divider().padding(.leading, 40)
-                LinkRow(icon: "ant", title: "Góp ý & Báo lỗi", url: AppMetadata.issuesURL)
-            }
-
-            // Author
-            SectionView(title: "TÁC GIẢ") {
-                LinkRow(icon: "person", title: AppMetadata.author, url: AppMetadata.authorLinkedin)
-                Divider().padding(.leading, 40)
-                LinkRow(icon: "heart", title: "Ủng hộ tác giả", url: "https://github.com/sponsors/khaphanspace")
+            // Links - Horizontal buttons
+            HStack(spacing: 12) {
+                AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
+                AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
+                AboutLink(icon: "heart", title: "Ủng hộ", url: AppMetadata.sponsorURL)
             }
 
             Spacer()
 
             // Footer
-            Text("Made with ❤️ in Vietnam")
-                .font(.system(size: 11))
-                .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                .frame(maxWidth: .infinity, alignment: .center)
+            VStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Text("Phát triển bởi")
+                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    AuthorLink(name: AppMetadata.author, url: AppMetadata.authorLinkedin)
+                }
+                .font(.system(size: 12))
+
+                Text("Made with ❤️ in Vietnam")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+            .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct AboutLink: View {
+    let icon: String
+    let title: String
+    let url: String
+    @State private var isHovered = false
+
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                Text(title)
+                    .font(.system(size: 11))
+            }
+            .frame(width: 80, height: 60)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.8 : 0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(Color(NSColor.labelColor))
+        .onHover { isHovered = $0 }
+    }
+}
+
+struct AuthorLink: View {
+    let name: String
+    let url: String
+    @State private var isHovered = false
+
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            Text(name)
+                .underline(isHovered)
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(Color.accentColor)
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
     }
 }
@@ -508,47 +559,37 @@ struct ShortcutRecorderRow: View {
     @State private var resignObserver: Any?
 
     var body: some View {
-        Button {
-            startRecording()
-        } label: {
-            HStack {
-                Text("Phím tắt bật/tắt")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(NSColor.labelColor))
-                Spacer()
+        HStack {
+            Text("Phím tắt bật/tắt")
+                .font(.system(size: 13))
+                .foregroundColor(Color(NSColor.labelColor))
+            Spacer()
 
-                if isRecording {
-                    Text("Nhấn phím...")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.accentColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.accentColor, lineWidth: 1)
-                        )
-                } else {
-                    HStack(spacing: 4) {
-                        ForEach(shortcut.displayParts, id: \.self) { part in
-                            KeyCap(text: part)
-                        }
+            if isRecording {
+                Text("Nhấn phím...")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.accentColor, lineWidth: 1)
+                    )
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(shortcut.displayParts, id: \.self) { part in
+                        KeyCap(text: part)
                     }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
-        .onDisappear {
-            stopRecording()
-        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+        .onTapGesture { startRecording() }
+        .onDisappear { stopRecording() }
     }
 
     private func startRecording() {
@@ -725,40 +766,6 @@ struct ExcludedAppRow: View {
         .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
-    }
-}
-
-struct LinkRow: View {
-    let icon: String
-    let title: String
-    let url: String
-    @State private var isHovered = false
-
-    var body: some View {
-        Link(destination: URL(string: url)!) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(NSColor.secondaryLabelColor))
-                    .frame(width: 20)
-                Text(title)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(NSColor.labelColor))
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
     }
 }
 
