@@ -266,7 +266,8 @@ struct NavButton: View {
     let page: NavigationPage
     let isSelected: Bool
     let action: () -> Void
-    @State private var isHovered = false
+
+    @State private var hovered = false
 
     var body: some View {
         Button(action: action) {
@@ -285,15 +286,12 @@ struct NavButton: View {
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
-                          isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+                          hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
             )
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
+            .animation(.easeInOut(duration: 0.15), value: hovered)
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering && !isSelected { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
+        .onHover { hovered = $0 }
     }
 }
 
@@ -505,7 +503,8 @@ struct AboutLink: View {
     let icon: String
     let title: String
     let url: String
-    @State private var isHovered = false
+
+    @State private var hovered = false
 
     var body: some View {
         Link(destination: URL(string: url)!) {
@@ -518,7 +517,7 @@ struct AboutLink: View {
             .frame(width: 80, height: 60)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.8 : 0.5))
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(hovered ? 0.8 : 0.5))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -527,26 +526,24 @@ struct AboutLink: View {
         }
         .buttonStyle(.plain)
         .foregroundColor(Color(NSColor.labelColor))
-        .onHover { isHovered = $0 }
+        .onHover { hovered = $0 }
     }
 }
 
 struct AuthorLink: View {
     let name: String
     let url: String
-    @State private var isHovered = false
+
+    @State private var hovered = false
 
     var body: some View {
         Link(destination: URL(string: url)!) {
             Text(name)
-                .underline(isHovered)
+                .underline(hovered)
         }
         .buttonStyle(.plain)
         .foregroundColor(Color.accentColor)
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
+        .onHover { hovered = $0 }
     }
 }
 
@@ -555,12 +552,13 @@ struct AuthorLink: View {
 struct ShortcutRecorderRow: View {
     @Binding var shortcut: KeyboardShortcut
     @Binding var isRecording: Bool
-    @State private var isHovered = false
-    @State private var localKeyMonitor: Any?
-    @State private var globalKeyMonitor: Any?
-    @State private var mouseMonitor: Any?
-    @State private var resignObserver: Any?
-    @State private var justCancelled = false
+
+    @State private var hovered = false
+    @State private var didCancel = false
+    @State private var keyMonitor: Any?
+    @State private var globalMonitor: Any?
+    @State private var clickMonitor: Any?
+    @State private var focusObserver: Any?
 
     var body: some View {
         HStack {
@@ -593,12 +591,12 @@ struct ShortcutRecorderRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+        .background(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
         .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
+        .onHover { hovered = $0 }
         .onTapGesture {
-            if justCancelled {
-                justCancelled = false
+            if didCancel {
+                didCancel = false
                 return
             }
             if !isRecording { startRecording() }
@@ -610,75 +608,68 @@ struct ShortcutRecorderRow: View {
         guard !isRecording else { return }
         isRecording = true
 
-        // Local key monitor (when app has focus)
-        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
-            handleKeyEvent(event)
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKey(event)
             return nil
         }
 
-        // Global key monitor (for system shortcuts)
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
-            handleKeyEvent(event)
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            handleKey(event)
         }
 
-        // Mouse click monitor - cancel on any click
-        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [self] event in
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
             stopRecording()
             return event
         }
 
-        // Cancel when window loses focus
-        resignObserver = NotificationCenter.default.addObserver(
+        focusObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification,
             object: nil,
             queue: .main
-        ) { [self] _ in
+        ) { _ in
             stopRecording()
         }
     }
 
-    private func handleKeyEvent(_ event: NSEvent) {
-        // Escape to cancel
+    private func handleKey(_ event: NSEvent) {
         if event.keyCode == 0x35 {
             stopRecording()
             return
         }
 
-        // Require at least one modifier
         let modifiers = event.modifierFlags.intersection([.control, .option, .shift, .command])
-        if modifiers.isEmpty {
-            return  // Ignore keys without modifiers
-        }
+        guard !modifiers.isEmpty else { return }
 
-        // Convert NSEvent modifiers to CGEventFlags format
-        var cgFlags: UInt64 = 0
-        if modifiers.contains(.control) { cgFlags |= CGEventFlags.maskControl.rawValue }
-        if modifiers.contains(.option) { cgFlags |= CGEventFlags.maskAlternate.rawValue }
-        if modifiers.contains(.shift) { cgFlags |= CGEventFlags.maskShift.rawValue }
-        if modifiers.contains(.command) { cgFlags |= CGEventFlags.maskCommand.rawValue }
+        var flags: UInt64 = 0
+        if modifiers.contains(.control) { flags |= CGEventFlags.maskControl.rawValue }
+        if modifiers.contains(.option) { flags |= CGEventFlags.maskAlternate.rawValue }
+        if modifiers.contains(.shift) { flags |= CGEventFlags.maskShift.rawValue }
+        if modifiers.contains(.command) { flags |= CGEventFlags.maskCommand.rawValue }
 
-        shortcut = KeyboardShortcut(keyCode: event.keyCode, modifiers: cgFlags)
+        shortcut = KeyboardShortcut(keyCode: event.keyCode, modifiers: flags)
         stopRecording()
     }
 
     private func stopRecording() {
-        justCancelled = true
-        if let monitor = localKeyMonitor {
+        didCancel = true
+
+        if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
-            localKeyMonitor = nil
+            keyMonitor = nil
         }
-        if let monitor = globalKeyMonitor {
+        if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
-            globalKeyMonitor = nil
+            globalMonitor = nil
         }
-        if let monitor = mouseMonitor {
+        if let monitor = clickMonitor {
             NSEvent.removeMonitor(monitor)
-            mouseMonitor = nil
+            clickMonitor = nil
         }
-        if let observer = resignObserver {
+        if let observer = focusObserver {
             NotificationCenter.default.removeObserver(observer)
-            resignObserver = nil
+            focusObserver = nil
         }
+
         isRecording = false
     }
 }

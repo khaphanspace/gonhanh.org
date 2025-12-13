@@ -34,141 +34,123 @@ extension Notification.Name {
     static let showAboutPage = Notification.Name("showAboutPage")
 }
 
-// MARK: - Menu Popover View (Minimal)
+// MARK: - Menu Popover
 
 struct MenuPopoverView: View {
     @ObservedObject var state: MenuState
-    let closeMenu: () -> Void
-    let openSettings: () -> Void
+    let onClose: () -> Void
+    let onOpenSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header - Custom styled
-            HStack(spacing: 10) {
-                Image(nsImage: AppMetadata.logo)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(AppMetadata.name)
-                        .font(.system(size: 13, weight: .semibold))
-                    HStack(spacing: 4) {
-                        Text(state.isEnabled ? state.currentMethod.name : "Đã tắt")
-                        Text("·")
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        Text("⌃Space")
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    }
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.secondaryLabelColor))
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { state.isEnabled },
-                    set: { _ in state.toggle() }
-                ))
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .scaleEffect(0.8)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
+            header
             Divider().padding(.horizontal, 8)
-
-            // Method selection - macOS menu style
-            VStack(spacing: 0) {
-                MenuItem(
-                    title: InputMode.telex.name,
-                    isChecked: state.currentMethod == .telex
-                ) { state.setMethod(.telex) }
-
-                MenuItem(
-                    title: InputMode.vni.name,
-                    isChecked: state.currentMethod == .vni
-                ) { state.setMethod(.vni) }
-            }
-            .padding(.vertical, 4)
-
+            methodSection
             Divider().padding(.horizontal, 8)
-
-            // Menu items - macOS menu style
-            VStack(spacing: 0) {
-                MenuItem(title: "Cài đặt...") {
-                    closeMenu()
-                    openSettings()
-                }
-                MenuItem(title: "Giới thiệu") {
-                    closeMenu()
-                    openSettings()
-                    NotificationCenter.default.post(name: .showAboutPage, object: nil)
-                }
-                MenuItem(title: "Kiểm tra cập nhật") {
-                    closeMenu()
-                    NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
-                }
-            }
-            .padding(.vertical, 4)
-
+            actionSection
             Divider().padding(.horizontal, 8)
-
-            // Quit
-            MenuItem(title: "Thoát \(AppMetadata.name)") {
-                NSApp.terminate(nil)
-            }
-            .padding(.vertical, 4)
+            quitSection
         }
         .frame(width: 240)
     }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(nsImage: AppMetadata.logo)
+                .resizable()
+                .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(AppMetadata.name)
+                    .font(.system(size: 13, weight: .semibold))
+                HStack(spacing: 4) {
+                    Text(state.isEnabled ? state.currentMethod.name : "Đã tắt")
+                    Text("·").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    Text("⌃Space").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                }
+                .font(.system(size: 11))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(get: { state.isEnabled }, set: { _ in state.toggle() }))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .scaleEffect(0.8)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private var methodSection: some View {
+        VStack(spacing: 0) {
+            MenuItem(title: InputMode.telex.name, isChecked: state.currentMethod == .telex) {
+                state.setMethod(.telex)
+            }
+            MenuItem(title: InputMode.vni.name, isChecked: state.currentMethod == .vni) {
+                state.setMethod(.vni)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var actionSection: some View {
+        VStack(spacing: 0) {
+            MenuItem(title: "Cài đặt...") {
+                onClose()
+                onOpenSettings()
+            }
+            MenuItem(title: "Giới thiệu") {
+                onClose()
+                onOpenSettings()
+                NotificationCenter.default.post(name: .showAboutPage, object: nil)
+            }
+            MenuItem(title: "Kiểm tra cập nhật") {
+                onClose()
+                NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var quitSection: some View {
+        MenuItem(title: "Thoát \(AppMetadata.name)") {
+            NSApp.terminate(nil)
+        }
+        .padding(.vertical, 4)
+    }
 }
 
-// MARK: - macOS Native Menu Item Style
+// MARK: - Menu Item
 
 struct MenuItem: View {
     let title: String
-    var shortcut: String? = nil
     var isChecked: Bool = false
     let action: () -> Void
 
-    @State private var isHovered = false
+    @State private var hovered = false
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 0) {
-                // Checkmark area (fixed width for alignment)
                 Text(isChecked ? "✓" : "")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: 13))
                     .frame(width: 20, alignment: .center)
-                    .foregroundColor(isHovered ? .white : Color(NSColor.labelColor))
-
-                // Title
                 Text(title)
                     .font(.system(size: 13))
-                    .foregroundColor(isHovered ? .white : Color(NSColor.labelColor))
-
                 Spacer()
-
-                // Shortcut
-                if let shortcut = shortcut {
-                    Text(shortcut)
-                        .font(.system(size: 13))
-                        .foregroundColor(isHovered ? .white.opacity(0.8) : Color(NSColor.tertiaryLabelColor))
-                }
             }
+            .foregroundColor(hovered ? .white : Color(NSColor.labelColor))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isHovered ? Color.accentColor : Color.clear)
-            )
+            .background(RoundedRectangle(cornerRadius: 4).fill(hovered ? Color.accentColor : Color.clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 6)
-        .onHover { isHovered = $0 }
+        .onHover { hovered = $0 }
     }
 }
 
@@ -316,8 +298,8 @@ class MenuBarController: NSObject {
         if menuPanel == nil {
             let menuView = MenuPopoverView(
                 state: menuState,
-                closeMenu: { [weak self] in self?.closeMenu() },
-                openSettings: { [weak self] in self?.showSettings() }
+                onClose: { [weak self] in self?.closeMenu() },
+                onOpenSettings: { [weak self] in self?.showSettings() }
             )
 
             let hostingController = NSHostingController(rootView: menuView)
