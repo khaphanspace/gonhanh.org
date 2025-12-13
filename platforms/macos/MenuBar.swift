@@ -300,17 +300,24 @@ class MenuBarController {
     @objc private func showSettings() {
         if settingsWindow == nil {
             let controller = NSHostingController(rootView: MainSettingsView())
+            controller.view.wantsLayer = true
+            controller.view.layer?.backgroundColor = .clear
             let window = NSWindow(contentViewController: controller)
             window.title = "\(AppMetadata.name) - Cài đặt"
-            window.styleMask = NSWindow.StyleMask([.titled, .closable, .miniaturizable])
+            window.styleMask = NSWindow.StyleMask([.titled, .closable, .miniaturizable, .fullSizeContentView])
+            window.standardWindowButton(.zoomButton)?.isHidden = true
             window.setContentSize(NSSize(width: 700, height: 520))
             window.center()
             window.isReleasedWhenClosed = false
             window.titlebarAppearsTransparent = true
-            window.titleVisibility = NSWindow.TitleVisibility.hidden
-            window.backgroundColor = NSColor(red: 0x28/255.0, green: 0x28/255.0, blue: 0x28/255.0, alpha: 1)
+            window.titleVisibility = .hidden
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.hasShadow = true
+            window.isMovableByWindowBackground = true
             settingsWindow = window
         }
+        NSApp.mainMenu = nil
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
