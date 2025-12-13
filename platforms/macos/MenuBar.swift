@@ -31,7 +31,6 @@ class MenuState: ObservableObject {
 
 extension Notification.Name {
     static let menuStateChanged = Notification.Name("menuStateChanged")
-    static let navigateToPage = Notification.Name("navigateToPage")
 }
 
 // MARK: - Menu Popover View (Minimal)
@@ -39,8 +38,7 @@ extension Notification.Name {
 struct MenuPopoverView: View {
     @ObservedObject var state: MenuState
     let closeMenu: () -> Void
-    let navigateTo: (String) -> Void  // "home", "settings", "about"
-    let openHelp: () -> Void
+    let openSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -79,7 +77,7 @@ struct MenuPopoverView: View {
 
             Divider()
 
-            // Method selection (simple)
+            // Method selection
             VStack(spacing: 0) {
                 simpleMethodRow(method: .telex)
                 simpleMethodRow(method: .vni)
@@ -92,21 +90,11 @@ struct MenuPopoverView: View {
             VStack(spacing: 0) {
                 menuItem(title: "Cài đặt...", shortcut: "⌘,") {
                     closeMenu()
-                    navigateTo("settings")
-                }
-                menuItem(title: "Giới thiệu", shortcut: nil) {
-                    closeMenu()
-                    navigateTo("about")
+                    openSettings()
                 }
                 menuItem(title: "Kiểm tra cập nhật", shortcut: nil) {
                     closeMenu()
-                    navigateTo("home")
-                    // Also trigger update check
                     NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
-                }
-                menuItem(title: "Góp ý & Báo lỗi", shortcut: nil) {
-                    closeMenu()
-                    openHelp()
                 }
             }
             .padding(.vertical, 4)
@@ -323,8 +311,7 @@ class MenuBarController: NSObject {
             let menuView = MenuPopoverView(
                 state: menuState,
                 closeMenu: { [weak self] in self?.closeMenu() },
-                navigateTo: { [weak self] page in self?.showSettingsAndNavigate(to: page) },
-                openHelp: { [weak self] in self?.openHelp() }
+                openSettings: { [weak self] in self?.showSettings() }
             )
 
             let hostingController = NSHostingController(rootView: menuView)
@@ -350,6 +337,8 @@ class MenuBarController: NSObject {
             visualEffect.wantsLayer = true
             visualEffect.layer?.cornerRadius = 8
             visualEffect.layer?.masksToBounds = true
+            visualEffect.layer?.borderWidth = 0.5
+            visualEffect.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.5).cgColor
 
             hostingController.view.wantsLayer = true
             hostingController.view.layer?.cornerRadius = 8
@@ -430,19 +419,6 @@ class MenuBarController: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func openHelp() {
-        NSWorkspace.shared.open(URL(string: AppMetadata.issuesURL)!)
-    }
-
-    /// Show settings window and navigate to specific page
-    private func showSettingsAndNavigate(to page: String) {
-        showSettings()
-        // Post notification to navigate to page
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(name: .navigateToPage, object: page)
-        }
-    }
-
     @objc private func showSettings() {
         if settingsWindow == nil {
             let controller = NSHostingController(rootView: MainSettingsView())
@@ -452,7 +428,7 @@ class MenuBarController: NSObject {
             window.title = "\(AppMetadata.name) - Cài đặt"
             window.styleMask = NSWindow.StyleMask([.titled, .closable, .miniaturizable, .fullSizeContentView])
             window.standardWindowButton(.zoomButton)?.isHidden = true
-            window.setContentSize(NSSize(width: 700, height: 520))
+            window.setContentSize(NSSize(width: 700, height: 480))
             window.center()
             window.isReleasedWhenClosed = false
             window.titlebarAppearsTransparent = true

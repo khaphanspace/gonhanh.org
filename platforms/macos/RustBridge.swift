@@ -247,6 +247,7 @@ class KeyboardHookManager {
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
             isRunning = true
+            setupShortcutObserver()
             Log.info("Hook started")
         }
     }
@@ -282,6 +283,38 @@ class KeyboardHookManager {
 
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
 private var wasCtrlShiftPressed = false  // Track Ctrl+Shift state for toggle detection
+private var currentShortcut = KeyboardShortcut.load()  // Load saved shortcut
+
+// Observer for shortcut changes
+private var shortcutObserver: NSObjectProtocol?
+
+func setupShortcutObserver() {
+    shortcutObserver = NotificationCenter.default.addObserver(
+        forName: .shortcutChanged,
+        object: nil,
+        queue: .main
+    ) { _ in
+        currentShortcut = KeyboardShortcut.load()
+        Log.info("Shortcut updated: \(currentShortcut.displayParts.joined())")
+    }
+}
+
+private func matchesToggleShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
+    guard keyCode == currentShortcut.keyCode else { return false }
+
+    let savedFlags = CGEventFlags(rawValue: currentShortcut.modifiers)
+
+    // Check required modifiers are present
+    if savedFlags.contains(.maskControl) && !flags.contains(.maskControl) { return false }
+    if savedFlags.contains(.maskAlternate) && !flags.contains(.maskAlternate) { return false }
+    if savedFlags.contains(.maskShift) && !flags.contains(.maskShift) { return false }
+    if savedFlags.contains(.maskCommand) && !flags.contains(.maskCommand) { return false }
+
+    // Ensure Command is NOT pressed if not required (avoid conflict with system shortcuts)
+    if !savedFlags.contains(.maskCommand) && flags.contains(.maskCommand) { return false }
+
+    return true
+}
 
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
@@ -319,14 +352,8 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
-    // Ctrl+Space = toggle Vietnamese
-    if keyCode == 0x31 && flags.contains(.maskControl) && !flags.contains(.maskCommand) {
-        DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
-        return nil
-    }
-
-    // Alt+Z = toggle Vietnamese (Z keycode = 0x06)
-    if keyCode == 0x06 && flags.contains(.maskAlternate) && !flags.contains(.maskCommand) {
+    // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
+    if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
         return nil
     }
@@ -398,4 +425,5 @@ private func sendReplacement(backspace bs: Int, chars: [Character]) {
 extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
     static let showUpdateWindow = Notification.Name("showUpdateWindow")
+    static let shortcutChanged = Notification.Name("shortcutChanged")
 }
