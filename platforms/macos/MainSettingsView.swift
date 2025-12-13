@@ -133,8 +133,10 @@ struct MainSettingsView: View {
         }
         .ignoresSafeArea()
         .frame(width: 700, height: 480)
-        .onReceive(NotificationCenter.default.publisher(for: .showAboutPage)) { _ in
-            selectedPage = .about
+        .onReceive(NotificationCenter.default.publisher(for: .showSettingsPage)) { notification in
+            if let page = notification.object as? NavigationPage {
+                selectedPage = page
+            }
         }
     }
 

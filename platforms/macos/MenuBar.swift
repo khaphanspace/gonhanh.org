@@ -31,7 +31,7 @@ class MenuState: ObservableObject {
 
 extension Notification.Name {
     static let menuStateChanged = Notification.Name("menuStateChanged")
-    static let showAboutPage = Notification.Name("showAboutPage")
+    static let showSettingsPage = Notification.Name("showSettingsPage")
 }
 
 // MARK: - Menu Popover
@@ -39,7 +39,6 @@ extension Notification.Name {
 struct MenuPopoverView: View {
     @ObservedObject var state: MenuState
     let onClose: () -> Void
-    let onOpenSettings: () -> Void
 
     @State private var shortcut = KeyboardShortcut.load()
 
@@ -104,12 +103,11 @@ struct MenuPopoverView: View {
         VStack(spacing: 0) {
             MenuItem(title: "Cài đặt...") {
                 onClose()
-                onOpenSettings()
+                NotificationCenter.default.post(name: .showSettingsPage, object: NavigationPage.settings)
             }
             MenuItem(title: "Giới thiệu") {
                 onClose()
-                onOpenSettings()
-                NotificationCenter.default.post(name: .showAboutPage, object: nil)
+                NotificationCenter.default.post(name: .showSettingsPage, object: NavigationPage.about)
             }
             MenuItem(title: "Kiểm tra cập nhật") {
                 onClose()
@@ -219,6 +217,17 @@ class MenuBarController: NSObject {
             name: .menuStateChanged,
             object: nil
         )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowSettingsPage),
+            name: .showSettingsPage,
+            object: nil
+        )
+    }
+
+    @objc private func handleShowSettingsPage() {
+        showSettings()
     }
 
     private func setupStatusButton() {
@@ -303,8 +312,7 @@ class MenuBarController: NSObject {
         if menuPanel == nil {
             let menuView = MenuPopoverView(
                 state: menuState,
-                onClose: { [weak self] in self?.closeMenu() },
-                onOpenSettings: { [weak self] in self?.showSettings() }
+                onClose: { [weak self] in self?.closeMenu() }
             )
 
             let hostingController = NSHostingController(rootView: menuView)
@@ -330,7 +338,8 @@ class MenuBarController: NSObject {
             containerView.layer?.masksToBounds = true
 
             let visualEffect = NSVisualEffectView(frame: containerView.bounds)
-            visualEffect.material = .menu
+            visualEffect.material = .popover
+            visualEffect.blendingMode = .behindWindow
             visualEffect.state = .active
             visualEffect.autoresizingMask = [.width, .height]
 
