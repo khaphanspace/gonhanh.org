@@ -11,7 +11,7 @@ enum NavigationPage: String, CaseIterable {
         switch self {
         case .home: return "house"
         case .settings: return "gearshape"
-        case .about: return "info.circle"
+        case .about: return "bolt.fill"
         }
     }
 
@@ -63,7 +63,10 @@ class AppState: ObservableObject {
         ShortcutItem(key: "sdt", value: "0912 345 678")
     ]
 
-    @Published var excludedApps: [String] = ["Terminal", "Visual Studio Code"]
+    @Published var excludedApps: [ExcludedApp] = [
+        ExcludedApp(bundleId: "com.apple.Terminal", name: "Terminal", icon: NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")),
+        ExcludedApp(bundleId: "com.microsoft.VSCode", name: "Visual Studio Code", icon: NSWorkspace.shared.icon(forFile: "/Applications/Visual Studio Code.app"))
+    ]
 
     init() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
@@ -75,13 +78,21 @@ struct ShortcutItem: Identifiable {
     let id = UUID()
     var key: String
     var value: String
+    var isEnabled: Bool = true
+}
+
+struct ExcludedApp: Identifiable {
+    let id = UUID()
+    var bundleId: String
+    var name: String
+    var icon: NSImage?
+    var isEnabled: Bool = true
 }
 
 // MARK: - Main Settings View
 
 struct MainSettingsView: View {
     @StateObject private var appState = AppState.shared
-    @ObservedObject var updateManager = UpdateManager.shared
     @State private var selectedPage: NavigationPage = .home
     @Environment(\.colorScheme) private var colorScheme
 
@@ -125,13 +136,36 @@ struct MainSettingsView: View {
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(Color(NSColor.labelColor))
 
-                // Version + Update badge
-                HStack(spacing: 12) {
-                    Text(AppMetadata.version)
-                        .font(.system(size: 12))
+                // Version info - clickable to check updates
+                Button {
+                    NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
+                } label: {
+                    VStack(spacing: 4) {
+                        Text("Phiên bản \(AppMetadata.version)")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                            Text("Kiểm tra cập nhật")
+                                .font(.system(size: 10))
+                        }
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-                    versionBadge
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    )
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
                 }
             }
             .padding(.top, 32)
@@ -151,42 +185,6 @@ struct MainSettingsView: View {
         .frame(width: 200)
     }
 
-    @ViewBuilder
-    private var versionBadge: some View {
-        if case .available = updateManager.state {
-            Button {
-                selectedPage = .update
-            } label: {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                    Text("Cập nhật")
-                        .font(.system(size: 11))
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.green.opacity(0.15))
-                .foregroundColor(Color.green)
-                .cornerRadius(20)
-            }
-            .buttonStyle(.plain)
-        } else {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Color(NSColor.tertiaryLabelColor))
-                    .frame(width: 6, height: 6)
-                Text("Mới nhất")
-                    .font(.system(size: 11))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.quaternaryLabelColor).opacity(0.5))
-            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-            .cornerRadius(20)
-        }
-    }
-
     private func navButton(page: NavigationPage) -> some View {
         Button {
             selectedPage = page
@@ -194,15 +192,17 @@ struct MainSettingsView: View {
             HStack(spacing: 10) {
                 Image(systemName: page.icon)
                     .font(.system(size: 14))
-                    .foregroundColor(selectedPage == page ? .accentColor : Color(NSColor.secondaryLabelColor))
+                    .foregroundColor(selectedPage == page ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
                     .frame(width: 20)
                 Text(page.rawValue)
                     .font(.system(size: 13))
                     .foregroundColor(selectedPage == page ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+                Spacer()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(selectedPage == page ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear)
@@ -218,36 +218,44 @@ struct MainSettingsView: View {
 
     @ViewBuilder
     private var content: some View {
-        ScrollView {
-            switch selectedPage {
-            case .home:
-                HomePageView(appState: appState)
-            case .settings:
+        switch selectedPage {
+        case .home:
+            // Home: no scroll, fit screen
+            HomePageView(appState: appState, selectedPage: $selectedPage)
+                .padding(32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .settings:
+            // Settings: scroll when needed, hide scrollbar
+            ScrollView(showsIndicators: false) {
                 SettingsPageView(appState: appState)
-            case .about:
-                AboutPageView()
+                    .padding(32)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .about:
+            // About: no scroll, fit screen
+            AboutPageView()
+                .padding(32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(32)
     }
 }
 
-// MARK: - Home Page (HIG Compliant)
+// MARK: - Home Page
 
 struct HomePageView: View {
     @ObservedObject var appState: AppState
-    var onNavigate: (NavigationPage) -> Void
+    @Binding var selectedPage: NavigationPage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             // Section: Trạng thái
             HIGSection(header: "Trạng thái") {
                 HIGRow {
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(appState.isEnabled ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
+                    HStack(spacing: 10) {
+                        Image(systemName: appState.isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(appState.isEnabled ? Color.green : Color(NSColor.tertiaryLabelColor))
+                            .frame(width: 18)
                         Text(appState.isEnabled ? "Đang hoạt động" : "Đã tắt")
                     }
                     Spacer()
@@ -257,112 +265,105 @@ struct HomePageView: View {
                 }
 
                 HIGRow {
-                    Text("Phím tắt bật/tắt")
+                    HStack(spacing: 10) {
+                        Image(systemName: "command")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                            .frame(width: 18)
+                        Text("Phím tắt bật/tắt")
+                    }
                     Spacer()
                     HStack(spacing: 4) {
                         KeyboardBadge(text: "⌃")
                         KeyboardBadge(text: "Space")
                     }
                 }
-            }
 
-            // Section: Kiểu gõ
-            HIGSection(header: "Kiểu gõ") {
-                HIGRow(action: { onNavigate(.settings) }) {
-                    HStack(spacing: 12) {
+                // Navigable row: Kiểu gõ
+                HIGRow(action: { selectedPage = .settings }) {
+                    HStack(spacing: 10) {
                         Image(systemName: "keyboard")
-                            .font(.system(size: 16))
-                            .foregroundColor(.accentColor)
-                            .frame(width: 24)
-                        Text("Phương thức")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                            .frame(width: 18)
+                        Text("Kiểu gõ")
                     }
                     Spacer()
                     Text(appState.currentMethod.name)
                         .foregroundColor(Color(NSColor.secondaryLabelColor))
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 }
-            }
 
-            // Section: Thống kê
-            HIGSection(header: "Thống kê") {
-                HIGRow(action: { onNavigate(.settings) }) {
-                    HStack(spacing: 12) {
+                // Navigable row: Từ viết tắt
+                HIGRow(action: { selectedPage = .settings }) {
+                    HStack(spacing: 10) {
                         Image(systemName: "text.badge.plus")
-                            .font(.system(size: 16))
-                            .foregroundColor(.orange)
-                            .frame(width: 24)
-                        Text("Gõ tắt")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                            .frame(width: 18)
+                        Text("Từ viết tắt")
                     }
                     Spacer()
-                    Text("\(appState.shortcuts.count) từ")
+                    Text("\(appState.shortcuts.count) mục")
                         .foregroundColor(Color(NSColor.secondaryLabelColor))
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 }
 
-                HIGRow(action: { onNavigate(.settings) }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "xmark.app")
-                            .font(.system(size: 16))
-                            .foregroundColor(.red)
-                            .frame(width: 24)
-                        Text("Ngoại lệ")
+                // Navigable row: Ứng dụng bỏ qua
+                HIGRow(action: { selectedPage = .settings }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "app.badge.checkmark")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                            .frame(width: 18)
+                        Text("Ứng dụng bỏ qua")
                     }
                     Spacer()
-                    Text("\(appState.excludedApps.count) app")
+                    Text("\(appState.excludedApps.count) mục")
                         .foregroundColor(Color(NSColor.secondaryLabelColor))
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 }
             }
 
             // Section: Mẹo gõ nhanh
-            HIGSection(header: "Mẹo gõ nhanh (\(appState.currentMethod.name))") {
-                if appState.currentMethod == .telex {
-                    tipsGrid(tips: [
-                        ("aa", "â"), ("aw", "ă"), ("dd", "đ"),
-                        ("ee", "ê"), ("oo", "ô"), ("ow", "ơ"),
-                        ("s", "sắc"), ("f", "huyền"), ("r", "hỏi")
-                    ])
-                } else {
-                    tipsGrid(tips: [
-                        ("a6", "â"), ("a8", "ă"), ("d9", "đ"),
-                        ("e6", "ê"), ("o6", "ô"), ("o7", "ơ"),
-                        ("1", "sắc"), ("2", "huyền"), ("3", "hỏi")
-                    ])
+            HIGSection(header: "Mẹo gõ nhanh") {
+                VStack(alignment: .leading, spacing: 6) {
+                    tipItem("Gõ dấu 2 lần để huỷ", example: "caas → cas → ca")
+                    tipItem("Gõ z để xoá dấu thanh", example: "cáz → ca")
+                    tipItem("Gõ 0 để xoá tất cả dấu", example: "cấ0 → cu")
+                    if appState.currentMethod == .telex {
+                        tipItem("Gõ w thay ư hoặc ơ", example: "mw → mư, bown → bơn")
+                        tipItem("Gõ [ hoặc ] thay ơ, ư", example: "b[n → bơn")
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
             }
 
             Spacer()
         }
     }
 
-    private func tipsGrid(tips: [(String, String)]) -> some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 8) {
-            ForEach(tips, id: \.0) { tip in
-                HStack(spacing: 6) {
-                    KeyboardBadge(text: tip.0)
-                    Text("→")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    Text(tip.1)
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(NSColor.secondaryLabelColor))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6)
-            }
+    private func tipItem(_ text: String, example: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lightbulb")
+                .font(.system(size: 11))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+            Text("·")
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            Text(example)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
 
@@ -370,146 +371,285 @@ struct HomePageView: View {
 
 struct SettingsPageView: View {
     @ObservedObject var appState: AppState
+    @State private var showingDeleteConfirmation = false
+    @State private var itemToDelete: (type: String, index: Int)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Section: Kiểu gõ
             HIGSection(header: "Kiểu gõ") {
-                HIGRow(action: { appState.currentMethod = .telex }) {
-                    HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.blue)
-                            .frame(width: 28, height: 28)
-                            .overlay(
-                                Text("T")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Telex")
-                                .font(.system(size: 13))
-                            Text("aa → â · dd → đ · s → sắc")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(NSColor.secondaryLabelColor))
-                        }
-                    }
-                    Spacer()
-                    if appState.currentMethod == .telex {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-                }
-
-                HIGRow(action: { appState.currentMethod = .vni }) {
-                    HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.orange)
-                            .frame(width: 28, height: 28)
-                            .overlay(
-                                Text("V")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("VNI")
-                                .font(.system(size: 13))
-                            Text("a6 → â · d9 → đ · 1 → sắc")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(NSColor.secondaryLabelColor))
-                        }
-                    }
-                    Spacer()
-                    if appState.currentMethod == .vni {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-                }
+                methodRow(method: .telex, description: "aa → â · dd → đ · s → sắc")
+                methodRow(method: .vni, description: "a6 → â · d9 → đ · 1 → sắc")
             }
 
-            // Section: Gõ tắt
-            HIGSection(header: "Gõ tắt", headerTrailing: {
-                Button(action: { /* TODO: Add shortcut */ }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.borderless)
-            }) {
-                ForEach(appState.shortcuts) { shortcut in
-                    HIGRow {
-                        Text(shortcut.key)
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .frame(width: 50, alignment: .leading)
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        Text(shortcut.value)
-                            .font(.system(size: 13))
-                        Spacer()
+            // Section: Gõ tắt (macOS System Settings style)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TỪ VIẾT TẮT")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+                    .padding(.horizontal, 4)
+
+                VStack(spacing: 0) {
+                    if appState.shortcuts.isEmpty {
+                        emptyState(
+                            icon: "text.badge.plus",
+                            title: "Chưa có từ viết tắt",
+                            subtitle: "Nhấn + để thêm"
+                        )
+                    } else {
+                        ForEach($appState.shortcuts) { $shortcut in
+                            shortcutRow(shortcut: $shortcut)
+                        }
+                    }
+
+                    Divider()
+                        .background(Color(NSColor.separatorColor))
+
+                    // Plus/Minus buttons
+                    HStack(spacing: 0) {
+                        Button(action: { /* TODO: Add shortcut */ }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(NSColor.labelColor))
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.borderless)
+
+                        Divider()
+                            .frame(height: 16)
+
                         Button(action: {
-                            if let index = appState.shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-                                appState.shortcuts.remove(at: index)
+                            if !appState.shortcuts.isEmpty {
+                                appState.shortcuts.removeLast()
                             }
                         }) {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                            Image(systemName: "minus")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(appState.shortcuts.isEmpty ? Color(NSColor.tertiaryLabelColor) : Color(NSColor.labelColor))
+                                .frame(width: 24, height: 24)
                         }
                         .buttonStyle(.borderless)
-                    }
-                }
+                        .disabled(appState.shortcuts.isEmpty)
 
-                if appState.shortcuts.isEmpty {
-                    HIGRow {
-                        Text("Chưa có từ viết tắt nào")
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    }
-                }
-            }
-
-            // Section: Ngoại lệ
-            HIGSection(header: "Ứng dụng ngoại lệ", headerTrailing: {
-                Button(action: { /* TODO: Add app */ }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.borderless)
-            }) {
-                ForEach(appState.excludedApps.indices, id: \.self) { index in
-                    HIGRow {
-                        Image(systemName: "app.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(NSColor.secondaryLabelColor))
-                        Text(appState.excludedApps[index])
-                            .font(.system(size: 13))
                         Spacer()
-                        Button(action: { appState.excludedApps.remove(at: index) }) {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        }
-                        .buttonStyle(.borderless)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                 }
-
-                if appState.excludedApps.isEmpty {
-                    HIGRow {
-                        Text("Chưa có ứng dụng nào")
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    }
-                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
+                )
             }
 
-            Text("Bộ gõ sẽ tự động tắt khi bạn sử dụng các ứng dụng trong danh sách ngoại lệ.")
-                .font(.system(size: 11))
-                .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                .padding(.horizontal, 4)
+            // Section: Ngoại lệ (macOS System Settings style)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ỨNG DỤNG BỎ QUA")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+                    .padding(.horizontal, 4)
+
+                VStack(spacing: 0) {
+                    // App list with toggles
+                    if appState.excludedApps.isEmpty {
+                        emptyState(
+                            icon: "app.dashed",
+                            title: "Chưa có ứng dụng nào",
+                            subtitle: "Nhấn + để thêm ứng dụng"
+                        )
+                    } else {
+                        ForEach($appState.excludedApps) { $app in
+                            excludedAppRow(app: $app)
+                        }
+                    }
+
+                    // Divider before buttons
+                    Divider()
+                        .background(Color(NSColor.separatorColor))
+
+                    // Plus/Minus buttons row
+                    HStack(spacing: 0) {
+                        Button(action: { /* TODO: Add app */ }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(NSColor.labelColor))
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Thêm ứng dụng")
+
+                        Divider()
+                            .frame(height: 16)
+
+                        Button(action: {
+                            // Remove selected/last app
+                            if !appState.excludedApps.isEmpty {
+                                appState.excludedApps.removeLast()
+                            }
+                        }) {
+                            Image(systemName: "minus")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(appState.excludedApps.isEmpty ? Color(NSColor.tertiaryLabelColor) : Color(NSColor.labelColor))
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(appState.excludedApps.isEmpty)
+                        .accessibilityLabel("Xoá ứng dụng")
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
+                )
+            }
 
             Spacer()
         }
+        .alert("Xác nhận xoá", isPresented: $showingDeleteConfirmation) {
+            Button("Huỷ", role: .cancel) { }
+            Button("Xoá", role: .destructive) {
+                if let item = itemToDelete {
+                    withAnimation {
+                        if item.type == "shortcut" {
+                            appState.shortcuts.remove(at: item.index)
+                        } else {
+                            appState.excludedApps.remove(at: item.index)
+                        }
+                    }
+                }
+            }
+        } message: {
+            Text("Bạn có chắc muốn xoá mục này?")
+        }
+    }
+
+    // MARK: - Method Row
+
+    private func methodRow(method: InputMode, description: String) -> some View {
+        HIGRow(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                appState.currentMethod = method
+            }
+        }) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(method.name)
+                    .font(.system(size: 13, weight: .medium))
+                Text(description)
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+            Spacer()
+            if appState.currentMethod == method {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(method.name). \(description)")
+        .accessibilityValue(appState.currentMethod == method ? "Đang chọn" : "")
+        .accessibilityHint("Nhấn đúp để chọn kiểu gõ này")
+        .accessibilityAddTraits(appState.currentMethod == method ? .isSelected : [])
+    }
+
+    // MARK: - Shortcut Row (macOS System Settings style)
+
+    private func shortcutRow(shortcut: Binding<ShortcutItem>) -> some View {
+        HStack(spacing: 12) {
+            // Key → Value
+            Text(shortcut.wrappedValue.key)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundColor(Color(NSColor.labelColor))
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            Text(shortcut.wrappedValue.value)
+                .font(.system(size: 13))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+                .lineLimit(1)
+
+            Spacer()
+
+            // Toggle
+            Toggle("", isOn: shortcut.isEnabled)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Gõ tắt \(shortcut.wrappedValue.key) thành \(shortcut.wrappedValue.value), \(shortcut.wrappedValue.isEnabled ? "đang bật" : "đã tắt")")
+    }
+
+    // MARK: - Excluded App Row (macOS System Settings style)
+
+    private func excludedAppRow(app: Binding<ExcludedApp>) -> some View {
+        HStack(spacing: 12) {
+            // App icon
+            if let icon = app.wrappedValue.icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+                    .frame(width: 24, height: 24)
+            }
+
+            // App name with clear action label
+            VStack(alignment: .leading, spacing: 2) {
+                Text(app.wrappedValue.name)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(NSColor.labelColor))
+                Text("Tắt gõ tiếng Việt")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+
+            Spacer()
+
+            // Toggle with clear ON state
+            Toggle("", isOn: app.isEnabled)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Tắt gõ tiếng Việt trong \(app.wrappedValue.name), \(app.wrappedValue.isEnabled ? "đang bật" : "đã tắt")")
+    }
+
+    // MARK: - Empty State
+
+    private func emptyState(icon: String, title: String, subtitle: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+            Text(subtitle)
+                .font(.system(size: 11))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle)")
     }
 }
 
@@ -517,165 +657,70 @@ struct SettingsPageView: View {
 
 struct AboutPageView: View {
     var body: some View {
-        VStack(spacing: 24) {
-            // Logo & Info
-            VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Logo & Info (compact)
+            HStack(spacing: 16) {
                 Image(nsImage: AppMetadata.logo)
                     .resizable()
-                    .frame(width: 80, height: 80)
+                    .frame(width: 64, height: 64)
 
-                Text(AppMetadata.name)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color(NSColor.labelColor))
-
-                Text("Bộ gõ tiếng Việt cho macOS")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-                Text("Version \(AppMetadata.version) (Build \(AppMetadata.buildNumber))")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(NSColor.quaternaryLabelColor))
-            }
-
-            // Author + Sponsor
-            HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Tác giả")
+                    Text(AppMetadata.name)
+                        .font(.system(size: 18, weight: .bold))
+                    Text("Bộ gõ tiếng Việt nhanh và nhẹ")
                         .font(.system(size: 12))
+                        .foregroundColor(Color(NSColor.secondaryLabelColor))
+                    Text("Phiên bản \(AppMetadata.version)")
+                        .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-                    Link(destination: URL(string: AppMetadata.authorLinkedin)!) {
-                        HStack(spacing: 8) {
-                            Text(AppMetadata.author)
-                                .foregroundColor(Color(NSColor.labelColor))
-                            Image(systemName: "link")
-                                .foregroundColor(.accentColor)
-                        }
-                        .font(.system(size: 14))
-                    }
                 }
-
                 Spacer()
-
-                Link(destination: URL(string: "https://github.com/sponsors/khaphanspace")!) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 12))
-                        Text("Sponsor")
-                            .font(.system(size: 12))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.pink.opacity(0.15))
-                    .foregroundColor(Color.pink)
-                    .cornerRadius(6)
-                }
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
-            )
+            .padding(.bottom, 8)
 
             // Links
-            VStack(spacing: 0) {
-                linkRow(icon: "link", title: "GitHub", url: AppMetadata.repository)
-                Divider().background(Color(NSColor.separatorColor))
+            HIGSection(header: "Liên kết") {
+                linkRow(icon: "chevron.left.forwardslash.chevron.right", title: "Mã nguồn GitHub", url: AppMetadata.repository)
                 linkRow(icon: "book", title: "Hướng dẫn sử dụng", url: AppMetadata.website)
-                Divider().background(Color(NSColor.separatorColor))
-                linkRow(icon: "exclamationmark.bubble", title: "Góp ý & Báo lỗi", url: AppMetadata.issuesURL)
+                linkRow(icon: "ant", title: "Góp ý & Báo lỗi", url: AppMetadata.issuesURL)
             }
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
-            )
+
+            // Author
+            HIGSection(header: "Tác giả") {
+                linkRow(icon: "person", title: AppMetadata.author, url: AppMetadata.authorLinkedin)
+                linkRow(icon: "heart", title: "Ủng hộ tác giả", url: "https://github.com/sponsors/khaphanspace")
+            }
+
+            Spacer()
 
             // Footer
             Text("Made with ❤️ in Vietnam")
-                .font(.system(size: 12))
-                .foregroundColor(Color(NSColor.quaternaryLabelColor))
-
-            Spacer()
+                .font(.system(size: 11))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
     private func linkRow(icon: String, title: String, url: String) -> some View {
         Link(destination: URL(string: url)!) {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
                     .frame(width: 20)
-
                 Text(title)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                     .foregroundColor(Color(NSColor.labelColor))
-
                 Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Update Page
-
-struct UpdatePageView: View {
-    @ObservedObject var updateManager = UpdateManager.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Cập nhật")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(Color(NSColor.labelColor))
-
-            VStack(spacing: 16) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Gõ Nhanh 2.2.0")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Color(NSColor.labelColor))
-                        Text("8.2 MB")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    }
-
-                    Spacer()
-
-                    Button("Cập nhật") {
-                        // TODO: Update
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-
-                Divider()
-                    .background(Color(NSColor.separatorColor))
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Có gì mới")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-                    Text("Hỗ trợ macOS Sequoia\nCải thiện tốc độ\nSửa lỗi Safari")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(NSColor.labelColor))
-                        .lineSpacing(4)
-                }
-            }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
-            )
-
-            Spacer()
-        }
     }
 }
 

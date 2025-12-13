@@ -397,4 +397,5 @@ private func sendReplacement(backspace bs: Int, chars: [Character]) {
 
 extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
+    static let showUpdateWindow = Notification.Name("showUpdateWindow")
 }

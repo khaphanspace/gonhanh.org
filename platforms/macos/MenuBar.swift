@@ -56,6 +56,13 @@ class MenuBarController {
             object: nil
         )
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(checkForUpdates),
+            name: .showUpdateWindow,
+            object: nil
+        )
+
         setupMenu()
         updateStatusButton()
 
