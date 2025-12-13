@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Navigation
 
@@ -283,6 +284,7 @@ struct NavButton: View {
                     .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
                           isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
             )
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -297,6 +299,8 @@ struct NavButton: View {
 struct SettingsPageView: View {
     @ObservedObject var appState: AppState
     @State private var isRecordingShortcut = false
+    @State private var selectedShortcutId: UUID?
+    @State private var selectedAppId: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -355,17 +359,33 @@ struct SettingsPageView: View {
                     EmptyStateView(icon: "text.badge.plus", text: "Chưa có từ viết tắt")
                 } else {
                     ForEach($appState.shortcuts) { $shortcut in
-                        ShortcutRow(shortcut: $shortcut)
+                        ShortcutRow(
+                            shortcut: $shortcut,
+                            isSelected: selectedShortcutId == shortcut.id
+                        ) {
+                            selectedShortcutId = shortcut.id
+                            selectedAppId = nil
+                        }
                         if shortcut.id != appState.shortcuts.last?.id {
-                            Divider().padding(.leading, 12)
+                            Divider()
                         }
                     }
                 }
 
                 Divider()
                 AddRemoveButtons(
-                    onAdd: { /* TODO */ },
-                    onRemove: { if !appState.shortcuts.isEmpty { appState.shortcuts.removeLast() } },
+                    onAdd: {
+                        let newItem = ShortcutItem(key: "", value: "")
+                        appState.shortcuts.append(newItem)
+                        selectedShortcutId = newItem.id
+                    },
+                    onRemove: {
+                        if let id = selectedShortcutId,
+                           let idx = appState.shortcuts.firstIndex(where: { $0.id == id }) {
+                            appState.shortcuts.remove(at: idx)
+                            selectedShortcutId = appState.shortcuts.last?.id
+                        }
+                    },
                     removeDisabled: appState.shortcuts.isEmpty
                 )
             }
@@ -376,22 +396,51 @@ struct SettingsPageView: View {
                     EmptyStateView(icon: "app.dashed", text: "Chưa có ứng dụng")
                 } else {
                     ForEach($appState.excludedApps) { $app in
-                        ExcludedAppRow(app: $app)
+                        ExcludedAppRow(app: $app, isSelected: selectedAppId == app.id) {
+                            selectedAppId = app.id
+                            selectedShortcutId = nil
+                        }
                         if app.id != appState.excludedApps.last?.id {
-                            Divider().padding(.leading, 48)
+                            Divider()
                         }
                     }
                 }
 
                 Divider()
                 AddRemoveButtons(
-                    onAdd: { /* TODO */ },
-                    onRemove: { if !appState.excludedApps.isEmpty { appState.excludedApps.removeLast() } },
+                    onAdd: { showAppPicker() },
+                    onRemove: {
+                        if let id = selectedAppId,
+                           let idx = appState.excludedApps.firstIndex(where: { $0.id == id }) {
+                            appState.excludedApps.remove(at: idx)
+                            selectedAppId = appState.excludedApps.last?.id
+                        }
+                    },
                     removeDisabled: appState.excludedApps.isEmpty
                 )
             }
 
             Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func showAppPicker() {
+        let panel = NSOpenPanel()
+        panel.title = "Chọn ứng dụng"
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+
+        if panel.runModal() == .OK, let url = panel.url {
+            let name = url.deletingPathExtension().lastPathComponent
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            let bundleId = Bundle(url: url)?.bundleIdentifier ?? url.lastPathComponent
+
+            // Check if already added
+            if !appState.excludedApps.contains(where: { $0.bundleId == bundleId }) {
+                appState.excludedApps.append(ExcludedApp(bundleId: bundleId, name: name, icon: icon))
+            }
         }
     }
 }
@@ -453,7 +502,8 @@ struct ShortcutRecorderRow: View {
     @Binding var shortcut: KeyboardShortcut
     @Binding var isRecording: Bool
     @State private var isHovered = false
-    @State private var eventMonitor: Any?
+    @State private var localMonitor: Any?
+    @State private var globalMonitor: Any?
 
     var body: some View {
         Button {
@@ -487,6 +537,7 @@ struct ShortcutRecorderRow: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
             .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -502,8 +553,14 @@ struct ShortcutRecorderRow: View {
         guard !isRecording else { return }
         isRecording = true
 
-        // Use global monitor to capture system shortcuts like Ctrl+Space
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
+        // Use local monitor for when app has focus
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            handleKeyEvent(event)
+            return nil  // Consume the event
+        }
+
+        // Use global monitor for system shortcuts like Ctrl+Space (when other apps have focus)
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
             handleKeyEvent(event)
         }
     }
@@ -533,9 +590,13 @@ struct ShortcutRecorderRow: View {
     }
 
     private func stopRecording() {
-        if let monitor = eventMonitor {
+        if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
+            localMonitor = nil
+        }
+        if let monitor = globalMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalMonitor = nil
         }
         isRecording = false
     }
@@ -571,19 +632,24 @@ struct SectionView<Content: View>: View {
 
 struct ShortcutRow: View {
     @Binding var shortcut: ShortcutItem
+    var isSelected: Bool
+    var onSelect: () -> Void
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(shortcut.key)
+            TextField("viết tắt", text: $shortcut.key)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .frame(width: 50, alignment: .leading)
+                .textFieldStyle(.plain)
+                .frame(width: 60)
+                .focused($isFocused)
             Text("→")
                 .font(.system(size: 11))
                 .foregroundColor(Color(NSColor.tertiaryLabelColor))
-            Text(shortcut.value)
+            TextField("nội dung", text: $shortcut.value)
                 .font(.system(size: 13))
-                .foregroundColor(Color(NSColor.secondaryLabelColor))
-                .lineLimit(1)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
             Spacer()
             Toggle("", isOn: $shortcut.isEnabled)
                 .toggleStyle(.switch)
@@ -591,11 +657,19 @@ struct ShortcutRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect() }
+        .onChange(of: isFocused) { focused in
+            if focused { onSelect() }
+        }
     }
 }
 
 struct ExcludedAppRow: View {
     @Binding var app: ExcludedApp
+    var isSelected: Bool
+    var onSelect: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -612,6 +686,7 @@ struct ExcludedAppRow: View {
 
             Text(app.name)
                 .font(.system(size: 13))
+                .foregroundColor(Color(NSColor.labelColor))
                 .lineLimit(1)
 
             Spacer()
@@ -622,6 +697,9 @@ struct ExcludedAppRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect() }
     }
 }
 
@@ -649,6 +727,7 @@ struct LinkRow: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { hovering in

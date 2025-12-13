@@ -42,7 +42,7 @@ struct MenuPopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header - Custom styled
             HStack(spacing: 10) {
                 Image(nsImage: AppMetadata.logo)
                     .resizable()
@@ -72,101 +72,100 @@ struct MenuPopoverView: View {
                 .labelsHidden()
                 .scaleEffect(0.8)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
-            Divider()
+            Divider().padding(.horizontal, 8)
 
-            // Method selection
+            // Method selection - macOS menu style
             VStack(spacing: 0) {
-                simpleMethodRow(method: .telex)
-                simpleMethodRow(method: .vni)
+                MenuItem(
+                    title: InputMode.telex.name,
+                    isChecked: state.currentMethod == .telex
+                ) { state.setMethod(.telex) }
+
+                MenuItem(
+                    title: InputMode.vni.name,
+                    isChecked: state.currentMethod == .vni
+                ) { state.setMethod(.vni) }
             }
             .padding(.vertical, 4)
 
-            Divider()
+            Divider().padding(.horizontal, 8)
 
-            // Menu items
+            // Menu items - macOS menu style
             VStack(spacing: 0) {
-                menuItem(title: "Cài đặt...", shortcut: "⌘,") {
+                MenuItem(title: "Cài đặt...", shortcut: "⌘,") {
                     closeMenu()
                     openSettings()
                 }
-                menuItem(title: "Kiểm tra cập nhật", shortcut: nil) {
+                MenuItem(title: "Kiểm tra cập nhật") {
                     closeMenu()
                     NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
                 }
             }
             .padding(.vertical, 4)
 
-            Divider()
+            Divider().padding(.horizontal, 8)
 
             // Quit
-            menuItem(title: "Thoát", shortcut: "⌘Q") {
+            MenuItem(title: "Thoát \(AppMetadata.name)", shortcut: "⌘Q") {
                 NSApp.terminate(nil)
             }
             .padding(.vertical, 4)
         }
-        .frame(width: 220)
-    }
-
-    private func simpleMethodRow(method: InputMode) -> some View {
-        Button {
-            state.setMethod(method)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: state.currentMethod == method ? "checkmark" : "")
-                    .font(.system(size: 11, weight: .medium))
-                    .frame(width: 14)
-                    .foregroundColor(Color(NSColor.labelColor))
-                Text(method.name)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(NSColor.labelColor))
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(MenuItemButtonStyle())
-    }
-
-    private func menuItem(title: String, shortcut: String?, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(NSColor.labelColor))
-                Spacer()
-                if let shortcut = shortcut {
-                    Text(shortcut)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(MenuItemButtonStyle())
+        .frame(width: 240)
     }
 }
 
-// MARK: - Menu Item Button Style (System-like hover)
+// MARK: - macOS Native Menu Item Style
 
-struct MenuItemButtonStyle: ButtonStyle {
+struct MenuItem: View {
+    let title: String
+    var shortcut: String? = nil
+    var isChecked: Bool = false
+    let action: () -> Void
+
     @State private var isHovered = false
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 0) {
+                // Checkmark area (fixed width for alignment)
+                Text(isChecked ? "✓" : "")
+                    .font(.system(size: 13, weight: .regular))
+                    .frame(width: 20, alignment: .center)
+                    .foregroundColor(isHovered ? .white : Color(NSColor.labelColor))
+
+                // Title
+                Text(title)
+                    .font(.system(size: 13))
+                    .foregroundColor(isHovered ? .white : Color(NSColor.labelColor))
+
+                Spacer()
+
+                // Shortcut
+                if let shortcut = shortcut {
+                    Text(shortcut)
+                        .font(.system(size: 13))
+                        .foregroundColor(isHovered ? .white.opacity(0.8) : Color(NSColor.tertiaryLabelColor))
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(isHovered || configuration.isPressed ? Color.accentColor : Color.clear)
+                    .fill(isHovered ? Color.accentColor : Color.clear)
             )
-            .foregroundColor(isHovered || configuration.isPressed ? .white : nil)
-            .onHover { isHovered = $0 }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 6)
+        .onHover { isHovered = $0 }
     }
 }
+
 
 // MARK: - Menu Bar Controller
 
@@ -330,23 +329,24 @@ class MenuBarController: NSObject {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             panel.contentViewController = hostingController
 
-            // Add visual effect background
-            let visualEffect = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentSize))
+            // Add visual effect background with proper clipping
+            let containerView = NSView(frame: NSRect(origin: .zero, size: contentSize))
+            containerView.wantsLayer = true
+            containerView.layer?.cornerRadius = 8
+            containerView.layer?.masksToBounds = true
+
+            let visualEffect = NSVisualEffectView(frame: containerView.bounds)
             visualEffect.material = .menu
             visualEffect.state = .active
-            visualEffect.wantsLayer = true
-            visualEffect.layer?.cornerRadius = 8
-            visualEffect.layer?.masksToBounds = true
-            visualEffect.layer?.borderWidth = 0.5
-            visualEffect.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.5).cgColor
+            visualEffect.autoresizingMask = [.width, .height]
 
-            hostingController.view.wantsLayer = true
-            hostingController.view.layer?.cornerRadius = 8
-            hostingController.view.layer?.masksToBounds = true
+            containerView.addSubview(visualEffect)
 
-            panel.contentView = visualEffect
-            visualEffect.addSubview(hostingController.view)
-            hostingController.view.frame = visualEffect.bounds
+            hostingController.view.frame = containerView.bounds
+            hostingController.view.autoresizingMask = [.width, .height]
+            containerView.addSubview(hostingController.view)
+
+            panel.contentView = containerView
 
             menuPanel = panel
         }
