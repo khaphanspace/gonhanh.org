@@ -1,57 +1,35 @@
 # Hướng dẫn cài đặt Gõ Nhanh trên Linux
 
-## Yêu cầu hệ thống
-
-- **Hệ điều hành**: Ubuntu 22.04+, Fedora 38+, Arch Linux, hoặc các distro có hỗ trợ Fcitx5
-- **Input Method Framework**: Fcitx5
-- **Thư viện**: libfcitx5core, cmake, g++ (để build từ source)
-
-### Cài đặt Fcitx5 (nếu chưa có)
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install fcitx5 fcitx5-configtool
-```
-
-**Fedora:**
-```bash
-sudo dnf install fcitx5 fcitx5-configtool
-```
-
-**Arch Linux:**
-```bash
-sudo pacman -S fcitx5 fcitx5-configtool
-```
-
----
-
-## Cài đặt
-
-### Cách 1: Cài đặt tự động (Khuyến nghị)
+## Cài đặt nhanh (1 lệnh)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
 ```
 
-Sau khi cài xong, thêm Gõ Nhanh vào Fcitx5:
-```bash
-fcitx5 -r && fcitx5-configtool
-```
-→ Input Method → Add → **GoNhanh**
+Script sẽ tự động:
+- Cài đặt Fcitx5 (nếu chưa có)
+- Tải và cài đặt Gõ Nhanh
+- Cấu hình biến môi trường
+- Thêm GoNhanh vào Fcitx5
+- Khởi động Fcitx5
 
-### Cách 2: Build từ source
+**Sau khi cài xong**, bạn có thể cần đăng xuất/đăng nhập lại để áp dụng đầy đủ.
 
-Xem hướng dẫn chi tiết tại [platforms/linux/README.md](../platforms/linux/README.md)
+---
+
+## Yêu cầu hệ thống
+
+- **Hệ điều hành**: Ubuntu 22.04+, Fedora 38+, Arch Linux, hoặc các distro có hỗ trợ Fcitx5
+- **Quyền**: sudo (để cài Fcitx5 nếu chưa có)
 
 ---
 
 ## Nâng cấp (Upgrade)
 
-Chạy lại script cài đặt để cập nhật lên phiên bản mới nhất:
+Chạy lại script cài đặt:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
-fcitx5 -r
 ```
 
 Script sẽ tự động ghi đè các file cũ bằng phiên bản mới.
@@ -82,7 +60,7 @@ fcitx5 -r
 
 ### Bật/Tắt bộ gõ
 
-- **Phím tắt**: `Ctrl + Space` - Chuyển đổi giữa bộ gõ tiếng Việt và tiếng Anh
+- **Phím tắt**: `Ctrl + Space` - Chuyển đổi giữa gõ tiếng Việt và tiếng Anh
 
 ### Chuyển đổi kiểu gõ
 
@@ -133,41 +111,51 @@ fcitx5 -r
 
 ## Xử lý sự cố
 
-### Bộ gõ không xuất hiện trong danh sách
+### Không gõ được tiếng Việt sau khi cài
 
-1. Kiểm tra Fcitx5 đang chạy:
+1. **Đăng xuất và đăng nhập lại** để áp dụng biến môi trường
+
+2. Kiểm tra Fcitx5 đang chạy:
    ```bash
-   pgrep fcitx5
+   pgrep fcitx5 || fcitx5 -d
    ```
 
-2. Kiểm tra file addon đã được cài:
+3. Kiểm tra biến môi trường:
+   ```bash
+   echo $GTK_IM_MODULE  # Phải là "fcitx"
+   ```
+
+### Bộ gõ không xuất hiện trong danh sách Fcitx5
+
+1. Kiểm tra file addon đã được cài:
    ```bash
    ls ~/.local/share/fcitx5/addon/gonhanh.conf
    ```
 
-3. Khởi động lại Fcitx5:
+2. Mở Fcitx5 Config Tool và thêm GoNhanh thủ công:
    ```bash
-   fcitx5 -r
+   fcitx5-configtool
    ```
+   → Input Method → Add → **GoNhanh**
 
-### Không gõ được tiếng Việt
+### Fcitx5 không tự khởi động
 
-1. Đảm bảo đã chọn GoNhanh trong Input Method
-2. Thử nhấn `Ctrl + Space` để bật bộ gõ
-3. Kiểm tra biến môi trường:
-   ```bash
-   echo $INPUT_METHOD
-   echo $GTK_IM_MODULE
-   echo $QT_IM_MODULE
-   ```
+Thêm vào autostart:
+```bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/fcitx5.desktop << 'EOF'
+[Desktop Entry]
+Name=Fcitx5
+Exec=fcitx5 -d
+Type=Application
+EOF
+```
 
-   Nếu chưa có, thêm vào `~/.profile` hoặc `~/.bashrc`:
-   ```bash
-   export INPUT_METHOD=fcitx
-   export GTK_IM_MODULE=fcitx
-   export QT_IM_MODULE=fcitx
-   export XMODIFIERS=@im=fcitx
-   ```
+---
+
+## Build từ source
+
+Xem hướng dẫn chi tiết tại [platforms/linux/README.md](../platforms/linux/README.md)
 
 ---
 
