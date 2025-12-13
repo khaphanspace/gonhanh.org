@@ -54,12 +54,13 @@ pub struct Shortcut {
 
 impl Shortcut {
     /// Create a new shortcut with word boundary trigger (applies to all input methods)
+    /// Trigger must match exactly (case-sensitive), output is exactly as defined
     pub fn new(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_lowercase(),
+            trigger: trigger.to_string(), // Keep original case
             replacement: replacement.to_string(),
             condition: TriggerCondition::OnWordBoundary,
-            case_mode: CaseMode::MatchCase,
+            case_mode: CaseMode::Exact, // Exact match, no case transformation
             enabled: true,
             input_method: InputMethod::All,
         }
@@ -68,7 +69,7 @@ impl Shortcut {
     /// Create an immediate trigger shortcut (applies to all input methods)
     pub fn immediate(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_lowercase(),
+            trigger: trigger.to_string(), // Keep original case
             replacement: replacement.to_string(),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
@@ -80,7 +81,7 @@ impl Shortcut {
     /// Create a Telex-specific shortcut with immediate trigger
     pub fn telex(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_lowercase(),
+            trigger: trigger.to_string(), // Keep original case
             replacement: replacement.to_string(),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
@@ -92,7 +93,7 @@ impl Shortcut {
     /// Create a VNI-specific shortcut with immediate trigger
     pub fn vni(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_lowercase(),
+            trigger: trigger.to_string(), // Keep original case
             replacement: replacement.to_string(),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
@@ -208,9 +209,9 @@ impl ShortcutTable {
         self.rebuild_sorted_triggers();
     }
 
-    /// Remove a shortcut
+    /// Remove a shortcut (exact match, case-sensitive)
     pub fn remove(&mut self, trigger: &str) -> Option<Shortcut> {
-        let result = self.shortcuts.remove(&trigger.to_lowercase());
+        let result = self.shortcuts.remove(trigger);
         if result.is_some() {
             self.rebuild_sorted_triggers();
         }
@@ -232,11 +233,9 @@ impl ShortcutTable {
         buffer: &str,
         method: InputMethod,
     ) -> Option<(&str, &Shortcut)> {
-        let buffer_lower = buffer.to_lowercase();
-
-        // Longest-match-first
+        // Longest-match-first, exact case-sensitive match
         for trigger in &self.sorted_triggers {
-            if buffer_lower == *trigger {
+            if buffer == *trigger {
                 if let Some(shortcut) = self.shortcuts.get(trigger) {
                     if shortcut.enabled && shortcut.applies_to(method) {
                         return Some((trigger, shortcut));
@@ -452,7 +451,7 @@ mod tests {
     fn test_case_matching() {
         let table = table_with_shortcut("vn", "Việt Nam");
 
-        // Lowercase
+        // Exact match (lowercase "vn" matches "vn")
         assert_shortcut_match(
             &table,
             "vn",
@@ -463,27 +462,11 @@ mod tests {
             InputMethod::All,
         );
 
-        // Uppercase
-        assert_shortcut_match(
-            &table,
-            "VN",
-            Some(' '),
-            true,
-            "VIỆT NAM ",
-            2,
-            InputMethod::All,
-        );
+        // Uppercase "VN" does NOT match lowercase "vn" (case-sensitive)
+        assert_no_match(&table, "VN", Some(' '), true, InputMethod::All);
 
-        // Title case
-        assert_shortcut_match(
-            &table,
-            "Vn",
-            Some(' '),
-            true,
-            "Việt Nam ",
-            2,
-            InputMethod::All,
-        );
+        // Title case "Vn" does NOT match lowercase "vn" (case-sensitive)
+        assert_no_match(&table, "Vn", Some(' '), true, InputMethod::All);
     }
 
     #[test]

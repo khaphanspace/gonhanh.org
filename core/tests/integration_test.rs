@@ -590,19 +590,33 @@ fn shortcut_multiple_shortcuts() {
 }
 
 #[test]
-fn shortcut_case_preserved() {
+fn shortcut_case_sensitive_no_match() {
     let mut e = Engine::new();
 
-    // Add lowercase shortcut
+    // Add lowercase shortcut "vn"
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Typing uppercase "VN" triggers shortcut but preserves user's casing
-    // Engine uppercases the output: VN → VIỆT NAM
+    // Typing uppercase "VN" does NOT match lowercase "vn" (case-sensitive)
     let result = type_word(&mut e, "VN ");
-    assert_eq!(
-        result, "VIỆT NAM ",
-        "VN should expand with uppercase preserved"
-    );
+    assert_eq!(result, "VN ", "VN should NOT match lowercase 'vn' shortcut");
+}
+
+#[test]
+fn shortcut_case_sensitive_exact_match() {
+    let mut e = Engine::new();
+
+    // Add uppercase shortcut "VN"
+    e.shortcuts_mut().add(Shortcut::new("VN", "Việt Nam"));
+
+    // Typing "VN" matches exactly
+    let result = type_word(&mut e, "VN ");
+    assert_eq!(result, "Việt Nam ", "VN should match 'VN' shortcut exactly");
+
+    e.clear();
+
+    // Typing "vn" does NOT match uppercase "VN"
+    let result = type_word(&mut e, "vn ");
+    assert_eq!(result, "vn ", "vn should NOT match uppercase 'VN' shortcut");
 }
 
 #[test]
@@ -672,4 +686,57 @@ fn shortcut_vni_mode() {
 
     let result = type_word(&mut e, "vn ");
     assert_eq!(result, "Việt Nam ", "shortcut should work in VNI mode");
+}
+
+#[test]
+fn shortcut_only_triggers_on_space_not_punctuation() {
+    let mut e = Engine::new();
+
+    e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
+
+    // Type "vn" + period - should NOT trigger shortcut
+    // Just type "vn" then clear buffer on period
+    e.on_key(keys::V, false, false);
+    e.on_key(keys::N, false, false);
+    let r = e.on_key(keys::DOT, false, false);
+    assert_eq!(
+        r.action,
+        Action::None as u8,
+        "period should not trigger shortcut"
+    );
+}
+
+#[test]
+fn shortcut_not_triggered_by_comma() {
+    let mut e = Engine::new();
+
+    e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
+
+    // Type "vn" + comma - should NOT trigger shortcut
+    e.on_key(keys::V, false, false);
+    e.on_key(keys::N, false, false);
+    let r = e.on_key(keys::COMMA, false, false);
+    assert_eq!(
+        r.action,
+        Action::None as u8,
+        "comma should not trigger shortcut"
+    );
+}
+
+#[test]
+fn shortcut_not_triggered_by_letter() {
+    let mut e = Engine::new();
+
+    e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
+
+    // Type "vn" + "a" - should NOT trigger shortcut, just add "a"
+    e.on_key(keys::V, false, false);
+    e.on_key(keys::N, false, false);
+    let r = e.on_key(keys::A, false, false);
+    // "a" is a normal letter, should pass through (not a shortcut trigger)
+    assert_eq!(
+        r.action,
+        Action::None as u8,
+        "letter should not trigger shortcut"
+    );
 }
