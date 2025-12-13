@@ -248,9 +248,26 @@ class MenuBarController: NSObject {
         RustBridge.setEnabled(menuState.isEnabled)
         RustBridge.setMethod(menuState.currentMethod.rawValue)
 
+        // Sync shortcuts and excluded apps from AppState
+        syncShortcutsToEngine()
+        syncExcludedAppsToEngine()
+        ExcludedAppsManager.shared.start()
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             UpdateManager.shared.checkForUpdatesSilently()
         }
+    }
+
+    private func syncShortcutsToEngine() {
+        let shortcuts = AppState.shared.shortcuts.map { ($0.key, $0.value, $0.isEnabled) }
+        RustBridge.syncShortcuts(shortcuts)
+    }
+
+    private func syncExcludedAppsToEngine() {
+        let bundleIds = AppState.shared.excludedApps
+            .filter { $0.isEnabled }
+            .map { $0.bundleId }
+        ExcludedAppsManager.shared.setExcludedApps(bundleIds)
     }
 
     // MARK: - Status Button

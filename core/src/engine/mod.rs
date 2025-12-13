@@ -121,6 +121,10 @@ impl Engine {
         }
     }
 
+    pub fn shortcuts(&self) -> &ShortcutTable {
+        &self.shortcuts
+    }
+
     pub fn shortcuts_mut(&mut self) -> &mut ShortcutTable {
         &mut self.shortcuts
     }

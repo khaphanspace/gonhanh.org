@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Combine
 
 // MARK: - Navigation
 
@@ -81,6 +82,7 @@ class AppState: ObservableObject {
         toggleShortcut = KeyboardShortcut.load()
         excludedApps = Self.detectInstalledExcludedApps()
         checkForUpdates()
+        setupObservers()
     }
 
     /// Only add apps to excluded list if they are actually installed
@@ -94,6 +96,35 @@ class AppState: ObservableObject {
                 icon: NSWorkspace.shared.icon(forFile: app.path)
             )
         }
+    }
+
+    private func setupObservers() {
+        // Observe changes to sync to engine
+        $shortcuts
+            .dropFirst() // Skip initial value
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.syncShortcutsToEngine() }
+            .store(in: &cancellables)
+
+        $excludedApps
+            .dropFirst()
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.syncExcludedAppsToEngine() }
+            .store(in: &cancellables)
+    }
+
+    private var cancellables = Set<AnyCancellable>()
+
+    /// Sync shortcuts to Rust engine
+    func syncShortcutsToEngine() {
+        let data = shortcuts.map { ($0.key, $0.value, $0.isEnabled) }
+        RustBridge.syncShortcuts(data)
+    }
+
+    /// Sync excluded apps to manager
+    func syncExcludedAppsToEngine() {
+        let bundleIds = excludedApps.filter { $0.isEnabled }.map { $0.bundleId }
+        ExcludedAppsManager.shared.setExcludedApps(bundleIds)
     }
 
     func checkForUpdates() {

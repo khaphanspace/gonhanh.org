@@ -165,6 +165,11 @@ private struct ImeResult {
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
 
+// Shortcut FFI
+@_silgen_name("ime_add_shortcut") private func ime_add_shortcut(_ trigger: UnsafePointer<CChar>?, _ replacement: UnsafePointer<CChar>?)
+@_silgen_name("ime_remove_shortcut") private func ime_remove_shortcut(_ trigger: UnsafePointer<CChar>?)
+@_silgen_name("ime_clear_shortcuts") private func ime_clear_shortcuts()
+
 // MARK: - RustBridge (Public API)
 
 class RustBridge {
@@ -203,6 +208,41 @@ class RustBridge {
     }
 
     static func clearBuffer() { ime_clear() }
+
+    // MARK: - Shortcuts
+
+    /// Add a shortcut to the engine
+    static func addShortcut(trigger: String, replacement: String) {
+        trigger.withCString { t in
+            replacement.withCString { r in
+                ime_add_shortcut(t, r)
+            }
+        }
+        Log.info("Shortcut added: \(trigger) → \(replacement)")
+    }
+
+    /// Remove a shortcut from the engine
+    static func removeShortcut(trigger: String) {
+        trigger.withCString { t in
+            ime_remove_shortcut(t)
+        }
+        Log.info("Shortcut removed: \(trigger)")
+    }
+
+    /// Clear all shortcuts from the engine
+    static func clearShortcuts() {
+        ime_clear_shortcuts()
+        Log.info("Shortcuts cleared")
+    }
+
+    /// Sync shortcuts from UI to engine
+    static func syncShortcuts(_ shortcuts: [(key: String, value: String, enabled: Bool)]) {
+        ime_clear_shortcuts()
+        for shortcut in shortcuts where shortcut.enabled {
+            addShortcut(trigger: shortcut.key, replacement: shortcut.value)
+        }
+        Log.info("Synced \(shortcuts.filter { $0.enabled }.count) shortcuts")
+    }
 }
 
 // MARK: - Keyboard Hook Manager
@@ -268,7 +308,7 @@ class KeyboardHookManager {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "Cần quyền Accessibility"
-            alert.informativeText = "GoNhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Bật GoNhanh\n3. Khởi động lại app"
+            alert.informativeText = "Gõ Nhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Bật Gõ Nhanh\n3. Khởi động lại app"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Mở System Settings")
             alert.addButton(withTitle: "Hủy")
@@ -420,10 +460,81 @@ private func sendReplacement(backspace bs: Int, chars: [Character]) {
     TextInjector.shared.injectSync(backspace: bs, text: str, method: method, delays: delays)
 }
 
+// MARK: - Excluded Apps Manager
+
+class ExcludedAppsManager {
+    static let shared = ExcludedAppsManager()
+
+    private var excludedBundleIds: Set<String> = []
+    private var appObserver: NSObjectProtocol?
+    private var wasEnabledBeforeExclusion = true
+
+    private init() {}
+
+    /// Start observing frontmost app changes
+    func start() {
+        appObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleAppChange(notification)
+        }
+        Log.info("ExcludedAppsManager started")
+    }
+
+    /// Stop observing
+    func stop() {
+        if let observer = appObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appObserver = nil
+        }
+    }
+
+    /// Update the list of excluded bundle IDs
+    func setExcludedApps(_ bundleIds: [String]) {
+        excludedBundleIds = Set(bundleIds)
+        Log.info("Excluded apps updated: \(bundleIds.count) apps")
+        // Re-check current app
+        checkCurrentApp()
+    }
+
+    /// Check if current frontmost app should be excluded
+    private func checkCurrentApp() {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              let bundleId = app.bundleIdentifier else { return }
+        handleBundleId(bundleId)
+    }
+
+    private func handleAppChange(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let bundleId = app.bundleIdentifier else { return }
+        handleBundleId(bundleId)
+    }
+
+    private func handleBundleId(_ bundleId: String) {
+        let isExcluded = excludedBundleIds.contains(bundleId)
+        if isExcluded {
+            // Store current enabled state before disabling
+            wasEnabledBeforeExclusion = MenuState.shared.isEnabled
+            if MenuState.shared.isEnabled {
+                RustBridge.setEnabled(false)
+                Log.info("App excluded: \(bundleId) - IME disabled")
+            }
+        } else {
+            // Restore previous state when switching to non-excluded app
+            if wasEnabledBeforeExclusion {
+                RustBridge.setEnabled(MenuState.shared.isEnabled)
+            }
+        }
+    }
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
     static let showUpdateWindow = Notification.Name("showUpdateWindow")
     static let shortcutChanged = Notification.Name("shortcutChanged")
+    static let excludedAppsChanged = Notification.Name("excludedAppsChanged")
 }
