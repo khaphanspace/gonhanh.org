@@ -502,8 +502,10 @@ struct ShortcutRecorderRow: View {
     @Binding var shortcut: KeyboardShortcut
     @Binding var isRecording: Bool
     @State private var isHovered = false
-    @State private var localMonitor: Any?
-    @State private var globalMonitor: Any?
+    @State private var localKeyMonitor: Any?
+    @State private var globalKeyMonitor: Any?
+    @State private var mouseMonitor: Any?
+    @State private var resignObserver: Any?
 
     var body: some View {
         Button {
@@ -553,15 +555,30 @@ struct ShortcutRecorderRow: View {
         guard !isRecording else { return }
         isRecording = true
 
-        // Use local monitor for when app has focus
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+        // Local key monitor (when app has focus)
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
             handleKeyEvent(event)
-            return nil  // Consume the event
+            return nil
         }
 
-        // Use global monitor for system shortcuts like Ctrl+Space (when other apps have focus)
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
+        // Global key monitor (for system shortcuts)
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
             handleKeyEvent(event)
+        }
+
+        // Mouse click monitor - cancel on any click
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [self] event in
+            stopRecording()
+            return event
+        }
+
+        // Cancel when window loses focus
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [self] _ in
+            stopRecording()
         }
     }
 
@@ -590,13 +607,21 @@ struct ShortcutRecorderRow: View {
     }
 
     private func stopRecording() {
-        if let monitor = localMonitor {
+        if let monitor = localKeyMonitor {
             NSEvent.removeMonitor(monitor)
-            localMonitor = nil
+            localKeyMonitor = nil
         }
-        if let monitor = globalMonitor {
+        if let monitor = globalKeyMonitor {
             NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
+            globalKeyMonitor = nil
+        }
+        if let monitor = mouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseMonitor = nil
+        }
+        if let observer = resignObserver {
+            NotificationCenter.default.removeObserver(observer)
+            resignObserver = nil
         }
         isRecording = false
     }
