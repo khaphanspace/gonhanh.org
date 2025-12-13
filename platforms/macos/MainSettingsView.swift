@@ -120,6 +120,16 @@ struct MainSettingsView: View {
         }
         .ignoresSafeArea()
         .frame(width: 700, height: 520)
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToPage)) { notification in
+            if let pageName = notification.object as? String {
+                switch pageName {
+                case "home": selectedPage = .home
+                case "settings": selectedPage = .settings
+                case "about": selectedPage = .about
+                default: break
+                }
+            }
+        }
     }
 
     // MARK: - Sidebar
@@ -186,32 +196,11 @@ struct MainSettingsView: View {
     }
 
     private func navButton(page: NavigationPage) -> some View {
-        Button {
-            selectedPage = page
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: page.icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(selectedPage == page ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
-                    .frame(width: 20)
-                Text(page.rawValue)
-                    .font(.system(size: 13))
-                    .foregroundColor(selectedPage == page ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
-                Spacer()
+        NavButtonView(page: page, isSelected: selectedPage == page) {
+            withAnimation(.easeOut(duration: 0.15)) {
+                selectedPage = page
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(selectedPage == page ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear)
-            )
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(page.rawValue)
-        .accessibilityHint(page.accessibilityHint)
-        .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
     }
 
     // MARK: - Content
@@ -220,23 +209,65 @@ struct MainSettingsView: View {
     private var content: some View {
         switch selectedPage {
         case .home:
-            // Home: no scroll, fit screen
             HomePageView(appState: appState, selectedPage: $selectedPage)
                 .padding(32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .settings:
-            // Settings: scroll when needed, hide scrollbar
             ScrollView(showsIndicators: false) {
                 SettingsPageView(appState: appState)
                     .padding(32)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .about:
-            // About: no scroll, fit screen
             AboutPageView()
                 .padding(32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+// MARK: - Nav Button with Hover
+struct NavButtonView: View {
+    let page: NavigationPage
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: page.icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+                    .frame(width: 20)
+                Text(page.rawValue)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
+                          isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
+            )
+            .animation(.easeOut(duration: 0.1), value: isHovered)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering && !isSelected {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .accessibilityLabel(page.rawValue)
+        .accessibilityHint(page.accessibilityHint)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -247,7 +278,7 @@ struct HomePageView: View {
     @Binding var selectedPage: NavigationPage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             // Section: Trạng thái
             HIGSection(header: "Trạng thái") {
                 HIGRow {
@@ -555,8 +586,10 @@ struct SettingsPageView: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.accentColor)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
+        .animation(.easeOut(duration: 0.15), value: appState.currentMethod)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(method.name). \(description)")
         .accessibilityValue(appState.currentMethod == method ? "Đang chọn" : "")
@@ -635,10 +668,28 @@ struct SettingsPageView: View {
     // MARK: - Empty State
 
     private func emptyState(icon: String, title: String, subtitle: String) -> some View {
+        EmptyStateView(icon: icon, title: title, subtitle: subtitle)
+    }
+}
+
+// MARK: - Empty State with Pulse Animation
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    @State private var isPulsing = false
+
+    var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 24))
                 .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                .opacity(isPulsing ? 1.0 : 0.6)
+                .animation(
+                    Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true),
+                    value: isPulsing
+                )
+                .onAppear { isPulsing = true }
             Text(title)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Color(NSColor.secondaryLabelColor))
@@ -647,7 +698,7 @@ struct SettingsPageView: View {
                 .foregroundColor(Color(NSColor.tertiaryLabelColor))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, 24)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(subtitle)")
     }
@@ -702,6 +753,18 @@ struct AboutPageView: View {
     }
 
     private func linkRow(icon: String, title: String, url: String) -> some View {
+        LinkRowView(icon: icon, title: title, url: url)
+    }
+}
+
+// MARK: - Link Row with Hover
+struct LinkRowView: View {
+    let icon: String
+    let title: String
+    let url: String
+    @State private var isHovered = false
+
+    var body: some View {
         Link(destination: URL(string: url)!) {
             HStack(spacing: 10) {
                 Image(systemName: icon)
@@ -714,13 +777,25 @@ struct AboutPageView: View {
                 Spacer()
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .foregroundColor(isHovered ? Color(NSColor.secondaryLabelColor) : Color(NSColor.tertiaryLabelColor))
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
+            .background(
+                isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear
+            )
+            .animation(.easeOut(duration: 0.1), value: isHovered)
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
     }
 }
 
@@ -826,7 +901,7 @@ struct HIGSection<Content: View, Trailing: View>: View {
             }
             .padding(.horizontal, 4)
 
-            // Section content with grouped background
+            // Section content with grouped background + soft shadow
             VStack(spacing: 0) {
                 content
             }
@@ -838,14 +913,16 @@ struct HIGSection<Content: View, Trailing: View>: View {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
             )
+            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
     }
 }
 
-/// HIG-compliant row for lists/forms
+/// HIG-compliant row for lists/forms with hover feedback
 struct HIGRow<Content: View>: View {
     let action: (() -> Void)?
     let content: Content
+    @State private var isHovered = false
 
     init(action: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
         self.action = action
@@ -859,6 +936,14 @@ struct HIGRow<Content: View>: View {
                     rowContent
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    isHovered = hovering
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
             } else {
                 rowContent
             }
@@ -872,9 +957,14 @@ struct HIGRow<Content: View>: View {
         .font(.system(size: 13))
         .foregroundColor(Color(NSColor.labelColor))
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+        .background(
+            action != nil && isHovered ?
+            Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear
+        )
+        .animation(.easeOut(duration: 0.1), value: isHovered)
     }
 }
 
