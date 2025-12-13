@@ -74,6 +74,7 @@ class AppState: ObservableObject {
         ("com.apple.dt.Xcode", "Xcode", "/Applications/Xcode.app"),
         ("com.sequel-ace.sequel-ace", "Sequel Ace", "/Applications/Sequel Ace.app"),
         ("com.postmanlabs.mac", "Postman", "/Applications/Postman.app"),
+        ("com.termius.mac", "Termius", "/Applications/Termius.app"),
     ]
 
     init() {
