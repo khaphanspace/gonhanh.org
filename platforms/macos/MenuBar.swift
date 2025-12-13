@@ -115,7 +115,7 @@ struct MenuPopoverView: View {
             Divider().padding(.horizontal, 8)
 
             // Quit
-            MenuItem(title: "Thoát \(AppMetadata.name)", shortcut: "⌘Q") {
+            MenuItem(title: "Thoát \(AppMetadata.name)") {
                 NSApp.terminate(nil)
             }
             .padding(.vertical, 4)
@@ -179,7 +179,6 @@ class MenuBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var menuPanel: NSPanel?
     private var eventMonitor: Any?
-    private var keyMonitor: Any?
     private var appDeactivateObserver: Any?
 
     private var onboardingWindow: NSWindow?
@@ -387,16 +386,6 @@ class MenuBarController: NSObject {
         ) { [weak self] _ in
             self?.closeMenu()
         }
-
-        // Handle keyboard shortcuts (⌘Q to quit)
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
-                self?.closeMenu()
-                NSApp.terminate(nil)
-                return nil
-            }
-            return event
-        }
     }
 
     private func closeMenu() {
@@ -404,10 +393,6 @@ class MenuBarController: NSObject {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
-        }
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
         }
         if let observer = appDeactivateObserver {
             NotificationCenter.default.removeObserver(observer)
