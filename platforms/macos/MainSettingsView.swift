@@ -148,7 +148,7 @@ struct MainSettingsView: View {
             VStack(spacing: 12) {
                 Image(nsImage: AppMetadata.logo)
                     .resizable()
-                    .frame(width: 80, height: 80)
+                    .frame(width: 96, height: 96)
 
                 Text(AppMetadata.name)
                     .font(.system(size: 20, weight: .bold))
@@ -156,7 +156,7 @@ struct MainSettingsView: View {
                 // Version badge with update status
                 updateBadge
             }
-            .padding(.top, 28)
+            .padding(.top, 40)
 
             Spacer()
 
