@@ -3,7 +3,13 @@
 //! Allows users to define shortcuts like "vn" → "Việt Nam"
 //! Shortcuts can be specific to input methods (Telex/VNI) or apply to all.
 
+use super::buffer::MAX;
 use std::collections::HashMap;
+
+/// Maximum replacement length in UTF-32 codepoints (matches Result.chars array size)
+/// This limit ensures replacement fits in the FFI result buffer.
+/// Note: Vietnamese characters with diacritics (ồ, ế, ẫ) count as 1 codepoint each.
+pub const MAX_REPLACEMENT_LEN: usize = MAX - 1; // -1 to leave room for trailing space
 
 /// Input method that shortcut applies to
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -53,12 +59,25 @@ pub struct Shortcut {
 }
 
 impl Shortcut {
+    /// Validate and truncate replacement if it exceeds MAX_REPLACEMENT_LEN.
+    /// Counts UTF-32 codepoints (Vietnamese diacritics = 1 codepoint each).
+    fn validate_replacement(replacement: &str) -> String {
+        let char_count = replacement.chars().count();
+        if char_count <= MAX_REPLACEMENT_LEN {
+            replacement.to_string()
+        } else {
+            // Truncate to MAX_REPLACEMENT_LEN codepoints
+            replacement.chars().take(MAX_REPLACEMENT_LEN).collect()
+        }
+    }
+
     /// Create a new shortcut with word boundary trigger (applies to all input methods)
-    /// Trigger must match exactly (case-sensitive), output is exactly as defined
+    /// Trigger must match exactly (case-sensitive), output is exactly as defined.
+    /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn new(trigger: &str, replacement: &str) -> Self {
         Self {
             trigger: trigger.to_string(), // Keep original case
-            replacement: replacement.to_string(),
+            replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::OnWordBoundary,
             case_mode: CaseMode::Exact, // Exact match, no case transformation
             enabled: true,
@@ -66,11 +85,12 @@ impl Shortcut {
         }
     }
 
-    /// Create an immediate trigger shortcut (applies to all input methods)
+    /// Create an immediate trigger shortcut (applies to all input methods).
+    /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn immediate(trigger: &str, replacement: &str) -> Self {
         Self {
             trigger: trigger.to_string(), // Keep original case
-            replacement: replacement.to_string(),
+            replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
             enabled: true,
@@ -78,11 +98,12 @@ impl Shortcut {
         }
     }
 
-    /// Create a Telex-specific shortcut with immediate trigger
+    /// Create a Telex-specific shortcut with immediate trigger.
+    /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn telex(trigger: &str, replacement: &str) -> Self {
         Self {
             trigger: trigger.to_string(), // Keep original case
-            replacement: replacement.to_string(),
+            replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
             enabled: true,
@@ -90,11 +111,12 @@ impl Shortcut {
         }
     }
 
-    /// Create a VNI-specific shortcut with immediate trigger
+    /// Create a VNI-specific shortcut with immediate trigger.
+    /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn vni(trigger: &str, replacement: &str) -> Self {
         Self {
             trigger: trigger.to_string(), // Keep original case
-            replacement: replacement.to_string(),
+            replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
             case_mode: CaseMode::Exact,
             enabled: true,
@@ -626,5 +648,41 @@ mod tests {
         assert!(vni_shortcut.applies_to(InputMethod::All));
         assert!(!vni_shortcut.applies_to(InputMethod::Telex));
         assert!(vni_shortcut.applies_to(InputMethod::Vni));
+    }
+
+    #[test]
+    fn test_replacement_validation_within_limit() {
+        // Vietnamese text within limit (21 codepoints)
+        let shortcut = Shortcut::new("tphcm", "Thành phố Hồ Chí Minh");
+        assert_eq!(shortcut.replacement, "Thành phố Hồ Chí Minh");
+        assert_eq!(shortcut.replacement.chars().count(), 21);
+    }
+
+    #[test]
+    fn test_replacement_validation_truncation() {
+        // Create a very long replacement (100 characters with Vietnamese)
+        let long_text = "Đây là một đoạn văn bản rất dài để kiểm tra việc cắt ngắn. Nó có nhiều ký tự tiếng Việt có dấu như ồ, ế, ẫ, ơ, ư.";
+        let char_count = long_text.chars().count();
+        assert!(
+            char_count > MAX_REPLACEMENT_LEN,
+            "Test text should exceed limit"
+        );
+
+        let shortcut = Shortcut::new("long", long_text);
+        let result_count = shortcut.replacement.chars().count();
+        assert_eq!(
+            result_count, MAX_REPLACEMENT_LEN,
+            "Should truncate to MAX_REPLACEMENT_LEN"
+        );
+    }
+
+    #[test]
+    fn test_replacement_validation_vietnamese_diacritics() {
+        // Each Vietnamese character with diacritic is 1 codepoint
+        // "ồ" = 1 codepoint, "ế" = 1 codepoint, "ẫ" = 1 codepoint
+        let vietnamese = "ồếẫơưáàảãạăắằẳẵặâấầẩẫậ"; // 22 Vietnamese chars
+        let shortcut = Shortcut::new("viet", vietnamese);
+        assert_eq!(shortcut.replacement.chars().count(), 22);
+        assert_eq!(shortcut.replacement, vietnamese);
     }
 }

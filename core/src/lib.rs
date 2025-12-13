@@ -32,6 +32,11 @@ use std::sync::Mutex;
 // Global engine instance (thread-safe via Mutex)
 static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
 
+/// Lock the engine mutex, recovering from poisoned state if needed (for tests)
+fn lock_engine() -> std::sync::MutexGuard<'static, Option<Engine>> {
+    ENGINE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 // ============================================================
 // FFI Interface
 // ============================================================
@@ -45,7 +50,7 @@ static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
 /// Panics if mutex is poisoned (only if previous call panicked).
 #[no_mangle]
 pub extern "C" fn ime_init() {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     *guard = Some(Engine::new());
 }
 
@@ -71,7 +76,7 @@ pub extern "C" fn ime_init() {
 /// use `ime_key_ext` with the shift parameter.
 #[no_mangle]
 pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         let r = e.on_key(key, caps, ctrl);
         Box::into_raw(Box::new(r))
@@ -100,7 +105,7 @@ pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result {
 /// - etc.
 #[no_mangle]
 pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> *mut Result {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         let r = e.on_key_ext(key, caps, ctrl, shift);
         Box::into_raw(Box::new(r))
@@ -117,7 +122,7 @@ pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> 
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_method(method: u8) {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_method(method);
     }
@@ -129,7 +134,7 @@ pub extern "C" fn ime_method(method: u8) {
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_enabled(enabled: bool) {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_enabled(enabled);
     }
@@ -141,7 +146,7 @@ pub extern "C" fn ime_enabled(enabled: bool) {
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_clear() {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.clear();
     }
@@ -190,7 +195,7 @@ pub unsafe extern "C" fn ime_add_shortcut(
         Err(_) => return,
     };
 
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.shortcuts_mut().add(engine::shortcut::Shortcut::new(
             trigger_str,
@@ -217,7 +222,7 @@ pub unsafe extern "C" fn ime_remove_shortcut(trigger: *const std::os::raw::c_cha
         Err(_) => return,
     };
 
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.shortcuts_mut().remove(trigger_str);
     }
@@ -226,7 +231,7 @@ pub unsafe extern "C" fn ime_remove_shortcut(trigger: *const std::os::raw::c_cha
 /// Clear all shortcuts from the engine.
 #[no_mangle]
 pub extern "C" fn ime_clear_shortcuts() {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.shortcuts_mut().clear();
     }
@@ -240,9 +245,11 @@ pub extern "C" fn ime_clear_shortcuts() {
 mod tests {
     use super::*;
     use crate::data::keys;
+    use serial_test::serial;
     use std::ffi::CString;
 
     #[test]
+    #[serial]
     fn test_ffi_flow() {
         ime_init();
         ime_method(0); // Telex
@@ -263,8 +270,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_shortcut_ffi_add_and_clear() {
         ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
         ime_method(0); // Telex
 
         // Add a shortcut via FFI
@@ -276,9 +285,9 @@ mod tests {
         }
 
         // Verify shortcut was added by checking engine state
-        let guard = ENGINE.lock().unwrap();
+        let guard = lock_engine();
         if let Some(ref e) = *guard {
-            assert!(e.shortcuts().len() > 0);
+            assert_eq!(e.shortcuts().len(), 1);
         }
         drop(guard);
 
@@ -286,7 +295,7 @@ mod tests {
         ime_clear_shortcuts();
 
         // Verify shortcuts cleared
-        let guard = ENGINE.lock().unwrap();
+        let guard = lock_engine();
         if let Some(ref e) = *guard {
             assert_eq!(e.shortcuts().len(), 0);
         }
@@ -296,8 +305,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_shortcut_ffi_remove() {
         ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
         ime_method(0); // Telex
 
         // Add two shortcuts
@@ -312,7 +323,7 @@ mod tests {
         }
 
         // Verify both added
-        let guard = ENGINE.lock().unwrap();
+        let guard = lock_engine();
         if let Some(ref e) = *guard {
             assert_eq!(e.shortcuts().len(), 2);
         }
@@ -324,7 +335,7 @@ mod tests {
         }
 
         // Verify only one remains
-        let guard = ENGINE.lock().unwrap();
+        let guard = lock_engine();
         if let Some(ref e) = *guard {
             assert_eq!(e.shortcuts().len(), 1);
         }
@@ -336,6 +347,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_shortcut_ffi_null_safety() {
         ime_init();
 
@@ -354,8 +366,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_shortcut_ffi_unicode() {
         ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
         ime_method(0);
 
         // Test with Unicode in both trigger and replacement
@@ -367,7 +381,7 @@ mod tests {
         }
 
         // Verify shortcut added with proper UTF-8 handling
-        let guard = ENGINE.lock().unwrap();
+        let guard = lock_engine();
         if let Some(ref e) = *guard {
             assert_eq!(e.shortcuts().len(), 1);
         }

@@ -95,17 +95,27 @@ private class TextInjector {
         // Wait after backspaces
         if bs > 0 { usleep(delays.1) }
 
-        // Send text
+        // Send text in chunks (CGEvent has 20-char limit for keyboardSetUnicodeString)
         let utf16 = Array(text.utf16)
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-        usleep(delays.2)
+        let chunkSize = 20
+        var offset = 0
+
+        while offset < utf16.count {
+            let end = min(offset + chunkSize, utf16.count)
+            let chunk = Array(utf16[offset..<end])
+
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { break }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(delays.2)
+
+            offset = end
+        }
 
         Log.send("bs", bs, text)
     }
@@ -129,17 +139,27 @@ private class TextInjector {
         // Small delay after selection
         if bs > 0 { usleep(3000) }
 
-        // Type replacement text
+        // Type replacement text in chunks (CGEvent has 20-char limit)
         let utf16 = Array(text.utf16)
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-        usleep(2000)  // 2ms after text
+        let chunkSize = 20
+        var offset = 0
+
+        while offset < utf16.count {
+            let end = min(offset + chunkSize, utf16.count)
+            let chunk = Array(utf16[offset..<end])
+
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { break }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(2000)  // 2ms after each chunk
+
+            offset = end
+        }
 
         Log.send("sel", bs, text)
     }
@@ -147,11 +167,21 @@ private class TextInjector {
 
 // MARK: - FFI (Rust Bridge)
 
+/// FFI result struct - must match Rust `Result` struct layout exactly
+/// Size: 64 UInt32 chars (256 bytes) + 4 bytes = 260 bytes
+/// Max replacement: 63 UTF-32 codepoints (Vietnamese diacritics = 1 each)
 private struct ImeResult {
-    var chars: (UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32)
+    // 64 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
+    var chars: (
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32
+    )
     var action: UInt8
     var backspace: UInt8
     var count: UInt8
@@ -190,7 +220,7 @@ class RustBridge {
         guard r.action == 1 else { return nil }
 
         let chars = withUnsafePointer(to: r.chars) { p in
-            p.withMemoryRebound(to: UInt32.self, capacity: 32) { bound in
+            p.withMemoryRebound(to: UInt32.self, capacity: 64) { bound in
                 (0..<Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
             }
         }

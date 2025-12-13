@@ -559,6 +559,35 @@ fn shortcut_tphcm_expands() {
 }
 
 #[test]
+fn shortcut_tphcm_raw_result() {
+    let mut e = Engine::new();
+
+    // Add shortcut
+    e.shortcuts_mut()
+        .add(Shortcut::new("tphcm", "Thành phố Hồ Chí Minh"));
+
+    // Type "tphcm"
+    for key in [keys::T, keys::P, keys::H, keys::C, keys::M] {
+        e.on_key(key, false, false);
+    }
+
+    // Press space - should trigger shortcut
+    let r = e.on_key(keys::SPACE, false, false);
+
+    assert_eq!(r.action, Action::Send as u8, "action should be Send");
+    assert_eq!(r.backspace, 5, "should backspace 5 chars (tphcm)");
+
+    // Collect output
+    let output: String = r.chars[..r.count as usize]
+        .iter()
+        .filter_map(|&c| char::from_u32(c))
+        .collect();
+
+    assert_eq!(output, "Thành phố Hồ Chí Minh ", "output should match");
+    assert_eq!(r.count, 22, "count should be 22 chars");
+}
+
+#[test]
 fn shortcut_does_not_trigger_without_space() {
     let mut e = Engine::new();
 
