@@ -131,6 +131,9 @@ struct MainSettingsView: View {
         }
         .ignoresSafeArea()
         .frame(width: 700, height: 480)
+        .onReceive(NotificationCenter.default.publisher(for: .showAboutPage)) { _ in
+            selectedPage = .about
+        }
     }
 
     // MARK: - Sidebar
@@ -557,6 +560,7 @@ struct ShortcutRecorderRow: View {
     @State private var globalKeyMonitor: Any?
     @State private var mouseMonitor: Any?
     @State private var resignObserver: Any?
+    @State private var justCancelled = false
 
     var body: some View {
         HStack {
@@ -565,30 +569,40 @@ struct ShortcutRecorderRow: View {
                 .foregroundColor(Color(NSColor.labelColor))
             Spacer()
 
-            if isRecording {
-                Text("Nhấn phím...")
-                    .font(.system(size: 12))
+            ZStack {
+                if isRecording {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 6, height: 6)
+                        Text("Nhấn phím...")
+                            .font(.system(size: 11, weight: .medium))
+                    }
                     .foregroundColor(Color.accentColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.accentColor, lineWidth: 1)
-                    )
-            } else {
-                HStack(spacing: 4) {
-                    ForEach(shortcut.displayParts, id: \.self) { part in
-                        KeyCap(text: part)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                } else {
+                    HStack(spacing: 4) {
+                        ForEach(shortcut.displayParts, id: \.self) { part in
+                            KeyCap(text: part)
+                        }
                     }
                 }
             }
+            .frame(minWidth: 80, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
-        .onTapGesture { startRecording() }
+        .onTapGesture {
+            if justCancelled {
+                justCancelled = false
+                return
+            }
+            if !isRecording { startRecording() }
+        }
         .onDisappear { stopRecording() }
     }
 
@@ -648,6 +662,7 @@ struct ShortcutRecorderRow: View {
     }
 
     private func stopRecording() {
+        justCancelled = true
         if let monitor = localKeyMonitor {
             NSEvent.removeMonitor(monitor)
             localKeyMonitor = nil

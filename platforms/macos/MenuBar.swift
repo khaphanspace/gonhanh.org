@@ -31,6 +31,7 @@ class MenuState: ObservableObject {
 
 extension Notification.Name {
     static let menuStateChanged = Notification.Name("menuStateChanged")
+    static let showAboutPage = Notification.Name("showAboutPage")
 }
 
 // MARK: - Menu Popover View (Minimal)
@@ -95,9 +96,14 @@ struct MenuPopoverView: View {
 
             // Menu items - macOS menu style
             VStack(spacing: 0) {
-                MenuItem(title: "Cài đặt...", shortcut: "⌘,") {
+                MenuItem(title: "Cài đặt...") {
                     closeMenu()
                     openSettings()
+                }
+                MenuItem(title: "Giới thiệu") {
+                    closeMenu()
+                    openSettings()
+                    NotificationCenter.default.post(name: .showAboutPage, object: nil)
                 }
                 MenuItem(title: "Kiểm tra cập nhật") {
                     closeMenu()
@@ -173,6 +179,8 @@ class MenuBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var menuPanel: NSPanel?
     private var eventMonitor: Any?
+    private var keyMonitor: Any?
+    private var appDeactivateObserver: Any?
 
     private var onboardingWindow: NSWindow?
     private var updateWindow: NSWindow?
@@ -362,11 +370,32 @@ class MenuBarController: NSObject {
         menuPanel?.setFrameOrigin(NSPoint(x: x, y: y))
         menuPanel?.makeKeyAndOrderFront(nil)
 
-        // Monitor clicks outside
+        // Monitor clicks outside (global events use screen coordinates)
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if let panel = self?.menuPanel, !panel.frame.contains(event.locationInWindow) {
+            guard let panel = self?.menuPanel else { return }
+            let clickLocation = NSEvent.mouseLocation
+            if !panel.frame.contains(clickLocation) {
                 self?.closeMenu()
             }
+        }
+
+        // Close when app loses focus
+        appDeactivateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.closeMenu()
+        }
+
+        // Handle keyboard shortcuts (⌘Q to quit)
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
+                self?.closeMenu()
+                NSApp.terminate(nil)
+                return nil
+            }
+            return event
         }
     }
 
@@ -375,6 +404,14 @@ class MenuBarController: NSObject {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
+        }
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+        if let observer = appDeactivateObserver {
+            NotificationCenter.default.removeObserver(observer)
+            appDeactivateObserver = nil
         }
     }
 
