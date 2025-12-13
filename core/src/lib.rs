@@ -32,6 +32,11 @@ use std::sync::Mutex;
 // Global engine instance (thread-safe via Mutex)
 static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
 
+/// Lock the engine mutex, recovering from poisoned state if needed (for tests)
+fn lock_engine() -> std::sync::MutexGuard<'static, Option<Engine>> {
+    ENGINE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 // ============================================================
 // FFI Interface
 // ============================================================
@@ -45,7 +50,7 @@ static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
 /// Panics if mutex is poisoned (only if previous call panicked).
 #[no_mangle]
 pub extern "C" fn ime_init() {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     *guard = Some(Engine::new());
 }
 
@@ -71,7 +76,7 @@ pub extern "C" fn ime_init() {
 /// use `ime_key_ext` with the shift parameter.
 #[no_mangle]
 pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         let r = e.on_key(key, caps, ctrl);
         Box::into_raw(Box::new(r))
@@ -100,7 +105,7 @@ pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result {
 /// - etc.
 #[no_mangle]
 pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> *mut Result {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         let r = e.on_key_ext(key, caps, ctrl, shift);
         Box::into_raw(Box::new(r))
@@ -117,7 +122,7 @@ pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> 
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_method(method: u8) {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_method(method);
     }
@@ -129,7 +134,7 @@ pub extern "C" fn ime_method(method: u8) {
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_enabled(enabled: bool) {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_enabled(enabled);
     }
@@ -141,7 +146,7 @@ pub extern "C" fn ime_enabled(enabled: bool) {
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_clear() {
-    let mut guard = ENGINE.lock().unwrap();
+    let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.clear();
     }
@@ -161,6 +166,78 @@ pub unsafe extern "C" fn ime_free(r: *mut Result) {
 }
 
 // ============================================================
+// Shortcut FFI
+// ============================================================
+
+/// Add a shortcut to the engine.
+///
+/// # Arguments
+/// * `trigger` - C string for trigger (e.g., "vn")
+/// * `replacement` - C string for replacement (e.g., "Việt Nam")
+///
+/// # Safety
+/// Both pointers must be valid null-terminated UTF-8 strings.
+#[no_mangle]
+pub unsafe extern "C" fn ime_add_shortcut(
+    trigger: *const std::os::raw::c_char,
+    replacement: *const std::os::raw::c_char,
+) {
+    if trigger.is_null() || replacement.is_null() {
+        return;
+    }
+
+    let trigger_str = match std::ffi::CStr::from_ptr(trigger).to_str() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let replacement_str = match std::ffi::CStr::from_ptr(replacement).to_str() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.shortcuts_mut().add(engine::shortcut::Shortcut::new(
+            trigger_str,
+            replacement_str,
+        ));
+    }
+}
+
+/// Remove a shortcut from the engine.
+///
+/// # Arguments
+/// * `trigger` - C string for trigger to remove
+///
+/// # Safety
+/// Pointer must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn ime_remove_shortcut(trigger: *const std::os::raw::c_char) {
+    if trigger.is_null() {
+        return;
+    }
+
+    let trigger_str = match std::ffi::CStr::from_ptr(trigger).to_str() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.shortcuts_mut().remove(trigger_str);
+    }
+}
+
+/// Clear all shortcuts from the engine.
+#[no_mangle]
+pub extern "C" fn ime_clear_shortcuts() {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.shortcuts_mut().clear();
+    }
+}
+
+// ============================================================
 // Tests
 // ============================================================
 
@@ -168,8 +245,11 @@ pub unsafe extern "C" fn ime_free(r: *mut Result) {
 mod tests {
     use super::*;
     use crate::data::keys;
+    use serial_test::serial;
+    use std::ffi::CString;
 
     #[test]
+    #[serial]
     fn test_ffi_flow() {
         ime_init();
         ime_method(0); // Telex
@@ -186,6 +266,128 @@ mod tests {
             ime_free(r2);
         }
 
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_add_and_clear() {
+        ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
+        ime_method(0); // Telex
+
+        // Add a shortcut via FFI
+        let trigger = CString::new("vn").unwrap();
+        let replacement = CString::new("Việt Nam").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut was added by checking engine state
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+        }
+        drop(guard);
+
+        // Clear all shortcuts
+        ime_clear_shortcuts();
+
+        // Verify shortcuts cleared
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 0);
+        }
+        drop(guard);
+
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_remove() {
+        ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
+        ime_method(0); // Telex
+
+        // Add two shortcuts
+        let trigger1 = CString::new("hn").unwrap();
+        let replacement1 = CString::new("Hà Nội").unwrap();
+        let trigger2 = CString::new("hcm").unwrap();
+        let replacement2 = CString::new("Hồ Chí Minh").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger1.as_ptr(), replacement1.as_ptr());
+            ime_add_shortcut(trigger2.as_ptr(), replacement2.as_ptr());
+        }
+
+        // Verify both added
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 2);
+        }
+        drop(guard);
+
+        // Remove one shortcut
+        unsafe {
+            ime_remove_shortcut(trigger1.as_ptr());
+        }
+
+        // Verify only one remains
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+        }
+        drop(guard);
+
+        // Clean up
+        ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_null_safety() {
+        ime_init();
+
+        // Should not crash with null pointers
+        unsafe {
+            ime_add_shortcut(std::ptr::null(), std::ptr::null());
+            ime_remove_shortcut(std::ptr::null());
+        }
+
+        // Engine should still work
+        let r = ime_key(keys::A, false, false);
+        assert!(!r.is_null());
+        unsafe { ime_free(r) };
+
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_unicode() {
+        ime_init();
+        ime_clear_shortcuts(); // Clear any existing shortcuts
+        ime_method(0);
+
+        // Test with Unicode in both trigger and replacement
+        let trigger = CString::new("tphcm").unwrap();
+        let replacement = CString::new("Thành phố Hồ Chí Minh").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut added with proper UTF-8 handling
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+        }
+        drop(guard);
+
+        ime_clear_shortcuts();
         ime_clear();
     }
 }

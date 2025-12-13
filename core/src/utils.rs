@@ -185,8 +185,22 @@ mod test_utils {
             }
 
             if key == keys::SPACE {
-                screen.push(' ');
-                e.on_key(key, false, false);
+                // Space can trigger shortcuts - process result
+                let r = e.on_key(key, false, false);
+                if r.action == Action::Send as u8 {
+                    // Shortcut triggered - apply backspaces and replacement
+                    for _ in 0..r.backspace {
+                        screen.pop();
+                    }
+                    for i in 0..r.count as usize {
+                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                            screen.push(ch);
+                        }
+                    }
+                } else {
+                    // No shortcut - just add space
+                    screen.push(' ');
+                }
                 continue;
             }
 

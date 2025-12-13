@@ -22,7 +22,7 @@ jobs:
       - run: cargo clippy --manifest-path core/Cargo.toml -- -D warnings
       - run: cargo test --manifest-path core/Cargo.toml
 
-  build:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,4 +33,46 @@ jobs:
         with:
           workspaces: core
       - run: cargo build --manifest-path core/Cargo.toml --release
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            fcitx5 \
+            libfcitx5core-dev \
+            libfcitx5config-dev \
+            libfcitx5utils-dev \
+            fcitx5-modules-dev \
+            extra-cmake-modules \
+            libxkbcommon-dev \
+            libgtest-dev \
+            cmake \
+            pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Build Rust core
+        run: cargo build --manifest-path core/Cargo.toml --release
+
+      - name: Build Fcitx5 addon
+        run: |
+          cd platforms/linux
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+          make -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd platforms/linux/build
+          ./keycodemap_test --gtest_color=yes
+          LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/core/target/release:$LD_LIBRARY_PATH" \
+            ./rustbridge_test --gtest_color=yes
 

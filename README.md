@@ -9,6 +9,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" />
+  <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="License: GPL-3.0">
   <img src="https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg" alt="CI">
 </p>
@@ -25,8 +26,8 @@
 | Nền tảng | Trạng thái | Tải xuống | Hướng dẫn |
 |:---------|:----------:|:---------:|:----------|
 | **macOS** | ✅ Sẵn sàng | [📥 **Tải GoNhanh.dmg**](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md) |
+| **Linux** | ✅ Sẵn sàng | `curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh \| bash` | [Xem hướng dẫn](docs/install-linux.md) |
 | **Windows** | 🗓️ Sắp ra mắt | — | [Xem lộ trình](docs/install-windows.md) |
-| **Linux** | 🗓️ Sắp ra mắt | — | [Xem lộ trình](docs/install-linux.md) |
 
 ## ✨ Tính năng chính
 

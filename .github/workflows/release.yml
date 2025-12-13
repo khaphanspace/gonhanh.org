@@ -79,6 +79,67 @@ jobs:
           body: ${{ steps.tag_message.outputs.message }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            fcitx5 \
+            libfcitx5core-dev \
+            libfcitx5config-dev \
+            libfcitx5utils-dev \
+            fcitx5-modules-dev \
+            extra-cmake-modules \
+            libxkbcommon-dev \
+            cmake \
+            pkg-config
+
+      - name: Build
+        run: |
+          # Rust core
+          cd core
+          cargo build --release
+
+          # Fcitx5 addon
+          cd ../platforms/linux
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Package
+        run: |
+          PKG="gonhanh-linux"
+          mkdir -p "$PKG/lib" "$PKG/share/fcitx5/addon" "$PKG/share/fcitx5/inputmethod"
+
+          cp platforms/linux/build/gonhanh.so "$PKG/lib/"
+          cp core/target/release/libgonhanh_core.so "$PKG/lib/"
+          cp platforms/linux/data/gonhanh-addon.conf "$PKG/share/fcitx5/addon/gonhanh.conf"
+          cp platforms/linux/data/gonhanh.conf "$PKG/share/fcitx5/inputmethod/"
+          cp platforms/linux/README.md "$PKG/"
+          cp platforms/linux/scripts/install.sh "$PKG/"
+          chmod +x "$PKG/install.sh"
+
+          tar -czvf "$PKG.tar.gz" "$PKG"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: "*.tar.gz"
+
+      - name: Add to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.tar.gz"
+
   build-windows:
     if: false
     runs-on: windows-latest

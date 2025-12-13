@@ -121,6 +121,10 @@ impl Engine {
         }
     }
 
+    pub fn shortcuts(&self) -> &ShortcutTable {
+        &self.shortcuts
+    }
+
     pub fn shortcuts_mut(&mut self) -> &mut ShortcutTable {
         &mut self.shortcuts
     }
@@ -158,12 +162,19 @@ impl Engine {
             return Result::none();
         }
 
-        // Check for word boundary shortcuts BEFORE clearing buffer
-        if keys::is_break(key) {
+        // Check for word boundary shortcuts ONLY on SPACE
+        if key == keys::SPACE {
             let result = self.try_word_boundary_shortcut();
             self.buf.clear();
             self.last_transform = None;
             return result;
+        }
+
+        // Other break keys (punctuation, arrows, etc.) just clear buffer
+        if keys::is_break(key) {
+            self.buf.clear();
+            self.last_transform = None;
+            return Result::none();
         }
 
         if key == keys::DELETE {

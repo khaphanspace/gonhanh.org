@@ -1,27 +1,59 @@
-# Hướng dẫn cài đặt Gõ Nhanh trên Windows
+# Gõ Nhanh trên Windows
 
-> **Lưu ý:** Phiên bản Windows hiện đang trong giai đoạn phát triển (Planned).
+> **Coming Soon** - Đang phát triển
 
-## Trạng thái hiện tại
+---
 
-Gõ Nhanh cho Windows đang được phát triển sử dụng **WPF (Windows Presentation Foundation)** kết hợp với lõi **Rust**.
+## Tính năng dự kiến
 
-## Dành cho Developers
+- Gõ tiếng Việt Telex/VNI
+- Gõ tắt tùy chỉnh
+- Danh sách app ngoại lệ
+- System tray menu
+- Tự khởi động cùng Windows
 
-Nếu bạn muốn đóng góp hoặc thử nghiệm phiên bản dev:
+---
 
-### Yêu cầu
+## Quy tắc gõ (Tham khảo)
 
+### Telex
+
+| Gõ | Kết quả |
+|----|---------|
+| `as`, `af`, `ar`, `ax`, `aj` | á, à, ả, ã, ạ |
+| `aa`, `aw`, `ee`, `oo` | â, ă, ê, ô |
+| `ow`, `uw`, `dd` | ơ, ư, đ |
+
+### VNI
+
+| Gõ | Kết quả |
+|----|---------|
+| `a1`, `a2`, `a3`, `a4`, `a5` | á, à, ả, ã, ạ |
+| `a6`, `a8`, `o6`, `e6` | â, ă, ô, ê |
+| `o7`, `u7`, `d9` | ơ, ư, đ |
+
+---
+
+## Theo dõi
+
+- [Releases](https://github.com/khaphanspace/gonhanh.org/releases)
+- [GitHub Issues](https://github.com/khaphanspace/gonhanh.org/issues)
+
+---
+
+## Dành cho Developer
+
+<details>
+<summary>Build từ source</summary>
+
+**Yêu cầu:**
 - Windows 10/11
-- Rust toolchain
-- Visual Studio (C++ workload)
+- [Rust](https://rustup.rs/)
+- [Visual Studio 2022](https://visualstudio.microsoft.com/) (C++ & .NET workload)
 
-### Build từ source
-
-```bash
+```powershell
 git clone https://github.com/khaphanspace/gonhanh.org.git
 cd gonhanh.org/platforms/windows
 cargo build --release
 ```
-
-Hãy theo dõi [Roadmap](../README.md) để cập nhật thông tin mới nhất.
+</details>

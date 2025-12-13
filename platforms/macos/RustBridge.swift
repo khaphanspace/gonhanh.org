@@ -95,17 +95,27 @@ private class TextInjector {
         // Wait after backspaces
         if bs > 0 { usleep(delays.1) }
 
-        // Send text
+        // Send text in chunks (CGEvent has 20-char limit for keyboardSetUnicodeString)
         let utf16 = Array(text.utf16)
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-        usleep(delays.2)
+        let chunkSize = 20
+        var offset = 0
+
+        while offset < utf16.count {
+            let end = min(offset + chunkSize, utf16.count)
+            let chunk = Array(utf16[offset..<end])
+
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { break }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(delays.2)
+
+            offset = end
+        }
 
         Log.send("bs", bs, text)
     }
@@ -129,17 +139,27 @@ private class TextInjector {
         // Small delay after selection
         if bs > 0 { usleep(3000) }
 
-        // Type replacement text
+        // Type replacement text in chunks (CGEvent has 20-char limit)
         let utf16 = Array(text.utf16)
-        guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { return }
-        dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-        dn.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
-        dn.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
-        usleep(2000)  // 2ms after text
+        let chunkSize = 20
+        var offset = 0
+
+        while offset < utf16.count {
+            let end = min(offset + chunkSize, utf16.count)
+            let chunk = Array(utf16[offset..<end])
+
+            guard let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { break }
+            dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+            dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            dn.post(tap: .cgSessionEventTap)
+            up.post(tap: .cgSessionEventTap)
+            usleep(2000)  // 2ms after each chunk
+
+            offset = end
+        }
 
         Log.send("sel", bs, text)
     }
@@ -147,11 +167,21 @@ private class TextInjector {
 
 // MARK: - FFI (Rust Bridge)
 
+/// FFI result struct - must match Rust `Result` struct layout exactly
+/// Size: 64 UInt32 chars (256 bytes) + 4 bytes = 260 bytes
+/// Max replacement: 63 UTF-32 codepoints (Vietnamese diacritics = 1 each)
 private struct ImeResult {
-    var chars: (UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
-                UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32)
+    // 64 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
+    var chars: (
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32
+    )
     var action: UInt8
     var backspace: UInt8
     var count: UInt8
@@ -164,6 +194,11 @@ private struct ImeResult {
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
+
+// Shortcut FFI
+@_silgen_name("ime_add_shortcut") private func ime_add_shortcut(_ trigger: UnsafePointer<CChar>?, _ replacement: UnsafePointer<CChar>?)
+@_silgen_name("ime_remove_shortcut") private func ime_remove_shortcut(_ trigger: UnsafePointer<CChar>?)
+@_silgen_name("ime_clear_shortcuts") private func ime_clear_shortcuts()
 
 // MARK: - RustBridge (Public API)
 
@@ -185,7 +220,7 @@ class RustBridge {
         guard r.action == 1 else { return nil }
 
         let chars = withUnsafePointer(to: r.chars) { p in
-            p.withMemoryRebound(to: UInt32.self, capacity: 32) { bound in
+            p.withMemoryRebound(to: UInt32.self, capacity: 64) { bound in
                 (0..<Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
             }
         }
@@ -203,6 +238,41 @@ class RustBridge {
     }
 
     static func clearBuffer() { ime_clear() }
+
+    // MARK: - Shortcuts
+
+    /// Add a shortcut to the engine
+    static func addShortcut(trigger: String, replacement: String) {
+        trigger.withCString { t in
+            replacement.withCString { r in
+                ime_add_shortcut(t, r)
+            }
+        }
+        Log.info("Shortcut added: \(trigger) → \(replacement)")
+    }
+
+    /// Remove a shortcut from the engine
+    static func removeShortcut(trigger: String) {
+        trigger.withCString { t in
+            ime_remove_shortcut(t)
+        }
+        Log.info("Shortcut removed: \(trigger)")
+    }
+
+    /// Clear all shortcuts from the engine
+    static func clearShortcuts() {
+        ime_clear_shortcuts()
+        Log.info("Shortcuts cleared")
+    }
+
+    /// Sync shortcuts from UI to engine
+    static func syncShortcuts(_ shortcuts: [(key: String, value: String, enabled: Bool)]) {
+        ime_clear_shortcuts()
+        for shortcut in shortcuts where shortcut.enabled {
+            addShortcut(trigger: shortcut.key, replacement: shortcut.value)
+        }
+        Log.info("Synced \(shortcuts.filter { $0.enabled }.count) shortcuts")
+    }
 }
 
 // MARK: - Keyboard Hook Manager
@@ -247,6 +317,7 @@ class KeyboardHookManager {
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
             isRunning = true
+            setupShortcutObserver()
             Log.info("Hook started")
         }
     }
@@ -267,7 +338,7 @@ class KeyboardHookManager {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "Cần quyền Accessibility"
-            alert.informativeText = "GoNhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Bật GoNhanh\n3. Khởi động lại app"
+            alert.informativeText = "Gõ Nhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Bật Gõ Nhanh\n3. Khởi động lại app"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Mở System Settings")
             alert.addButton(withTitle: "Hủy")
@@ -282,6 +353,38 @@ class KeyboardHookManager {
 
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
 private var wasCtrlShiftPressed = false  // Track Ctrl+Shift state for toggle detection
+private var currentShortcut = KeyboardShortcut.load()  // Load saved shortcut
+
+// Observer for shortcut changes
+private var shortcutObserver: NSObjectProtocol?
+
+func setupShortcutObserver() {
+    shortcutObserver = NotificationCenter.default.addObserver(
+        forName: .shortcutChanged,
+        object: nil,
+        queue: .main
+    ) { _ in
+        currentShortcut = KeyboardShortcut.load()
+        Log.info("Shortcut updated: \(currentShortcut.displayParts.joined())")
+    }
+}
+
+private func matchesToggleShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
+    guard keyCode == currentShortcut.keyCode else { return false }
+
+    let savedFlags = CGEventFlags(rawValue: currentShortcut.modifiers)
+
+    // Check required modifiers are present
+    if savedFlags.contains(.maskControl) && !flags.contains(.maskControl) { return false }
+    if savedFlags.contains(.maskAlternate) && !flags.contains(.maskAlternate) { return false }
+    if savedFlags.contains(.maskShift) && !flags.contains(.maskShift) { return false }
+    if savedFlags.contains(.maskCommand) && !flags.contains(.maskCommand) { return false }
+
+    // Ensure Command is NOT pressed if not required (avoid conflict with system shortcuts)
+    if !savedFlags.contains(.maskCommand) && flags.contains(.maskCommand) { return false }
+
+    return true
+}
 
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
@@ -319,14 +422,8 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
-    // Ctrl+Space = toggle Vietnamese
-    if keyCode == 0x31 && flags.contains(.maskControl) && !flags.contains(.maskCommand) {
-        DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
-        return nil
-    }
-
-    // Alt+Z = toggle Vietnamese (Z keycode = 0x06)
-    if keyCode == 0x06 && flags.contains(.maskAlternate) && !flags.contains(.maskCommand) {
+    // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
+    if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
         return nil
     }
@@ -393,8 +490,81 @@ private func sendReplacement(backspace bs: Int, chars: [Character]) {
     TextInjector.shared.injectSync(backspace: bs, text: str, method: method, delays: delays)
 }
 
+// MARK: - Excluded Apps Manager
+
+class ExcludedAppsManager {
+    static let shared = ExcludedAppsManager()
+
+    private var excludedBundleIds: Set<String> = []
+    private var appObserver: NSObjectProtocol?
+    private var wasEnabledBeforeExclusion = true
+
+    private init() {}
+
+    /// Start observing frontmost app changes
+    func start() {
+        appObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleAppChange(notification)
+        }
+        Log.info("ExcludedAppsManager started")
+    }
+
+    /// Stop observing
+    func stop() {
+        if let observer = appObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appObserver = nil
+        }
+    }
+
+    /// Update the list of excluded bundle IDs
+    func setExcludedApps(_ bundleIds: [String]) {
+        excludedBundleIds = Set(bundleIds)
+        Log.info("Excluded apps updated: \(bundleIds.count) apps")
+        // Re-check current app
+        checkCurrentApp()
+    }
+
+    /// Check if current frontmost app should be excluded
+    private func checkCurrentApp() {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              let bundleId = app.bundleIdentifier else { return }
+        handleBundleId(bundleId)
+    }
+
+    private func handleAppChange(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let bundleId = app.bundleIdentifier else { return }
+        handleBundleId(bundleId)
+    }
+
+    private func handleBundleId(_ bundleId: String) {
+        let isExcluded = excludedBundleIds.contains(bundleId)
+        if isExcluded {
+            // Store current enabled state before disabling
+            wasEnabledBeforeExclusion = MenuState.shared.isEnabled
+            if MenuState.shared.isEnabled {
+                RustBridge.setEnabled(false)
+                Log.info("App excluded: \(bundleId) - IME disabled")
+            }
+        } else {
+            // Restore previous state when switching to non-excluded app
+            if wasEnabledBeforeExclusion {
+                RustBridge.setEnabled(MenuState.shared.isEnabled)
+            }
+        }
+    }
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
+    static let showUpdateWindow = Notification.Name("showUpdateWindow")
+    static let shortcutChanged = Notification.Name("shortcutChanged")
+    static let excludedAppsChanged = Notification.Name("excludedAppsChanged")
 }
