@@ -56,10 +56,10 @@ class AppState: ObservableObject {
     @Published var updateStatus: UpdateStatus = .checking
 
     @Published var shortcuts: [ShortcutItem] = [
-        ShortcutItem(key: "vn", value: "Việt Nam"),
-        ShortcutItem(key: "hn", value: "Hà Nội"),
-        ShortcutItem(key: "hcm", value: "Hồ Chí Minh"),
-        ShortcutItem(key: "tphcm", value: "Thành phố Hồ Chí Minh")
+        ShortcutItem(key: "vn", value: "Việt Nam", isEnabled: false),
+        ShortcutItem(key: "hn", value: "Hà Nội", isEnabled: false),
+        ShortcutItem(key: "hcm", value: "Hồ Chí Minh", isEnabled: false),
+        ShortcutItem(key: "tphcm", value: "Thành phố Hồ Chí Minh", isEnabled: false)
     ]
 
     @Published var excludedApps: [ExcludedApp] = []
