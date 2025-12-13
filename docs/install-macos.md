@@ -1,37 +1,99 @@
-# Hướng dẫn cài đặt Gõ Nhanh trên macOS
+# Gõ Nhanh trên macOS
 
-## Yêu cầu hệ thống
+## Cài đặt
 
-- macOS 13.0 (Ventura) trở lên.
-- Chip Apple Silicon (M1/M2/M3) hoặc Intel.
+1. **Tải về:** [GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg)
 
-## Các bước cài đặt
+2. **Cài đặt:** Mở file `.dmg` → Kéo vào **Applications**
 
-### 1. Tải ứng dụng
+3. **Cho phép chạy:**
+   ```bash
+   xattr -cr /Applications/GoNhanh.app
+   ```
 
-Tải xuống file `.dmg` phiên bản mới nhất tại: **[Tải Gõ Nhanh mới nhất](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg)**
+4. **Cấp quyền:** Mở app → System Settings → Privacy & Security → Accessibility → Bật **GoNhanh**
 
-_(Nếu bạn muốn chọn phiên bản cũ hơn, hãy truy cập [Danh sách Releases](https://github.com/khaphanspace/gonhanh.org/releases))_
+---
 
-### 2. Cài đặt
+## Sử dụng
 
-1. Mở file `.dmg` vừa tải.
-2. Kéo biểu tượng **Gõ Nhanh** vào thư mục **Applications**.
+| Phím tắt | Chức năng |
+|----------|-----------|
+| `Ctrl + Space` | Bật/tắt tiếng Việt |
 
-### 2.1. Mở ứng dụng lần đầu (Quan trọng)
+### Telex (mặc định)
 
-Do Gõ Nhanh chưa được ký số bởi Apple, bạn cần chạy lệnh sau trong **Terminal** để cho phép ứng dụng khởi chạy (chỉ cần làm 1 lần):
+| Gõ | Kết quả |
+|----|---------|
+| `as`, `af`, `ar`, `ax`, `aj` | á, à, ả, ã, ạ |
+| `aa`, `aw`, `ee`, `oo` | â, ă, ê, ô |
+| `ow`, `uw`, `dd` | ơ, ư, đ |
 
+### Đổi sang VNI
+
+Menu Bar → Cài đặt → Kiểu gõ → **VNI**
+
+| Gõ | Kết quả |
+|----|---------|
+| `a1`, `a2`, `a3`, `a4`, `a5` | á, à, ả, ã, ạ |
+| `a6`, `a8`, `o6`, `e6` | â, ă, ô, ê |
+| `o7`, `u7`, `d9` | ơ, ư, đ |
+
+### Tính năng khác
+
+- **Gõ tắt:** Menu Bar → Cài đặt → Gõ tắt → Thêm từ viết tắt
+- **Ngoại lệ:** Menu Bar → Cài đặt → Ngoại lệ → Thêm app không muốn gõ tiếng Việt
+
+---
+
+## Nâng cấp
+
+Menu Bar → Cài đặt → Cập nhật → **Tải và cài đặt**
+
+Hoặc tải [GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) mới và cài đè.
+
+---
+
+## Gỡ cài đặt
+
+1. Menu Bar → **Thoát**
+2. Xóa app từ Applications
+3. (Tùy chọn) Xóa cấu hình:
+   ```bash
+   rm -rf ~/.config/gonhanh ~/Library/Preferences/org.gonhanh.*
+   ```
+
+---
+
+## Xử lý sự cố
+
+**App không mở được?**
 ```bash
 xattr -cr /Applications/GoNhanh.app
 ```
 
-Sau đó bạn có thể mở Gõ Nhanh từ Applications như bình thường.
+**Không gõ được tiếng Việt?**
+1. Kiểm tra icon Menu Bar hiển thị "VN"
+2. Nhấn `Ctrl + Space`
+3. Kiểm tra quyền Accessibility đã bật
 
-## Gỡ cài đặt
+**Sau khi cập nhật macOS:**
 
-Để xóa hoàn toàn Gõ Nhanh:
+System Settings → Privacy & Security → Accessibility → Tắt/bật lại GoNhanh
 
-1. Thoát ứng dụng (Click icon trên Menu Bar -> Quit).
-2. Xóa Gõ Nhanh khỏi thư mục Applications.
-3. (Tùy chọn) Xóa file cấu hình tại `~/.config/gonhanh`.
+---
+
+## Nâng cao
+
+<details>
+<summary>Khởi động cùng hệ thống</summary>
+
+System Settings → General → Login Items → Thêm **GoNhanh**
+</details>
+
+<details>
+<summary>Yêu cầu hệ thống</summary>
+
+- macOS 13.0 (Ventura) trở lên
+- Apple Silicon hoặc Intel
+</details>
