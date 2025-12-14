@@ -18,11 +18,22 @@ enum NavigationPage: String, CaseIterable {
 
 // MARK: - Update Status
 
-enum UpdateStatus {
+enum UpdateStatus: Equatable {
+    case idle
     case checking
     case upToDate
     case available(String)  // New version string
     case error
+
+    var isChecking: Bool {
+        if case .checking = self { return true }
+        return false
+    }
+
+    var isAvailable: Bool {
+        if case .available = self { return true }
+        return false
+    }
 }
 
 // MARK: - App State
@@ -53,7 +64,7 @@ class AppState: ObservableObject {
         }
     }
 
-    @Published var updateStatus: UpdateStatus = .checking
+    @Published var updateStatus: UpdateStatus = .idle
 
     @Published var shortcuts: [ShortcutItem] = [
         ShortcutItem(key: "vn", value: "Việt Nam", isEnabled: false),
@@ -130,14 +141,20 @@ class AppState: ObservableObject {
 
     func checkForUpdates() {
         updateStatus = .checking
+        let startTime = Date()
         UpdateChecker.shared.checkForUpdates { [weak self] result in
-            switch result {
-            case .available(let info):
-                self?.updateStatus = .available(info.version)
-            case .upToDate:
-                self?.updateStatus = .upToDate
-            case .error:
-                self?.updateStatus = .error
+            // Ensure minimum 1.5s loading time for better UX
+            let elapsed = Date().timeIntervalSince(startTime)
+            let delay = max(0, 1.5 - elapsed)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                switch result {
+                case .available(let info):
+                    self?.updateStatus = .available(info.version)
+                case .upToDate:
+                    self?.updateStatus = .upToDate
+                case .error:
+                    self?.updateStatus = .error
+                }
             }
         }
     }
@@ -220,9 +237,7 @@ struct MainSettingsView: View {
             VStack(spacing: 4) {
                 ForEach(NavigationPage.allCases, id: \.self) { page in
                     NavButton(page: page, isSelected: selectedPage == page) {
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            selectedPage = page
-                        }
+                        selectedPage = page
                     }
                 }
             }
@@ -233,71 +248,8 @@ struct MainSettingsView: View {
 
     @ViewBuilder
     private var updateBadge: some View {
-        switch appState.updateStatus {
-        case .checking:
-            HStack(spacing: 4) {
-                Text("v\(AppMetadata.version)")
-                ProgressView()
-                    .scaleEffect(0.5)
-                    .frame(width: 12, height: 12)
-            }
-            .font(.system(size: 11))
-            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-        case .upToDate:
-            HStack(spacing: 4) {
-                Text("v\(AppMetadata.version)")
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.green)
-                Text("Mới nhất")
-            }
-            .font(.system(size: 11))
-            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-        case .available(let newVersion):
-            Button {
-                NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
-            } label: {
-                HStack(spacing: 6) {
-                    Text("v\(AppMetadata.version)")
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 10))
-                        Text("v\(newVersion)")
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule()
-                            .fill(Color.orange)
-                    )
-                }
-                .font(.system(size: 11))
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-            }
-
-        case .error:
-            Button {
-                appState.checkForUpdates()
-            } label: {
-                HStack(spacing: 4) {
-                    Text("v\(AppMetadata.version)")
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10))
-                }
-                .font(.system(size: 11))
-                .foregroundColor(Color(NSColor.tertiaryLabelColor))
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-            }
+        UpdateBadgeView(status: appState.updateStatus) {
+            appState.checkForUpdates()
         }
     }
 
@@ -316,6 +268,87 @@ struct MainSettingsView: View {
             AboutPageView()
                 .padding(28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - Update Badge
+
+struct UpdateBadgeView: View {
+    let status: UpdateStatus
+    let onCheck: () -> Void
+
+    @State private var hovered = false
+    @State private var rotation: Double = 0
+
+    private var statusText: String? {
+        switch status {
+        case .idle: return nil
+        case .checking: return "Kiểm tra"
+        case .upToDate: return "Mới nhất"
+        case .available: return "Cập nhật"
+        case .error: return "Thất bại"
+        }
+    }
+
+    private var statusIcon: (name: String, color: Color)? {
+        switch status {
+        case .idle: return nil
+        case .checking: return nil  // Handled separately with animation
+        case .upToDate: return ("checkmark.circle.fill", .green)
+        case .available: return ("arrow.up.circle.fill", .orange)
+        case .error: return ("exclamationmark.triangle.fill", .orange)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text("v\(AppMetadata.version)")
+
+            // Icon (all filled circle style)
+            if status.isChecking {
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .rotationEffect(.degrees(rotation))
+                    .onAppear {
+                        withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+                            rotation = 360
+                        }
+                    }
+                    .onDisappear { rotation = 0 }
+            } else if let icon = statusIcon {
+                Image(systemName: icon.name)
+                    .font(.system(size: 12))
+                    .foregroundColor(icon.color)
+            }
+
+            // Text
+            if let text = statusText {
+                Text(text)
+            }
+        }
+        .font(.system(size: 11))
+        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(hovered && !status.isChecking ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear)
+        )
+        .onHover { h in
+            hovered = h
+            if status.isAvailable {
+                if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+        }
+        .onTapGesture {
+            guard !status.isChecking else { return }
+            if status.isAvailable {
+                NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
+            } else {
+                onCheck()
+            }
         }
     }
 }
@@ -347,8 +380,6 @@ struct NavButton: View {
                 .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
                       hovered ? Color(NSColor.controlBackgroundColor).opacity(0.4) : Color.clear)
         )
-        .animation(.easeInOut(duration: 0.15), value: hovered)
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .onTapGesture { action() }
