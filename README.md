@@ -31,7 +31,7 @@
 |:--------:|:----------:|:---------:|:----------|
 | **macOS** | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md) |
 | **Linux** | 🧪 Beta | — | [Xem hướng dẫn](docs/install-linux.md) |
-| **Windows** | 🧪 Beta | - | [Xem hướng dẫn](docs/install-windows.md) |
+| **Windows** | 🧪 Beta | — | [Xem hướng dẫn](docs/install-windows.md) |
 
 ## ✨ Tính năng
 
