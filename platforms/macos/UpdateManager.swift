@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import UserNotifications
 
 // MARK: - Update State
 
@@ -99,18 +98,7 @@ class UpdateManager: NSObject, ObservableObject {
     }
 
     private func showUpdateNotification(_ info: UpdateInfo) {
-        let content = UNMutableNotificationContent()
-        content.title = "Gõ Nhanh - Có phiên bản mới"
-        content.body = "Phiên bản \(info.version) đã sẵn sàng."
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "gonhanh.update.\(info.version)",
-            content: content,
-            trigger: nil
-        )
-
-        UNUserNotificationCenter.current().add(request)
+        NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
     }
 
     // MARK: - Install

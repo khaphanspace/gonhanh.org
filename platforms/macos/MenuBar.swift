@@ -524,6 +524,9 @@ class MenuBarController: NSObject {
         }
         NSApp.activate(ignoringOtherApps: true)
         updateWindow?.makeKeyAndOrderFront(nil)
+
+        // Skip re-check if update is already available (from auto-check)
+        if case .available = UpdateManager.shared.state { return }
         UpdateManager.shared.checkForUpdatesManually()
     }
 }

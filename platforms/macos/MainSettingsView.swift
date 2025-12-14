@@ -330,28 +330,28 @@ struct NavButton: View {
     @State private var hovered = false
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: page.icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
-                    .frame(width: 20)
-                Text(page.rawValue)
-                    .font(.system(size: 13))
-                    .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
-                          hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
-            )
-            .animation(.easeInOut(duration: 0.15), value: hovered)
+        HStack(spacing: 10) {
+            Image(systemName: page.icon)
+                .font(.system(size: 14))
+                .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+                .frame(width: 20)
+            Text(page.rawValue)
+                .font(.system(size: 13))
+                .foregroundColor(isSelected ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+            Spacer()
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
+                      hovered ? Color(NSColor.controlBackgroundColor).opacity(0.4) : Color.clear)
+        )
+        .animation(.easeInOut(duration: 0.15), value: hovered)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .contentShape(Rectangle())
         .onHover { hovered = $0 }
+        .onTapGesture { action() }
     }
 }
 
@@ -484,6 +484,12 @@ struct SettingsPageView: View {
             Spacer()
         }
         .contentShape(Rectangle())
+        .onAppear {
+            // Clear any auto-focus on TextFields
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
+        }
     }
 
     private func showAppPicker() {
@@ -754,6 +760,7 @@ struct SectionView<Content: View>: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
             )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
@@ -766,7 +773,6 @@ struct ShortcutRow: View {
     @Binding var shortcut: ShortcutItem
     var isSelected: Bool
     var onSelect: () -> Void
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -774,14 +780,12 @@ struct ShortcutRow: View {
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
                 .textFieldStyle(.plain)
                 .frame(width: 60)
-                .focused($isFocused)
             Text("→")
                 .font(.system(size: 11))
                 .foregroundColor(Color(NSColor.tertiaryLabelColor))
             TextField("nội dung", text: $shortcut.value)
                 .font(.system(size: 13))
                 .textFieldStyle(.plain)
-                .focused($isFocused)
             Spacer()
             Toggle("", isOn: $shortcut.isEnabled)
                 .toggleStyle(.switch)
@@ -792,9 +796,6 @@ struct ShortcutRow: View {
         .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
-        .onChange(of: isFocused) { focused in
-            if focused { onSelect() }
-        }
     }
 }
 
