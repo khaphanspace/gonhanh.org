@@ -1,7 +1,6 @@
 #!/bin/bash
 # Gõ Nhanh Linux Installer
 # curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
-set -e
 
 REPO="khaphanspace/gonhanh.org"
 VERSION="1.0.0"
@@ -37,12 +36,12 @@ install_fcitx5() {
 
     log_info "Cài đặt Fcitx5..."
     if command -v apt &>/dev/null; then
-        sudo apt update -qq
-        sudo apt install -y fcitx5 im-config 2>&1 | grep -v "^$" || sudo apt install -y fcitx5
+        sudo apt update -qq || { log_error "apt update thất bại"; exit 1; }
+        sudo apt install -y fcitx5 || { log_error "Không thể cài fcitx5"; exit 1; }
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y fcitx5
+        sudo dnf install -y fcitx5 || { log_error "Không thể cài fcitx5"; exit 1; }
     elif command -v pacman &>/dev/null; then
-        sudo pacman -S --noconfirm fcitx5
+        sudo pacman -S --noconfirm fcitx5 || { log_error "Không thể cài fcitx5"; exit 1; }
     else
         log_error "Distro không được hỗ trợ"
         exit 1
