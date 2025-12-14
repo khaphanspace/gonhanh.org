@@ -46,12 +46,15 @@ echo "📊 Found $(echo "$COMMITS" | wc -l | tr -d ' ') commits" >&2
 # Build AI prompt
 PROMPT="Generate release notes for 'Gõ Nhanh' $VERSION (Vietnamese IME for macOS).
 
+CRITICAL: Output ONLY the markdown release notes. NO preamble, NO explanation, NO thinking.
+Start directly with ## or emoji header.
+
 Rules:
 - Analyze actual code changes, not just commit messages
 - Group by: ✨ New (new features), 🐛 Fixed (bug fixes), ⚡ Improved (enhancements) - skip empty sections
 - Each item: 1 line, concise, describe user-facing impact
 - Write in Vietnamese (technical terms in English OK)
-- Output markdown only, no explanations
+- Output markdown only, no explanations, no intro text
 
 Commits:
 $COMMITS
@@ -70,8 +73,18 @@ if command -v opencode &> /dev/null; then
     AI_OUTPUT=$(perl -e 'alarm 60; exec @ARGV' opencode run --format json "$PROMPT" 2>/dev/null | jq -r 'select(.type == "text") | .part.text' 2>/dev/null || echo "")
 fi
 
-# If AI output is valid (non-empty and has actual content), use it
-if [ -n "$AI_OUTPUT" ] && [ ${#AI_OUTPUT} -gt 20 ]; then
+# Validate AI output: must start with markdown header (## or emoji) not thinking text
+is_valid_release_notes() {
+    local text="$1"
+    # Check if starts with ## or common emoji headers (✨🐛⚡)
+    if echo "$text" | head -1 | grep -qE '^(##|✨|🐛|⚡|\*\*)'; then
+        return 0
+    fi
+    return 1
+}
+
+# If AI output is valid (non-empty, has content, and looks like release notes)
+if [ -n "$AI_OUTPUT" ] && [ ${#AI_OUTPUT} -gt 20 ] && is_valid_release_notes "$AI_OUTPUT"; then
     echo "$AI_OUTPUT"
 else
     # Fallback: generate simple release notes from commits
