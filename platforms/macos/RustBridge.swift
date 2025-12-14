@@ -472,10 +472,13 @@ private func detectMethod() -> (Method, (UInt32, UInt32, UInt32)) {
     // Electron apps (Claude Code) - higher delays
     if bundleId == "com.todesktop.230313mzl4w4u92" { Log.method("slow:claude"); return (.slow, (8000, 15000, 8000)) }
 
+    // Warp terminal - needs higher delays
+    if bundleId == "dev.warp.Warp-Stable" { Log.method("slow:warp"); return (.slow, (3000, 8000, 3000)) }
+
     // Terminal apps - medium delays
     let terminals = ["com.microsoft.VSCode", "com.apple.Terminal",
                      "com.googlecode.iterm2", "io.alacritty", "com.github.wez.wezterm",
-                     "com.google.antigravity", "dev.warp.Warp-Stable"]
+                     "com.google.antigravity"]
     if terminals.contains(bundleId) { Log.method("slow:term"); return (.slow, (1500, 3000, 2000)) }
 
     Log.method("fast")

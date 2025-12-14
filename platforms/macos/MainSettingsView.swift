@@ -334,7 +334,7 @@ struct UpdateBadgeView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(hovered && !status.isChecking ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear)
+                .fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear)
         )
         .onHover { h in
             hovered = h
