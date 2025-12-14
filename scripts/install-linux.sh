@@ -65,12 +65,13 @@ install_addon() {
 # Install CLI tool
 install_cli() {
     log_info "Cài đặt CLI..."
-    mkdir -p ~/.local/bin
+    mkdir -p ~/.local/bin ~/.local/share/gonhanh
     if ! curl -fsSL "https://raw.githubusercontent.com/$REPO/main/platforms/linux/scripts/gonhanh-cli.sh" -o ~/.local/bin/gn; then
         log_error "Không thể tải CLI"
         exit 1
     fi
     chmod +x ~/.local/bin/gn
+    echo "$VERSION" > ~/.local/share/gonhanh/version
 
     # Ensure ~/.local/bin is in PATH
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
