@@ -133,50 +133,196 @@ Các chữ cái Latin sau **không có** trong bảng chữ cái tiếng Việt 
 
 ### 3.2 Nguyên âm đôi (Diphthongs)
 
-| Nguyên âm đôi | IPA   | Ví dụ              |
-| ------------- | ----- | ------------------ |
-| ai            | /aj/  | hai, mai, tai      |
-| ao            | /aw/  | cao, sao, nao      |
-| au            | /aw/  | sau, mau, dâu      |
-| âu            | /əw/  | đâu, câu, sâu      |
-| ay            | /aj/  | hay, may, say      |
-| ây            | /əj/  | đây, cây, mây      |
-| eo            | /ɛw/  | keo, theo, treo    |
-| êu            | /ew/  | kêu, rêu, nêu      |
-| ia            | /iə/  | kia, mía, lịa      |
-| iê            | /iə/  | tiên, kiên, liên   |
-| iu            | /iw/  | dịu, kíu, tiu      |
-| oa            | /wa/  | hoa, toa, loa      |
-| oă            | /wa/  | loắt, xoắn         |
-| oe            | /wɛ/  | khoe, toe, xoe     |
-| oi            | /ɔj/  | coi, đói, nói      |
-| ôi            | /oj/  | tôi, hội, đối      |
-| ơi            | /əːj/ | bơi, chơi, rơi     |
-| ua            | /uə/  | mua, cua, lua      |
-| uâ            | /uə/  | luân, tuân         |
-| ưa            | /ɨə/  | mưa, cửa, lửa      |
-| uê            | /uə/  | huệ, tuệ           |
-| ui            | /uj/  | núi, dui, cúi      |
-| ưi            | /ɨj/  | gửi, lửi           |
-| uo            | /uə/  | thuở, muộn         |
-| uô            | /uə/  | muốn, cuốn, luôn   |
-| ươ            | /ɨə/  | mương, người, lười |
-| uy            | /uj/  | huy, quy, tuy      |
+#### 3.2.1 Phân loại theo hướng phát âm
+
+**A. Nguyên âm đôi hướng lên (Rising Diphthongs)**
+
+Nguyên âm đầu là âm đệm/glide, nguyên âm sau là âm chính.
+
+| Pattern | IPA  | Loại | Ví dụ | Ghi chú |
+|---------|------|------|-------|---------|
+| ia      | /iə/ | i → a | kia, mía, lía | Âm mở |
+| iê      | /iə/ | i → ê | tiên, kiên, liên | Compound vowel |
+| ua      | /uə/ | u → a | mua, cua, lua | Âm mở |
+| uô      | /uə/ | u → ô | muốn, cuốn, luôn | Compound vowel |
+| ưa      | /ɨə/ | ư → a | mưa, cửa, lửa | Âm mở |
+| ươ      | /ɨə/ | ư → ơ | mương, người, được | Compound vowel |
+
+**B. Nguyên âm đôi hướng xuống - Kết thúc -i/-y (Falling to -i/-y)**
+
+Nguyên âm đầu là âm chính, nguyên âm sau là bán nguyên âm cuối.
+
+| Pattern | IPA   | Ví dụ | Ghi chú |
+|---------|-------|-------|---------|
+| ai      | /aj/  | hai, mai, tai | |
+| ay      | /aj/  | hay, may, say | Khác "ai" về chính tả |
+| ây      | /əj/  | đây, cây, mây | |
+| oi      | /ɔj/  | coi, đói, nói | |
+| ôi      | /oj/  | tôi, hội, đối | |
+| ơi      | /əːj/ | bơi, chơi, rơi | |
+| ui      | /uj/  | núi, dui, cúi | |
+| ưi      | /ɨj/  | gửi, lửi | Ít từ |
+| iu      | /iw/  | dịu, kíu, tiu | |
+
+**C. Nguyên âm đôi hướng xuống - Kết thúc -u/-o (Falling to -u/-o)**
+
+| Pattern | IPA  | Ví dụ | Ghi chú |
+|---------|------|-------|---------|
+| ao      | /aw/ | cao, sao, nao | |
+| au      | /aw/ | sau, mau, dâu | Khác "ao" về chính tả |
+| âu      | /əw/ | đâu, câu, sâu | |
+| êu      | /ew/ | kêu, rêu, nêu | |
+| eo      | /ɛw/ | keo, theo, treo | |
+| **ưu**  | /ɨw/ | **lưu, hưu, ngưu, cứu** | **Quan trọng!** |
+
+**D. Tổ hợp âm đệm + âm chính (Medial + Main)**
+
+Nguyên âm đầu đóng vai trò âm đệm (không phải âm chính).
+
+| Pattern | IPA  | Âm đệm | Âm chính | Ví dụ | Điều kiện |
+|---------|------|--------|----------|-------|-----------|
+| oa      | /wa/ | o      | a        | hoa, toa, loa | Sau phụ âm |
+| oă      | /wa/ | o      | ă        | xoắn, loắt, hoặc | Sau phụ âm |
+| oe      | /wɛ/ | o      | e        | khoe, xoe, toe | Sau phụ âm |
+| uê      | /wə/ | u      | ê        | huệ, tuệ | |
+| uy      | /uj/ | u      | y        | quy, huy, tuy | |
+| uâ      | /wə/ | u      | â        | luân, tuân, quân | Hiếm |
+
+> **Lưu ý quan trọng về "ua"**:
+> - Sau "q" (qua, quả): u là âm đệm, a là âm chính → dấu trên a
+> - Không sau "q" (mua, cua): u là âm chính, a là bán nguyên âm → dấu trên u
+
+#### 3.2.2 Nguyên âm đôi đặc biệt (Special Cases)
+
+| Pattern | IPA  | Ví dụ | Ghi chú |
+|---------|------|-------|---------|
+| uo      | /uə/ | thuở | Rất hiếm, chỉ vài từ |
+
+#### 3.2.3 Các tổ hợp KHÔNG tồn tại trong tiếng Việt (Invalid Patterns)
+
+> **QUAN TRỌNG**: Các pattern sau KHÔNG hợp lệ trong tiếng Việt chuẩn.
+
+| Pattern | Lý do không hợp lệ | Thường gặp trong |
+|---------|-------------------|------------------|
+| **ou**  | Không tồn tại | Tiếng Anh: you, our, out, house |
+| **yo**  | Không tồn tại | Tiếng Anh: yoke, York, beyond |
+| **eu**  | Không tồn tại (chỉ có êu) | Tiếng Pháp, tiếng Đức |
+| **ae**  | Không tồn tại | Tiếng Latin |
+| **uo** mở đầu | Chỉ sau phụ âm | - |
+| **yi**  | Không tồn tại | - |
+| **wu**  | Không tồn tại | Tiếng Trung |
+
+#### 3.2.4 Quy tắc kết hợp nguyên âm
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              QUY TẮC KẾT HỢP NGUYÊN ÂM TIẾNG VIỆT                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. NGUYÊN ÂM ĐÔI HƯỚNG LÊN (Rising):                              │
+│     • Nguyên âm đầu: i, u, ư (đóng vai trò glide/đệm)              │
+│     • Nguyên âm sau: a, ê, ô, ơ (đóng vai trò âm chính)            │
+│     • Patterns: ia, iê, ua, uô, ưa, ươ                             │
+│                                                                     │
+│  2. NGUYÊN ÂM ĐÔI HƯỚNG XUỐNG (Falling):                           │
+│     • Nguyên âm đầu: a, ă, â, e, ê, o, ô, ơ, u, ư (âm chính)      │
+│     • Nguyên âm sau: i, y, u, o (bán nguyên âm cuối)               │
+│     • Patterns: ai, ay, ao, au, oi, ui, êu, ưu...                  │
+│                                                                     │
+│  3. TỔ HỢP ÂM ĐỆM (Medial combinations):                           │
+│     • Âm đệm o: chỉ trước a, ă, e                                  │
+│     • Âm đệm u: chỉ trước â, ê, y                                  │
+│     • Patterns: oa, oă, oe, uâ, uê, uy                             │
+│                                                                     │
+│  4. COMPOUND VOWELS (Nguyên âm ghép):                              │
+│     • iê, uô, ươ: cả hai nguyên âm tạo thành một đơn vị            │
+│     • Dấu thanh đặt trên nguyên âm THỨ HAI                         │
+│                                                                     │
+│  5. KHÔNG KẾT HỢP ĐƯỢC:                                            │
+│     • ou, yo, eu, ae, yi, wu → KHÔNG tồn tại                       │
+│     • Hai nguyên âm giống nhau liền kề (trừ pattern đặc biệt)      │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### 3.3 Nguyên âm ba (Triphthongs)
 
-| Nguyên âm ba | IPA   | Ví dụ             |
-| ------------ | ----- | ----------------- |
-| iêu          | /iəw/ | tiêu, kiều, liêu  |
-| oai          | /waj/ | ngoài, loại, hoài |
-| oay          | /waj/ | xoay, ngoáy       |
-| oeo          | /wɛw/ | khoèo, ngoẹo      |
-| uây          | /uəj/ | khuấy, quậy       |
-| uôi          | /uəj/ | cuối, người, tuổi |
-| ươi          | /ɨəj/ | mười, tươi, gửi   |
-| ươu          | /ɨəw/ | rượu, hươu        |
-| yêu          | /iəw/ | yêu, yếu          |
-| uyê          | /uiə/ | khuyên, chuyên    |
+#### 3.3.1 Danh sách đầy đủ
+
+| Nguyên âm ba | IPA   | Cấu trúc | Ví dụ |
+| ------------ | ----- | -------- | ----- |
+| iêu          | /iəw/ | i + ê + u | tiêu, kiều, liêu |
+| yêu          | /iəw/ | y + ê + u | yêu, yếu |
+| oai          | /waj/ | o + a + i | ngoài, loại, hoài |
+| oay          | /waj/ | o + a + y | xoay, ngoáy |
+| oeo          | /wɛw/ | o + e + o | khoèo, ngoẹo |
+| uây          | /uəj/ | u + â + y | khuấy, quậy |
+| uôi          | /uəj/ | u + ô + i | cuối, tuổi, buổi |
+| ươi          | /ɨəj/ | ư + ơ + i | mười, tươi, lười |
+| ươu          | /ɨəw/ | ư + ơ + u | rượu, hươu, bướu |
+| uyê          | /uiə/ | u + y + ê | khuyên, chuyên, quyền |
+
+#### 3.3.2 Quy tắc đặt dấu thanh cho nguyên âm ba
+
+| Pattern | Dấu thanh trên | Lý do |
+|---------|---------------|-------|
+| iêu, yêu | ê (giữa) | ê có dấu phụ |
+| oai, oay | a (giữa) | a là âm chính |
+| oeo | e (giữa) | e là âm chính |
+| uây | â (giữa) | â có dấu phụ |
+| uôi | ô (giữa) | ô có dấu phụ |
+| ươi, ươu | ơ (giữa) | ơ có dấu phụ |
+| uyê | ê (cuối) | ê có dấu phụ |
+
+#### 3.3.3 Các tổ hợp ba nguyên âm KHÔNG tồn tại
+
+| Pattern | Lý do |
+|---------|-------|
+| aiu, aui, eau | Không theo cấu trúc tiếng Việt |
+| oui, uoi (không dấu) | Phải là uôi |
+| ieo, eoi | Không tồn tại |
+
+### 3.4 Tổng hợp quy tắc nguyên âm cho bộ gõ
+
+#### 3.4.1 Bảng tra cứu nhanh - Nguyên âm hợp lệ
+
+```
+NGUYÊN ÂM ĐƠN (12):
+a, ă, â, e, ê, i, o, ô, ơ, u, ư, y
+
+NGUYÊN ÂM ĐÔI HỢP LỆ (27):
+├── Hướng lên: ia, iê, ua, uô, ưa, ươ
+├── Hướng xuống (-i/-y): ai, ay, ây, oi, ôi, ơi, ui, ưi, iu
+├── Hướng xuống (-u/-o): ao, au, âu, êu, eo, ưu
+├── Âm đệm: oa, oă, oe, uâ, uê, uy
+└── Đặc biệt: uo (hiếm)
+
+NGUYÊN ÂM BA HỢP LỆ (10):
+iêu, yêu, oai, oay, oeo, uây, uôi, ươi, ươu, uyê
+
+KHÔNG HỢP LỆ:
+ou, yo, eu, ae, yi, wu, aiu, eau...
+```
+
+#### 3.4.2 Ma trận kết hợp nguyên âm
+
+| V1 \ V2 | a | ă | â | e | ê | i | o | ô | ơ | u | ư | y |
+|---------|---|---|---|---|---|---|---|---|---|---|---|---|
+| **a**   | - | - | - | - | - | ✓ | ✓ | - | - | ✓ | - | ✓ |
+| **ă**   | - | - | - | - | - | - | - | - | - | - | - | - |
+| **â**   | - | - | - | - | - | - | - | - | - | ✓ | - | ✓ |
+| **e**   | - | - | - | - | - | - | ✓ | - | - | - | - | - |
+| **ê**   | - | - | - | - | - | - | - | - | - | ✓ | - | - |
+| **i**   | ✓ | - | - | - | ✓ | - | - | - | - | ✓ | - | - |
+| **o**   | ✓ | ✓ | - | ✓ | - | ✓ | - | - | - | - | - | - |
+| **ô**   | - | - | - | - | - | ✓ | - | - | - | - | - | - |
+| **ơ**   | - | - | - | - | - | ✓ | - | - | - | - | - | - |
+| **u**   | ✓ | - | ✓ | - | ✓ | ✓ | ✓ | ✓ | - | - | - | ✓ |
+| **ư**   | ✓ | - | - | - | - | ✓ | - | - | ✓ | ✓ | - | - |
+| **y**   | - | - | - | - | ✓ | - | - | - | - | - | - | - |
+
+> **Cách đọc**: Hàng là nguyên âm đầu (V1), cột là nguyên âm sau (V2).
+> ✓ = kết hợp hợp lệ, - = không hợp lệ.
 
 ---
 
@@ -725,6 +871,7 @@ Dấu đặt trên nguyên âm **thứ hai**:
 | ơi      | bơi, bời, bởi, bỡi, bợi | ơ        |
 | ui      | túi, tùi, tủi, tũi, tụi | u        |
 | ưi      | gửi, gừi                | ư        |
+| **ưu**  | **lưu, hưu, cứu, ngưu** | **ư**    |
 
 #### 7.2.4 Ba nguyên âm
 
@@ -752,23 +899,100 @@ Nếu có nguyên âm đã có dấu phụ, dấu thanh **ưu tiên** đặt tr�
 | đời   | ơ có dấu phụ → dấu trên ơ |
 | luật  | â có dấu phụ → dấu trên â |
 
-### 7.3 Tóm tắt quy tắc
+### 7.3 Ma trận đặt dấu thanh (Tone Mark Placement Matrix)
+
+#### 7.3.1 Nguyên âm đôi - Âm mở (không phụ âm cuối)
+
+| Pattern | Vị trí dấu | Ký hiệu | Ví dụ | Loại |
+|---------|-----------|---------|-------|------|
+| ai | 1 | **a**i | mái, hài | Âm chính + Glide |
+| ao | 1 | **a**o | cáo, sào | Âm chính + Glide |
+| au | 1 | **a**u | sáu, màu | Âm chính + Glide |
+| ay | 1 | **a**y | máy, tày | Âm chính + Glide |
+| âu | 1 | **â**u | đầu, câu | Âm chính + Glide |
+| ây | 1 | **â**y | đấy, mây | Âm chính + Glide |
+| eo | 1 | **e**o | kéo, trèo | Âm chính + Glide |
+| êu | 1 | **ê**u | kêu, rều | Âm chính + Glide |
+| ia | 1 | **i**a | kìa, mía | Âm chính + Glide |
+| iu | 1 | **i**u | dịu, kíu | Âm chính + Glide |
+| oi | 1 | **o**i | đói, còi | Âm chính + Glide |
+| ôi | 1 | **ô**i | tối, đồi | Âm chính + Glide |
+| ơi | 1 | **ơ**i | bời, đời | Âm chính + Glide |
+| ui | 1 | **u**i | túi, mùi | Âm chính + Glide |
+| ưi | 1 | **ư**i | gửi | Âm chính + Glide |
+| ưu | 1 | **ư**u | lưu, hưu | Âm chính + Glide |
+| ua | 1 | **u**a | mùa, cúa | Âm chính + Glide (không sau q) |
+| ưa | 1 | **ư**a | mưa, cửa | Âm chính + Glide |
+| oa | 2 | o**a** | hoà, toá | Âm đệm + Chính |
+| oă | 2 | o**ă** | xoắn, loắt | Âm đệm + Chính |
+| oe | 2 | o**e** | khoẻ, xoè | Âm đệm + Chính |
+| uê | 2 | u**ê** | huế, tuệ | Âm đệm + Chính |
+| uy | 2 | u**y** | quý, thuỳ | Âm đệm + Chính |
+| ua (sau q) | 2 | qu**a** | quá, quà | Âm đệm + Chính |
+| iê | 2 | i**ê** | tiên (mở) | Compound |
+| uô | 2 | u**ô** | (hiếm khi mở) | Compound |
+| ươ | 2 | ư**ơ** | (hiếm khi mở) | Compound |
+
+#### 7.3.2 Nguyên âm đôi - Âm đóng (có phụ âm cuối)
+
+| Pattern | Vị trí dấu | Ký hiệu | Ví dụ | Ghi chú |
+|---------|-----------|---------|-------|---------|
+| ai + C | 2 | a**i**C | - | Không tồn tại |
+| ao + C | 2 | a**o**C | - | Không tồn tại |
+| oa + C | 2 | o**a**C | hoán, toàn | |
+| oe + C | 2 | o**e**C | - | Hiếm |
+| ua + C | 2 | u**a**C | luận, tuần | |
+| iê + C | 2 | i**ê**C | tiến, biển | |
+| uô + C | 2 | u**ô**C | muốn, cuốn | |
+| ươ + C | 2 | ư**ơ**C | mướn, lường | |
+| ưu + C | 2 | ư**u**C | - | Không tồn tại |
+
+#### 7.3.3 Nguyên âm ba
+
+| Pattern | Vị trí dấu | Ký hiệu | Ví dụ |
+|---------|-----------|---------|-------|
+| iêu | 2 (giữa) | i**ê**u | tiếu, kiều |
+| yêu | 2 (giữa) | y**ê**u | yếu, yều |
+| oai | 2 (giữa) | o**a**i | ngoài, hoài |
+| oay | 2 (giữa) | o**a**y | xoáy, ngoáy |
+| oeo | 2 (giữa) | o**e**o | khoèo |
+| uây | 2 (giữa) | u**â**y | khuấy |
+| uôi | 2 (giữa) | u**ô**i | cuối, tuổi |
+| ươi | 2 (giữa) | ư**ơ**i | mười, tươi |
+| ươu | 2 (giữa) | ư**ơ**u | rượu, hươu |
+| uyê | 3 (cuối) | uy**ê** | khuyến, quyền |
+
+#### 7.3.4 Bảng tra nhanh theo vị trí
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  QUY TẮC ĐẶT DẤU THANH                  │
-├─────────────────────────────────────────────────────────┤
-│ 1. Một nguyên âm → Đặt trên nguyên âm đó               │
-│                                                         │
-│ 2. Hai nguyên âm:                                       │
-│    - Có phụ âm cuối → Đặt trên nguyên âm thứ 2         │
-│    - Âm đệm + Âm chính (oa,oe,uy) → Nguyên âm thứ 2    │
-│    - Âm chính + Bán nguyên âm (ai,ao,au...) → Thứ 1   │
-│                                                         │
-│ 3. Ba nguyên âm → Đặt trên nguyên âm giữa              │
-│                                                         │
-│ 4. Có nguyên âm dấu phụ (ă,â,ê,ô,ơ,ư) → Ưu tiên       │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│              VỊ TRÍ ĐẶT DẤU THANH - TRA NHANH                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  VỊ TRÍ 1 (Nguyên âm đầu):                                     │
+│  ├── ai, ao, au, ay        (a + glide)                         │
+│  ├── âu, ây                (â + glide)                         │
+│  ├── eo, êu                (e/ê + glide)                       │
+│  ├── ia, iu                (i + glide)                         │
+│  ├── oi, ôi, ơi            (o/ô/ơ + glide)                     │
+│  ├── ui, ưi, ưu            (u/ư + glide)                       │
+│  └── ua, ưa                (u/ư + a, KHÔNG sau q)              │
+│                                                                 │
+│  VỊ TRÍ 2 (Nguyên âm sau/giữa):                                │
+│  ├── oa, oă, oe            (âm đệm o + chính)                  │
+│  ├── uê, uy                (âm đệm u + chính)                  │
+│  ├── ua (sau q)            (qu + a)                            │
+│  ├── iê, uô, ươ            (compound vowels)                   │
+│  ├── Tất cả VV + C         (hai nguyên âm + phụ âm cuối)       │
+│  └── Nguyên âm ba          (trừ uyê)                           │
+│                                                                 │
+│  VỊ TRÍ 3 (Nguyên âm cuối):                                    │
+│  └── uyê                   (khuyến, quyền)                     │
+│                                                                 │
+│  ƯU TIÊN DẤU PHỤ:                                              │
+│  └── Nếu có ă,â,ê,ô,ơ,ư → Dấu thanh đặt trên nguyên âm đó     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### 7.4 Hai trường phái đặt dấu: Kiểu cũ và Kiểu mới
@@ -806,6 +1030,85 @@ Hiện nay tồn tại 2 quan điểm về cách đặt dấu thanh, thường �
 | Ủng hộ kiểu cũ | Ký hiệu IPA biểu thị cách phát âm, không phải cách viết |
 
 > **Lưu ý**: Hiện tại cả hai kiểu đều được sử dụng song song trong tiếng Việt. Các bộ gõ như UniKey, EVKey đều cho phép người dùng chọn kiểu đặt dấu phù hợp.
+
+### 7.5 Quy tắc đặt dấu phụ cho nguyên âm đôi (Diacritic Placement)
+
+> **Quan trọng cho bộ gõ**: Quy tắc này áp dụng cho dấu mũ (^), dấu móc và dấu trăng (˘) khi gõ nguyên âm đôi.
+
+#### 7.5.1 Nguyên tắc chung
+
+1. **Dấu phụ ưu tiên nhận dấu thanh**: Khi một nguyên âm đã có dấu phụ (ă, â, ê, ô, ơ, ư), dấu thanh **bắt buộc** đặt trên nguyên âm đó.
+2. **Không thể có 2 dấu thanh trên 2 nguyên âm**: Ví dụ: "thúê" là SAI, "thuế" là ĐÚNG.
+
+#### 7.5.2 Bảng đặt dấu phụ theo pattern nguyên âm đôi
+
+| Pattern | Kết quả | Dấu phụ trên | Ví dụ | Ghi chú |
+|---------|---------|--------------|-------|---------|
+| u + o   | ươ      | CẢ HAI       | được, ướt, mương | Compound vowel |
+| o + u   | ơu      | CẢ HAI       | rươu, hươu | Reversed compound |
+| u + u   | ưu      | THỨ NHẤT     | lưu, hưu, ngưu | ưu cluster |
+| C + u + a | ưa    | THỨ NHẤT     | mưa, cửa, lửa | C = phụ âm (không phải q) |
+| u + a   | uă      | THỨ HAI      | (standalone) | Breve on a |
+| q + u + a | quă   | THỨ HAI      | quả, quắn | qu = initial |
+| o + a   | oă      | THỨ HAI      | hoặc, xoắn | Breve on a |
+| i + e   | iê      | THỨ HAI      | tiên, kiên | Circumflex on e |
+| u + ô   | uô      | THỨ HAI      | muốn, cuốn | Circumflex on o |
+| đơn u   | ư       | u            | tư, từ, tử | Single vowel |
+| đơn o   | ơ       | o            | cơ, cờ, cỏ | Single vowel |
+| đơn a   | ă       | a            | ăn, ắn, ặn | Single vowel (breve) |
+
+#### 7.5.3 Giải thích pattern đặc biệt
+
+**ươ compound**: Khi gõ "u + o + w" (Telex) hoặc "u + o + 7" (VNI), CẢ HAI nguyên âm đều nhận dấu móc.
+- Ví dụ: "duocw" → "được", "nguoif" → "người"
+
+**ưu cluster**: Khi gõ "u + u + w", chỉ nguyên âm THỨ NHẤT nhận dấu móc.
+- Ví dụ: "luuw" → "lưu", "huuw" → "hưu", "nguuw" → "ngưu"
+- Đây là pattern "DELAYED modifier" - người dùng gõ xong từ rồi mới thêm dấu
+
+**ưa pattern**: Context-dependent - phụ thuộc vào phụ âm đầu.
+- Có phụ âm đầu (không phải q): "muaw" → "mưa" (dấu móc trên u)
+- Standalone hoặc sau q: "uaw" → "uă", "quaw" → "quắ" (dấu trăng trên a)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│           QUY TẮC ĐẶT DẤU PHỤ CHO NGUYÊN ÂM ĐÔI                  │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. ươ compound (u+o, o+u) → Dấu móc trên CẢ HAI nguyên âm      │
+│                                                                  │
+│  2. ưu cluster (u+u) → Dấu móc trên nguyên âm THỨ NHẤT          │
+│                                                                  │
+│  3. ưa pattern (C+u+a) → Dấu móc trên u (khi có phụ âm đầu)     │
+│     • mưa, cửa, lửa                                              │
+│     • KHÔNG áp dụng cho qua (qu là một đơn vị)                   │
+│                                                                  │
+│  4. oă, uă (o+a, u+a standalone) → Dấu trăng trên a             │
+│     • hoặc, xoắn, quắ                                            │
+│                                                                  │
+│  5. iê, uô → Dấu mũ trên nguyên âm THỨ HAI                      │
+│     • tiên, muốn, cuốn                                           │
+│                                                                  │
+│  6. Nguyên âm đơn → Dấu đặt trực tiếp trên nguyên âm đó         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### 7.5.4 Ứng dụng cho Bộ gõ (IME Implementation)
+
+```rust
+// Pseudo-code cho IME
+fn find_horn_position(vowel_pair: &[char], has_consonant_prefix: bool) -> usize {
+    match vowel_pair {
+        ['u', 'o'] | ['o', 'u'] => BOTH,      // ươ compound
+        ['u', 'u']              => FIRST,     // ưu cluster
+        ['u', 'a'] if has_consonant_prefix => FIRST,  // ưa pattern
+        ['u', 'a'] | ['o', 'a'] => SECOND,    // uă, oă (breve)
+        ['i', 'e'] | ['u', 'o'] => SECOND,    // iê, uô (circumflex)
+        _                       => LAST_VOWEL // Default
+    }
+}
+```
 
 ---
 
@@ -1038,6 +1341,21 @@ Telex cho phép gõ dấu phụ và dấu thanh theo thứ tự bất kỳ:
 ---
 
 ## Changelog
+
+- **2025-12-16**: Mở rộng và hoàn thiện Section 3 + Section 7
+  - **Section 3 (Hệ thống nguyên âm)**:
+    - Phân loại nguyên âm đôi theo hướng phát âm (Rising/Falling/Medial)
+    - Bổ sung pattern **ưu** (lưu, hưu, ngưu) - thiếu trong bản trước
+    - Thêm danh sách các tổ hợp KHÔNG tồn tại (ou, yo, eu, ae, yi, wu)
+    - Thêm ma trận kết hợp nguyên âm (V1 x V2)
+    - Thêm bảng tra cứu nhanh cho bộ gõ
+  - **Section 7 (Quy tắc đặt dấu thanh)**:
+    - Thêm mục 7.3: Ma trận đặt dấu thanh (Tone Mark Placement Matrix)
+    - Bảng 7.3.1: Nguyên âm đôi - Âm mở (28 patterns)
+    - Bảng 7.3.2: Nguyên âm đôi - Âm đóng (9 patterns)
+    - Bảng 7.3.3: Nguyên âm ba (10 patterns)
+    - Bảng 7.3.4: Tra nhanh theo vị trí (1/2/3)
+    - Bổ sung pattern **ưu** vào mục 7.2.3
 
 - **2025-12-14**: Di chuyển Thuật toán Validation sang file riêng
   - Xóa mục 12 (Thuật toán Xác nhận Âm tiết) - đã có trong [validation-algorithm.md](./validation-algorithm.md)
