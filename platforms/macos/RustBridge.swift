@@ -478,14 +478,23 @@ private func detectMethod() -> (Method, (UInt32, UInt32, UInt32)) {
     if bundleId == "com.todesktop.230313mzl4w4u92" { Log.method("slow:claude"); return (.slow, (8000, 15000, 8000)) }
     if bundleId == "notion.id" { Log.method("slow:notion"); return (.slow, (8000, 15000, 8000)) }
 
-    // Terminal apps - conservative delays for reliability
-    let terminals = ["com.microsoft.VSCode", "com.apple.Terminal",
-                     "com.googlecode.iterm2", "io.alacritty", "com.github.wez.wezterm",
-                     "com.google.antigravity", "dev.warp.Warp-Stable"]
+    // Terminal/IDE apps - conservative delays for reliability
+    let terminals = [
+        // Terminals
+        "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
+        "com.github.wez.wezterm", "com.mitchellh.ghostty", "dev.warp.Warp-Stable",
+        "net.kovidgoyal.kitty", "co.zeit.hyper", "org.tabby", "com.raphaelamorim.rio",
+        "com.termius-dmg.mac",
+        // IDEs/Editors
+        "com.microsoft.VSCode", "com.google.antigravity", "dev.zed.Zed",
+        "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova",
+        "com.jetbrains.fleet"
+    ]
     if terminals.contains(bundleId) { Log.method("slow:term"); return (.slow, (3000, 8000, 3000)) }
 
-    Log.method("fast")
-    return (.fast, (200, 800, 500))
+    // Default: safe delays for stability across unknown apps
+    Log.method("default")
+    return (.fast, (1000, 3000, 1500))
 }
 
 private func sendReplacement(backspace bs: Int, chars: [Character]) {
