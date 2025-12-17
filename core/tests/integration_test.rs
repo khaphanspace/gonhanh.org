@@ -1020,11 +1020,121 @@ fn z_still_removes_marks_in_telex() {
     assert_eq!(chars, "a", "mark should be removed, resulting in 'a'");
 }
 
-/// Issue #24: Verify "ddojc" produces "đọc" in Telex mode
-/// Engine test - verifies core functionality works correctly
+/// Issue #24: All possible Telex combinations for "đọc"
+///
+/// đọc = đ (stroke) + ọ (nặng mark) + c
+/// - đ: requires "dd" (can be split: d...d)
+/// - ọ: requires "o" + "j" (j can come after c)
+/// - c: just "c"
+///
+/// Test all valid typing orders that should produce "đọc"
 #[test]
-fn telex_ddojc_produces_doc() {
-    // telex() panics on assertion failure, so if this runs successfully,
-    // the test passes
-    telex(&[("ddojc", "đọc")]);
+fn telex_doc_all_combinations() {
+    // Standard patterns - dd at start
+    telex(&[
+        ("ddojc", "đọc"),  // dd + oj + c (most common)
+        ("ddocj", "đọc"),  // dd + oc + j (mark at end)
+    ]);
+
+    // D-postfix patterns - one d at start, stroke applied at end
+    telex(&[
+        ("dojcd", "đọc"),  // d + oj + c + d (stroke at end)
+        ("docjd", "đọc"),  // d + oc + j + d (mark then stroke at end)
+        ("docdj", "đọc"),  // d + oc + d + j (stroke then mark at end)
+    ]);
+
+    // Mixed order - d after vowel but before final consonant
+    telex(&[
+        ("dojdc", "đọc"),  // d + oj + d + c
+        ("dodjc", "đọc"),  // d + od + j + c (stroke mid-word)
+    ]);
+}
+
+/// Issue #24: Edge cases for "đọc" - invalid or unexpected patterns
+#[test]
+fn telex_doc_edge_cases() {
+    // These patterns might not produce "đọc" - test actual behavior
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // Pattern: ojcdd - typing vowel+consonant first, then both d's at end
+    // This should NOT work because dd needs to transform an existing d
+    let result = type_word(&mut e, "ojcdd");
+    // First d after ojc starts new word context, second d makes đ
+    // Result depends on engine behavior
+    assert_ne!(result, "đọc", "ojcdd should not produce đọc");
+
+    e.clear();
+
+    // Pattern: jdocd - j before vowel (invalid)
+    let result2 = type_word(&mut e, "jdocd");
+    assert_ne!(result2, "đọc", "jdocd should not produce đọc");
+}
+
+/// Issue #24: Similar words to ensure no regression
+#[test]
+fn telex_similar_words_to_doc() {
+    telex(&[
+        // Words with đ (stroke)
+        ("ddi", "đi"),
+        ("ddaau", "đâu"),
+        ("dduowcj", "được"),
+        ("dduwowngf", "đường"),
+
+        // Words with ọ (o + nặng, no circumflex)
+        ("hojc", "học"),      // học uses ọ not ộ
+        ("tojp", "tọp"),
+        ("lojm", "lọm"),
+        ("sojt", "sọt"),
+
+        // Words with ộ (ô + nặng = circumflex + nặng)
+        ("toojt", "tột"),     // tột uses ộ
+        ("loojn", "lộn"),     // lộn uses ộ
+        ("coojt", "cột"),     // cột uses ộ
+
+        // Words with đ + ọ (o + nặng, no circumflex)
+        ("ddojc", "đọc"),     // đọc uses ọ
+
+        // Words with đ + ộ (ô + nặng)
+        ("ddooj", "độ"),      // độ uses ộ (circumflex + nặng)
+
+        // Words with đ + other marks on o
+        ("ddor", "đỏ"),       // đ + ỏ (hỏi)
+        ("ddos", "đó"),       // đ + ó (sắc)
+        ("ddoof", "đồ"),      // đ + ồ (circumflex + huyền)
+        ("ddoox", "đỗ"),      // đ + ỗ (circumflex + ngã)
+
+        // Longer words with đọc pattern
+        ("ddojcc", "đọcc"),   // extra c - passthrough
+    ]);
+}
+
+/// Issue #24: Verify "đọc" with uppercase variations
+#[test]
+fn telex_doc_uppercase() {
+    telex(&[
+        ("Ddojc", "Đọc"),     // Capital Đ
+        ("DDOJC", "ĐỌC"),     // All caps
+        ("DDojc", "Đọc"),     // DD at start, rest lowercase
+    ]);
+}
+
+/// Issue #24: "đọc" in context (with spaces)
+#[test]
+fn telex_doc_in_sentence() {
+    telex(&[
+        ("ddojc ", "đọc "),   // with trailing space
+    ]);
+
+    // Multi-word test
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    let result = type_word(&mut e, "ddojc");
+    assert_eq!(result, "đọc");
+
+    e.clear(); // Word boundary
+
+    let result2 = type_word(&mut e, "sachs");
+    assert_eq!(result2, "sách");
 }

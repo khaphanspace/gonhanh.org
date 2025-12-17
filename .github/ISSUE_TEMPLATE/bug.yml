@@ -2,27 +2,63 @@ name: 🐛 Báo lỗi
 description: Báo cáo lỗi phần mềm
 labels: ["bug"]
 body:
+  - type: dropdown
+    id: bug-type
+    attributes:
+      label: Loại lỗi
+      options:
+        - Gõ ra kết quả không như mong đợi
+        - Khác
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app-scope
+    attributes:
+      label: Lỗi xảy ra ở đâu?
+      description: Lỗi chỉ xảy ra trên một app cố định hay tất cả các app?
+      options:
+        - Chỉ một app cố định
+        - Một vài app nhất định
+        - Tất cả các app
+        - Không chắc chắn
+    validations:
+      required: true
+
+  - type: input
+    id: affected-apps
+    attributes:
+      label: App bị lỗi
+      description: "⚠️ BẮT BUỘC nếu chọn 'Chỉ một app' hoặc 'Một vài app'. Ví dụ: Chrome, VS Code, Telegram..."
+      placeholder: "Chrome, VS Code..."
+
   - type: textarea
     id: description
     attributes:
       label: Mô tả lỗi
-      placeholder: Lỗi gì đã xảy ra?
+      placeholder: Lỗi gì đã xảy ra? Gõ gì thì bị sai?
     validations:
       required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: Kết quả mong đợi
-      placeholder: Bạn mong đợi điều gì xảy ra?
 
   - type: textarea
     id: reproduce
     attributes:
       label: Các bước tái hiện
       placeholder: |
-        1. ...
-        2. ...
+        1. Mở app X
+        2. Gõ "abc"
+        3. Kết quả bị sai thành "xyz"
+
+  - type: dropdown
+    id: input-method
+    attributes:
+      label: Kiểu gõ đang dùng
+      options:
+        - Telex
+        - VNI
+        - Không biết
+    validations:
+      required: true
 
   - type: dropdown
     id: os
@@ -32,8 +68,10 @@ body:
         - macOS 15 (Sequoia)
         - macOS 14 (Sonoma)
         - macOS 13 (Ventura)
+        - macOS 12 (Monterey)
         - Windows 11
         - Windows 10
+        - Linux
     validations:
       required: true
 
@@ -41,4 +79,16 @@ body:
     id: version
     attributes:
       label: Phiên bản Gõ Nhanh
-      placeholder: "1.0.0"
+      description: Xem trong menu Gõ Nhanh > About
+      placeholder: "1.0.64"
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Tần suất xảy ra
+      options:
+        - Luôn luôn (100%)
+        - Thường xuyên (>50%)
+        - Thỉnh thoảng (<50%)
+        - Hiếm khi
+        - Chỉ một lần
