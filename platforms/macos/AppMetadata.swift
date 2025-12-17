@@ -74,6 +74,8 @@ enum SettingsKey {
     static let smartModeEnabled = "gonhanh.smartMode.enabled"
     static let perAppModes = "gonhanh.perAppModes"
     static let shortcuts = "gonhanh.shortcuts"
+    static let holdBackspaceEnabled = "gonhanh.holdBackspace.enabled"
+    static let holdBackspaceDuration = "gonhanh.holdBackspace.duration"
 }
 
 // MARK: - Keyboard Shortcut Model

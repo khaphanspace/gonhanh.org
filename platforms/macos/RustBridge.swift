@@ -313,7 +313,7 @@ class KeyboardHookManager {
 
         RustBridge.initialize()
 
-        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
+        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
         let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
                                     options: .defaultTap, eventsOfInterest: mask,
                                     callback: keyboardCallback, userInfo: nil)
@@ -370,8 +370,15 @@ private let kEventMarker: Int64 = 0x474E4820  // "GNH "
 private var wasModifierShortcutPressed = false  // Track modifier-only shortcut state for toggle detection
 private var currentShortcut = KeyboardShortcut.load()  // Load saved shortcut
 
+// MARK: - Hold Backspace State
+
+private var backspaceDownTime: Date?  // When backspace was pressed down
+private var isInWordDeleteMode = false  // Currently in Option+Backspace mode
+private var holdBackspaceThreshold: TimeInterval = 1.0  // Default 1 second, configurable via settings
+
 // Observer for shortcut changes
 private var shortcutObserver: NSObjectProtocol?
+private var holdBackspaceDurationObserver: NSObjectProtocol?
 
 func setupShortcutObserver() {
     shortcutObserver = NotificationCenter.default.addObserver(
@@ -381,6 +388,22 @@ func setupShortcutObserver() {
     ) { _ in
         currentShortcut = KeyboardShortcut.load()
         Log.info("Shortcut updated: \(currentShortcut.displayParts.joined())")
+    }
+
+    // Load initial hold backspace duration from settings
+    if UserDefaults.standard.object(forKey: SettingsKey.holdBackspaceDuration) != nil {
+        holdBackspaceThreshold = UserDefaults.standard.double(forKey: SettingsKey.holdBackspaceDuration)
+    }
+
+    holdBackspaceDurationObserver = NotificationCenter.default.addObserver(
+        forName: .holdBackspaceDurationChanged,
+        object: nil,
+        queue: .main
+    ) { notification in
+        if let duration = notification.object as? Double {
+            holdBackspaceThreshold = duration
+            Log.info("Hold backspace duration updated: \(duration)s")
+        }
     }
 }
 
@@ -430,6 +453,7 @@ private func keyboardCallback(
     }
 
     let flags = event.flags
+    let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
     // Handle modifier-only shortcuts (Ctrl+Shift, Cmd+Option, etc.)
     if type == .flagsChanged {
@@ -439,6 +463,15 @@ private func keyboardCallback(
             // Modifier combo was pressed and now released - toggle
             wasModifierShortcutPressed = false
             DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+        }
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Handle keyUp for hold backspace detection
+    if type == .keyUp {
+        if keyCode == KeyCode.backspace {
+            backspaceDownTime = nil
+            isInWordDeleteMode = false
         }
         return Unmanaged.passUnretained(event)
     }
@@ -453,7 +486,35 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+    // Handle hold backspace to delete word feature
+    if keyCode == KeyCode.backspace && AppState.shared.isHoldBackspaceEnabled {
+        let now = Date()
+
+        if let downTime = backspaceDownTime {
+            // Check if we've held backspace long enough
+            if now.timeIntervalSince(downTime) >= holdBackspaceThreshold {
+                if !isInWordDeleteMode {
+                    isInWordDeleteMode = true
+                    Log.info("Hold backspace: word delete mode activated")
+                }
+                // Send Option+Backspace instead
+                sendOptionBackspace(proxy: proxy)
+                return nil
+            }
+        } else {
+            // First backspace press - record the time
+            backspaceDownTime = now
+        }
+
+        // Not yet in word delete mode, let normal backspace through
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Reset hold backspace state for non-backspace keys
+    if keyCode != KeyCode.backspace {
+        backspaceDownTime = nil
+        isInWordDeleteMode = false
+    }
 
     // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
     if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
@@ -478,6 +539,23 @@ private func keyboardCallback(
     }
     Log.key(keyCode, "pass")
     return Unmanaged.passUnretained(event)
+}
+
+/// Send Option+Backspace to delete word
+private func sendOptionBackspace(proxy: CGEventTapProxy) {
+    guard let src = CGEventSource(stateID: .privateState),
+          let dn = CGEvent(keyboardEventSource: src, virtualKey: KeyCode.backspace, keyDown: true),
+          let up = CGEvent(keyboardEventSource: src, virtualKey: KeyCode.backspace, keyDown: false) else { return }
+
+    dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+    up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+    dn.flags = .maskAlternate
+    up.flags = .maskAlternate
+
+    dn.post(tap: .cgSessionEventTap)
+    up.post(tap: .cgSessionEventTap)
+
+    Log.info("Sent Option+Backspace")
 }
 
 // MARK: - Text Replacement
@@ -665,4 +743,5 @@ extension Notification.Name {
     static let showUpdateWindow = Notification.Name("showUpdateWindow")
     static let shortcutChanged = Notification.Name("shortcutChanged")
     static let updateStateChanged = Notification.Name("updateStateChanged")
+    static let holdBackspaceDurationChanged = Notification.Name("holdBackspaceDurationChanged")
 }

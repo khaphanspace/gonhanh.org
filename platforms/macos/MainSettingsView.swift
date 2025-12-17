@@ -78,6 +78,21 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Hold backspace to delete word: hold backspace to trigger Option+Backspace
+    @Published var isHoldBackspaceEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(isHoldBackspaceEnabled, forKey: SettingsKey.holdBackspaceEnabled)
+        }
+    }
+
+    /// Hold backspace duration in seconds (default 1.0, step 0.5, min 0.5)
+    @Published var holdBackspaceDuration: Double = 1.0 {
+        didSet {
+            UserDefaults.standard.set(holdBackspaceDuration, forKey: SettingsKey.holdBackspaceDuration)
+            NotificationCenter.default.post(name: .holdBackspaceDurationChanged, object: holdBackspaceDuration)
+        }
+    }
+
     /// Toggle Vietnamese input on/off
     func toggle() {
         isEnabled.toggle()
@@ -110,6 +125,14 @@ class AppState: ObservableObject {
             UserDefaults.standard.set(true, forKey: SettingsKey.smartModeEnabled)
         } else {
             isSmartModeEnabled = UserDefaults.standard.bool(forKey: SettingsKey.smartModeEnabled)
+        }
+
+        // Hold backspace (default false, duration default 1.0s)
+        isHoldBackspaceEnabled = UserDefaults.standard.bool(forKey: SettingsKey.holdBackspaceEnabled)
+        if UserDefaults.standard.object(forKey: SettingsKey.holdBackspaceDuration) != nil {
+            holdBackspaceDuration = UserDefaults.standard.double(forKey: SettingsKey.holdBackspaceDuration)
+        } else {
+            holdBackspaceDuration = 1.0
         }
 
         // Load shortcuts from UserDefaults (or use defaults)
@@ -536,6 +559,37 @@ struct SettingsPageView: View {
                     Toggle("", isOn: $appState.isSmartModeEnabled)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+
+                Divider().padding(.leading, 12)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Giữ Backspace xoá từ")
+                            .font(.system(size: 13))
+                        Text("Giữ phím Backspace để xoá cả từ")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(NSColor.secondaryLabelColor))
+                    }
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Stepper(value: $appState.holdBackspaceDuration, in: 0.5...5.0, step: 0.5) {
+                            Text(String(format: "%.1fs", appState.holdBackspaceDuration))
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .frame(width: 36, alignment: .trailing)
+                        }
+                        .labelsHidden()
+                        .disabled(!appState.isHoldBackspaceEnabled)
+                        Text(String(format: "%.1fs", appState.holdBackspaceDuration))
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(appState.isHoldBackspaceEnabled ? Color(NSColor.labelColor) : Color(NSColor.tertiaryLabelColor))
+                            .frame(width: 36, alignment: .trailing)
+                        Toggle("", isOn: $appState.isHoldBackspaceEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
