@@ -649,18 +649,23 @@ struct SettingsPageView: View {
                 if appState.shortcuts.isEmpty {
                     EmptyStateView(icon: "text.badge.plus", text: "Chưa có từ viết tắt")
                 } else {
-                    ForEach($appState.shortcuts) { $shortcut in
-                        ShortcutRow(
-                            shortcut: $shortcut,
-                            isSelected: selectedShortcutId == shortcut.id,
-                            focusedField: $focusedField
-                        ) {
-                            selectedShortcutId = shortcut.id
-                        }
-                        if shortcut.id != appState.shortcuts.last?.id {
-                            Divider()
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach($appState.shortcuts) { $shortcut in
+                                ShortcutRow(
+                                    shortcut: $shortcut,
+                                    isSelected: selectedShortcutId == shortcut.id,
+                                    focusedField: $focusedField
+                                ) {
+                                    selectedShortcutId = shortcut.id
+                                }
+                                if shortcut.id != appState.shortcuts.last?.id {
+                                    Divider()
+                                }
+                            }
                         }
                     }
+                    .frame(maxHeight: 280)
                 }
 
                 Divider()
