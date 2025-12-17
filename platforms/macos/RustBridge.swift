@@ -207,6 +207,7 @@ private struct ImeResult {
 @_silgen_name("ime_key_ext") private func ime_key_ext(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool) -> UnsafeMutablePointer<ImeResult>?
 @_silgen_name("ime_method") private func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
+@_silgen_name("ime_skip_w_shortcut") private func ime_skip_w_shortcut(_ skip: Bool)
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
 
@@ -250,6 +251,12 @@ class RustBridge {
     static func setEnabled(_ enabled: Bool) {
         ime_enabled(enabled)
         Log.info("Enabled: \(enabled)")
+    }
+
+    /// Set whether to skip w→ư shortcut in Telex mode
+    static func setSkipWShortcut(_ skip: Bool) {
+        ime_skip_w_shortcut(skip)
+        Log.info("Skip W shortcut: \(skip)")
     }
 
     static func clearBuffer() { ime_clear() }
@@ -369,6 +376,7 @@ class KeyboardHookManager {
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
 private var wasModifierShortcutPressed = false  // Track modifier-only shortcut state for toggle detection
 private var currentShortcut = KeyboardShortcut.load()  // Load saved shortcut
+private var isRecordingShortcut = false  // Recording mode for shortcut capture via CGEventTap
 
 // MARK: - Hold Backspace State
 
@@ -379,6 +387,18 @@ private var holdBackspaceThreshold: TimeInterval = 1.0  // Default 1 second, con
 // Observer for shortcut changes
 private var shortcutObserver: NSObjectProtocol?
 private var holdBackspaceDurationObserver: NSObjectProtocol?
+
+// MARK: - Shortcut Recording (CGEventTap-based)
+
+/// Start recording shortcut via CGEventTap - captures system shortcuts like Ctrl+Space
+func startShortcutRecording() {
+    isRecordingShortcut = true
+}
+
+/// Stop recording shortcut
+func stopShortcutRecording() {
+    isRecordingShortcut = false
+}
 
 func setupShortcutObserver() {
     shortcutObserver = NotificationCenter.default.addObserver(
@@ -454,6 +474,50 @@ private func keyboardCallback(
 
     let flags = event.flags
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+
+    // MARK: Shortcut Recording Mode - capture via CGEventTap to override system shortcuts
+    if isRecordingShortcut {
+        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+
+        // ESC cancels recording
+        if keyCode == 0x35 {
+            isRecordingShortcut = false
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .shortcutRecordingCancelled, object: nil)
+            }
+            return nil
+        }
+
+        // Handle modifier-only shortcuts (require 2+ modifiers)
+        if type == .flagsChanged {
+            let mods = flags.intersection([.maskControl, .maskAlternate, .maskShift, .maskCommand])
+            let count = [mods.contains(.maskControl), mods.contains(.maskAlternate),
+                         mods.contains(.maskShift), mods.contains(.maskCommand)].filter { $0 }.count
+            if count >= 2 {
+                let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: mods.rawValue)
+                isRecordingShortcut = false
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .shortcutRecorded, object: captured)
+                }
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
+        // Handle key+modifier shortcuts
+        if type == .keyDown {
+            let mods = flags.intersection([.maskControl, .maskAlternate, .maskShift, .maskCommand])
+            if !mods.isEmpty {
+                let captured = KeyboardShortcut(keyCode: keyCode, modifiers: mods.rawValue)
+                isRecordingShortcut = false
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .shortcutRecorded, object: captured)
+                }
+                return nil  // Consume event to prevent system from handling it
+            }
+        }
+
+        return Unmanaged.passUnretained(event)
+    }
 
     // Handle modifier-only shortcuts (Ctrl+Shift, Cmd+Option, etc.)
     if type == .flagsChanged {
@@ -744,4 +808,6 @@ extension Notification.Name {
     static let shortcutChanged = Notification.Name("shortcutChanged")
     static let updateStateChanged = Notification.Name("updateStateChanged")
     static let holdBackspaceDurationChanged = Notification.Name("holdBackspaceDurationChanged")
+    static let shortcutRecorded = Notification.Name("shortcutRecorded")
+    static let shortcutRecordingCancelled = Notification.Name("shortcutRecordingCancelled")
 }

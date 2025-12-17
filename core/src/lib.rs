@@ -140,6 +140,19 @@ pub extern "C" fn ime_enabled(enabled: bool) {
     }
 }
 
+/// Set whether to skip w→ư shortcut in Telex mode.
+///
+/// When `skip` is true, typing 'w' at word start stays as 'w'
+/// instead of converting to 'ư'.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_skip_w_shortcut(skip: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_skip_w_shortcut(skip);
+    }
+}
+
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation, mouse click, focus change).

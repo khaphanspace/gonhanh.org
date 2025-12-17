@@ -90,6 +90,11 @@ class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(holdBackspaceDuration, forKey: SettingsKey.holdBackspaceDuration)
             NotificationCenter.default.post(name: .holdBackspaceDurationChanged, object: holdBackspaceDuration)
+    /// Auto W→Ư shortcut: when enabled, 'w' at word start converts to 'ư' (Telex only)
+    @Published var autoWShortcut: Bool = true {
+        didSet {
+            UserDefaults.standard.set(autoWShortcut, forKey: SettingsKey.autoWShortcut)
+            RustBridge.setSkipWShortcut(!autoWShortcut)  // Invert: skip = !auto
         }
     }
 
@@ -114,6 +119,12 @@ class AppState: ObservableObject {
 
     @Published var shortcuts: [ShortcutItem] = []
 
+    /// Launch at Login status (auto-refreshed)
+    @Published var isLaunchAtLoginEnabled: Bool = false
+
+    /// Timer for refreshing launch at login status
+    private var launchAtLoginTimer: Timer?
+
     init() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
@@ -134,6 +145,14 @@ class AppState: ObservableObject {
         } else {
             holdBackspaceDuration = 1.0
         }
+        // Auto W→Ư shortcut (default true for new installs)
+        if UserDefaults.standard.object(forKey: SettingsKey.autoWShortcut) == nil {
+            autoWShortcut = true
+            UserDefaults.standard.set(true, forKey: SettingsKey.autoWShortcut)
+        } else {
+            autoWShortcut = UserDefaults.standard.bool(forKey: SettingsKey.autoWShortcut)
+        }
+        RustBridge.setSkipWShortcut(!autoWShortcut)  // Invert: skip = !auto
 
         // Load shortcuts from UserDefaults (or use defaults)
         if let data = UserDefaults.standard.data(forKey: SettingsKey.shortcuts),
@@ -151,6 +170,49 @@ class AppState: ObservableObject {
 
         checkForUpdates()
         setupObservers()
+        setupLaunchAtLoginMonitoring()
+    }
+
+    // MARK: - Launch at Login Monitoring
+
+    /// Start monitoring launch at login status
+    private func setupLaunchAtLoginMonitoring() {
+        // Initial check
+        isLaunchAtLoginEnabled = LaunchAtLoginManager.shared.isEnabled
+
+        // Refresh every 2 seconds (user may toggle in System Settings)
+        launchAtLoginTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.refreshLaunchAtLoginStatus()
+            }
+        }
+    }
+
+    /// Refresh launch at login status from system
+    func refreshLaunchAtLoginStatus() {
+        let newStatus = LaunchAtLoginManager.shared.isEnabled
+        if newStatus != isLaunchAtLoginEnabled {
+            isLaunchAtLoginEnabled = newStatus
+        }
+    }
+
+    /// Enable launch at login (register with SMAppService)
+    func enableLaunchAtLogin() {
+        do {
+            try LaunchAtLoginManager.shared.enable()
+            refreshLaunchAtLoginStatus()
+        } catch {
+            // If registration fails or requires approval, open System Settings
+            openLoginItemsSettings()
+        }
+    }
+
+    /// Open macOS Login Items settings
+    func openLoginItemsSettings() {
+        // macOS 13+ Login Items URL
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     // MARK: - Per-App Mode (only stores OFF apps, default is ON)
@@ -496,6 +558,13 @@ struct SettingsPageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // Launch at Login warning banner
+            if !appState.isLaunchAtLoginEnabled {
+                LaunchAtLoginBanner {
+                    appState.enableLaunchAtLogin()
+                }
+            }
+
             // General settings
             VStack(spacing: 0) {
                 // Enable toggle
@@ -545,8 +614,9 @@ struct SettingsPageView: View {
                     .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
             )
 
-            // Smart Mode section
+            // Options section
             VStack(spacing: 0) {
+                // Smart Mode
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Chuyển chế độ thông minh")
@@ -593,6 +663,26 @@ struct SettingsPageView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
+                // Auto W→Ư shortcut (Telex only)
+                if appState.currentMethod == .telex {
+                    Divider().padding(.leading, 12)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Tự chuyển W → Ư ở đầu từ")
+                                .font(.system(size: 13))
+                            Text("Gõ 'w' đầu từ sẽ thành 'ư'")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(NSColor.secondaryLabelColor))
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.autoWShortcut)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                }
             }
             .background(
                 RoundedRectangle(cornerRadius: 10)
@@ -802,8 +892,9 @@ struct ShortcutRecorderRow: View {
     @Binding var isRecording: Bool
 
     @State private var hovered = false
-    @State private var eventMonitors: [Any] = []
-    @State private var notificationObserver: NSObjectProtocol?
+    @State private var recordedObserver: NSObjectProtocol?
+    @State private var cancelledObserver: NSObjectProtocol?
+    @State private var windowObserver: NSObjectProtocol?
 
     private var hasConflict: Bool { systemShortcuts.contains(shortcut.displayParts.joined()) }
 
@@ -845,56 +936,55 @@ struct ShortcutRecorderRow: View {
         }
     }
 
-    // MARK: - Recording
+    // MARK: - Recording (CGEventTap-based to capture system shortcuts like Ctrl+Space)
 
     private func startRecording() {
         isRecording = true
-        let events: NSEvent.EventTypeMask = [.keyDown, .flagsChanged]
 
-        eventMonitors = [
-            NSEvent.addLocalMonitorForEvents(matching: events) { handleKey($0); return nil },
-            NSEvent.addGlobalMonitorForEvents(matching: events) { handleKey($0) }
-        ].compactMap { $0 }
-
-        notificationObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: nil, queue: .main
-        ) { [self] _ in stopRecording() }
-    }
-
-    private func handleKey(_ event: NSEvent) {
-        if event.keyCode == 0x35 { stopRecording(); return }  // ESC cancels
-
-        let mods = event.modifierFlags.intersection([.control, .option, .shift, .command])
-        let flags = modifiersToFlags(mods)
-        let count = [mods.contains(.control), mods.contains(.option), mods.contains(.shift), mods.contains(.command)].filter { $0 }.count
-
-        if event.type == .flagsChanged {
-            guard count >= 2 else { return }  // Modifier-only: require 2+ modifiers
-            shortcut = KeyboardShortcut(keyCode: 0xFFFF, modifiers: flags)
-        } else if !mods.isEmpty {
-            shortcut = KeyboardShortcut(keyCode: event.keyCode, modifiers: flags)
-        } else {
-            return
+        // Listen for shortcut captured via CGEventTap
+        recordedObserver = NotificationCenter.default.addObserver(
+            forName: .shortcutRecorded, object: nil, queue: .main
+        ) { notification in
+            if let captured = notification.object as? KeyboardShortcut {
+                shortcut = captured
+            }
+            stopRecording()
         }
-        stopRecording()
-    }
 
-    private func modifiersToFlags(_ mods: NSEvent.ModifierFlags) -> UInt64 {
-        var flags: UInt64 = 0
-        if mods.contains(.control) { flags |= CGEventFlags.maskControl.rawValue }
-        if mods.contains(.option) { flags |= CGEventFlags.maskAlternate.rawValue }
-        if mods.contains(.shift) { flags |= CGEventFlags.maskShift.rawValue }
-        if mods.contains(.command) { flags |= CGEventFlags.maskCommand.rawValue }
-        return flags
+        // Listen for recording cancelled (ESC pressed)
+        cancelledObserver = NotificationCenter.default.addObserver(
+            forName: .shortcutRecordingCancelled, object: nil, queue: .main
+        ) { _ in
+            stopRecording()
+        }
+
+        // Stop recording if window loses focus
+        windowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: nil, queue: .main
+        ) { _ in
+            stopRecording()
+        }
+
+        // Start CGEventTap recording mode
+        startShortcutRecording()
     }
 
     private func stopRecording() {
-        eventMonitors.forEach { NSEvent.removeMonitor($0) }
-        eventMonitors.removeAll()
+        // Stop CGEventTap recording mode
+        stopShortcutRecording()
 
-        if let observer = notificationObserver {
+        // Remove observers
+        if let observer = recordedObserver {
             NotificationCenter.default.removeObserver(observer)
-            notificationObserver = nil
+            recordedObserver = nil
+        }
+        if let observer = cancelledObserver {
+            NotificationCenter.default.removeObserver(observer)
+            cancelledObserver = nil
+        }
+        if let observer = windowObserver {
+            NotificationCenter.default.removeObserver(observer)
+            windowObserver = nil
         }
 
         isRecording = false
@@ -1054,6 +1144,54 @@ struct KeyCap: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
             )
+    }
+}
+
+// MARK: - Launch at Login Banner
+
+struct LaunchAtLoginBanner: View {
+    let onOpenSettings: () -> Void
+
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Chưa bật khởi động cùng hệ thống")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Nhấn để bật")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(NSColor.tertiaryLabelColor))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.orange.opacity(hovered ? 0.15 : 0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 0.5)
+        )
+        .contentShape(Rectangle())
+        .onHover { h in
+            hovered = h
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .onTapGesture {
+            onOpenSettings()
+        }
     }
 }
 

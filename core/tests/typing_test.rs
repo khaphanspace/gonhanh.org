@@ -302,6 +302,12 @@ const TELEX_COMMON_ISSUES: &[(&str, &str)] = &[
     ("dduwowcj", "được"),
     // Issue #14: Alternative typing with wo → ươ compound
     ("ddwocj", "được"),
+    // Issue #29: uw + o should form ươ compound (u with horn + o → ươ)
+    ("dduwocj", "được"),
+    ("nuwocs", "nước"),
+    ("suwongs", "sướng"),
+    ("truwongf", "trường"),
+    ("nguwoif", "người"),
     ("nwocj", "nược"),
     ("swongs", "sướng"),
     ("bwomf", "bườm"),

@@ -76,6 +76,7 @@ enum SettingsKey {
     static let shortcuts = "gonhanh.shortcuts"
     static let holdBackspaceEnabled = "gonhanh.holdBackspace.enabled"
     static let holdBackspaceDuration = "gonhanh.holdBackspace.duration"
+    static let autoWShortcut = "gonhanh.autoWShortcut"
 }
 
 // MARK: - Keyboard Shortcut Model
