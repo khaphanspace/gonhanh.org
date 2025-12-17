@@ -263,7 +263,7 @@ mod test_utils {
         for (input, expected) in cases {
             let mut e = Engine::new();
             let result = type_word(&mut e, input);
-            assert_eq!(result, *expected, "[Telex] '{}' → '{}'", input, result);
+            assert_eq!(result, *expected, "[Telex] '{input}' → '{result}'");
         }
     }
 
@@ -273,7 +273,7 @@ mod test_utils {
             let mut e = Engine::new();
             e.set_method(1);
             let result = type_word(&mut e, input);
-            assert_eq!(result, *expected, "[VNI] '{}' → '{}'", input, result);
+            assert_eq!(result, *expected, "[VNI] '{input}' → '{result}'");
         }
     }
 
@@ -358,7 +358,7 @@ mod test_utils {
         for (input, expected) in cases {
             let mut e = Engine::new();
             let result = type_word_ext(&mut e, input);
-            assert_eq!(result, *expected, "[RawMode] '{}' → '{}'", input, result);
+            assert_eq!(result, *expected, "[RawMode] '{input}' → '{result}'");
         }
     }
 }
