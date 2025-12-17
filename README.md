@@ -40,13 +40,13 @@
 - 🔍 **Fix lỗi Chrome/Spotlight/Claude Code/JetBrains** - Tự động sửa dính chữ trong address bar, thanh tìm kiếm
 - 🔤 **Tự nhận diện** — `fix` `just` `fuji` `shisa` → giữ nguyên. Tự phân biệt Anh/Việt
 - ⎋ **Gõ ESC tự khôi phục** — Gõ `user` → `úẻ` → nhấn **ESC** → `user`. Không cần tắt bộ gõ khi gõ tiếng Anh!
+- 🏷️ **Hỗ trợ raw mode**: gõ `@`, `#`, `:`, `/` ở đầu để tắt chuyển đổi tiếng Việt (ví dụ: `@goon` → `@goon` thay vì `@gôn`)
 - ⚡ **Siêu nhanh** — <1ms latency · ~5MB RAM. Hỗ trợ đa nền tảng trên cùng một engine
 
 ### 📋 Đầy đủ
 
 - ⌨️ **Telex & VNI** — Chọn kiểu gõ quen thuộc
 - 🎯 **Đặt dấu chuẩn** — Tự động theo [quy tắc mới](https://vi.wikipedia.org/wiki/Quy_t%E1%BA%AFc_%C4%91%E1%BA%B7t_d%E1%BA%A5u_thanh_c%E1%BB%A7a_ch%E1%BB%AF_Qu%E1%BB%91c_ng%E1%BB%AF): `hoà`, `khoẻ`, `thuỷ`
-- 🏷️ **Hỗ trợ raw mode**: gõ `@`, `#`, `:`, `/` ở đầu để tắt chuyển đổi tiếng Việt (ví dụ: `@goon` → `@goon` thay vì `@gôn`)
 - ✂️ **Gõ tắt** — `vn` → `Việt Nam`, `ko` → `không`
 - 🔌 **Mọi app** — VS Code, Zed, Chrome, Notion, Terminal, Ghostty...
 - 🌗 **Dark/Light** — Theo hệ thống
