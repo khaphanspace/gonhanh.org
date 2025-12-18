@@ -120,13 +120,14 @@ private class TextInjector {
     private func injectViaSpotlight(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        let selDelay = delays.0 > 0 ? delays.0 : 3000
-        let waitDelay = delays.1 > 0 ? delays.1 : 8000
-        let textDelay = delays.2 > 0 ? delays.2 : 3000
+        // High delays for macOS 13 Spotlight
+        let selDelay: UInt32 = 10000     // 10ms between each Shift+Left
+        let waitDelay: UInt32 = 20000    // 20ms after selection complete
+        let textDelay: UInt32 = 8000     // 8ms between text characters
 
         // First backspace: clears autocomplete suggestion (doesn't delete char on macOS 13)
         postKey(KeyCode.backspace, source: src)
-        usleep(10000)  // 10ms - wait for Spotlight to clear suggestion
+        usleep(30000)  // 30ms - wait for Spotlight to clear suggestion
 
         // Shift+Left to select ALL characters to replace (bs times, not bs-1)
         for _ in 0..<bs {
