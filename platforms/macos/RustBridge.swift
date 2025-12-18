@@ -688,8 +688,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if role == "AXComboBox" { Log.method("sel:combo"); return (.selection, (0, 0, 0)) }
     if role == "AXSearchField" { Log.method("sel:search"); return (.selection, (0, 0, 0)) }
 
-    // Spotlight - use autocomplete method with Forward Delete to clear suggestions
-    if bundleId == "com.apple.Spotlight" { Log.method("auto:spotlight"); return (.autocomplete, (0, 0, 0)) }
+    // Spotlight - use selection method (Shift+Left) instead of Forward Delete on macOS 13+
+    // Forward Delete causes issues: either deletes actual chars or loses focus
+    if bundleId == "com.apple.Spotlight" { Log.method("sel:spotlight"); return (.selection, (2000, 5000, 3000)) }
 
     // Browser address bars (AXTextField with autocomplete)
     let browsers = [
