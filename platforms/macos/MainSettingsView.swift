@@ -633,22 +633,14 @@ struct SettingsPageView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                 }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
-            )
 
-            // Shortcuts section - opens sheet for management
-            SectionView(title: "TỪ VIẾT TẮT") {
+                Divider().padding(.leading, 12)
+
+                // Shortcuts - opens sheet
                 Button(action: { showShortcutsSheet = true }) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Quản lý từ viết tắt")
+                            Text("Từ viết tắt")
                                 .font(.system(size: 13))
                                 .foregroundColor(Color(NSColor.labelColor))
                             Text(appState.shortcuts.isEmpty
@@ -668,6 +660,14 @@ struct SettingsPageView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
+            )
 
             Spacer()
         }
