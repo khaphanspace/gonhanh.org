@@ -115,25 +115,29 @@ private class TextInjector {
         Log.send("sel", bs, text)
     }
 
-    /// Spotlight injection: Right arrow to collapse suggestion, then Shift+Left to select, then type
+    /// Spotlight injection: Backspace to clear suggestion, then Shift+Left to select, then type
     /// macOS 13+ Spotlight has autocomplete that interferes with normal selection
-    /// NOTE: This method fails when suggestion appears (Right arrow accepts it)
     private func injectViaSpotlight(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        let bsDelay = delays.0 > 0 ? delays.0 : 3000
-        let waitDelay = delays.1 > 0 ? delays.1 : 8000
+        let selDelay = delays.0 > 0 ? delays.0 : 2000
+        let waitDelay = delays.1 > 0 ? delays.1 : 5000
         let textDelay = delays.2 > 0 ? delays.2 : 3000
 
-        // Simple backspace + type: works even when suggestion is showing
-        // Backspace clears suggestion AND deletes character
-        for _ in 0..<bs {
-            postKey(KeyCode.backspace, source: src)
-            usleep(bsDelay)
-        }
-        if bs > 0 { usleep(waitDelay) }
+        // First backspace: clears suggestion AND deletes one character
+        postKey(KeyCode.backspace, source: src)
+        usleep(5000)
 
-        // Type replacement text
+        // Shift+Left to select remaining characters (bs-1)
+        if bs > 1 {
+            for _ in 0..<(bs - 1) {
+                postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
+                usleep(selDelay)
+            }
+            usleep(waitDelay)
+        }
+
+        // Type replacement text (replaces selection)
         postText(text, source: src, delay: textDelay)
         Log.send("spot", bs, text)
     }
