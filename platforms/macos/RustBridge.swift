@@ -655,6 +655,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     var focused: CFTypeRef?
     var role: String?
     var bundleId: String?
+    let frontmostBundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
 
     if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
        let el = focused {
@@ -670,13 +671,20 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         if AXUIElementGetPid(axEl, &pid) == .success {
             if let app = NSRunningApplication(processIdentifier: pid) {
                 bundleId = app.bundleIdentifier
+
+                // Validate: if focused element's app is not active and not Spotlight,
+                // it's likely stale - use frontmost app instead
+                if !app.isActive && bundleId != "com.apple.Spotlight" {
+                    Log.info("detect: stale focus \(bundleId ?? "nil"), using frontmost \(frontmostBundleId ?? "nil")")
+                    bundleId = frontmostBundleId
+                }
             }
         }
     }
 
     // Fallback to frontmost app if we couldn't get bundle from focused element
     if bundleId == nil {
-        bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        bundleId = frontmostBundleId
     }
 
     guard let bundleId = bundleId else { return (.fast, (200, 800, 500)) }
