@@ -119,17 +119,17 @@ private class TextInjector {
 
         // Forward Delete clears auto-selected suggestion (no proxy - use session tap)
         postKey(KeyCode.forwardDelete, source: src)
-        usleep(5000)
+        usleep(15000)  // 15ms - macOS 13 needs more time after FD before accepting backspace
 
         // Backspaces remove typed characters
         for _ in 0..<bs {
             postKey(KeyCode.backspace, source: src)
-            usleep(3000)
+            usleep(5000)  // 5ms between backspaces for reliability
         }
-        if bs > 0 { usleep(8000) }
+        if bs > 0 { usleep(10000) }  // 10ms settle after all backspaces
 
         // Type replacement text
-        postText(text, source: src, delay: 2000)
+        postText(text, source: src, delay: 3000)  // 3ms per char for reliability
         Log.send("auto", bs, text)
     }
 
