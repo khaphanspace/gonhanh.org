@@ -118,17 +118,17 @@ private class TextInjector {
 
         // Forward Delete clears auto-selected suggestion
         postKey(KeyCode.forwardDelete, source: src, proxy: proxy)
-        usleep(3000)
+        usleep(5000)
 
-        // Backspaces remove typed characters
+        // Backspaces remove typed characters (conservative delays for macOS 13)
         for _ in 0..<bs {
             postKey(KeyCode.backspace, source: src, proxy: proxy)
-            usleep(1000)
+            usleep(3000)
         }
-        if bs > 0 { usleep(5000) }
+        if bs > 0 { usleep(8000) }
 
-        // Type replacement text
-        postText(text, source: src, proxy: proxy)
+        // Type replacement text (with delay for macOS 13 compatibility)
+        postText(text, source: src, delay: 2000, proxy: proxy)
         Log.send("auto", bs, text)
     }
 
