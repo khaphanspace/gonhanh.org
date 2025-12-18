@@ -228,8 +228,10 @@ class AppState: ObservableObject {
             .dropFirst() // Skip initial value
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             .sink { [weak self] shortcuts in
-                self?.syncShortcutsToEngine()
-                // Save to UserDefaults
+                // Only sync valid shortcuts (both key and value non-empty)
+                let validShortcuts = shortcuts.filter { !$0.key.isEmpty && !$0.value.isEmpty }
+                self?.syncShortcutsToEngine(validShortcuts)
+                // Save all to UserDefaults (including empty for editing)
                 if let data = try? JSONEncoder().encode(shortcuts) {
                     UserDefaults.standard.set(data, forKey: SettingsKey.shortcuts)
                 }
@@ -239,9 +241,10 @@ class AppState: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
-    /// Sync shortcuts to Rust engine
-    func syncShortcutsToEngine() {
-        let data = shortcuts.map { ($0.key, $0.value, $0.isEnabled) }
+    /// Sync shortcuts to Rust engine (only valid ones with non-empty key/value)
+    func syncShortcutsToEngine(_ validShortcuts: [ShortcutItem]? = nil) {
+        let toSync = validShortcuts ?? shortcuts.filter { !$0.key.isEmpty && !$0.value.isEmpty }
+        let data = toSync.map { ($0.key, $0.value, $0.isEnabled) }
         RustBridge.syncShortcuts(data)
     }
 
@@ -313,6 +316,46 @@ struct ShortcutItem: Identifiable, Codable {
     var key: String
     var value: String
     var isEnabled: Bool = true
+}
+
+// MARK: - Clickable TextField (full-width click area)
+
+struct ClickableTextField: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSTextField {
+        let textField = NSTextField()
+        textField.isBordered = false
+        textField.drawsBackground = false
+        textField.focusRingType = .none
+        textField.font = .systemFont(ofSize: 13)
+        textField.delegate = context.coordinator
+        textField.cell?.lineBreakMode = .byTruncatingTail
+        return textField
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: ClickableTextField
+
+        init(_ parent: ClickableTextField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let textField = obj.object as? NSTextField else { return }
+            parent.text = textField.stringValue
+        }
+    }
 }
 
 // MARK: - Main Settings View
@@ -601,7 +644,7 @@ struct SettingsPageView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Chuyển chế độ thông minh")
                             .font(.system(size: 13))
-                        Text("Tự động nhớ trạng thái cho từng ứng dụng")
+                        Text("Tự động nhớ trạng thái Anh/Việt cho từng ứng dụng")
                             .font(.system(size: 11))
                             .foregroundColor(Color(NSColor.secondaryLabelColor))
                     }
@@ -715,20 +758,18 @@ struct ShortcutsSheet: View {
                         .foregroundColor(.secondary)
                     Text("Nhấn + để thêm mới")
                         .font(.system(size: 11))
-                        .foregroundColor(.tertiaryLabel)
+                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table($appState.shortcuts, selection: $selection) {
                     TableColumn("Viết tắt") { $item in
-                        TextField("", text: $item.key)
-                            .textFieldStyle(.plain)
+                        ClickableTextField(text: $item.key)
                     }
                     .width(min: 60, ideal: 80, max: 100)
 
                     TableColumn("Nội dung") { $item in
-                        TextField("", text: $item.value)
-                            .textFieldStyle(.plain)
+                        ClickableTextField(text: $item.value)
                     }
 
                     TableColumn("Bật") { $item in
@@ -742,40 +783,60 @@ struct ShortcutsSheet: View {
 
             Divider()
 
-            // Toolbar
-            HStack(spacing: 12) {
+            // Toolbar - Apple standard: +/- left, actions right
+            HStack(spacing: 0) {
                 Button(action: addShortcut) {
                     Image(systemName: "plus")
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
-                .help("Thêm mới")
+                .help("Thêm")
 
                 Button(action: removeSelected) {
                     Image(systemName: "minus")
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
                 .disabled(selection.isEmpty)
-                .help("Xoá")
+                .help("Xoá (Delete)")
 
                 Spacer()
 
                 Button(action: importShortcuts) {
                     Image(systemName: "square.and.arrow.down")
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
-                .help("Nhập từ file")
+                .help("Nhập")
 
                 Button(action: exportShortcuts) {
                     Image(systemName: "square.and.arrow.up")
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
                 .disabled(appState.shortcuts.isEmpty)
-                .help("Xuất ra file")
+                .help("Xuất")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
         .frame(width: 480, height: 420)
+        .onDeleteCommand {
+            if !selection.isEmpty {
+                removeSelected()
+            }
+        }
+        .onDisappear {
+            // Auto-cleanup empty rows when sheet closes
+            cleanupEmptyShortcuts()
+        }
+    }
+
+    // MARK: - Actions
+
+    private func cleanupEmptyShortcuts() {
+        appState.shortcuts.removeAll { $0.key.isEmpty || $0.value.isEmpty }
+        selection.removeAll()
     }
 
     private func addShortcut() {
