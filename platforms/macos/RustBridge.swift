@@ -117,21 +117,19 @@ private class TextInjector {
 
     /// Spotlight injection: Right arrow to collapse suggestion, then Shift+Left to select, then type
     /// macOS 13+ Spotlight has autocomplete that interferes with normal selection
+    /// NOTE: This method fails when suggestion appears (Right arrow accepts it)
     private func injectViaSpotlight(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        let selDelay = delays.0 > 0 ? delays.0 : 2000
-        let waitDelay = delays.1 > 0 ? delays.1 : 5000
+        let bsDelay = delays.0 > 0 ? delays.0 : 3000
+        let waitDelay = delays.1 > 0 ? delays.1 : 8000
         let textDelay = delays.2 > 0 ? delays.2 : 3000
 
-        // Right arrow to collapse any autocomplete suggestion and ensure cursor at end
-        postKey(KeyCode.rightArrow, source: src)
-        usleep(5000)  // 5ms for Spotlight to process
-
-        // Shift+Left to select characters
+        // Simple backspace + type: works even when suggestion is showing
+        // Backspace clears suggestion AND deletes character
         for _ in 0..<bs {
-            postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-            usleep(selDelay)
+            postKey(KeyCode.backspace, source: src)
+            usleep(bsDelay)
         }
         if bs > 0 { usleep(waitDelay) }
 
@@ -717,9 +715,10 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if role == "AXComboBox" { Log.method("sel:combo"); return (.selection, (0, 0, 0)) }
     if role == "AXSearchField" { Log.method("sel:search"); return (.selection, (0, 0, 0)) }
 
-    // Spotlight - use special method: Right arrow (collapse suggestion) + Shift+Left + type
-    // Forward Delete and plain selection both fail due to autocomplete interference
-    if bundleId == "com.apple.Spotlight" { Log.method("spotlight"); return (.spotlight, (2000, 5000, 3000)) }
+    // Spotlight - use backspace method with higher delays
+    // Arrow keys fail: Right accepts suggestion, Shift+Left collapses instead of selecting
+    // Backspace works: clears suggestion AND deletes character in one action
+    if bundleId == "com.apple.Spotlight" { Log.method("spotlight"); return (.spotlight, (3000, 8000, 3000)) }
 
     // Browser address bars (AXTextField with autocomplete)
     let browsers = [
