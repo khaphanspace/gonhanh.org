@@ -18,7 +18,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   build-macos:
@@ -83,6 +84,43 @@ jobs:
           name: GoNhanh-${{ steps.version.outputs.version }}-macOS
           path: platforms/macos/build/*.dmg
           retention-days: 14
+
+      - name: Get DMG filename
+        if: github.event_name == 'pull_request'
+        id: dmg
+        run: |
+          DMG_FILE=$(ls platforms/macos/build/*.dmg | head -1)
+          DMG_NAME=$(basename "$DMG_FILE")
+          echo "file=$DMG_FILE" >> $GITHUB_OUTPUT
+          echo "name=$DMG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload to pre-release
+        if: github.event_name == 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pr-${{ github.event.pull_request.number }}
+          name: "PR #${{ github.event.pull_request.number }} Preview"
+          prerelease: true
+          files: ${{ steps.dmg.outputs.file }}
+          body: |
+            🔄 Auto-generated preview build for PR #${{ github.event.pull_request.number }}
+
+            **Version:** `${{ steps.version.outputs.version }}`
+            **Commit:** ${{ github.sha }}
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: dmg-download
+          message: |
+            ## 📦 macOS Build Ready
+
+            | Version | Download |
+            |---------|----------|
+            | `${{ steps.version.outputs.version }}` | [⬇️ **${{ steps.dmg.outputs.name }}**](https://github.com/${{ github.repository }}/releases/download/pr-${{ github.event.pull_request.number }}/${{ steps.dmg.outputs.name }}) |
+
+            > 💡 Direct download link - no login required
 
   build-linux:
     # Only for manual trigger (not PR) - Linux build is optional
