@@ -920,6 +920,48 @@ fn shortcut_vni_mode() {
 }
 
 #[test]
+fn shortcut_not_triggered_by_diacriticed_char() {
+    // Bug fix: shortcut "a" should NOT match "ạ" (a with nặng mark)
+    let mut e = Engine::new();
+
+    // Add shortcut: "a" → "anh"
+    e.shortcuts_mut().add(Shortcut::new("a", "anh"));
+
+    // Type "aj" (produces "ạ" in Telex) + space - should NOT trigger shortcut
+    let result = type_word(&mut e, "aj ");
+    assert_eq!(result, "ạ ", "ạ should NOT match shortcut 'a'");
+
+    e.clear();
+
+    // Verify "a" + space still works correctly
+    let result2 = type_word(&mut e, "a ");
+    assert_eq!(result2, "anh ", "plain 'a' should match shortcut");
+}
+
+#[test]
+fn shortcut_not_triggered_by_tone_marked_vowel() {
+    // Shortcut should match exact string, not base characters
+    let mut e = Engine::new();
+
+    // Add shortcut: "duoc" → "được"
+    e.shortcuts_mut().add(Shortcut::new("duoc", "được"));
+
+    // Type "duwowcj" (produces "dược" in Telex) + space - should NOT trigger
+    // because buffer contains "dược" (with ơ horn and nặng mark) not "duoc"
+    let result = type_word(&mut e, "duwowcj ");
+    assert_eq!(
+        result, "dược ",
+        "diacriticed 'dược' should NOT match shortcut 'duoc'"
+    );
+
+    e.clear();
+
+    // Plain "duoc" + space SHOULD trigger
+    let result2 = type_word(&mut e, "duoc ");
+    assert_eq!(result2, "được ", "plain 'duoc' should match shortcut");
+}
+
+#[test]
 fn shortcut_only_triggers_on_space_not_punctuation() {
     let mut e = Engine::new();
 

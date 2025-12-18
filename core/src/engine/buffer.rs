@@ -179,6 +179,29 @@ impl Buffer {
             })
             .collect()
     }
+
+    /// Convert buffer to full Vietnamese string with diacritics (for shortcut matching)
+    ///
+    /// This includes tone marks (sắc/huyền/hỏi/ngã/nặng), vowel marks (circumflex/horn/breve),
+    /// and stroked consonants (đ). Use this for shortcut matching to ensure exact comparison.
+    pub fn to_full_string(&self) -> String {
+        use crate::data::{chars, keys};
+        self.data[..self.len]
+            .iter()
+            .filter_map(|c| {
+                // Handle đ/Đ (stroked D)
+                if c.key == keys::D && c.stroke {
+                    return Some(chars::get_d(c.caps));
+                }
+                // Try to get full Vietnamese character with diacritics
+                if let Some(ch) = chars::to_char(c.key, c.caps, c.tone, c.mark) {
+                    return Some(ch);
+                }
+                // Fallback to basic character
+                utils::key_to_char(c.key, c.caps)
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]

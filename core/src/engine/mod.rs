@@ -322,7 +322,7 @@ impl Engine {
             return Result::none();
         }
 
-        let buffer_str = self.buf.to_string_preserve_case();
+        let buffer_str = self.buf.to_full_string();
         let input_method = self.current_input_method();
 
         // Check for word boundary shortcut match
