@@ -111,24 +111,25 @@ private class TextInjector {
         Log.send("sel", bs, text)
     }
 
-    /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text via proxy
+    /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text
     /// Used for Spotlight where autocomplete auto-selects suggestion text after cursor
+    /// NOTE: Uses .cgSessionEventTap instead of proxy for macOS 13 compatibility
     private func injectViaAutocomplete(bs: Int, text: String, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        // Forward Delete clears auto-selected suggestion
-        postKey(KeyCode.forwardDelete, source: src, proxy: proxy)
-        usleep(3000)
+        // Forward Delete clears auto-selected suggestion (no proxy - use session tap)
+        postKey(KeyCode.forwardDelete, source: src)
+        usleep(5000)
 
         // Backspaces remove typed characters
         for _ in 0..<bs {
-            postKey(KeyCode.backspace, source: src, proxy: proxy)
-            usleep(1000)
+            postKey(KeyCode.backspace, source: src)
+            usleep(3000)
         }
-        if bs > 0 { usleep(5000) }
+        if bs > 0 { usleep(8000) }
 
         // Type replacement text
-        postText(text, source: src, proxy: proxy)
+        postText(text, source: src, delay: 2000)
         Log.send("auto", bs, text)
     }
 
