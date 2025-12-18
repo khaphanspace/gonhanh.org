@@ -116,26 +116,24 @@ private class TextInjector {
     }
 
     /// Spotlight injection: Backspace to clear suggestion, then Shift+Left to select, then type
-    /// macOS 13+ Spotlight has autocomplete that interferes with normal selection
+    /// macOS 13+ Spotlight: backspace clears suggestion only, doesn't delete char
     private func injectViaSpotlight(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        let selDelay = delays.0 > 0 ? delays.0 : 2000
-        let waitDelay = delays.1 > 0 ? delays.1 : 5000
+        let selDelay = delays.0 > 0 ? delays.0 : 3000
+        let waitDelay = delays.1 > 0 ? delays.1 : 8000
         let textDelay = delays.2 > 0 ? delays.2 : 3000
 
-        // First backspace: clears suggestion AND deletes one character
+        // First backspace: clears autocomplete suggestion (doesn't delete char on macOS 13)
         postKey(KeyCode.backspace, source: src)
-        usleep(5000)
+        usleep(10000)  // 10ms - wait for Spotlight to clear suggestion
 
-        // Shift+Left to select remaining characters (bs-1)
-        if bs > 1 {
-            for _ in 0..<(bs - 1) {
-                postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-                usleep(selDelay)
-            }
-            usleep(waitDelay)
+        // Shift+Left to select ALL characters to replace (bs times, not bs-1)
+        for _ in 0..<bs {
+            postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
+            usleep(selDelay)
         }
+        if bs > 0 { usleep(waitDelay) }
 
         // Type replacement text (replaces selection)
         postText(text, source: src, delay: textDelay)
