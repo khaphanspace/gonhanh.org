@@ -534,8 +534,7 @@ struct NavButton: View {
 struct SettingsPageView: View {
     @ObservedObject var appState: AppState
     @State private var isRecordingShortcut = false
-    @State private var selectedShortcutId: UUID?
-    @FocusState private var focusedField: UUID?
+    @State private var showShortcutsSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -644,65 +643,141 @@ struct SettingsPageView: View {
                     .stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5)
             )
 
-            // Shortcuts section
+            // Shortcuts section - opens sheet for management
             SectionView(title: "TỪ VIẾT TẮT") {
-                if appState.shortcuts.isEmpty {
-                    EmptyStateView(icon: "text.badge.plus", text: "Chưa có từ viết tắt")
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach($appState.shortcuts) { $shortcut in
-                                ShortcutRow(
-                                    shortcut: $shortcut,
-                                    isSelected: selectedShortcutId == shortcut.id,
-                                    focusedField: $focusedField
-                                ) {
-                                    selectedShortcutId = shortcut.id
-                                }
-                                if shortcut.id != appState.shortcuts.last?.id {
-                                    Divider()
-                                }
-                            }
+                Button(action: { showShortcutsSheet = true }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Quản lý từ viết tắt")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(NSColor.labelColor))
+                            Text(appState.shortcuts.isEmpty
+                                ? "Chưa có từ viết tắt"
+                                : "\(appState.shortcuts.filter(\.isEnabled).count)/\(appState.shortcuts.count) đang bật")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(NSColor.secondaryLabelColor))
                         }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(NSColor.tertiaryLabelColor))
                     }
-                    .frame(maxHeight: 280)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
-
-                Divider()
-                AddRemoveButtons(
-                    onAdd: {
-                        let newItem = ShortcutItem(key: "", value: "")
-                        appState.shortcuts.append(newItem)
-                        selectedShortcutId = newItem.id
-                        focusedField = newItem.id  // Focus the new shortcut input
-                    },
-                    onRemove: {
-                        if let id = selectedShortcutId,
-                           let idx = appState.shortcuts.firstIndex(where: { $0.id == id }) {
-                            appState.shortcuts.remove(at: idx)
-                            selectedShortcutId = appState.shortcuts.last?.id
-                        }
-                    },
-                    removeDisabled: appState.shortcuts.isEmpty,
-                    onImport: { importShortcuts() },
-                    onExport: { exportShortcuts() },
-                    exportDisabled: appState.shortcuts.isEmpty
-                )
+                .buttonStyle(.plain)
             }
 
             Spacer()
         }
-        .contentShape(Rectangle())
-        .onTapGesture { clearSelection() }
-        .onAppear { DispatchQueue.main.async { clearSelection() } }
-        .onChange(of: focusedField) { newValue in
-            if let id = newValue {
-                selectedShortcutId = id
-            }
+        .sheet(isPresented: $showShortcutsSheet) {
+            ShortcutsSheet(appState: appState)
         }
     }
+}
 
-    // MARK: - Import/Export
+// MARK: - Shortcuts Sheet
+
+struct ShortcutsSheet: View {
+    @ObservedObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedId: UUID?
+    @FocusState private var focusedField: UUID?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Quản lý từ viết tắt")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button("Xong") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+            .padding()
+
+            Divider()
+
+            // Content
+            if appState.shortcuts.isEmpty {
+                Spacer()
+                EmptyStateView(icon: "text.badge.plus", text: "Chưa có từ viết tắt")
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach($appState.shortcuts) { $shortcut in
+                            ShortcutRow(
+                                shortcut: $shortcut,
+                                isSelected: selectedId == shortcut.id,
+                                focusedField: $focusedField
+                            ) {
+                                selectedId = shortcut.id
+                            }
+                            if shortcut.id != appState.shortcuts.last?.id {
+                                Divider().padding(.leading, 12)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            // Toolbar
+            HStack(spacing: 0) {
+                Button(action: addShortcut) {
+                    Image(systemName: "plus").frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+
+                Divider().frame(height: 16)
+
+                Button(action: removeSelected) {
+                    Image(systemName: "minus").frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+                .disabled(selectedId == nil)
+
+                Spacer()
+
+                Button(action: importShortcuts) {
+                    Image(systemName: "square.and.arrow.down").frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+                .help("Nhập")
+
+                Divider().frame(height: 16)
+
+                Button(action: exportShortcuts) {
+                    Image(systemName: "square.and.arrow.up").frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+                .disabled(appState.shortcuts.isEmpty)
+                .help("Xuất")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+        }
+        .frame(width: 420, height: 400)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private func addShortcut() {
+        let item = ShortcutItem(key: "", value: "")
+        appState.shortcuts.append(item)
+        selectedId = item.id
+        focusedField = item.id
+    }
+
+    private func removeSelected() {
+        guard let id = selectedId,
+              let idx = appState.shortcuts.firstIndex(where: { $0.id == id }) else { return }
+        appState.shortcuts.remove(at: idx)
+        selectedId = appState.shortcuts.last?.id
+    }
 
     private func importShortcuts() {
         let panel = NSOpenPanel()
@@ -724,12 +799,6 @@ struct SettingsPageView: View {
         if panel.runModal() == .OK, let url = panel.url {
             try? appState.exportShortcuts().write(to: url, atomically: true, encoding: .utf8)
         }
-    }
-
-    private func clearSelection() {
-        selectedShortcutId = nil
-        focusedField = nil
-        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 }
 
@@ -1006,59 +1075,6 @@ struct ShortcutRow: View {
         .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
-    }
-}
-
-struct AddRemoveButtons: View {
-    let onAdd: () -> Void
-    let onRemove: () -> Void
-    let removeDisabled: Bool
-    var onImport: (() -> Void)?
-    var onExport: (() -> Void)?
-    var exportDisabled: Bool = false
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Button(action: onAdd) {
-                Image(systemName: "plus")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.borderless)
-
-            Divider().frame(height: 16)
-
-            Button(action: onRemove) {
-                Image(systemName: "minus")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.borderless)
-            .disabled(removeDisabled)
-
-            Spacer()
-
-            if let onImport = onImport {
-                Button(action: onImport) {
-                    Image(systemName: "square.and.arrow.up")
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.borderless)
-                .help("Nhập")
-
-                Divider().frame(height: 16)
-            }
-
-            if let onExport = onExport {
-                Button(action: onExport) {
-                    Image(systemName: "square.and.arrow.down")
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.borderless)
-                .disabled(exportDisabled)
-                .help("Xuất")
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
     }
 }
 
