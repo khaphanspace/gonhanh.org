@@ -37,6 +37,7 @@ private enum KeyCode {
     static let backspace: CGKeyCode = 0x33
     static let forwardDelete: CGKeyCode = 0x75
     static let leftArrow: CGKeyCode = 0x7B
+    static let rightArrow: CGKeyCode = 0x7C
 }
 
 // MARK: - Injection Method
@@ -45,7 +46,8 @@ private enum InjectionMethod {
     case fast           // Default: backspace + text with minimal delays
     case slow           // Terminals/Electron: backspace + text with higher delays
     case selection      // Browser address bars: Shift+Left select + type replacement
-    case autocomplete   // Spotlight: Forward Delete + backspace + text via proxy
+    case autocomplete   // Forward Delete + backspace + text via proxy
+    case spotlight      // Spotlight: Right arrow (collapse suggestion) + Shift+Left + type
 }
 
 // MARK: - Text Injector
@@ -69,6 +71,8 @@ private class TextInjector {
             injectViaSelection(bs: bs, text: text, delays: delays)
         case .autocomplete:
             injectViaAutocomplete(bs: bs, text: text, proxy: proxy)
+        case .spotlight:
+            injectViaSpotlight(bs: bs, text: text, delays: delays)
         case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
         }
@@ -109,6 +113,31 @@ private class TextInjector {
 
         postText(text, source: src, delay: textDelay)
         Log.send("sel", bs, text)
+    }
+
+    /// Spotlight injection: Right arrow to collapse suggestion, then Shift+Left to select, then type
+    /// macOS 13+ Spotlight has autocomplete that interferes with normal selection
+    private func injectViaSpotlight(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
+        guard let src = CGEventSource(stateID: .privateState) else { return }
+
+        let selDelay = delays.0 > 0 ? delays.0 : 2000
+        let waitDelay = delays.1 > 0 ? delays.1 : 5000
+        let textDelay = delays.2 > 0 ? delays.2 : 3000
+
+        // Right arrow to collapse any autocomplete suggestion and ensure cursor at end
+        postKey(KeyCode.rightArrow, source: src)
+        usleep(5000)  // 5ms for Spotlight to process
+
+        // Shift+Left to select characters
+        for _ in 0..<bs {
+            postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
+            usleep(selDelay)
+        }
+        if bs > 0 { usleep(waitDelay) }
+
+        // Type replacement text
+        postText(text, source: src, delay: textDelay)
+        Log.send("spot", bs, text)
     }
 
     /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text
@@ -688,9 +717,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if role == "AXComboBox" { Log.method("sel:combo"); return (.selection, (0, 0, 0)) }
     if role == "AXSearchField" { Log.method("sel:search"); return (.selection, (0, 0, 0)) }
 
-    // Spotlight - use selection method (Shift+Left) instead of Forward Delete on macOS 13+
-    // Forward Delete causes issues: either deletes actual chars or loses focus
-    if bundleId == "com.apple.Spotlight" { Log.method("sel:spotlight"); return (.selection, (2000, 5000, 3000)) }
+    // Spotlight - use special method: Right arrow (collapse suggestion) + Shift+Left + type
+    // Forward Delete and plain selection both fail due to autocomplete interference
+    if bundleId == "com.apple.Spotlight" { Log.method("spotlight"); return (.spotlight, (2000, 5000, 3000)) }
 
     // Browser address bars (AXTextField with autocomplete)
     let browsers = [
