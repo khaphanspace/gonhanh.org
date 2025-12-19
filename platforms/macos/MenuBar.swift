@@ -307,8 +307,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
     }
 
     private func createStatusIcon(text: String, isActive: Bool) -> NSImage {
-        let width: CGFloat = 22
-        let height: CGFloat = 16
+        let width: CGFloat = 26
+        let height: CGFloat = 22
         let image = NSImage(size: NSSize(width: width, height: height))
 
         image.lockFocus()
@@ -321,7 +321,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
             NSColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0).setFill()
             path.fill()
 
-            let font = NSFont.systemFont(ofSize: 13, weight: .bold)
+            let font = NSFont.systemFont(ofSize: 16, weight: .bold)
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: NSColor.white
@@ -342,7 +342,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
             NSColor.black.setFill()
             path.fill()
 
-            let font = NSFont.systemFont(ofSize: 13, weight: .bold)
+            let font = NSFont.systemFont(ofSize: 16, weight: .bold)
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: NSColor.black
