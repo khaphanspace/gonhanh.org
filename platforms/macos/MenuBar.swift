@@ -292,75 +292,50 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
             let observer = InputSourceObserver.shared
             let text: String
-            let isActive: Bool
             if observer.isAllowedInputSource {
                 // ABC keyboard: show V (enabled) or E (disabled)
                 text = self.appState.isEnabled ? "V" : "E"
-                isActive = self.appState.isEnabled
             } else {
-                // Non-ABC keyboard: show input source character, always inactive
+                // Non-ABC keyboard: show input source character
                 text = observer.currentDisplayChar
-                isActive = false
             }
-            button.image = self.createStatusIcon(text: text, isActive: isActive)
+            button.image = self.createStatusIcon(text: text)
         }
     }
 
-    private func createStatusIcon(text: String, isActive: Bool) -> NSImage {
-        let width: CGFloat = 26
-        let height: CGFloat = 22
+    private func createStatusIcon(text: String) -> NSImage {
+        let width: CGFloat = 22
+        let height: CGFloat = 16
         let image = NSImage(size: NSSize(width: width, height: height))
 
         image.lockFocus()
 
+        // Draw rounded rect background (black for template)
         let rect = NSRect(x: 0, y: 0, width: width, height: height)
         let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        NSColor.black.setFill()
+        path.fill()
 
-        if isActive {
-            // Active: orange background with white text
-            NSColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0).setFill()
-            path.fill()
+        // Cut out text as transparent
+        let font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black
+        ]
+        let textSize = text.size(withAttributes: attrs)
+        let textRect = NSRect(
+            x: (width - textSize.width) / 2,
+            y: (height - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        text.draw(in: textRect, withAttributes: attrs)
 
-            let font = NSFont.systemFont(ofSize: 16, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.white
-            ]
-            let textSize = text.size(withAttributes: attrs)
-            let textRect = NSRect(
-                x: (width - textSize.width) / 2,
-                y: (height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect, withAttributes: attrs)
+        image.unlockFocus()
 
-            image.unlockFocus()
-            image.isTemplate = false
-        } else {
-            // Inactive: black background with text cut out (template)
-            NSColor.black.setFill()
-            path.fill()
-
-            let font = NSFont.systemFont(ofSize: 16, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.black
-            ]
-            let textSize = text.size(withAttributes: attrs)
-            let textRect = NSRect(
-                x: (width - textSize.width) / 2,
-                y: (height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            NSGraphicsContext.current?.compositingOperation = .destinationOut
-            text.draw(in: textRect, withAttributes: attrs)
-
-            image.unlockFocus()
-            image.isTemplate = true
-        }
-
+        // Template image: macOS auto-adjusts color for light/dark menu bar
+        image.isTemplate = true
         return image
     }
 
