@@ -28,8 +28,24 @@ struct InputSourceItem: Identifiable, Codable, Hashable {
         }
     }
 
+    /// Full language name for searching (e.g., "Japanese", "Vietnamese")
+    var languageName: String? {
+        guard let code = languageCode else { return nil }
+        return Locale.current.localizedString(forLanguageCode: code)
+    }
+
     var displayName: String {
         "\(flagEmoji) \(localizedName)"
+    }
+
+    /// Check if this item matches a search query
+    func matches(searchText: String) -> Bool {
+        if searchText.isEmpty { return true }
+        let query = searchText.lowercased()
+        return localizedName.lowercased().contains(query) ||
+               (languageCode?.lowercased().contains(query) ?? false) ||
+               (languageName?.lowercased().contains(query) ?? false) ||
+               id.lowercased().contains(query)
     }
 }
 

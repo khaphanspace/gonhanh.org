@@ -1170,10 +1170,7 @@ struct InputSourcesSheet: View {
         if searchText.isEmpty {
             return available
         }
-        return available.filter {
-            $0.localizedName.localizedCaseInsensitiveContains(searchText) ||
-            ($0.languageCode?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
+        return available.filter { $0.matches(searchText: searchText) }
     }
 
     var body: some View {
