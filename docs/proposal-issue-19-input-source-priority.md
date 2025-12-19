@@ -314,19 +314,375 @@ Toggle("Tự động tắt khi dùng IME khác (Nhật, Trung, Hàn...)", isOn: 
 
 ---
 
-## Phương án B: Whitelist/Blacklist Input Sources
+## Phương án B: Input Source Manager UI (ĐỀ XUẤT CHÍNH)
 
-**Mô tả:** Cho phép user tự chọn những input source nào sẽ disable Gõ Nhanh.
+**Mô tả:** Xây dựng UI quản lý Input Sources ngay trong app, cho phép user:
+1. Xem danh sách tất cả Input Sources đã cài trên máy
+2. Toggle ON/OFF cho từng Input Source
+3. Chuyển đổi Input Source trực tiếp từ menu bar của Gõ Nhanh
 
-**Ưu điểm:**
-- Linh hoạt hơn
-- User có toàn quyền kiểm soát
+### Mockup UI
 
-**Nhược điểm:**
-- Phức tạp hơn để setup
-- Cần UI phức tạp (list input sources, toggle từng cái)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Cài đặt > Quản lý bộ gõ                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Gõ Nhanh sẽ TẮT khi bạn chuyển sang các bộ gõ sau:        │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 🇯🇵  Japanese - Hiragana          [●] Tắt Gõ Nhanh  │   │
+│  │ 🇯🇵  Japanese - Katakana          [●] Tắt Gõ Nhanh  │   │
+│  │ 🇨🇳  Chinese - Pinyin             [●] Tắt Gõ Nhanh  │   │
+│  │ 🇰🇷  Korean - 2-Set               [●] Tắt Gõ Nhanh  │   │
+│  │ 🇹🇭  Thai - Kedmanee              [●] Tắt Gõ Nhanh  │   │
+│  │ ─────────────────────────────────────────────────── │   │
+│  │ 🇺🇸  ABC (English)                [○] Bật Gõ Nhanh  │   │
+│  │ 🇺🇸  U.S. International           [○] Bật Gõ Nhanh  │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  [+] Thêm bộ gõ mới...  (mở System Preferences)            │
+│                                                             │
+│  ☑ Tự động phát hiện bộ gõ không phải Latin                │
+│    (Mặc định tắt Gõ Nhanh cho các bộ gõ CJK mới thêm)      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**Đề xuất:** Bắt đầu với Phương án A, nếu có feedback cần flexibility hơn thì mở rộng sang B.
+### Menu Bar Integration
+
+```
+┌──────────────────────────────┐
+│ ✓ Bật Gõ Nhanh               │
+│ ─────────────────────────────│
+│   Telex                      │
+│ ✓ VNI                        │
+│ ─────────────────────────────│
+│   Chuyển bộ gõ          ▶   │  ┌────────────────────────┐
+│ ─────────────────────────────│  │ ✓ 🇺🇸 ABC (English)    │
+│   Cài đặt...                 │  │   🇯🇵 Japanese         │
+│   Thoát                      │  │   🇨🇳 Chinese          │
+└──────────────────────────────┘  └────────────────────────┘
+```
+
+### Data Model
+
+```swift
+/// Represents an input source on the system
+struct InputSourceItem: Identifiable, Codable, Hashable {
+    let id: String              // e.g., "com.apple.keylayout.ABC"
+    let localizedName: String   // e.g., "ABC"
+    let languageCode: String?   // e.g., "en", "ja", "zh"
+    let scriptCode: Int32       // 0 = Latin, 1 = Japanese, 2 = Chinese...
+    var disableGoNhanh: Bool    // User preference: disable Gõ Nhanh when active
+
+    var isLatin: Bool { scriptCode == 0 }
+
+    var flagEmoji: String {
+        switch languageCode {
+        case "ja": return "🇯🇵"
+        case "zh": return "🇨🇳"
+        case "ko": return "🇰🇷"
+        case "th": return "🇹🇭"
+        case "vi": return "🇻🇳"
+        default: return "🇺🇸"
+        }
+    }
+}
+```
+
+### API để lấy danh sách Input Sources
+
+```swift
+import Carbon.HIToolbox
+
+class InputSourceManager {
+    static let shared = InputSourceManager()
+
+    /// Get all enabled input sources on the system
+    func getEnabledInputSources() -> [InputSourceItem] {
+        let properties: CFDictionary = [
+            kTISPropertyInputSourceIsEnabled: true,
+            kTISPropertyInputSourceIsSelectCapable: true
+        ] as CFDictionary
+
+        guard let sources = TISCreateInputSourceList(properties, false)?.takeRetainedValue() as? [TISInputSource] else {
+            return []
+        }
+
+        return sources.compactMap { source -> InputSourceItem? in
+            guard let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID),
+                  let namePtr = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) else {
+                return nil
+            }
+
+            let id = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
+            let name = Unmanaged<CFString>.fromOpaque(namePtr).takeUnretainedValue() as String
+
+            // Get script code
+            var scriptCode: Int32 = 0
+            if let scriptPtr = TISGetInputSourceProperty(source, kTISPropertyScriptCode) {
+                let script = Unmanaged<CFNumber>.fromOpaque(scriptPtr).takeUnretainedValue()
+                CFNumberGetValue(script, .sInt32Type, &scriptCode)
+            }
+
+            // Get language codes
+            var languageCode: String? = nil
+            if let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) {
+                let langs = Unmanaged<CFArray>.fromOpaque(langsPtr).takeUnretainedValue() as? [String]
+                languageCode = langs?.first
+            }
+
+            // Default: disable Gõ Nhanh for non-Latin sources
+            let disableGoNhanh = scriptCode != 0
+
+            return InputSourceItem(
+                id: id,
+                localizedName: name,
+                languageCode: languageCode,
+                scriptCode: scriptCode,
+                disableGoNhanh: disableGoNhanh
+            )
+        }
+    }
+
+    /// Switch to a specific input source
+    func selectInputSource(id: String) {
+        let properties: CFDictionary = [
+            kTISPropertyInputSourceID: id
+        ] as CFDictionary
+
+        guard let sources = TISCreateInputSourceList(properties, false)?.takeRetainedValue() as? [TISInputSource],
+              let source = sources.first else {
+            return
+        }
+
+        TISSelectInputSource(source)
+    }
+
+    /// Get current input source ID
+    func getCurrentInputSourceId() -> String? {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+            return nil
+        }
+        return Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
+    }
+}
+```
+
+### State Management
+
+```swift
+class AppState: ObservableObject {
+    // ... existing properties ...
+
+    /// All input sources on the system
+    @Published var inputSources: [InputSourceItem] = []
+
+    /// Current active input source ID
+    @Published var currentInputSourceId: String?
+
+    /// User preferences for each input source (persisted)
+    private var inputSourcePreferences: [String: Bool] = [:] // id -> disableGoNhanh
+
+    init() {
+        // ... existing init ...
+        loadInputSourcePreferences()
+        refreshInputSources()
+    }
+
+    func refreshInputSources() {
+        let sources = InputSourceManager.shared.getEnabledInputSources()
+
+        // Apply saved preferences
+        inputSources = sources.map { source in
+            var item = source
+            if let saved = inputSourcePreferences[source.id] {
+                item.disableGoNhanh = saved
+            }
+            return item
+        }
+
+        currentInputSourceId = InputSourceManager.shared.getCurrentInputSourceId()
+    }
+
+    func setInputSourcePreference(id: String, disableGoNhanh: Bool) {
+        inputSourcePreferences[id] = disableGoNhanh
+        saveInputSourcePreferences()
+
+        // Update local state
+        if let index = inputSources.firstIndex(where: { $0.id == id }) {
+            inputSources[index].disableGoNhanh = disableGoNhanh
+        }
+
+        // If this is the current source, apply immediately
+        if id == currentInputSourceId {
+            RustBridge.setEnabled(!disableGoNhanh && userWantsEnabled)
+        }
+    }
+
+    func switchToInputSource(id: String) {
+        InputSourceManager.shared.selectInputSource(id: id)
+        // Observer will handle the rest
+    }
+
+    private func loadInputSourcePreferences() {
+        inputSourcePreferences = UserDefaults.standard.dictionary(forKey: SettingsKey.inputSourcePreferences) as? [String: Bool] ?? [:]
+    }
+
+    private func saveInputSourcePreferences() {
+        UserDefaults.standard.set(inputSourcePreferences, forKey: SettingsKey.inputSourcePreferences)
+    }
+}
+```
+
+### Settings Key
+
+```swift
+enum SettingsKey {
+    // ... existing keys ...
+    static let inputSourcePreferences = "gonhanh.inputSourcePreferences"
+}
+```
+
+### Updated Observer Logic
+
+```swift
+class InputSourceObserver {
+    // ... existing code ...
+
+    private func handleInputSourceChange() {
+        let appState = AppState.shared
+        let currentId = InputSourceManager.shared.getCurrentInputSourceId()
+
+        appState.currentInputSourceId = currentId
+
+        // Find preference for current source
+        guard let currentId = currentId,
+              let source = appState.inputSources.first(where: { $0.id == currentId }) else {
+            return
+        }
+
+        if source.disableGoNhanh {
+            // Temporarily disable
+            appState.setInputSourceOverride(false)
+            Log.info("InputSource: \(source.localizedName) - disabled Gõ Nhanh")
+        } else {
+            // Restore user preference
+            appState.setInputSourceOverride(nil)
+            Log.info("InputSource: \(source.localizedName) - enabled Gõ Nhanh")
+        }
+    }
+}
+```
+
+### SwiftUI Settings View
+
+```swift
+struct InputSourceSettingsView: View {
+    @ObservedObject var appState = AppState.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quản lý bộ gõ")
+                .font(.headline)
+
+            Text("Gõ Nhanh sẽ TẮT khi bạn chuyển sang các bộ gõ được đánh dấu:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            List {
+                ForEach(appState.inputSources) { source in
+                    InputSourceRow(source: source) { newValue in
+                        appState.setInputSourcePreference(id: source.id, disableGoNhanh: newValue)
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            Button("Làm mới danh sách") {
+                appState.refreshInputSources()
+            }
+
+            Divider()
+
+            Button("Thêm bộ gõ mới...") {
+                // Open System Preferences > Keyboard > Input Sources
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard?InputSources")!)
+            }
+        }
+        .padding()
+    }
+}
+
+struct InputSourceRow: View {
+    let source: InputSourceItem
+    let onToggle: (Bool) -> Void
+
+    var body: some View {
+        HStack {
+            Text(source.flagEmoji)
+            Text(source.localizedName)
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { source.disableGoNhanh },
+                set: { onToggle($0) }
+            ))
+            .labelsHidden()
+
+            Text(source.disableGoNhanh ? "Tắt" : "Bật")
+                .font(.caption)
+                .foregroundColor(source.disableGoNhanh ? .red : .green)
+        }
+    }
+}
+```
+
+### Menu Bar Submenu
+
+```swift
+// In MenuBar.swift - add submenu for input source switching
+func buildInputSourceMenu() -> NSMenu {
+    let menu = NSMenu()
+
+    for source in AppState.shared.inputSources {
+        let item = NSMenuItem(
+            title: "\(source.flagEmoji) \(source.localizedName)",
+            action: #selector(switchInputSource(_:)),
+            keyEquivalent: ""
+        )
+        item.representedObject = source.id
+        item.state = source.id == AppState.shared.currentInputSourceId ? .on : .off
+        menu.addItem(item)
+    }
+
+    return menu
+}
+
+@objc func switchInputSource(_ sender: NSMenuItem) {
+    guard let id = sender.representedObject as? String else { return }
+    AppState.shared.switchToInputSource(id: id)
+}
+```
+
+### Ưu điểm của Phương án B
+
+| Aspect | Phương án A (Auto-detect) | Phương án B (UI Manager) |
+|--------|---------------------------|--------------------------|
+| **Setup** | Zero config | Có thể customize |
+| **Flexibility** | Cứng nhắc | User toàn quyền |
+| **UX** | Ẩn, magic | Rõ ràng, transparent |
+| **Edge cases** | Có thể sai | User tự quyết |
+| **Switching** | Dùng macOS | Có thể từ menu bar |
+
+### Đề xuất: Kết hợp A + B
+
+1. **Default behavior (A):** Auto-detect Latin/non-Latin, tự động set preferences
+2. **Advanced UI (B):** Cho phép user override từng input source
+3. **Quick switch:** Submenu trong menu bar để switch input source nhanh
 
 ---
 
@@ -381,13 +737,34 @@ Effective Enabled =
 
 ### Tasks breakdown:
 
-1. [ ] Implement `InputSourceObserver` class
-2. [ ] Add `autoDisableForNonLatin` setting
-3. [ ] Update `AppState` với override logic
-4. [ ] Add UI toggle trong Settings
-5. [ ] Update `MenuBarController.startEngine()` để start observer
-6. [ ] Testing với các input source khác nhau
-7. [ ] Update documentation
+#### Phase 1: Core Infrastructure
+1. [ ] Implement `InputSourceManager` class (TIS API wrapper)
+2. [ ] Implement `InputSourceObserver` class (listen changes)
+3. [ ] Add `InputSourceItem` data model
+4. [ ] Add `SettingsKey.inputSourcePreferences`
+
+#### Phase 2: State Management
+5. [ ] Update `AppState` với:
+   - `inputSources: [InputSourceItem]`
+   - `currentInputSourceId: String?`
+   - `inputSourcePreferences: [String: Bool]`
+   - `setInputSourceOverride()` logic
+6. [ ] Persist preferences to UserDefaults
+
+#### Phase 3: UI
+7. [ ] Create `InputSourceSettingsView` trong Settings
+8. [ ] Add "Quản lý bộ gõ" section
+9. [ ] Add submenu "Chuyển bộ gõ" trong Menu Bar
+
+#### Phase 4: Integration
+10. [ ] Update `MenuBarController.startEngine()` để start observer
+11. [ ] Handle edge cases (new input source added, removed)
+12. [ ] Testing với các input source: EN, JP, CN, KR, TH
+
+#### Phase 5: Polish
+13. [ ] Add flag emoji cho các ngôn ngữ phổ biến
+14. [ ] Indicator trên menu bar khi bị disable do input source
+15. [ ] Update documentation
 
 ---
 
