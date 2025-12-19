@@ -1,26 +1,8 @@
 import Foundation
 import Carbon.HIToolbox
 
-// MARK: - Allowed Input Sources
-
-/// Input source ID prefixes that allow Gõ Nhanh
-/// - English keyboard layouts (for typing Vietnamese with Gõ Nhanh)
-/// - Vietnamese input methods (user might want both)
-private let allowedPrefixes: [String] = [
-    "com.apple.keylayout.",  // All keyboard layouts (ABC, US, British, etc.)
-]
-
-/// Specific input sources to block (non-Latin keyboards)
-private let blockedPrefixes: [String] = [
-    "com.apple.inputmethod.Kotoeri",     // Japanese
-    "com.apple.inputmethod.SCIM",        // Simplified Chinese
-    "com.apple.inputmethod.TCIM",        // Traditional Chinese
-    "com.apple.inputmethod.Korean",      // Korean
-    "com.apple.inputmethod.Thai",        // Thai
-    "com.apple.inputmethod.Arabic",      // Arabic
-    "com.apple.inputmethod.Hebrew",      // Hebrew
-    "com.apple.inputmethod.Russian",     // Russian
-]
+/// The only input source that allows Gõ Nhanh
+private let allowedInputSource = "com.apple.keylayout.ABC"
 
 // MARK: - Input Source Observer
 
@@ -109,16 +91,7 @@ final class InputSourceObserver {
     }
 
     private func isInputSourceAllowed(_ id: String) -> Bool {
-        // Check if blocked
-        for prefix in blockedPrefixes {
-            if id.hasPrefix(prefix) { return false }
-        }
-        // Check if allowed
-        for prefix in allowedPrefixes {
-            if id.hasPrefix(prefix) { return true }
-        }
-        // Default: allow (for Vietnamese IM, third-party keyboards, etc.)
-        return true
+        id == allowedInputSource
     }
 
     private func getDisplayChar(from source: TISInputSource, id: String) -> String {
