@@ -1,122 +1,98 @@
 import Foundation
 import Carbon.HIToolbox
 
-// MARK: - Input Source Manager
+// MARK: - Allowed Input Sources
 
-/// Manages macOS input sources - get current, list all, switch
-class InputSourceManager {
-    static let shared = InputSourceManager()
-
-    private init() {}
-
-    /// Get current input source ID
-    func getCurrentInputSourceId() -> String? {
-        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
-              let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
-            return nil
-        }
-        return Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
-    }
-
-    /// Get current input source localized name
-    func getCurrentInputSourceName() -> String? {
-        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
-              let namePtr = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) else {
-            return nil
-        }
-        return Unmanaged<CFString>.fromOpaque(namePtr).takeUnretainedValue() as String
-    }
-}
+/// English keyboard layouts that allow Gõ Nhanh
+private let allowedInputSources: Set<String> = [
+    "com.apple.keylayout.ABC",
+    "com.apple.keylayout.US",
+    "com.apple.keylayout.USExtended",
+    "com.apple.keylayout.USInternational-PC",
+    "com.apple.keylayout.British",
+    "com.apple.keylayout.British-PC",
+    "com.apple.keylayout.Australian",
+    "com.apple.keylayout.ABC-AZERTY",
+    "com.apple.keylayout.ABC-QWERTZ",
+    "com.apple.keylayout.Colemak",
+    "com.apple.keylayout.Dvorak",
+    "com.apple.keylayout.DVORAK-QWERTYCMD",
+]
 
 // MARK: - Input Source Observer
 
-/// Observes input source changes via CFNotificationCenter
-class InputSourceObserver {
+/// Observes input source changes and auto-enables/disables Gõ Nhanh
+final class InputSourceObserver {
     static let shared = InputSourceObserver()
 
     private var isObserving = false
-
-    /// Callback when input source changes
-    var onInputSourceChanged: ((String) -> Void)?
+    private var lastInputSourceId: String?
 
     private init() {}
 
-    /// Start observing input source changes
     func start() {
         guard !isObserving else { return }
         isObserving = true
 
-        let callback: CFNotificationCallback = { _, _, _, _, _ in
-            DispatchQueue.main.async {
-                InputSourceObserver.shared.handleInputSourceChange()
-            }
-        }
-
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDistributedCenter(),
-            nil,
-            callback,
+            Unmanaged.passUnretained(self).toOpaque(),
+            inputSourceCallback,
             kTISNotifySelectedKeyboardInputSourceChanged,
             nil,
             .deliverImmediately
         )
 
-        // Check initial state
-        handleInputSourceChange()
-        Log.info("InputSourceObserver started")
+        // Apply initial state
+        handleChange()
     }
 
-    /// Stop observing input source changes
     func stop() {
         guard isObserving else { return }
         isObserving = false
 
         CFNotificationCenterRemoveObserver(
             CFNotificationCenterGetDistributedCenter(),
-            nil,
+            Unmanaged.passUnretained(self).toOpaque(),
             CFNotificationName(kTISNotifySelectedKeyboardInputSourceChanged),
             nil
         )
-        Log.info("InputSourceObserver stopped")
     }
 
-    /// Handle input source change
-    private func handleInputSourceChange() {
-        guard let currentId = InputSourceManager.shared.getCurrentInputSourceId() else {
+    fileprivate func handleChange() {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
             return
         }
 
-        Log.info("Input source changed to: \(currentId)")
+        let currentId = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
 
-        // Notify callback
-        onInputSourceChanged?(currentId)
+        // Skip if same as last (avoid redundant calls)
+        guard currentId != lastInputSourceId else { return }
+        lastInputSourceId = currentId
 
-        // Post notification for UI updates
-        NotificationCenter.default.post(name: .inputSourceChanged, object: currentId)
+        let shouldEnable = allowedInputSources.contains(currentId)
+
+        if shouldEnable {
+            // Restore user preference
+            let userEnabled = UserDefaults.standard.object(forKey: "gonhanh.enabled") as? Bool ?? true
+            RustBridge.setEnabled(userEnabled)
+        } else {
+            // Force disable for non-English keyboards
+            RustBridge.setEnabled(false)
+        }
+
+        // Update menu bar
+        NotificationCenter.default.post(name: .menuStateChanged, object: nil)
     }
 }
 
-// MARK: - Notifications
+// MARK: - C Callback
 
-extension Notification.Name {
-    static let inputSourceChanged = Notification.Name("inputSourceChanged")
-}
-
-// MARK: - Log Helper
-
-private enum Log {
-    private static let logPath = "/tmp/gonhanh_debug.log"
-    private static var isEnabled: Bool { FileManager.default.fileExists(atPath: logPath) }
-
-    static func info(_ msg: String) {
-        guard isEnabled, let handle = FileHandle(forWritingAtPath: logPath) else { return }
-        let ts = String(format: "%02d:%02d:%02d.%03d",
-                        Calendar.current.component(.hour, from: Date()),
-                        Calendar.current.component(.minute, from: Date()),
-                        Calendar.current.component(.second, from: Date()),
-                        Calendar.current.component(.nanosecond, from: Date()) / 1_000_000)
-        handle.seekToEndOfFile()
-        handle.write("[\(ts)] I: \(msg)\n".data(using: .utf8)!)
-        handle.closeFile()
+private let inputSourceCallback: CFNotificationCallback = { _, observer, _, _, _ in
+    guard let observer = observer else { return }
+    let instance = Unmanaged<InputSourceObserver>.fromOpaque(observer).takeUnretainedValue()
+    DispatchQueue.main.async {
+        instance.handleChange()
     }
 }
