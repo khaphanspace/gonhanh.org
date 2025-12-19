@@ -556,6 +556,10 @@ impl Engine {
     /// In VNI mode, '9' is always an intentional stroke command (not a letter), so
     /// delayed stroke is allowed (e.g., "duong9" → "đuong").
     fn try_stroke(&mut self, key: u16) -> Option<Result> {
+        // Collect buffer keys once for all validations
+        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
+
         // Find position of un-stroked 'd' to apply stroke
         let pos = if self.method == 0 {
             // Telex: First try adjacent 'd' (last char is un-stroked d)
@@ -574,8 +578,6 @@ impl Engine {
                 }
 
                 // Must have at least one vowel for delayed stroke
-                let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-                let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
                 if !has_vowel {
                     return None;
                 }
@@ -622,8 +624,6 @@ impl Engine {
         // Only validate if buffer has vowels (complete syllable)
         // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
         // Skip validation if free_tone mode is enabled
-        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-        let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
         if !self.free_tone_enabled && has_vowel && !is_valid_for_transform(&buffer_keys) {
             return None;
         }
@@ -1092,41 +1092,27 @@ impl Engine {
         // Telex: Check for delayed stroke pattern (d + vowels + d)
         // When buffer is "dod" and mark key is typed, apply stroke to initial 'd'
         // This enables "dods" → "đó" while preventing "de" + "d" → "đe"
-        let mut had_delayed_stroke = false;
-        if self.method == 0 && self.buf.len() >= 2 {
-            if let (Some(first_char), Some(last_char)) = (self.buf.get(0), self.buf.last()) {
-                // Pattern: first is unstroked 'd', last is 'd'
-                if first_char.key == keys::D
-                    && !first_char.stroke
-                    && last_char.key == keys::D
-                    && self.buf.len() > 1
-                {
-                    // Check if buffer has vowels (excluding the last 'd')
-                    let has_vowel = self
-                        .buf
-                        .iter()
-                        .take(self.buf.len() - 1)
-                        .any(|c| keys::is_vowel(c.key));
-                    if has_vowel {
-                        // Check if buffer (excluding last 'd') forms valid Vietnamese
-                        let buffer_without_last: Vec<u16> = self
-                            .buf
-                            .iter()
-                            .take(self.buf.len() - 1)
-                            .map(|c| c.key)
-                            .collect();
-                        if is_valid(&buffer_without_last) {
-                            // Apply delayed stroke: stroke initial 'd', remove trigger 'd'
-                            if let Some(c) = self.buf.get_mut(0) {
-                                c.stroke = true;
-                            }
-                            self.buf.pop(); // Remove the trigger 'd'
-                            had_delayed_stroke = true;
+        let had_delayed_stroke = self.method == 0
+            && self.buf.len() >= 2
+            && self.buf.get(0).is_some_and(|c| c.key == keys::D && !c.stroke)
+            && self.buf.last().is_some_and(|c| c.key == keys::D)
+            && {
+                // Check vowels and validity in one pass
+                let buf_len = self.buf.len();
+                let has_vowel = self.buf.iter().take(buf_len - 1).any(|c| keys::is_vowel(c.key));
+                has_vowel && {
+                    let buffer_without_last: Vec<u16> =
+                        self.buf.iter().take(buf_len - 1).map(|c| c.key).collect();
+                    is_valid(&buffer_without_last) && {
+                        // Apply delayed stroke: stroke initial 'd', remove trigger 'd'
+                        if let Some(c) = self.buf.get_mut(0) {
+                            c.stroke = true;
                         }
+                        self.buf.pop();
+                        true
                     }
                 }
-            }
-        }
+            };
 
         // Issue #44: Apply pending breve before adding mark
         // When user types "aws" (Telex) or "a81" (VNI), they want "ắ" (breve + sắc)
