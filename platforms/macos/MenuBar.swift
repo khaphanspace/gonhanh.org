@@ -292,32 +292,53 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
             let observer = InputSourceObserver.shared
             let text: String
-            let filled: Bool
+            let isActive: Bool
             if observer.isAllowedInputSource {
-                // ABC keyboard: show V (enabled) or E (disabled), filled style
+                // ABC keyboard: show V (enabled) or E (disabled)
                 text = self.appState.isEnabled ? "V" : "E"
-                filled = true
+                isActive = self.appState.isEnabled
             } else {
-                // Non-ABC keyboard: show input source character, outline style
+                // Non-ABC keyboard: show input source character, always inactive
                 text = observer.currentDisplayChar
-                filled = false
+                isActive = false
             }
-            button.image = self.createStatusIcon(text: text, filled: filled)
+            button.image = self.createStatusIcon(text: text, isActive: isActive)
         }
     }
 
-    private func createStatusIcon(text: String, filled: Bool = true) -> NSImage {
+    private func createStatusIcon(text: String, isActive: Bool) -> NSImage {
         let width: CGFloat = 22
         let height: CGFloat = 16
         let image = NSImage(size: NSSize(width: width, height: height))
 
         image.lockFocus()
 
-        let rect = NSRect(x: 0.5, y: 0.5, width: width - 1, height: height - 1)
+        let rect = NSRect(x: 0, y: 0, width: width, height: height)
         let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
 
-        if filled {
-            // Filled style: black background with text cut out
+        if isActive {
+            // Active: orange background with white text
+            NSColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0).setFill()
+            path.fill()
+
+            let font = NSFont.systemFont(ofSize: 13, weight: .bold)
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: NSColor.white
+            ]
+            let textSize = text.size(withAttributes: attrs)
+            let textRect = NSRect(
+                x: (width - textSize.width) / 2,
+                y: (height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attrs)
+
+            image.unlockFocus()
+            image.isTemplate = false
+        } else {
+            // Inactive: black background with text cut out (template)
             NSColor.black.setFill()
             path.fill()
 
@@ -335,30 +356,11 @@ class MenuBarController: NSObject, NSWindowDelegate {
             )
             NSGraphicsContext.current?.compositingOperation = .destinationOut
             text.draw(in: textRect, withAttributes: attrs)
-        } else {
-            // Outline style: border with text inside
-            path.lineWidth = 1.5
-            NSColor.black.setStroke()
-            path.stroke()
 
-            let font = NSFont.systemFont(ofSize: 11, weight: .medium)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.black
-            ]
-            let textSize = text.size(withAttributes: attrs)
-            let textRect = NSRect(
-                x: (width - textSize.width) / 2,
-                y: (height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect, withAttributes: attrs)
+            image.unlockFocus()
+            image.isTemplate = true
         }
 
-        image.unlockFocus()
-
-        image.isTemplate = true
         return image
     }
 
