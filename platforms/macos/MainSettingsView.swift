@@ -145,10 +145,11 @@ class AppState: ObservableObject {
     // MARK: - Init
 
     init() {
-        isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
-        userWantsEnabled = isEnabled
+        let loadedEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
+        isEnabled = loadedEnabled
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
         toggleShortcut = KeyboardShortcut.load()
+        userWantsEnabled = loadedEnabled
 
         loadSmartMode()
         loadAutoWShortcut()

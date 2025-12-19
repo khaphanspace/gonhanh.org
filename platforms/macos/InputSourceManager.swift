@@ -200,7 +200,7 @@ class InputSourceObserver {
             CFNotificationCenterGetDistributedCenter(),
             nil,
             callback,
-            CFNotificationName(kTISNotifySelectedKeyboardInputSourceChanged),
+            kTISNotifySelectedKeyboardInputSourceChanged,
             nil,
             .deliverImmediately
         )
