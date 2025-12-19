@@ -837,7 +837,13 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tung7", "tưng"),
     ("tong7", "tơng"),
     ("tang8", "tăng"),
+    // VNI allows delayed stroke - '9' is always intentional, not a letter
+    // All positions of '9' should work
+    ("d9ung", "đung"),
+    ("du9ng", "đung"),
     ("dung9", "đung"),
+    ("D9ung", "Đung"),
+    ("Du9ng", "Đung"),
     ("Dung9", "Đung"),
 ];
 
@@ -925,15 +931,20 @@ const VNI_DELAYED_TONE: &[(&str, &str)] = &[
     ("cu72", "cừ"),
     ("to71", "tớ"),
     ("ho72", "hờ"),
-    // Words with ươ - delayed marks then tone (duong + 9 + 7 + 2)
-    ("duong972", "đường"),
-    ("truong72", "trường"),
-    ("nuoc71", "nước"),
-    ("nguoi72", "người"),
-    // Words with đ - delayed (d + 9)
-    ("di9", "đi"),
-    ("do91", "đó"),
-    ("dang92", "đàng"),
+    // VNI delayed stroke - '9' is always intentional stroke command
+    // All positions of '9' should work for đường
+    ("d9uong72", "đường"),  // d9 + uong + 7 (horn) + 2 (huyền)
+    ("du9ong72", "đường"),  // d + u9 + ong + 7 + 2
+    ("duo9ng72", "đường"),  // d + uo + 9 + ng + 7 + 2
+    ("duon9g72", "đường"),  // d + uon + 9 + g + 7 + 2
+    ("duong972", "đường"),  // d + uong + 9 + 7 + 2
+    ("truong72", "trường"), // no đ, just ươ compound
+    ("nuoc71", "nước"),     // no đ
+    ("nguoi72", "người"),   // no đ
+    // đ with adjacent d9
+    ("d9i", "đi"),
+    ("d9o1", "đó"),
+    ("d9ang2", "đàng"),
 ];
 
 // ============================================================
@@ -1124,6 +1135,54 @@ fn telex_switch_diacritics() {
 #[test]
 fn vni_switch_diacritics() {
     vni(VNI_SWITCH_DIACRITICS);
+}
+
+// ============================================================
+// NON-ADJACENT STROKE - Issue #51
+// ============================================================
+//
+// In Telex, "dd" → "đ" should only apply when the two 'd's are ADJACENT.
+// When there are characters between them (like in "deadline"), they should
+// remain as separate 'd' characters.
+//
+// According to Vietnamese Telex docs (Section 9.2.2):
+// - dd → đ (two adjacent d's)
+// - d...d (with chars between) → d...d (no transformation)
+
+const TELEX_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
+    // Issue #51: "deadline" should stay as "deadline", not "đealine"
+    // The 'd's are separated by "ea", so stroke should NOT apply
+    ("deadline", "deadline"),
+    ("dedicated", "dedicated"),
+    ("decided", "decided"),
+    // Edge case: d + vowels + d + vowels
+    ("dede", "dede"),
+    ("dada", "dada"),
+    ("dodo", "dodo"),
+    // Mixed: adjacent dd at start
+    ("ddead", "đead"),           // dd at start is adjacent → đ, then "ead"
+    ("ddedicated", "đedicated"), // dd at start
+    // Note: "deadd" → "deadd" because "dead" is invalid (d not a valid final),
+    // so even though 5th d is adjacent to 4th d, validation fails
+    ("deadd", "deadd"),
+];
+
+const VNI_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
+    // In VNI, d9 → đ only when '9' immediately follows 'd'
+    // "deadline" has no '9', so it stays unchanged
+    ("deadline", "deadline"),
+    ("dedicated", "dedicated"),
+    ("d9eadline", "đeadline"), // d9 at start → đ
+];
+
+#[test]
+fn telex_non_adjacent_stroke() {
+    telex(TELEX_NON_ADJACENT_STROKE);
+}
+
+#[test]
+fn vni_non_adjacent_stroke() {
+    vni(VNI_NON_ADJACENT_STROKE);
 }
 
 // ============================================================
