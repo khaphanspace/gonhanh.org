@@ -1156,6 +1156,8 @@ struct InputSourcesSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var allSources: [InputSourceItem] = []
+    @State private var searchText: String = ""
+    @State private var selectedAvailableId: String? = nil
 
     // Ngôn ngữ đang bật trong macOS
     private var enabledLanguages: [InputSourceItem] {
@@ -1164,7 +1166,14 @@ struct InputSourcesSheet: View {
 
     // Ngôn ngữ có thể thêm (chưa bật trong macOS)
     private var availableLanguages: [InputSourceItem] {
-        allSources.filter { !$0.isEnabled }
+        let available = allSources.filter { !$0.isEnabled }
+        if searchText.isEmpty {
+            return available
+        }
+        return available.filter {
+            $0.localizedName.localizedCaseInsensitiveContains(searchText) ||
+            ($0.languageCode?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
     }
 
     var body: some View {
@@ -1180,53 +1189,34 @@ struct InputSourcesSheet: View {
 
             Divider()
 
-            // Content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Danh sách ngôn ngữ đang dùng trong macOS
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Đang sử dụng")
-                            .font(.system(size: 12, weight: .medium))
+            // Two-panel content
+            HStack(spacing: 0) {
+                // Left panel - Available languages
+                VStack(spacing: 0) {
+                    // Search bar
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
-
-                        if enabledLanguages.isEmpty {
-                            Text("Chưa có ngôn ngữ nào")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                                .padding(.vertical, 12)
-                        } else {
-                            ForEach(enabledLanguages) { source in
-                                LanguageItem(
-                                    source: source,
-                                    actionIcon: "minus.circle.fill",
-                                    actionColor: .red,
-                                    onAction: {
-                                        // Disable in macOS
-                                        if InputSourceManager.shared.disableInputSource(id: source.id) {
-                                            refreshSources()
-                                        }
-                                    }
-                                )
-                            }
-                        }
+                            .font(.system(size: 12))
+                        TextField("Tìm kiếm", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
 
-                    if !availableLanguages.isEmpty {
-                        Divider()
+                    Divider()
 
-                        // Ngôn ngữ có thể thêm (chưa bật trong macOS)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Thêm ngôn ngữ")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-
+                    // Available languages list
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
                             ForEach(availableLanguages) { source in
-                                LanguageItem(
+                                AvailableLanguageRow(
                                     source: source,
-                                    actionIcon: "plus.circle.fill",
-                                    actionColor: .green,
-                                    onAction: {
-                                        // Enable in macOS
+                                    isSelected: selectedAvailableId == source.id,
+                                    onSelect: { selectedAvailableId = source.id },
+                                    onAdd: {
                                         if InputSourceManager.shared.enableInputSource(id: source.id) {
                                             refreshSources()
                                         }
@@ -1236,10 +1226,41 @@ struct InputSourcesSheet: View {
                         }
                     }
                 }
-                .padding(20)
+                .frame(width: 220)
+                .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+
+                Divider()
+
+                // Right panel - Enabled languages
+                VStack(spacing: 0) {
+                    Text("Đang sử dụng")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+
+                    Divider()
+
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(enabledLanguages) { source in
+                                EnabledLanguageRow(
+                                    source: source,
+                                    onRemove: {
+                                        if InputSourceManager.shared.disableInputSource(id: source.id) {
+                                            refreshSources()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                .frame(minWidth: 200)
             }
         }
-        .frame(width: 380, height: 400)
+        .frame(width: 500, height: 380)
         .onAppear { refreshSources() }
     }
 
@@ -1248,33 +1269,65 @@ struct InputSourcesSheet: View {
     }
 }
 
-struct LanguageItem: View {
+// MARK: - Available Language Row (Left panel)
+
+struct AvailableLanguageRow: View {
     let source: InputSourceItem
-    let actionIcon: String
-    let actionColor: Color
-    let onAction: () -> Void
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onAdd: () -> Void
 
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(source.flagEmoji).font(.system(size: 16))
-            Text(source.localizedName).font(.system(size: 13))
+        HStack(spacing: 8) {
+            Text(source.flagEmoji).font(.system(size: 14))
+            Text(source.localizedName)
+                .font(.system(size: 13))
+                .lineLimit(1)
             Spacer()
-            Button(action: onAction) {
-                Image(systemName: actionIcon)
-                    .foregroundColor(actionColor)
-                    .font(.system(size: 16))
-            }
-            .buttonStyle(.plain)
-            .opacity(hovered ? 1 : 0.6)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(hovered ? Color(NSColor.controlBackgroundColor) : Color.clear)
+            isSelected ? Color.accentColor :
+            hovered ? Color(NSColor.controlBackgroundColor) : Color.clear
         )
+        .foregroundColor(isSelected ? .white : .primary)
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .onTapGesture { onSelect() }
+        .onTapGesture(count: 2) { onAdd() }
+    }
+}
+
+// MARK: - Enabled Language Row (Right panel)
+
+struct EnabledLanguageRow: View {
+    let source: InputSourceItem
+    let onRemove: () -> Void
+
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(source.flagEmoji).font(.system(size: 14))
+            Text(source.localizedName)
+                .font(.system(size: 13))
+                .lineLimit(1)
+            Spacer()
+            if hovered {
+                Button(action: onRemove) {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(hovered ? Color(NSColor.controlBackgroundColor) : Color.clear)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
     }
