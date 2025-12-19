@@ -25,8 +25,6 @@ final class InputSourceObserver {
         guard !isObserving else { return }
         isObserving = true
 
-        Log.debug("[InputSource] Observer starting...")
-
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDistributedCenter(),
             Unmanaged.passUnretained(self).toOpaque(),
@@ -36,7 +34,6 @@ final class InputSourceObserver {
             .deliverImmediately
         )
 
-        Log.debug("[InputSource] Observer registered, checking initial state")
         handleChange()
     }
 
@@ -55,35 +52,26 @@ final class InputSourceObserver {
     fileprivate func handleChange() {
         guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
               let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
-            Log.debug("[InputSource] Failed to get current input source")
             return
         }
 
         let currentId = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
-        Log.debug("[InputSource] Detected: \(currentId)")
 
         // Skip if same as last
-        guard currentId != lastInputSourceId else {
-            Log.debug("[InputSource] Same as last, skipping")
-            return
-        }
+        guard currentId != lastInputSourceId else { return }
         lastInputSourceId = currentId
 
         // Get display character from input source
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
         isAllowedInputSource = isInputSourceAllowed(currentId)
 
-        Log.debug("[InputSource] char=\(currentDisplayChar) allowed=\(isAllowedInputSource)")
-
         if isAllowedInputSource {
             // Restore user preference
             let userEnabled = UserDefaults.standard.object(forKey: "gonhanh.enabled") as? Bool ?? true
             RustBridge.setEnabled(userEnabled)
-            Log.debug("[InputSource] Restored user pref: \(userEnabled)")
         } else {
             // Force disable
             RustBridge.setEnabled(false)
-            Log.debug("[InputSource] Force disabled")
         }
 
         // Update menu bar icon
@@ -127,18 +115,7 @@ final class InputSourceObserver {
 
 // MARK: - C Callback
 
-private let inputSourceCallback: CFNotificationCallback = { _, observer, name, _, _ in
-    // Log immediately to verify callback is triggered
-    let logPath = "/tmp/gonhanh_debug.log"
-    if FileManager.default.fileExists(atPath: logPath),
-       let handle = FileHandle(forWritingAtPath: logPath) {
-        let ts = ISO8601DateFormatter().string(from: Date())
-        let nameStr = name?.rawValue as String? ?? "nil"
-        handle.seekToEndOfFile()
-        handle.write("[\(ts)] [InputSource] CALLBACK FIRED! name=\(nameStr)\n".data(using: .utf8)!)
-        try? handle.close()
-    }
-
+private let inputSourceCallback: CFNotificationCallback = { _, observer, _, _, _ in
     guard let observer = observer else { return }
     let instance = Unmanaged<InputSourceObserver>.fromOpaque(observer).takeUnretainedValue()
     DispatchQueue.main.async {
@@ -150,18 +127,4 @@ private let inputSourceCallback: CFNotificationCallback = { _, observer, name, _
 
 extension Notification.Name {
     static let inputSourceChanged = Notification.Name("inputSourceChanged")
-}
-
-// MARK: - Log Helper
-
-private enum Log {
-    static func debug(_ msg: String) {
-        let logPath = "/tmp/gonhanh_debug.log"
-        guard FileManager.default.fileExists(atPath: logPath),
-              let handle = FileHandle(forWritingAtPath: logPath) else { return }
-        let ts = ISO8601DateFormatter().string(from: Date())
-        handle.seekToEndOfFile()
-        handle.write("[\(ts)] \(msg)\n".data(using: .utf8)!)
-        try? handle.close()
-    }
 }
