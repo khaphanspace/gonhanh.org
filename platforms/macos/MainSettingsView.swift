@@ -707,9 +707,13 @@ struct SettingsPageView: View {
                                   subtitle: "Nhấn ESC hoàn tác dấu tiếng Việt về ASCII",
                                   isOn: $appState.escRestore)
                 Divider().padding(.leading, 12)
-                inputSourcesRow
-                Divider().padding(.leading, 12)
                 shortcutsRow
+            }
+            .cardBackground()
+
+            // Language management
+            VStack(spacing: 0) {
+                inputSourcesRow
             }
             .cardBackground()
 
@@ -723,8 +727,8 @@ struct SettingsPageView: View {
         Button(action: { showInputSourcesSheet = true }) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Quản lý bộ gõ").font(.system(size: 13)).foregroundColor(Color(NSColor.labelColor))
-                    Text("Chọn bộ gõ dùng cho tiếng Việt")
+                    Text("Quản lý ngôn ngữ").font(.system(size: 13)).foregroundColor(Color(NSColor.labelColor))
+                    Text("Thêm/xoá ngôn ngữ sử dụng")
                         .font(.system(size: 11))
                         .foregroundColor(Color(NSColor.secondaryLabelColor))
                 }

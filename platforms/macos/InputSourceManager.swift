@@ -58,11 +58,22 @@ class InputSourceManager {
 
     // MARK: - Get Input Sources
 
-    /// Get all enabled (active) input sources on the system
+    /// IDs to exclude (not real keyboard languages)
+    private let excludedIds: Set<String> = [
+        "com.apple.PressAndHold",
+        "com.apple.CharacterPaletteIM",
+        "com.apple.inputmethod.EmojiFunctionRowItem",
+        "com.apple.inputmethod.ironwood",
+        "com.apple.50onPaletteIM",
+        "com.apple.inputmethod.Kotoeri.KanaTyping.Roman",
+    ]
+
+    /// Get all enabled keyboard input sources (excluding Emoji, Dictation, etc.)
     func getEnabledInputSources() -> [InputSourceItem] {
         let properties: [CFString: Any] = [
             kTISPropertyInputSourceIsEnabled: true,
-            kTISPropertyInputSourceIsSelectCapable: true
+            kTISPropertyInputSourceIsSelectCapable: true,
+            kTISPropertyInputSourceCategory: kTISCategoryKeyboardInputSource
         ]
 
         guard let cfSources = TISCreateInputSourceList(properties as CFDictionary, false)?.takeRetainedValue() else {
@@ -71,6 +82,7 @@ class InputSourceManager {
 
         let sources = cfSources as? [TISInputSource] ?? []
         return sources.compactMap { parseInputSource($0, isEnabled: true) }
+            .filter { !excludedIds.contains($0.id) && !$0.id.contains("Dictation") && !$0.id.contains("Emoji") }
     }
 
     /// Get all available input sources (including disabled ones)
