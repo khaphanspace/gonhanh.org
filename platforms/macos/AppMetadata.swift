@@ -77,6 +77,8 @@ enum SettingsKey {
     static let autoWShortcut = "gonhanh.autoWShortcut"
     static let escRestore = "gonhanh.escRestore"
     static let modernTone = "gonhanh.modernTone"
+    static let vietnameseInputSources = "gonhanh.vietnameseInputSources"
+    static let inputSourceOrder = "gonhanh.inputSourceOrder"
 }
 
 // MARK: - Keyboard Shortcut Model

@@ -34,9 +34,59 @@ class AppState: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var launchAtLoginTimer: Timer?
 
+    // MARK: - Input Source Management
+
+    /// Current active input source ID
+    @Published var currentInputSourceId: String?
+
+    /// Whitelist of input source IDs that enable Gõ Nhanh (for Vietnamese typing)
+    @Published var vietnameseInputSources: Set<String> = [] {
+        didSet {
+            let array = Array(vietnameseInputSources)
+            UserDefaults.standard.set(array, forKey: SettingsKey.vietnameseInputSources)
+        }
+    }
+
+    /// Override from InputSourceObserver (not persisted)
+    private var inputSourceOverride: Bool? = nil
+
+    /// User's actual preference (persisted)
+    private var userWantsEnabled: Bool = true
+
+    /// Effective enabled state (combines user preference + input source override)
+    var effectiveEnabled: Bool {
+        inputSourceOverride ?? userWantsEnabled
+    }
+
+    /// Check if an input source is in the Vietnamese whitelist
+    func isVietnameseInputSource(_ id: String) -> Bool {
+        vietnameseInputSources.contains(id)
+    }
+
+    /// Called by InputSourceObserver to temporarily override enabled state
+    func setInputSourceOverride(_ override: Bool?) {
+        inputSourceOverride = override
+        let newEnabled = effectiveEnabled
+        RustBridge.setEnabled(newEnabled)
+        NotificationCenter.default.post(name: .menuStateChanged, object: nil)
+    }
+
+    /// Add an input source to Vietnamese whitelist
+    func addVietnameseInputSource(_ id: String) {
+        vietnameseInputSources.insert(id)
+    }
+
+    /// Remove an input source from Vietnamese whitelist
+    func removeVietnameseInputSource(_ id: String) {
+        vietnameseInputSources.remove(id)
+    }
+
+    // MARK: - Enabled State
+
     @Published var isEnabled: Bool {
         didSet {
-            RustBridge.setEnabled(isEnabled)
+            userWantsEnabled = isEnabled
+            RustBridge.setEnabled(effectiveEnabled)
             NotificationCenter.default.post(name: .menuStateChanged, object: nil)
             guard !isSilentUpdate else { return }
             UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
@@ -96,6 +146,7 @@ class AppState: ObservableObject {
 
     init() {
         isEnabled = UserDefaults.standard.object(forKey: SettingsKey.enabled) as? Bool ?? true
+        userWantsEnabled = isEnabled
         currentMethod = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? .telex
         toggleShortcut = KeyboardShortcut.load()
 
@@ -104,9 +155,21 @@ class AppState: ObservableObject {
         loadEscRestore()
         loadModernTone()
         loadShortcuts()
+        loadVietnameseInputSources()
         setupObservers()
         setupLaunchAtLoginMonitoring()
         checkForUpdates()
+    }
+
+    private func loadVietnameseInputSources() {
+        if let saved = UserDefaults.standard.array(forKey: SettingsKey.vietnameseInputSources) as? [String] {
+            vietnameseInputSources = Set(saved)
+        } else {
+            // First time: use default English keyboards
+            vietnameseInputSources = defaultVietnameseInputSources
+        }
+        // Set initial input source ID
+        currentInputSourceId = InputSourceManager.shared.getCurrentInputSourceId()
     }
 
     private func loadSmartMode() {
@@ -597,6 +660,7 @@ struct SettingsPageView: View {
     @ObservedObject var appState: AppState
     @State private var isRecordingShortcut = false
     @State private var showShortcutsSheet = false
+    @State private var showInputSourcesSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -642,6 +706,8 @@ struct SettingsPageView: View {
                                   subtitle: "Nhấn ESC hoàn tác dấu tiếng Việt về ASCII",
                                   isOn: $appState.escRestore)
                 Divider().padding(.leading, 12)
+                inputSourcesRow
+                Divider().padding(.leading, 12)
                 shortcutsRow
             }
             .cardBackground()
@@ -649,6 +715,28 @@ struct SettingsPageView: View {
             Spacer()
         }
         .sheet(isPresented: $showShortcutsSheet) { ShortcutsSheet(appState: appState) }
+        .sheet(isPresented: $showInputSourcesSheet) { InputSourcesSheet(appState: appState) }
+    }
+
+    private var inputSourcesRow: some View {
+        Button(action: { showInputSourcesSheet = true }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Quản lý bộ gõ").font(.system(size: 13)).foregroundColor(Color(NSColor.labelColor))
+                    Text("Chọn bộ gõ dùng cho tiếng Việt")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(NSColor.secondaryLabelColor))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var inputMethodRow: some View {
@@ -1054,6 +1142,283 @@ struct LaunchAtLoginBanner: View {
         .contentShape(Rectangle())
         .onHover { h in hovered = h; if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
         .onTapGesture { onOpenSettings() }
+    }
+}
+
+// MARK: - Input Sources Sheet
+
+struct InputSourcesSheet: View {
+    @ObservedObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var enabledSources: [InputSourceItem] = []
+    @State private var availableSources: [InputSourceItem] = []
+    @State private var showAddSheet = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            content
+            Divider()
+            footer
+        }
+        .frame(width: 480, height: 420)
+        .onAppear { refreshSources() }
+        .sheet(isPresented: $showAddSheet) {
+            AddInputSourceSheet(
+                availableSources: availableSources.filter { !$0.isEnabled },
+                onAdd: { source in
+                    if InputSourceManager.shared.enableInputSource(id: source.id) {
+                        refreshSources()
+                    }
+                }
+            )
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Quản lý bộ gõ").font(.system(size: 15, weight: .semibold))
+                Text("Chọn bộ gõ dùng cho tiếng Việt").font(.system(size: 11)).foregroundColor(.secondary)
+            }
+            Spacer()
+            Button("Xong") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Enabled input sources
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Bộ gõ đang dùng")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+
+                    if enabledSources.isEmpty {
+                        Text("Chưa có bộ gõ nào")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 20)
+                    } else {
+                        ForEach(enabledSources) { source in
+                            InputSourceRow(
+                                source: source,
+                                isVietnamese: appState.vietnameseInputSources.contains(source.id),
+                                isCurrent: source.id == appState.currentInputSourceId,
+                                onToggleVietnamese: { isViet in
+                                    if isViet {
+                                        appState.addVietnameseInputSource(source.id)
+                                    } else {
+                                        appState.removeVietnameseInputSource(source.id)
+                                    }
+                                },
+                                onSelect: {
+                                    InputSourceManager.shared.selectInputSource(id: source.id)
+                                    appState.currentInputSourceId = source.id
+                                },
+                                onRemove: enabledSources.count > 1 ? {
+                                    if InputSourceManager.shared.disableInputSource(id: source.id) {
+                                        appState.removeVietnameseInputSource(source.id)
+                                        refreshSources()
+                                    }
+                                } : nil
+                            )
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Help text
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 12))
+                        Text("Gõ Nhanh BẬT khi dùng bộ gõ được đánh dấu")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "circle")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 12))
+                        Text("Gõ Nhanh TẮT khi dùng các bộ gõ khác")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+            .padding(20)
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            Button(action: { showAddSheet = true }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                    Text("Thêm bộ gõ")
+                }
+            }
+            Spacer()
+            Button("Làm mới") { refreshSources() }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private func refreshSources() {
+        enabledSources = InputSourceManager.shared.getEnabledInputSources()
+        availableSources = InputSourceManager.shared.getAllAvailableInputSources()
+        appState.currentInputSourceId = InputSourceManager.shared.getCurrentInputSourceId()
+    }
+}
+
+struct InputSourceRow: View {
+    let source: InputSourceItem
+    let isVietnamese: Bool
+    let isCurrent: Bool
+    let onToggleVietnamese: (Bool) -> Void
+    let onSelect: () -> Void
+    let onRemove: (() -> Void)?
+
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Flag + Name
+            HStack(spacing: 8) {
+                Text(source.flagEmoji)
+                    .font(.system(size: 18))
+                Text(source.localizedName)
+                    .font(.system(size: 13))
+                if isCurrent {
+                    Text("đang dùng")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+            }
+
+            Spacer()
+
+            // Vietnamese toggle
+            Button(action: { onToggleVietnamese(!isVietnamese) }) {
+                HStack(spacing: 4) {
+                    Image(systemName: isVietnamese ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(isVietnamese ? .green : .secondary)
+                    Text("Việt")
+                        .font(.system(size: 11))
+                        .foregroundColor(isVietnamese ? .primary : .secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(isVietnamese ? "Gõ Nhanh sẽ BẬT khi dùng bộ gõ này" : "Gõ Nhanh sẽ TẮT khi dùng bộ gõ này")
+
+            // Remove button (only show on hover if allowed)
+            if let onRemove = onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.plain)
+                .opacity(hovered ? 1 : 0)
+                .help("Xóa bộ gõ này")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isCurrent ? Color.accentColor.opacity(0.1) : (hovered ? Color(NSColor.controlBackgroundColor) : Color.clear))
+        )
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .onTapGesture { onSelect() }
+    }
+}
+
+struct AddInputSourceSheet: View {
+    let availableSources: [InputSourceItem]
+    let onAdd: (InputSourceItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+
+    private var filteredSources: [InputSourceItem] {
+        if searchText.isEmpty {
+            return availableSources
+        }
+        return availableSources.filter {
+            $0.localizedName.localizedCaseInsensitiveContains(searchText) ||
+            ($0.languageCode ?? "").localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Thêm bộ gõ").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button("Đóng") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            // Search
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                TextField("Tìm kiếm...", text: $searchText)
+                    .textFieldStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            // List
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    ForEach(filteredSources) { source in
+                        Button(action: {
+                            onAdd(source)
+                            dismiss()
+                        }) {
+                            HStack(spacing: 12) {
+                                Text(source.flagEmoji).font(.system(size: 18))
+                                Text(source.localizedName).font(.system(size: 13))
+                                Spacer()
+                                Image(systemName: "plus.circle")
+                                    .foregroundColor(.accentColor)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(12)
+            }
+        }
+        .frame(width: 400, height: 350)
     }
 }
 

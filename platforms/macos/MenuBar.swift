@@ -98,6 +98,19 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 self?.updateMenu()
             }
             .store(in: &cancellables)
+
+        // Observe input source changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInputSourceChanged),
+            name: .inputSourceChanged,
+            object: nil
+        )
+    }
+
+    @objc private func handleInputSourceChanged() {
+        updateStatusButton()
+        updateMenu()
     }
 
     @objc private func handleShowSettingsPage() {
@@ -124,6 +137,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         vni.target = self
         vni.tag = 11
         menu.addItem(vni)
+        menu.addItem(.separator())
+
+        // Input source submenu
+        let inputSourceItem = NSMenuItem(title: "Chuyển bộ gõ", action: nil, keyEquivalent: "")
+        inputSourceItem.tag = 30
+        inputSourceItem.submenu = buildInputSourceMenu()
+        menu.addItem(inputSourceItem)
         menu.addItem(.separator())
 
         // Settings
@@ -196,6 +216,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         menu.item(withTag: 1)?.view = createHeaderView()
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
+        menu.item(withTag: 30)?.submenu = buildInputSourceMenu()
 
         // Update menu item based on UpdateManager state
         if let updateItem = menu.item(withTag: 20) {
@@ -234,6 +255,41 @@ class MenuBarController: NSObject, NSWindowDelegate {
     @objc private func selectTelex() { appState.setMethod(.telex) }
     @objc private func selectVNI() { appState.setMethod(.vni) }
 
+    // MARK: - Input Source Menu
+
+    private func buildInputSourceMenu() -> NSMenu {
+        let menu = NSMenu()
+        let sources = InputSourceManager.shared.getEnabledInputSources()
+        let currentId = appState.currentInputSourceId
+
+        for source in sources {
+            let item = NSMenuItem(
+                title: source.displayName,
+                action: #selector(switchInputSource(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = source.id
+            item.state = source.id == currentId ? .on : .off
+
+            // Add indicator if this source enables Vietnamese
+            if appState.vietnameseInputSources.contains(source.id) {
+                item.title = "\(source.displayName) (Việt)"
+            }
+
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    @objc private func switchInputSource(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        InputSourceManager.shared.selectInputSource(id: id)
+        appState.currentInputSourceId = id
+        updateMenu()
+    }
+
     @objc private func handleUpdateAction() {
         switch UpdateManager.shared.state {
         case .available, .idle, .error, .upToDate:
@@ -259,9 +315,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setEnabled(appState.isEnabled)
         RustBridge.setMethod(appState.currentMethod.rawValue)
 
-        // Sync shortcuts and start per-app mode manager
+        // Sync shortcuts and start managers
         appState.syncShortcutsToEngine()
         PerAppModeManager.shared.start()
+        InputSourceObserver.shared.start()
 
         // Reopen settings if coming from update
         if UserDefaults.standard.bool(forKey: SettingsKey.reopenSettingsAfterUpdate) {
