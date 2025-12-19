@@ -316,35 +316,47 @@ Toggle("Tự động tắt khi dùng IME khác (Nhật, Trung, Hàn...)", isOn: 
 
 ## Phương án B: Input Source Manager UI (ĐỀ XUẤT CHÍNH)
 
-**Mô tả:** Xây dựng UI quản lý Input Sources ngay trong app, cho phép user:
-1. Xem danh sách tất cả Input Sources đã cài trên máy
-2. Toggle ON/OFF cho từng Input Source
-3. Chuyển đổi Input Source trực tiếp từ menu bar của Gõ Nhanh
+**Nguyên tắc cốt lõi:** Gõ Nhanh là bộ gõ tiếng Việt, chỉ nên BẬT khi user muốn gõ tiếng Việt.
 
-### Mockup UI
+**Logic đơn giản:**
+- User chọn những input source nào dùng để gõ tiếng Việt (thường là ABC/US English)
+- Khi chuyển sang input source khác → Gõ Nhanh TẮT (vì user đang muốn gõ ngôn ngữ khác)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Input Source          │  Gõ Nhanh  │  Lý do               │
+├─────────────────────────────────────────────────────────────┤
+│  🇺🇸 ABC (English)      │    BẬT     │  Dùng để gõ Việt     │
+│  🇺🇸 US International   │    BẬT     │  Dùng để gõ Việt     │
+│  🇯🇵 Japanese           │    TẮT     │  Đang gõ tiếng Nhật  │
+│  🇫🇷 French             │    TẮT     │  Đang gõ tiếng Pháp  │
+│  🇨🇳 Chinese            │    TẮT     │  Đang gõ tiếng Trung │
+│  🇰🇷 Korean             │    TẮT     │  Đang gõ tiếng Hàn   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mockup UI (Đơn giản hóa)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Cài đặt > Quản lý bộ gõ                                    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Gõ Nhanh sẽ TẮT khi bạn chuyển sang các bộ gõ sau:        │
+│  Chọn bộ gõ dùng để gõ tiếng Việt:                         │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ 🇯🇵  Japanese - Hiragana          [●] Tắt Gõ Nhanh  │   │
-│  │ 🇯🇵  Japanese - Katakana          [●] Tắt Gõ Nhanh  │   │
-│  │ 🇨🇳  Chinese - Pinyin             [●] Tắt Gõ Nhanh  │   │
-│  │ 🇰🇷  Korean - 2-Set               [●] Tắt Gõ Nhanh  │   │
-│  │ 🇹🇭  Thai - Kedmanee              [●] Tắt Gõ Nhanh  │   │
-│  │ ─────────────────────────────────────────────────── │   │
-│  │ 🇺🇸  ABC (English)                [○] Bật Gõ Nhanh  │   │
-│  │ 🇺🇸  U.S. International           [○] Bật Gõ Nhanh  │   │
+│  │ [✓] 🇺🇸  ABC                                         │   │
+│  │ [✓] 🇺🇸  U.S. International                          │   │
+│  │ [ ] 🇯🇵  Japanese - Hiragana                         │   │
+│  │ [ ] 🇯🇵  Japanese - Katakana                         │   │
+│  │ [ ] 🇨🇳  Chinese - Pinyin                            │   │
+│  │ [ ] 🇫🇷  French                                       │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  [+] Thêm bộ gõ mới...  (mở System Preferences)            │
+│  Gõ Nhanh sẽ TỰ ĐỘNG TẮT khi bạn chuyển sang               │
+│  các bộ gõ không được chọn ở trên.                         │
 │                                                             │
-│  ☑ Tự động phát hiện bộ gõ không phải Latin                │
-│    (Mặc định tắt Gõ Nhanh cho các bộ gõ CJK mới thêm)      │
+│  [+] Thêm bộ gõ mới...  (mở System Preferences)            │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -373,10 +385,7 @@ struct InputSourceItem: Identifiable, Codable, Hashable {
     let id: String              // e.g., "com.apple.keylayout.ABC"
     let localizedName: String   // e.g., "ABC"
     let languageCode: String?   // e.g., "en", "ja", "zh"
-    let scriptCode: Int32       // 0 = Latin, 1 = Japanese, 2 = Chinese...
-    var disableGoNhanh: Bool    // User preference: disable Gõ Nhanh when active
-
-    var isLatin: Bool { scriptCode == 0 }
+    var useForVietnamese: Bool  // User chọn dùng source này để gõ tiếng Việt
 
     var flagEmoji: String {
         switch languageCode {
@@ -385,10 +394,23 @@ struct InputSourceItem: Identifiable, Codable, Hashable {
         case "ko": return "🇰🇷"
         case "th": return "🇹🇭"
         case "vi": return "🇻🇳"
-        default: return "🇺🇸"
+        case "fr": return "🇫🇷"
+        case "de": return "🇩🇪"
+        case "es": return "🇪🇸"
+        case "en": return "🇺🇸"
+        default: return "🌐"
         }
     }
 }
+
+// Default: Chỉ bật cho các English keyboard layouts
+let defaultVietnameseInputSources = [
+    "com.apple.keylayout.ABC",
+    "com.apple.keylayout.US",
+    "com.apple.keylayout.USInternational-PC",
+    "com.apple.keylayout.British",
+    "com.apple.keylayout.Australian"
+]
 ```
 
 ### API để lấy danh sách Input Sources
