@@ -76,6 +76,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(handleInputSourceChanged),
+            name: .inputSourceChanged,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(handleShowSettingsPage),
             name: .showSettingsPage,
             object: nil
@@ -282,7 +289,17 @@ class MenuBarController: NSObject, NSWindowDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let button = self.statusItem.button else { return }
             button.title = ""
-            button.image = self.createStatusIcon(text: self.appState.isEnabled ? "V" : "E")
+
+            let observer = InputSourceObserver.shared
+            let text: String
+            if observer.isAllowedInputSource {
+                // English keyboard: show V (enabled) or E (disabled)
+                text = self.appState.isEnabled ? "V" : "E"
+            } else {
+                // Non-English keyboard: show input source character
+                text = observer.currentDisplayChar
+            }
+            button.image = self.createStatusIcon(text: text)
         }
     }
 
@@ -329,6 +346,11 @@ class MenuBarController: NSObject, NSWindowDelegate {
     }
 
     @objc private func handleMenuStateChanged() {
+        updateStatusButton()
+        updateMenu()
+    }
+
+    @objc private func handleInputSourceChanged() {
         updateStatusButton()
         updateMenu()
     }
