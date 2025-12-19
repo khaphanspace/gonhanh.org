@@ -552,20 +552,33 @@ private func keyboardCallback(
             return nil
         }
 
-        // Modifier changes: track or save modifier-only shortcut on release
+        // Modifier changes: track peak modifiers for modifier-only shortcuts
         if type == .flagsChanged {
-            if mods.isEmpty && recordingModifiers.modifierCount >= 2 {
-                let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: recordingModifiers.rawValue)
-                stopShortcutRecording()
-                DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }
+            if mods.isEmpty {
+                // All modifiers released - check if we had a combo
+                if recordingModifiers.modifierCount >= 2 {
+                    let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: recordingModifiers.rawValue)
+                    stopShortcutRecording()
+                    DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }
+                }
+                recordingModifiers = []
             } else {
-                recordingModifiers = mods
+                // Accumulate modifiers (so we don't lose them when releasing one by one)
+                // e.g. Hold Ctrl -> [Ctrl], Hold Shift -> [Ctrl, Shift], Release Shift -> [Ctrl]
+                // We want to keep [Ctrl, Shift] as the "peak" state
+                if mods.modifierCount > recordingModifiers.modifierCount {
+                    recordingModifiers = mods
+                }
             }
             return Unmanaged.passUnretained(event)
         }
 
-        // Key + modifiers: save shortcut (e.g., Ctrl+Shift+N)
-        if type == .keyDown && !mods.isEmpty {
+        // Key + modifiers OR Function/Special keys: save shortcut
+        // We only block simple text keys (A-Z, 0-9) without modifiers to prevent locking the user out
+        // Heuristic: Standard text keys are mostly < 0x33. Function/Nav keys are higher.
+        // Exception: Space (0x31) is a text key but valid with modifiers (handled by !mods.isEmpty)
+        let isSimpleTextKey = keyCode < 0x33
+        if type == .keyDown && (!mods.isEmpty || !isSimpleTextKey) {
             let captured = KeyboardShortcut(keyCode: keyCode, modifiers: mods.rawValue)
             stopShortcutRecording()
             DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }
