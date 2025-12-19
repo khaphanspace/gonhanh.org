@@ -338,15 +338,19 @@ fn air_stays_vietnamese() {
 // These produce structurally valid Vietnamese
 // =============================================================================
 
+/// Documents words that CANNOT be auto-detected without a dictionary.
+/// These produce structurally valid Vietnamese and are intentionally NOT restored.
+/// Users should use raw mode prefix (\word) or Esc to get English spelling.
 #[test]
-#[ignore] // These CANNOT be auto-detected without dictionary
 fn words_that_stay_transformed() {
-    // These produce valid Vietnamese structures
-    // Users should use raw mode (\word) or Esc to restore
+    // These produce valid Vietnamese structures - NOT auto-restored by design
     telex(&[
-        ("mix ", "mix "), // → "mĩ" (valid Vietnamese)
-        ("box ", "box "), // → "bõ" (valid Vietnamese)
-        ("six ", "six "), // → "sĩ" (valid Vietnamese)
+        ("mix ", "mĩ "),  // m + i + x(ngã) → mĩ (valid Vietnamese: "beautiful" in Sino-Vietnamese)
+        ("box ", "bõ "),  // b + o + x(ngã) → bõ (valid Vietnamese structure)
+        ("six ", "sĩ "),  // s + i + x(ngã) → sĩ (valid Vietnamese: "scholar/official")
+        ("tax ", "tã "),  // t + a + x(ngã) → tã (valid Vietnamese: "diaper")
+        ("max ", "mã "),  // m + a + x(ngã) → mã (valid Vietnamese: "horse/code")
+        ("fox ", "fox "),  // F is invalid initial → auto-restores to "fox"
     ]);
 }
 

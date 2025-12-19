@@ -1323,13 +1323,11 @@ const TELEX_BREVE_EDGE_CASES: &[(&str, &str)] = &[
 // ============================================================
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn telex_invalid_breve_open_syllable() {
     telex(TELEX_INVALID_BREVE_OPEN);
 }
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn vni_invalid_breve_open_syllable() {
     vni(VNI_INVALID_BREVE_OPEN);
 }
@@ -1345,25 +1343,21 @@ fn vni_valid_breve_with_final() {
 }
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn telex_invalid_breve_diphthong() {
     telex(TELEX_INVALID_BREVE_DIPHTHONG);
 }
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn vni_invalid_breve_diphthong() {
     vni(VNI_INVALID_BREVE_DIPHTHONG);
 }
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn telex_english_aw_words() {
     telex(TELEX_ENGLISH_AW_WORDS);
 }
 
 #[test]
-#[ignore = "Issue #44: pending breve deferral feature"]
 fn telex_breve_edge_cases() {
     telex(TELEX_BREVE_EDGE_CASES);
 }

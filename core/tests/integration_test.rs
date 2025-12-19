@@ -467,11 +467,8 @@ fn foreign_word_string_no_mark() {
     );
 }
 
-/// KNOWN LIMITATION: "express" starts with "ex-" which we can't distinguish from Vietnamese "ẽ".
-/// Blocking standalone "e" + "x" would break Vietnamese words starting with "ẽ".
-/// This test represents aspirational behavior for future auto-restore feature.
+/// Auto-restore now handles "express" - the "xp" pattern (x followed by consonant) is detected.
 #[test]
-#[ignore = "Requires auto-restore for standalone ex- prefix (conflicts with Vietnamese ẽ)"]
 fn foreign_word_express_no_mark() {
     let mut e = Engine::new();
     // "express" - 'r' after 'p' should not apply mark
@@ -1084,11 +1081,8 @@ fn foreign_word_text_no_mark() {
     );
 }
 
-/// KNOWN LIMITATION: "expect" starts with "ex-" which we can't distinguish from Vietnamese "ẽ".
-/// Blocking standalone "e" + "x" would break Vietnamese words starting with "ẽ".
-/// Unlike "text" which has a consonant before 'e', "expect" starts directly with 'e'.
+/// Auto-restore now handles "expect" - the "xp" pattern (x followed by consonant) is detected.
 #[test]
-#[ignore = "Requires auto-restore for standalone ex- prefix (conflicts with Vietnamese ẽ)"]
 fn foreign_word_expect_no_mark() {
     let mut e = Engine::new();
     let expect_result = type_word(&mut e, "expect");
