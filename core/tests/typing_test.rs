@@ -838,7 +838,12 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tong7", "tơng"),
     ("tang8", "tăng"),
     // VNI allows delayed stroke - '9' is always intentional, not a letter
+    // All positions of '9' should work
+    ("d9ung", "đung"),
+    ("du9ng", "đung"),
     ("dung9", "đung"),
+    ("D9ung", "Đung"),
+    ("Du9ng", "Đung"),
     ("Dung9", "Đung"),
 ];
 
@@ -927,7 +932,12 @@ const VNI_DELAYED_TONE: &[(&str, &str)] = &[
     ("to71", "tớ"),
     ("ho72", "hờ"),
     // VNI delayed stroke - '9' is always intentional stroke command
-    ("duong972", "đường"),  // d + uong + 9 (stroke) + 7 (horn) + 2 (huyền)
+    // All positions of '9' should work for đường
+    ("d9uong72", "đường"),  // d9 + uong + 7 (horn) + 2 (huyền)
+    ("du9ong72", "đường"),  // d + u9 + ong + 7 + 2
+    ("duo9ng72", "đường"),  // d + uo + 9 + ng + 7 + 2
+    ("duon9g72", "đường"),  // d + uon + 9 + g + 7 + 2
+    ("duong972", "đường"),  // d + uong + 9 + 7 + 2
     ("truong72", "trường"), // no đ, just ươ compound
     ("nuoc71", "nước"),     // no đ
     ("nguoi72", "người"),   // no đ
