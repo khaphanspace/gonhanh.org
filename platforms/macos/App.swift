@@ -17,9 +17,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         menuBar = MenuBarController()
+
+        // Start observing input source changes
+        InputSourceObserver.shared.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         KeyboardHookManager.shared.stop()
+        InputSourceObserver.shared.stop()
     }
 }
