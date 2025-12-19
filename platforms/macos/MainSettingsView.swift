@@ -1153,151 +1153,107 @@ struct InputSourcesSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var enabledSources: [InputSourceItem] = []
 
+    // Ngôn ngữ đang sử dụng (trong whitelist)
+    private var selectedLanguages: [InputSourceItem] {
+        enabledSources.filter { appState.vietnameseInputSources.contains($0.id) }
+    }
+
+    // Ngôn ngữ có thể thêm (có trong macOS nhưng chưa thêm)
+    private var availableLanguages: [InputSourceItem] {
+        enabledSources.filter { !appState.vietnameseInputSources.contains($0.id) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            header
+            // Header
+            HStack {
+                Text("Ngôn ngữ sử dụng").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button("Xong") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
             Divider()
-            content
-            Divider()
-            footer
+
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Danh sách ngôn ngữ đang dùng
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Đang sử dụng")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+
+                        if selectedLanguages.isEmpty {
+                            Text("Chưa thêm ngôn ngữ nào")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 12)
+                        } else {
+                            ForEach(selectedLanguages) { source in
+                                LanguageItem(
+                                    source: source,
+                                    actionIcon: "minus.circle.fill",
+                                    actionColor: .red,
+                                    onAction: { appState.removeVietnameseInputSource(source.id) }
+                                )
+                            }
+                        }
+                    }
+
+                    if !availableLanguages.isEmpty {
+                        Divider()
+
+                        // Ngôn ngữ có thể thêm
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Thêm ngôn ngữ")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            ForEach(availableLanguages) { source in
+                                LanguageItem(
+                                    source: source,
+                                    actionIcon: "plus.circle.fill",
+                                    actionColor: .green,
+                                    onAction: { appState.addVietnameseInputSource(source.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
         }
-        .frame(width: 420, height: 380)
+        .frame(width: 380, height: 340)
         .onAppear { refreshSources() }
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Quản lý ngôn ngữ").font(.system(size: 15, weight: .semibold))
-                Text("Chọn ngôn ngữ bật Gõ Nhanh").font(.system(size: 11)).foregroundColor(.secondary)
-            }
-            Spacer()
-            Button("Xong") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-    }
-
-    private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                // Vietnamese enabled languages
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ngôn ngữ bật Gõ Nhanh")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 4)
-
-                    let vietnameseSources = enabledSources.filter { appState.vietnameseInputSources.contains($0.id) }
-                    if vietnameseSources.isEmpty {
-                        Text("Chưa chọn ngôn ngữ nào")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 12)
-                    } else {
-                        ForEach(vietnameseSources) { source in
-                            LanguageRow(
-                                source: source,
-                                isVietnamese: true,
-                                isCurrent: source.id == appState.currentInputSourceId,
-                                onToggle: { appState.removeVietnameseInputSource(source.id) }
-                            )
-                        }
-                    }
-                }
-
-                Divider().padding(.vertical, 4)
-
-                // Other languages (Gõ Nhanh disabled)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ngôn ngữ tắt Gõ Nhanh")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
-
-                    let otherSources = enabledSources.filter { !appState.vietnameseInputSources.contains($0.id) }
-                    if otherSources.isEmpty {
-                        Text("Tất cả ngôn ngữ đều bật Gõ Nhanh")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 12)
-                    } else {
-                        ForEach(otherSources) { source in
-                            LanguageRow(
-                                source: source,
-                                isVietnamese: false,
-                                isCurrent: source.id == appState.currentInputSourceId,
-                                onToggle: { appState.addVietnameseInputSource(source.id) }
-                            )
-                        }
-                    }
-                }
-            }
-            .padding(20)
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Image(systemName: "info.circle")
-                .foregroundColor(.secondary)
-                .font(.system(size: 12))
-            Text("Click để thêm/bỏ ngôn ngữ")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-            Spacer()
-            Button("Làm mới") { refreshSources() }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
     }
 
     private func refreshSources() {
         enabledSources = InputSourceManager.shared.getEnabledInputSources()
-        appState.currentInputSourceId = InputSourceManager.shared.getCurrentInputSourceId()
     }
 }
 
-struct LanguageRow: View {
+struct LanguageItem: View {
     let source: InputSourceItem
-    let isVietnamese: Bool
-    let isCurrent: Bool
-    let onToggle: () -> Void
+    let actionIcon: String
+    let actionColor: Color
+    let onAction: () -> Void
 
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Status icon
-            Image(systemName: isVietnamese ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(isVietnamese ? .green : .secondary)
-                .font(.system(size: 14))
-
-            // Flag + Name
-            HStack(spacing: 8) {
-                Text(source.flagEmoji)
-                    .font(.system(size: 16))
-                Text(source.localizedName)
-                    .font(.system(size: 13))
-                if isCurrent {
-                    Text("đang dùng")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-            }
-
+        HStack(spacing: 10) {
+            Text(source.flagEmoji).font(.system(size: 16))
+            Text(source.localizedName).font(.system(size: 13))
             Spacer()
-
-            // Action hint
-            Text(isVietnamese ? "Bỏ" : "Thêm")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-                .opacity(hovered ? 1 : 0)
+            Button(action: onAction) {
+                Image(systemName: actionIcon)
+                    .foregroundColor(actionColor)
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .opacity(hovered ? 1 : 0.6)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -1307,8 +1263,6 @@ struct LanguageRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
-        .onTapGesture { onToggle() }
-        .help(isVietnamese ? "Click để tắt Gõ Nhanh cho ngôn ngữ này" : "Click để bật Gõ Nhanh cho ngôn ngữ này")
     }
 }
 
