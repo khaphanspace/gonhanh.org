@@ -297,9 +297,11 @@ fn stroke_dd() {
 }
 
 #[test]
-fn stroke_delayed() {
-    // Delayed stroke: d + vowel + d → đ + vowel
-    telex(&[("dod", "đo"), ("dad", "đa"), ("did", "đi"), ("dud", "đu")]);
+fn stroke_requires_adjacent() {
+    // Issue #51: stroke only applies when 'd's are ADJACENT
+    // d + vowel + d → d + vowel + d (NO stroke - not adjacent)
+    // This allows typing English words like "deadline" without false transformation
+    telex(&[("dod", "dod"), ("dad", "dad"), ("did", "did"), ("dud", "dud")]);
 }
 
 #[test]

@@ -528,43 +528,48 @@ impl Engine {
     }
 
     /// Try to apply stroke transformation by scanning buffer
+    ///
+    /// Issue #51: Only apply stroke when the new 'd' is ADJACENT to an existing 'd'.
+    /// According to Vietnamese Telex docs (Section 9.2.2), "dd" → "đ" should only
+    /// work when the two 'd's are consecutive. For words like "deadline", the 'd's
+    /// are separated by "ea", so stroke should NOT apply.
     fn try_stroke(&mut self, key: u16) -> Option<Result> {
-        // Scan buffer for un-stroked 'd'
-        let d_pos = self
-            .buf
-            .iter()
-            .enumerate()
-            .find(|(_, c)| c.key == keys::D && !c.stroke)
-            .map(|(i, _)| i);
+        // Issue #51: Check if the LAST character in buffer is an un-stroked 'd'
+        // Only apply stroke when the new 'd' would be adjacent to an existing 'd'
+        let last_pos = self.buf.len().checked_sub(1)?;
+        let last_char = self.buf.get(last_pos)?;
 
-        if let Some(pos) = d_pos {
-            // Check revert: if last transform was stroke on same key at same position
-            if let Some(Transform::Stroke(last_key)) = self.last_transform {
-                if last_key == key {
-                    return Some(self.revert_stroke(key, pos));
-                }
-            }
-
-            // Validate buffer structure before applying stroke
-            // Only validate if buffer has vowels (complete syllable)
-            // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
-            // Skip validation if free_tone mode is enabled
-            let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-            let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
-            if !self.free_tone_enabled && has_vowel && !is_valid_for_transform(&buffer_keys) {
-                return None;
-            }
-
-            // Mark as stroked
-            if let Some(c) = self.buf.get_mut(pos) {
-                c.stroke = true;
-            }
-
-            self.last_transform = Some(Transform::Stroke(key));
-            return Some(self.rebuild_from(pos));
+        // Only apply stroke if last char is un-stroked 'd'
+        if last_char.key != keys::D || last_char.stroke {
+            return None;
         }
 
-        None
+        let pos = last_pos;
+
+        // Check revert: if last transform was stroke on same key at same position
+        if let Some(Transform::Stroke(last_key)) = self.last_transform {
+            if last_key == key {
+                return Some(self.revert_stroke(key, pos));
+            }
+        }
+
+        // Validate buffer structure before applying stroke
+        // Only validate if buffer has vowels (complete syllable)
+        // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
+        // Skip validation if free_tone mode is enabled
+        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        let has_vowel = buffer_keys.iter().any(|&k| keys::is_vowel(k));
+        if !self.free_tone_enabled && has_vowel && !is_valid_for_transform(&buffer_keys) {
+            return None;
+        }
+
+        // Mark as stroked
+        if let Some(c) = self.buf.get_mut(pos) {
+            c.stroke = true;
+        }
+
+        self.last_transform = Some(Transform::Stroke(key));
+        Some(self.rebuild_from(pos))
     }
 
     /// Try to apply tone transformation by scanning buffer for targets

@@ -10,17 +10,19 @@ fn paragraph_telex() {
     // - đ = dd
     // - sắc/huyền/hỏi/ngã/nặng = s/f/r/x/j
     //
-    // Note: Foreign words (Google, Docs, expect, deadline, burnout) are typed literally
+    // Note: Foreign words (Google, Docs, expect, burnout) are typed literally
     // and WILL be transformed by the engine because they contain valid Vietnamese patterns:
     // - oo → ô (Google → Gôgle)
     // - s after vowel → sắc (Docs → Dóc)
     // - x → ngã, second e → circumflex (expect → ễpct)
-    // - second d triggers stroke on first d (deadline → đealine)
     // - r → hỏi (burnout → bủnout)
+    //
+    // Issue #51: "deadline" now stays as "deadline" because the 'd's are not adjacent.
+    // In Telex, "dd" → "đ" only applies when the two 'd's are consecutive.
     //
     // www behavior: w→ư, ww→w (revert), www→ww (subsequent w added normally)
     let input = "Tooi ddax thuwr raats nhieeuf booj gox tieengs Vieetj treen macOS nhuwng toanf gawpj bug khos chiuj. Gox treen Chrome thif bij dinhs chuwx \"aaa\" thanhf \"aâ\", gox www thif thanhf \"ưưư\", vaof Claude Code thif lawpj kys tuwj lung tung, conf Google Docs thif cuws maats daaus giuwax chuwngf. Frustrated voo cungf neen tooi quyeets ddinhj tuwj build Gox Nhanh - booj gox handle muwowjt maf ngay car nhuwngx tuwf khos nhuw: giuwowngf, khuyru tay, khuyeens khichs, chuyeenr ddooir, nguyeenj vongj, huyr hoaij, quynhf hoa, khoer khoawns, loaf xoaf, nghieeng ngar. Giowf tooi cos theer thoair mais prompt Claude Code bawngf tieengs Vieetj, soanj proposal hay update report maf khoong stress veef typo nuwax. DDungs nhuw expect, deadline gaaps maf gox sai hoaif thif burnout laf cais chawcs. Legit recommend cho anh em dev, xaif laf ghieenf luoon as! Neeus cos feedback gif thif inbox tooi qua nhatkha1407@gmail.com nha.";
-    let expected = "Tôi đã thử rất nhiều bộ gõ tiếng Việt trên macOS nhưng toàn gặp bug khó chịu. Gõ trên Chrome thì bị dính chữ \"aa\" thành \"aâ\", gõ ww thì thành \"ưưư\", vào Claude Code thì lặp ký tự lung tung, còn Gôgle Dóc thì cứ mất dấu giữa chừng. Frustrated vô cùng nên tôi quyết định tự build Gõ Nhanh - bộ gõ handle mượt mà ngay cả những từ khó như: giừơng, khuỷu tay, khuyến khích, chuyển đổi, nguyện vọng, huỷ hoại, quỳnh hoa, khoẻ khoắn, loà xoà, nghiêng ngả. Giờ tôi có thể thoải mái prompt Claude Code bằng tiếng Việt, soạn proposal hay update report mà không stress về typo nữa. Đúng như ễpct, đealine gấp mà gõ sai hoài thì bủnout là cái chắc. Legit recommend cho anh em dev, xài là ghiền luôn á! Nếu có feedback gì thì inbox tôi qua nhatkha1407@gmail.com nha.";
+    let expected = "Tôi đã thử rất nhiều bộ gõ tiếng Việt trên macOS nhưng toàn gặp bug khó chịu. Gõ trên Chrome thì bị dính chữ \"aa\" thành \"aâ\", gõ ww thì thành \"ưưư\", vào Claude Code thì lặp ký tự lung tung, còn Gôgle Dóc thì cứ mất dấu giữa chừng. Frustrated vô cùng nên tôi quyết định tự build Gõ Nhanh - bộ gõ handle mượt mà ngay cả những từ khó như: giừơng, khuỷu tay, khuyến khích, chuyển đổi, nguyện vọng, huỷ hoại, quỳnh hoa, khoẻ khoắn, loà xoà, nghiêng ngả. Giờ tôi có thể thoải mái prompt Claude Code bằng tiếng Việt, soạn proposal hay update report mà không stress về typo nữa. Đúng như ễpct, deadline gấp mà gõ sai hoài thì bủnout là cái chắc. Legit recommend cho anh em dev, xài là ghiền luôn á! Nếu có feedback gì thì inbox tôi qua nhatkha1407@gmail.com nha.";
 
     telex(&[(input, expected)]);
 }

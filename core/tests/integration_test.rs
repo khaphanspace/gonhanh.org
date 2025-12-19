@@ -1160,30 +1160,36 @@ fn z_still_removes_marks_in_telex() {
 /// Issue #24: All possible Telex combinations for "đọc"
 ///
 /// đọc = đ (stroke) + ọ (nặng mark) + c
-/// - đ: requires "dd" (can be split: d...d)
+/// - đ: requires "dd" (MUST be adjacent - Issue #51)
 /// - ọ: requires "o" + "j" (j can come after c)
 /// - c: just "c"
 ///
-/// Test all valid typing orders that should produce "đọc"
+/// Issue #51: stroke only applies when 'd's are ADJACENT.
+/// Non-adjacent 'd' patterns (like "deadline") no longer trigger stroke.
 #[test]
 fn telex_doc_all_combinations() {
-    // Standard patterns - dd at start
+    // Standard patterns - dd at start (ONLY valid patterns for đ)
     telex(&[
         ("ddojc", "đọc"), // dd + oj + c (most common)
         ("ddocj", "đọc"), // dd + oc + j (mark at end)
     ]);
 
-    // D-postfix patterns - one d at start, stroke applied at end
+    // Issue #51: D-postfix patterns NO LONGER produce đ
+    // Stroke requires adjacent 'd's to prevent false positives with English words
     telex(&[
-        ("dojcd", "đọc"), // d + oj + c + d (stroke at end)
-        ("docjd", "đọc"), // d + oc + j + d (mark then stroke at end)
-        ("docdj", "đọc"), // d + oc + d + j (stroke then mark at end)
+        ("dojcd", "dọcd"), // d + oj + c + d (no stroke - d's not adjacent)
+        ("docjd", "dọcd"), // d + oc + j + d (no stroke - d's not adjacent)
+        // Note: "docdj" → "docdj" because "docd" has invalid final "cd",
+        // so the 'j' mark is rejected by validation
+        ("docdj", "docdj"),
     ]);
 
-    // Mixed order - d after vowel but before final consonant
+    // Issue #51: Mixed order patterns also NO LONGER produce đ
     telex(&[
-        ("dojdc", "đọc"), // d + oj + d + c
-        ("dodjc", "đọc"), // d + od + j + c (stroke mid-word)
+        ("dojdc", "dọdc"), // d + oj + d + c (no stroke - d's not adjacent)
+        // Note: "dodjc" → "dodjc" because "dod" has invalid structure
+        // (d is not a valid final consonant in Vietnamese), so 'j' mark is rejected
+        ("dodjc", "dodjc"),
     ]);
 }
 
