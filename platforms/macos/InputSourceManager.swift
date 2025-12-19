@@ -85,10 +85,11 @@ class InputSourceManager {
             .filter { !excludedIds.contains($0.id) && !$0.id.contains("Dictation") && !$0.id.contains("Emoji") }
     }
 
-    /// Get all available input sources (including disabled ones)
+    /// Get all available keyboard input sources (including disabled ones, excluding Emoji, Dictation, etc.)
     func getAllAvailableInputSources() -> [InputSourceItem] {
         let properties: [CFString: Any] = [
-            kTISPropertyInputSourceIsSelectCapable: true
+            kTISPropertyInputSourceIsSelectCapable: true,
+            kTISPropertyInputSourceCategory: kTISCategoryKeyboardInputSource
         ]
 
         guard let cfSources = TISCreateInputSourceList(properties as CFDictionary, true)?.takeRetainedValue() else {
@@ -100,6 +101,10 @@ class InputSourceManager {
 
         return sources.compactMap { source -> InputSourceItem? in
             guard var item = parseInputSource(source, isEnabled: false) else { return nil }
+            // Filter out non-language items
+            guard !excludedIds.contains(item.id) && !item.id.contains("Dictation") && !item.id.contains("Emoji") else {
+                return nil
+            }
             item.isEnabled = enabledIds.contains(item.id)
             return item
         }

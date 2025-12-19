@@ -1155,23 +1155,23 @@ struct LaunchAtLoginBanner: View {
 struct InputSourcesSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
-    @State private var enabledSources: [InputSourceItem] = []
+    @State private var allSources: [InputSourceItem] = []
 
-    // Ngôn ngữ đang sử dụng (trong whitelist)
-    private var selectedLanguages: [InputSourceItem] {
-        enabledSources.filter { appState.vietnameseInputSources.contains($0.id) }
+    // Ngôn ngữ đang bật trong macOS
+    private var enabledLanguages: [InputSourceItem] {
+        allSources.filter { $0.isEnabled }
     }
 
-    // Ngôn ngữ có thể thêm (có trong macOS nhưng chưa thêm)
+    // Ngôn ngữ có thể thêm (chưa bật trong macOS)
     private var availableLanguages: [InputSourceItem] {
-        enabledSources.filter { !appState.vietnameseInputSources.contains($0.id) }
+        allSources.filter { !$0.isEnabled }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Ngôn ngữ sử dụng").font(.system(size: 15, weight: .semibold))
+                Text("Quản lý ngôn ngữ").font(.system(size: 15, weight: .semibold))
                 Spacer()
                 Button("Xong") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
             }
@@ -1183,24 +1183,29 @@ struct InputSourcesSheet: View {
             // Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Danh sách ngôn ngữ đang dùng
+                    // Danh sách ngôn ngữ đang dùng trong macOS
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Đang sử dụng")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
 
-                        if selectedLanguages.isEmpty {
-                            Text("Chưa thêm ngôn ngữ nào")
+                        if enabledLanguages.isEmpty {
+                            Text("Chưa có ngôn ngữ nào")
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(selectedLanguages) { source in
+                            ForEach(enabledLanguages) { source in
                                 LanguageItem(
                                     source: source,
                                     actionIcon: "minus.circle.fill",
                                     actionColor: .red,
-                                    onAction: { appState.removeVietnameseInputSource(source.id) }
+                                    onAction: {
+                                        // Disable in macOS
+                                        if InputSourceManager.shared.disableInputSource(id: source.id) {
+                                            refreshSources()
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -1209,7 +1214,7 @@ struct InputSourcesSheet: View {
                     if !availableLanguages.isEmpty {
                         Divider()
 
-                        // Ngôn ngữ có thể thêm
+                        // Ngôn ngữ có thể thêm (chưa bật trong macOS)
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Thêm ngôn ngữ")
                                 .font(.system(size: 12, weight: .medium))
@@ -1220,7 +1225,12 @@ struct InputSourcesSheet: View {
                                     source: source,
                                     actionIcon: "plus.circle.fill",
                                     actionColor: .green,
-                                    onAction: { appState.addVietnameseInputSource(source.id) }
+                                    onAction: {
+                                        // Enable in macOS
+                                        if InputSourceManager.shared.enableInputSource(id: source.id) {
+                                            refreshSources()
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -1229,12 +1239,12 @@ struct InputSourcesSheet: View {
                 .padding(20)
             }
         }
-        .frame(width: 380, height: 340)
+        .frame(width: 380, height: 400)
         .onAppear { refreshSources() }
     }
 
     private func refreshSources() {
-        enabledSources = InputSourceManager.shared.getEnabledInputSources()
+        allSources = InputSourceManager.shared.getAllAvailableInputSources()
     }
 }
 
