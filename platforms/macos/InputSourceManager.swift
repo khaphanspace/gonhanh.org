@@ -68,7 +68,7 @@ class InputSourceManager {
         "com.apple.inputmethod.Kotoeri.KanaTyping.Roman",
     ]
 
-    /// Get all enabled keyboard input sources (excluding Emoji, Dictation, etc.)
+    /// Get all enabled keyboard input sources (excluding Emoji, Dictation, input modes, etc.)
     func getEnabledInputSources() -> [InputSourceItem] {
         let properties: [CFString: Any] = [
             kTISPropertyInputSourceIsEnabled: true,
@@ -81,11 +81,28 @@ class InputSourceManager {
         }
 
         let sources = cfSources as? [TISInputSource] ?? []
-        return sources.compactMap { parseInputSource($0, isEnabled: true) }
-            .filter { !excludedIds.contains($0.id) && !$0.id.contains("Dictation") && !$0.id.contains("Emoji") }
+        return sources.compactMap { source -> InputSourceItem? in
+            // Filter out input method modes (sub-modes like Hiragana)
+            guard isSelectableInputSource(source) else { return nil }
+            return parseInputSource(source, isEnabled: true)
+        }
+        .filter { !excludedIds.contains($0.id) && !$0.id.contains("Dictation") && !$0.id.contains("Emoji") }
     }
 
-    /// Get all available keyboard input sources (including disabled ones, excluding Emoji, Dictation, etc.)
+    /// Check if input source is a selectable primary input source (not a sub-mode)
+    private func isSelectableInputSource(_ source: TISInputSource) -> Bool {
+        guard let typePtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceType) else {
+            return false
+        }
+        let type = Unmanaged<CFString>.fromOpaque(typePtr).takeUnretainedValue() as String
+
+        // Exclude input method modes (sub-modes like Hiragana, Katakana, Ainu)
+        // kTISTypeKeyboardInputMode represents sub-modes of input methods
+        let inputModeType = kTISTypeKeyboardInputMode as String
+        return type != inputModeType
+    }
+
+    /// Get all available keyboard input sources (including disabled ones, excluding Emoji, Dictation, input modes, etc.)
     func getAllAvailableInputSources() -> [InputSourceItem] {
         let properties: [CFString: Any] = [
             kTISPropertyInputSourceIsSelectCapable: true,
@@ -100,6 +117,8 @@ class InputSourceManager {
         let enabledIds = Set(getEnabledInputSources().map { $0.id })
 
         return sources.compactMap { source -> InputSourceItem? in
+            // Filter out input method modes (sub-modes like Hiragana)
+            guard isSelectableInputSource(source) else { return nil }
             guard var item = parseInputSource(source, isEnabled: false) else { return nil }
             // Filter out non-language items
             guard !excludedIds.contains(item.id) && !item.id.contains("Dictation") && !item.id.contains("Emoji") else {
