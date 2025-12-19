@@ -270,8 +270,13 @@ const VNI_DELAYED: &[(&str, &str)] = &[
     ("to61", "tố"),
     ("ta81", "tắ"),
     // VNI allows delayed stroke - '9' is always intentional
+    // All these patterns should produce "đúng"
+    ("d9ung1", "đúng"),
+    ("du9ng1", "đúng"),
     ("dung91", "đúng"),
-    ("Dung91", "Đúng"),
+    ("dung19", "đúng"),
+    ("D9ung1", "Đúng"),
+    ("Du9ng1", "Đúng"),
 ];
 
 // ============================================================
