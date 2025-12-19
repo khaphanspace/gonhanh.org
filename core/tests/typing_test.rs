@@ -837,11 +837,9 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tung7", "tưng"),
     ("tong7", "tơng"),
     ("tang8", "tăng"),
-    // Issue #51: stroke requires adjacent d+9 in VNI
-    // "dung9" no longer produces "đung" because 9 is not adjacent to d
-    // Use d9ung for correct stroke
-    ("d9ung", "đung"),
-    ("D9ung", "Đung"),
+    // VNI allows delayed stroke - '9' is always intentional, not a letter
+    ("dung9", "đung"),
+    ("Dung9", "Đung"),
 ];
 
 // ============================================================
@@ -928,12 +926,12 @@ const VNI_DELAYED_TONE: &[(&str, &str)] = &[
     ("cu72", "cừ"),
     ("to71", "tớ"),
     ("ho72", "hờ"),
-    // Words with ươ - need d9 adjacent for stroke (Issue #51)
-    ("d9uong72", "đường"),  // d9 + uong + 7 (horn) + 2 (huyền)
+    // VNI delayed stroke - '9' is always intentional stroke command
+    ("duong972", "đường"),  // d + uong + 9 (stroke) + 7 (horn) + 2 (huyền)
     ("truong72", "trường"), // no đ, just ươ compound
     ("nuoc71", "nước"),     // no đ
     ("nguoi72", "người"),   // no đ
-    // Words with đ - must use d9 adjacent (Issue #51)
+    // đ with adjacent d9
     ("d9i", "đi"),
     ("d9o1", "đó"),
     ("d9ang2", "đàng"),

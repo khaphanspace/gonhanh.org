@@ -269,11 +269,9 @@ const VNI_DELAYED: &[(&str, &str)] = &[
     ("tu72", "từ"),
     ("to61", "tố"),
     ("ta81", "tắ"),
-    // Issue #51: stroke requires adjacent d+9
-    ("d9ung1", "đúng"),   // d9 adjacent → đ
-    ("D9ung1", "Đúng"),   // D9 adjacent → Đ
-    // Non-adjacent 9 no longer triggers stroke
-    // These patterns now keep the d as-is
+    // VNI allows delayed stroke - '9' is always intentional
+    ("dung91", "đúng"),
+    ("Dung91", "Đúng"),
 ];
 
 // ============================================================

@@ -529,22 +529,37 @@ impl Engine {
 
     /// Try to apply stroke transformation by scanning buffer
     ///
-    /// Issue #51: Only apply stroke when the new 'd' is ADJACENT to an existing 'd'.
-    /// According to Vietnamese Telex docs (Section 9.2.2), "dd" → "đ" should only
-    /// work when the two 'd's are consecutive. For words like "deadline", the 'd's
-    /// are separated by "ea", so stroke should NOT apply.
+    /// Issue #51: In Telex mode, only apply stroke when the new 'd' is ADJACENT to
+    /// an existing 'd'. According to Vietnamese Telex docs (Section 9.2.2), "dd" → "đ"
+    /// should only work when the two 'd's are consecutive. For words like "deadline",
+    /// the 'd's are separated by "ea", so stroke should NOT apply.
+    ///
+    /// In VNI mode, '9' is always an intentional stroke command (not a letter), so
+    /// delayed stroke is allowed (e.g., "duong9" → "đuong").
     fn try_stroke(&mut self, key: u16) -> Option<Result> {
-        // Issue #51: Check if the LAST character in buffer is an un-stroked 'd'
-        // Only apply stroke when the new 'd' would be adjacent to an existing 'd'
-        let last_pos = self.buf.len().checked_sub(1)?;
-        let last_char = self.buf.get(last_pos)?;
+        // Find position of un-stroked 'd' to apply stroke
+        let pos;
 
-        // Only apply stroke if last char is un-stroked 'd'
-        if last_char.key != keys::D || last_char.stroke {
-            return None;
+        if self.method == 0 {
+            // Telex: Issue #51 - require adjacent 'd' for stroke
+            // Check if the LAST character in buffer is an un-stroked 'd'
+            let last_pos = self.buf.len().checked_sub(1)?;
+            let last_char = self.buf.get(last_pos)?;
+
+            if last_char.key != keys::D || last_char.stroke {
+                return None;
+            }
+            pos = last_pos;
+        } else {
+            // VNI: Allow delayed stroke - find first un-stroked 'd' anywhere in buffer
+            // '9' is always intentional stroke command, not a letter
+            pos = self
+                .buf
+                .iter()
+                .enumerate()
+                .find(|(_, c)| c.key == keys::D && !c.stroke)
+                .map(|(i, _)| i)?;
         }
-
-        let pos = last_pos;
 
         // Check revert: if last transform was stroke on same key at same position
         if let Some(Transform::Stroke(last_key)) = self.last_transform {
