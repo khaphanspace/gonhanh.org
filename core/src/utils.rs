@@ -290,6 +290,35 @@ mod test_utils {
         }
     }
 
+    /// Run Telex test cases with traditional tone placement (hòa, thúy style)
+    pub fn telex_traditional(cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            e.set_modern_tone(false);
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Telex Traditional] '{}' → '{}'",
+                input, result
+            );
+        }
+    }
+
+    /// Run VNI test cases with traditional tone placement (hòa, thúy style)
+    pub fn vni_traditional(cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            e.set_method(1);
+            e.set_modern_tone(false);
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[VNI Traditional] '{}' → '{}'",
+                input, result
+            );
+        }
+    }
+
     /// Simulate typing with extended parameters (supports raw mode prefix)
     /// Input format: use special prefixes to trigger shift+key:
     /// - "@" triggers Shift+2

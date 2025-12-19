@@ -1033,7 +1033,8 @@ impl Engine {
             let has_final = self.has_final_consonant(last_vowel_pos);
             let has_qu = self.has_qu_initial();
             let has_gi = self.has_gi_initial();
-            let new_pos = Phonology::find_tone_position(&vowels, has_final, true, has_qu, has_gi);
+            let new_pos =
+                Phonology::find_tone_position(&vowels, has_final, self.modern_tone, has_qu, has_gi);
 
             if new_pos != old_pos {
                 // Move tone from old position to new position

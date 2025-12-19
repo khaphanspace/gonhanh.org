@@ -7,7 +7,7 @@
 #![allow(unused_imports)]
 
 // Re-export core test utilities
-pub use gonhanh_core::utils::{telex, type_word, vni};
+pub use gonhanh_core::utils::{telex, telex_traditional, type_word, vni, vni_traditional};
 
 use gonhanh_core::engine::{Action, Engine};
 

@@ -1,7 +1,7 @@
 //! Typing Tests - Real-world typing scenarios, sentences, behaviors
 
 mod common;
-use common::{telex, vni};
+use common::{telex, telex_traditional, vni, vni_traditional};
 
 // ============================================================
 // BACKSPACE & CORRECTIONS
@@ -1424,4 +1424,118 @@ fn telex_english_aw_words() {
 #[ignore = "Issue #44: pending breve deferral feature"]
 fn telex_breve_edge_cases() {
     telex(TELEX_BREVE_EDGE_CASES);
+}
+
+// ============================================================
+// TRADITIONAL TONE PLACEMENT - Issue #64
+// ============================================================
+//
+// When "modern tone" setting is OFF (traditional style):
+// - hòa, thúy (tone on 1st vowel) instead of hoà, thuý (tone on 2nd)
+//
+// Bug: Even with setting OFF, out-of-order typing (e.g., "xosa", "tufy")
+// still produces modern-style results due to hardcoded `true` in
+// `reposition_tone_if_needed()` function.
+
+const TELEX_TRADITIONAL_TONE: &[(&str, &str)] = &[
+    // ============================================================
+    // Issue #64: Out-of-order typing with traditional tone setting
+    // When typing tone BEFORE the second vowel, then adding second vowel,
+    // tone should stay on FIRST vowel in traditional mode
+    // ============================================================
+    //
+    // --- Pattern: oa (traditional: tone on 'o') ---
+    ("osa", "óa"),     // o + s + a → óa (NOT oá)
+    ("ofa", "òa"),     // o + f + a → òa (NOT oà)
+    ("ora", "ỏa"),     // o + r + a → ỏa (NOT oả)
+    ("oxa", "õa"),     // o + x + a → õa (NOT oã)
+    ("oja", "ọa"),     // o + j + a → ọa (NOT oạ)
+    ("hosa", "hóa"),   // h + o + s + a → hóa (NOT hoá)
+    ("hofa", "hòa"),   // h + o + f + a → hòa (NOT hoà)
+    ("xosa", "xóa"),   // x + o + s + a → xóa (NOT xoá) - Issue #64 case
+    ("losa", "lóa"),   // l + o + s + a → lóa (NOT loá)
+    ("tosa", "tóa"),   // t + o + s + a → tóa (NOT toá)
+    //
+    // --- Pattern: oe (traditional: tone on 'o') ---
+    ("ose", "óe"),     // o + s + e → óe (NOT oé)
+    ("ofe", "òe"),     // o + f + e → òe (NOT oè)
+    ("khose", "khóe"), // kh + o + s + e → khóe (NOT khoé)
+    ("xose", "xóe"),   // x + o + s + e → xóe (NOT xoé)
+    //
+    // --- Pattern: uy (traditional: tone on 'u') ---
+    ("usy", "úy"),     // u + s + y → úy (NOT uý)
+    ("ufy", "ùy"),     // u + f + y → ùy (NOT uỳ)
+    ("ury", "ủy"),     // u + r + y → ủy (NOT uỷ)
+    ("uxy", "ũy"),     // u + x + y → ũy (NOT uỹ)
+    ("ujy", "ụy"),     // u + j + y → ụy (NOT uỵ)
+    ("tusy", "túy"),   // t + u + s + y → túy (NOT tuý)
+    ("tufy", "tùy"),   // t + u + f + y → tùy (NOT tuỳ) - Issue #64 case
+    ("husy", "húy"),   // h + u + s + y → húy (NOT huý)
+    ("thusy", "thúy"), // th + u + s + y → thúy (NOT thuý)
+    //
+    // --- qu- special case (always tone on 2nd vowel regardless) ---
+    // qu is treated as initial, so 'u' is not the vowel
+    ("qusy", "quý"), // qu + s + y → quý (same in both modes)
+    //
+    // ============================================================
+    // Delayed tone (typing tone AFTER all vowels) - should also respect setting
+    // ============================================================
+    //
+    // --- oa + delayed tone ---
+    ("hoas", "hóa"),   // h + o + a + s → hóa (traditional)
+    ("hoaf", "hòa"),   // h + o + a + f → hòa (traditional)
+    ("xoas", "xóa"),   // x + o + a + s → xóa (traditional)
+    //
+    // --- oe + delayed tone ---
+    ("khoes", "khóe"), // kh + o + e + s → khóe (traditional)
+    //
+    // --- uy + delayed tone ---
+    ("tuys", "túy"),   // t + u + y + s → túy (traditional)
+    ("tuyf", "tùy"),   // t + u + y + f → tùy (traditional)
+    ("thuys", "thúy"), // th + u + y + s → thúy (traditional)
+    //
+    // ============================================================
+    // Normal order (tone typed correctly) - for comparison
+    // ============================================================
+    ("hosa", "hóa"),   // same as above
+    ("thusa", "thúa"), // th + u + s + a → thúa (u is main vowel, a is glide)
+];
+
+const VNI_TRADITIONAL_TONE: &[(&str, &str)] = &[
+    // ============================================================
+    // Issue #64: VNI with traditional tone setting
+    // ============================================================
+    //
+    // --- Pattern: oa (traditional: tone on 'o') ---
+    ("o1a", "óa"),   // o + 1 + a → óa (NOT oá)
+    ("o2a", "òa"),   // o + 2 + a → òa (NOT oà)
+    ("ho1a", "hóa"), // h + o + 1 + a → hóa (NOT hoá)
+    ("ho2a", "hòa"), // h + o + 2 + a → hòa (NOT hoà)
+    ("xo1a", "xóa"), // x + o + 1 + a → xóa (NOT xoá) - Issue #64 case
+    //
+    // --- Pattern: oe (traditional: tone on 'o') ---
+    ("o1e", "óe"),     // o + 1 + e → óe (NOT oé)
+    ("kho1e", "khóe"), // kh + o + 1 + e → khóe (NOT khoé)
+    //
+    // --- Pattern: uy (traditional: tone on 'u') ---
+    ("u1y", "úy"),   // u + 1 + y → úy (NOT uý)
+    ("u2y", "ùy"),   // u + 2 + y → ùy (NOT uỳ)
+    ("tu1y", "túy"), // t + u + 1 + y → túy (NOT tuý)
+    ("tu2y", "tùy"), // t + u + 2 + y → tùy (NOT tuỳ) - Issue #64 case
+    //
+    // --- Delayed tone ---
+    ("hoa1", "hóa"), // h + o + a + 1 → hóa (traditional)
+    ("hoa2", "hòa"), // h + o + a + 2 → hòa (traditional)
+    ("tuy1", "túy"), // t + u + y + 1 → túy (traditional)
+    ("tuy2", "tùy"), // t + u + y + 2 → tùy (traditional)
+];
+
+#[test]
+fn telex_traditional_tone_placement() {
+    telex_traditional(TELEX_TRADITIONAL_TONE);
+}
+
+#[test]
+fn vni_traditional_tone_placement() {
+    vni_traditional(VNI_TRADITIONAL_TONE);
 }
