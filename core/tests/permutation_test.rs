@@ -312,13 +312,14 @@ fn modifier_after_initial() {
 }
 
 /// Double modifiers (revert behavior)
-/// When mark is reverted, BOTH keys appear as letters (for English words)
+/// Second mark key cancels the mark, leaving one letter
+/// For full English words like "mass", auto-restore handles it on space/break
 #[test]
 fn double_modifiers() {
     telex(&[
-        // Double mark should revert AND include both keys
-        ("mass ", "mass "), // second s reverts sắc, both s appear
-        ("maff ", "maff "), // second f reverts huyền, both f appear
+        // Double mark = cancel, produces single letter (not both)
+        ("mass ", "mas "), // second s cancels sắc, single s remains
+        ("maff ", "maf "), // second f cancels huyền, single f remains
     ]);
 }
 

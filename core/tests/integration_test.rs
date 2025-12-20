@@ -308,10 +308,10 @@ fn modern_orthography_full() {
 // ============================================================
 
 #[test]
-fn double_mark_key_includes_both() {
-    // When mark is reverted by pressing same key twice, BOTH keys appear as letters
-    // This allows typing English words like "issue", "bass", "boss"
-    telex(&[("ass", "ass")]);
+fn double_mark_key_reverts_to_single() {
+    // When mark is reverted by pressing same key twice, only ONE key appears
+    // English words like "issue", "bass" work via auto-restore feature on space
+    telex(&[("ass", "as")]);
 }
 
 #[test]
@@ -423,19 +423,19 @@ fn foreign_word_exp_no_circumflex() {
 }
 
 #[test]
-fn foreign_word_exxpe_no_transform() {
+fn foreign_word_exxpe_revert_behavior() {
     let mut e = Engine::new();
     // When typing "exxpe":
     // - 'e' → buffer="e"
     // - 'x' → mark applied → screen="ẽ"
-    // - 'x' → revert (same key) → screen="exx", buffer="exx" (both x appear)
-    // - 'p' → screen="exxp", buffer="exxp"
-    // - 'e' → buffer="exxpe" invalid → no circumflex applied, just adds 'e'
-    // Result: "exxpe" (both x keys appear after revert)
+    // - 'x' → revert (same key) → screen="ex", buffer="ex" (only reverting key appears)
+    // - 'p' → screen="exp", buffer="exp"
+    // - 'e' → buffer="expe" invalid → no circumflex applied, just adds 'e'
+    // Result: "expe" (standard revert behavior: first x was modifier, second x reverts)
     let result = type_word(&mut e, "exxpe");
     assert_eq!(
-        result, "exxpe",
-        "exxpe should stay exxpe (both x keys appear after revert), got: {}",
+        result, "expe",
+        "exxpe should become expe (standard revert behavior), got: {}",
         result
     );
 }

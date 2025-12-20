@@ -1551,8 +1551,7 @@ impl Engine {
     }
 
     /// Revert mark transformation
-    /// When mark is reverted, both the original mark key AND the reverting key
-    /// should appear as letters. Example: "iss" → "is" is wrong, should be "iss"
+    /// Second mark key cancels the mark, leaving one letter (consistent with revert_tone)
     fn revert_mark(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
 
@@ -1560,29 +1559,7 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.mark > mark::NONE {
                     c.mark = mark::NONE;
-
-                    // Find the original mark key's caps state from raw_input
-                    // The original mark key is second-to-last in raw_input
-                    // (last one is the current reverting key)
-                    let orig_caps = if self.raw_input.len() >= 2 {
-                        self.raw_input[self.raw_input.len() - 2].1
-                    } else {
-                        caps
-                    };
-
-                    // Add original mark key first (it was consumed as modifier before)
-                    self.buf.push(Char::new(key, orig_caps));
-                    // Then add the current reverting key
-                    self.buf.push(Char::new(key, caps));
-
-                    // Calculate backspace and output
-                    let backspace = (self.buf.len() - pos - 2) as u8; // -2 because we added 2 chars
-                    let output: Vec<char> = (pos..self.buf.len())
-                        .filter_map(|i| self.buf.get(i))
-                        .filter_map(|c| utils::key_to_char(c.key, c.caps))
-                        .collect();
-
-                    return Result::send(backspace, &output);
+                    return self.revert_and_rebuild(pos, key, caps);
                 }
             }
         }
@@ -1978,8 +1955,17 @@ impl Engine {
         let has_marks_or_tones = self.buf.iter().any(|c| c.tone > 0 || c.mark > 0);
         let has_stroke = self.buf.iter().any(|c| c.stroke);
 
-        // If no transforms at all, nothing to restore
-        if !has_marks_or_tones && !has_stroke {
+        // Check if mark revert happened: buffer is shorter than raw_input
+        // AND raw_input contains mark keys (s/f/r/x/j in Telex)
+        // This excludes tone reverts like "aaa" → "aa" which should NOT trigger auto-restore
+        // NOTE: This only covers Telex. VNI mark keys (1-5) are NOT included.
+        // For full VNI support, use PR #73's had_mark_revert flag approach instead.
+        let mark_keys = [keys::S, keys::F, keys::R, keys::X, keys::J];
+        let raw_has_mark_keys = self.raw_input.iter().any(|&(k, _)| mark_keys.contains(&k));
+        let had_mark_revert = self.buf.len() < self.raw_input.len() && raw_has_mark_keys;
+
+        // If no transforms AND no mark revert, nothing to restore
+        if !has_marks_or_tones && !has_stroke && !had_mark_revert {
             return None;
         }
 

@@ -364,10 +364,10 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     // EXISTING TEST CASES (preserved)
     // ============================================================
     //
-    // Double mark → revert (both keys appear for English words)
-    ("ass", "ass"),
-    ("aff", "aff"),
-    ("arr", "arr"),
+    // Double mark → revert (only reverting key appears - standard IME behavior)
+    ("ass", "as"),
+    ("aff", "af"),
+    ("arr", "ar"),
     // Double tone → revert
     ("aaa", "aa"),
     ("ooo", "oo"),
@@ -669,7 +669,7 @@ const TELEX_COMMON_ISSUES: &[(&str, &str)] = &[
     ("sa", "sa"),
     ("as", "á"),
     ("sas", "sá"),
-    ("sass", "sass"), // both s appear after revert
+    ("sass", "sas"), // second s reverts, single s remains
     ("fa", "fa"),
     ("af", "à"),
     // Long compound words
