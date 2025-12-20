@@ -138,6 +138,8 @@ private class TextInjector {
     }
 
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
+    /// For backspace-only (text empty): use backspace to properly delete spaces/punctuation
+    /// For text replacement: use Shift+Left to select (normal behavior)
     private func injectViaSelection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
@@ -145,11 +147,24 @@ private class TextInjector {
         let waitDelay = delays.1 > 0 ? delays.1 : 3000
         let textDelay = delays.2 > 0 ? delays.2 : 2000
 
-        for _ in 0..<bs {
-            postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-            usleep(selDelay)
+        if bs > 0 {
+            // If text is empty (backspace-only, no replacement), use backspace to properly delete spaces/punctuation
+            // This fixes issue where Shift+Left selects space instead of deleting it
+            if text.isEmpty {
+                // Backspace-only: use backspace for all deletions
+                for _ in 0..<bs {
+                    postKey(KeyCode.backspace, source: src)
+                    usleep(selDelay)
+                }
+            } else {
+                // Text replacement: use Shift+Left to select (normal selection method)
+                for _ in 0..<bs {
+                    postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
+                    usleep(selDelay)
+                }
+            }
+            usleep(waitDelay)
         }
-        if bs > 0 { usleep(waitDelay) }
 
         postText(text, source: src, delay: textDelay)
         Log.send("sel", bs, text)
