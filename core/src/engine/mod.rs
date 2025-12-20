@@ -597,9 +597,9 @@ impl Engine {
     /// - "ww" → revert to "w" (shortcut skipped)
     /// - "www" → "ww" (subsequent w just adds normally)
     fn try_w_as_vowel(&mut self, caps: bool) -> Option<Result> {
-        // Issue #44: If breve is pending (deferred due to open syllable),
+        // Issue #44: If breve is pending (deferred due to consonant+a open syllable),
         // don't convert w→ư. Let w be added as regular letter.
-        // Example: "aw" → breve deferred → should stay "aw", not become "aư"
+        // Example: "raw" → breve deferred → second w should stay, not become "raư"
         if self.pending_breve_pos.is_some() {
             return None;
         }
@@ -1165,12 +1165,17 @@ impl Engine {
                 return None;
             }
 
-            // Issue #44 (part 2): Breve in open syllable is also invalid
-            // "raw" → should stay "raw", not "ră"
+            // Issue #44 (part 2): Breve in open syllable is deferred when ambiguous
+            // "aw" → "ă" (standalone, pure Vietnamese shortcut)
+            // "raw" → should stay "raw", not "ră" (consonant before 'a', could be English)
             // "trawm" → should become "trăm" (breve valid when final consonant present)
             // "osaw" → should become "oắ" (mark on 'a' confirms Vietnamese, don't defer)
             // "uafw" → should become "uằ" (mark on any vowel confirms Vietnamese)
-            // Defer breve only when: no final consonant AND no mark on any vowel
+            //
+            // Defer breve only when:
+            // 1. Has consonant before 'a' (could be English word like "raw")
+            // 2. No final consonant after 'a'
+            // 3. No mark on any vowel
             //
             // Check if ANY vowel has a mark (confirms Vietnamese input regardless of position)
             let any_vowel_has_mark = self.buf.iter().any(|c| c.mark > 0 && keys::is_vowel(c.key));
@@ -1182,6 +1187,20 @@ impl Engine {
                         if any_vowel_has_mark {
                             return false;
                         }
+
+                        // Check if there's a consonant BEFORE 'a'
+                        // Standalone "aw" (no consonant before) → apply breve immediately
+                        // "raw" (has consonant before) → defer breve
+                        let has_consonant_before = (0..pos).any(|i| {
+                            self.buf
+                                .get(i)
+                                .map(|ch| !keys::is_vowel(ch.key))
+                                .unwrap_or(false)
+                        });
+                        if !has_consonant_before {
+                            return false; // Standalone, apply breve immediately
+                        }
+
                         // Check if there's a valid final consonant after 'a'
                         // Valid finals: c, m, n, p, t, ch, ng, nh
                         let has_valid_final = (pos + 1..self.buf.len()).any(|i| {
@@ -2664,8 +2683,8 @@ mod tests {
         ("ax", "ã"),
         ("aj", "ạ"),
         ("aa", "â"),
-        // Issue #44: Breve deferred in open syllable until final consonant or mark
-        ("aw", "aw"),  // stays "aw" (no final)
+        // Issue #44: Standalone breve applies immediately (no consonant before 'a')
+        ("aw", "ă"),   // standalone aw → ă
         ("awm", "ăm"), // breve applied when final consonant typed
         ("aws", "ắ"),  // breve applied when mark typed
         ("ee", "ê"),
@@ -2684,8 +2703,8 @@ mod tests {
         ("a4", "ã"),
         ("a5", "ạ"),
         ("a6", "â"),
-        // Issue #44: Breve deferred in open syllable until final consonant or mark
-        ("a8", "a8"),  // stays "a8" (no final)
+        // Issue #44: Standalone breve applies immediately (no consonant before 'a')
+        ("a8", "ă"),   // standalone a8 → ă
         ("a8m", "ăm"), // breve applied when final consonant typed
         ("a81", "ắ"),  // breve applied when mark typed
         ("e6", "ê"),

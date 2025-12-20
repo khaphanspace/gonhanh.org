@@ -1224,8 +1224,8 @@ const TELEX_INVALID_BREVE_OPEN: &[(&str, &str)] = &[
     ("phaw", "phaw"), // ph + aw → should stay "phaw", not "phă"
     ("traw", "traw"), // tr + aw → should stay "traw", not "tră"
     ("ngaw", "ngaw"), // ng + aw → should stay "ngaw", not "ngă"
-    // Just "aw" alone
-    ("aw", "aw"), // should stay "aw", not "ă"
+    // Just "aw" alone - should apply breve immediately (no consonant before 'a')
+    ("aw", "ă"), // standalone aw → ă (pure Vietnamese shortcut)
 ];
 
 const VNI_INVALID_BREVE_OPEN: &[(&str, &str)] = &[
@@ -1243,8 +1243,8 @@ const VNI_INVALID_BREVE_OPEN: &[(&str, &str)] = &[
     ("tha8", "tha8"), // th + a8 → should stay "tha8", not "thă"
     ("tra8", "tra8"), // tr + a8 → should stay "tra8", not "tră"
     ("nga8", "nga8"), // ng + a8 → should stay "nga8", not "ngă"
-    // Just "a8" alone
-    ("a8", "a8"), // should stay "a8", not "ă"
+    // Just "a8" alone - should apply breve immediately (no consonant before 'a')
+    ("a8", "ă"), // standalone a8 → ă (pure Vietnamese shortcut)
 ];
 
 // Valid breve patterns - with final consonant (should transform)
@@ -1290,36 +1290,43 @@ const VNI_VALID_BREVE: &[(&str, &str)] = &[
 // In Vietnamese, breve 'ă' CANNOT be followed by another vowel.
 // Valid: ăn, ăm, ăng, ăp, ăt, ăc (consonant endings)
 // Invalid: ăi, ăo, ău, ăy (vowel endings)
+//
+// Behavior: Standalone "aw" → "ă" immediately (no consonant before).
+// When consonant before (like "taw"), breve is deferred to distinguish
+// from English words like "raw", "saw".
+// After breve applied, subsequent vowel creates "ăi" (typed as-is).
 
 const TELEX_INVALID_BREVE_DIPHTHONG: &[(&str, &str)] = &[
-    // aw + vowel → should NOT transform
-    ("awi", "awi"),   // ăi is invalid
-    ("awo", "awo"),   // ăo is invalid
-    ("awu", "awu"),   // ău is invalid
-    ("awy", "awy"),   // ăy is invalid
-    ("tawi", "tawi"), // tăi is invalid
-    ("tawo", "tawo"), // tăo is invalid
-    ("tawu", "tawu"), // tău is invalid
-    ("tawy", "tawy"), // tăy is invalid
-    ("mawi", "mawi"), // măi is invalid
-    ("mawo", "mawo"), // măo is invalid
-    ("lawi", "lawi"), // lăi is invalid
-    ("lawo", "lawo"), // lăo is invalid
-    // With tone marks - still invalid
-    ("tawis", "tawis"), // tắi is invalid
-    ("tawof", "tawof"), // tào with breve is invalid
+    // Standalone aw + vowel → breve applies, result is ă+vowel (typed as-is)
+    ("awi", "ăi"), // standalone aw→ă, then i
+    ("awo", "ăo"), // standalone aw→ă, then o
+    ("awu", "ău"), // standalone aw→ă, then u
+    ("awy", "ăy"), // standalone aw→ă, then y
+    // Consonant + aw + vowel → breve deferred, stays as raw letters
+    ("tawi", "tawi"), // consonant before, deferred
+    ("tawo", "tawo"), // consonant before, deferred
+    ("tawu", "tawu"), // consonant before, deferred
+    ("tawy", "tawy"), // consonant before, deferred
+    ("mawi", "mawi"), // consonant before, deferred
+    ("mawo", "mawo"), // consonant before, deferred
+    ("lawi", "lawi"), // consonant before, deferred
+    ("lawo", "lawo"), // consonant before, deferred
+    // With tone marks - consonant before, still deferred
+    ("tawis", "tawis"), // consonant before, deferred
+    ("tawof", "tawof"), // consonant before, deferred
 ];
 
 const VNI_INVALID_BREVE_DIPHTHONG: &[(&str, &str)] = &[
-    // a8 + vowel → should NOT transform
-    ("a8i", "a8i"),   // ăi is invalid
-    ("a8o", "a8o"),   // ăo is invalid
-    ("a8u", "a8u"),   // ău is invalid
-    ("a8y", "a8y"),   // ăy is invalid
-    ("ta8i", "ta8i"), // tăi is invalid
-    ("ta8o", "ta8o"), // tăo is invalid
-    ("ma8i", "ma8i"), // măi is invalid
-    ("la8i", "la8i"), // lăi is invalid
+    // Standalone a8 + vowel → breve applies, result is ă+vowel (typed as-is)
+    ("a8i", "ăi"), // standalone a8→ă, then i
+    ("a8o", "ăo"), // standalone a8→ă, then o
+    ("a8u", "ău"), // standalone a8→ă, then u
+    ("a8y", "ăy"), // standalone a8→ă, then y
+    // Consonant + a8 + vowel → breve deferred, stays as raw letters
+    ("ta8i", "ta8i"), // consonant before, deferred
+    ("ta8o", "ta8o"), // consonant before, deferred
+    ("ma8i", "ma8i"), // consonant before, deferred
+    ("la8i", "la8i"), // consonant before, deferred
 ];
 
 // ============================================================

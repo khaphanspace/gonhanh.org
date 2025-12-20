@@ -203,11 +203,11 @@ fn tone_horn_uw() {
 
 #[test]
 fn tone_breve_aw() {
-    // Issue #44: Breve in open syllable is deferred until final consonant or mark
-    // "aw" alone stays "aw" because breve on standalone 'a' without final is uncertain
-    // But "aws" → "ắ" because mark confirms Vietnamese input
+    // Issue #44: Breve in open syllable is deferred when consonant before 'a'
+    // "aw" alone becomes "ă" because no consonant before 'a' (pure Vietnamese shortcut)
+    // But "raw" → "raw" deferred because consonant before 'a' (could be English)
     telex(&[
-        ("aw", "aw"),  // Deferred: no final consonant, stays "aw"
+        ("aw", "ă"),   // Standalone: no consonant before 'a' → apply breve
         ("aws", "ắ"),  // Mark confirms Vietnamese: breve applied + sắc
         ("awf", "ằ"),  // Mark confirms Vietnamese: breve applied + huyền
         ("awr", "ẳ"),  // Mark confirms Vietnamese: breve applied + hỏi
@@ -403,11 +403,11 @@ fn vni_tone_horn() {
 
 #[test]
 fn vni_tone_breve() {
-    // Issue #44: Breve in open syllable is deferred until final consonant
-    // "a8" alone stays "a8" because ă without final is not valid Vietnamese
-    // "a8m" → "ăm" because final consonant validates the breve
+    // Issue #44: Breve in open syllable is deferred when consonant before 'a'
+    // "a8" alone becomes "ă" because no consonant before 'a' (pure Vietnamese shortcut)
+    // But "ra8" → "ra8" deferred because consonant before 'a' (could be English)
     vni(&[
-        ("a8", "a8"),    // Deferred: no final consonant
+        ("a8", "ă"),     // Standalone: no consonant before 'a' → apply breve
         ("a8m", "ăm"),   // Final consonant: breve applied
         ("a8n", "ăn"),   // Final consonant: breve applied
         ("a8c", "ăc"),   // Final consonant: breve applied
