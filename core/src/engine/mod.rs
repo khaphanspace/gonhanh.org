@@ -472,6 +472,22 @@ impl Engine {
             && !is_mark_key
             && matches!(self.last_transform, Some(Transform::ShortPatternStroke))
         {
+            // Check for same-vowel trigger: key matches last vowel in buffer
+            // Pattern: "dod" → "đo", then 'o' typed → confirm stroke, absorb 'o'
+            // This allows: "dodo" → "đo", "dada" → "đa", "didi" → "đi"
+            if keys::is_vowel(key) {
+                if let Some(last_vowel) = self.buf.iter().rev().find(|c| keys::is_vowel(c.key)) {
+                    if last_vowel.key == key {
+                        // Same vowel confirms stroke and is absorbed (not added to buffer)
+                        // Remove the last raw_input entry (the trigger vowel we just added)
+                        self.raw_input.pop();
+                        self.last_transform = None;
+                        // Return send with 0 backspaces and 0 chars - tells IME "handled, no output"
+                        return Result::send(0, &[]);
+                    }
+                }
+            }
+
             // Build buffer_keys from raw_input (which already includes current key)
             let buffer_keys: Vec<u16> = self.raw_input.iter().map(|&(k, _, _)| k).collect();
             if !is_valid(&buffer_keys) {
@@ -1267,6 +1283,64 @@ impl Engine {
                 }
             };
 
+        // Telex: Check for delayed circumflex pattern (vowel + consonant(s) + same_vowel)
+        // When buffer is "toto" and tone mark is typed, apply circumflex to first vowel
+        // This enables "totos" → "tốt" (t + ô + sắc + t)
+        // Pattern: V + C+ + V where both V are the same vowel (a, e, o)
+        let had_delayed_circumflex = self.method == 0 && self.buf.len() >= 3 && {
+            // Get last char (trigger vowel) and find matching vowel before consonants
+            let last_pos = self.buf.len() - 1;
+            let trigger = self.buf.get(last_pos);
+            if let Some(trigger_char) = trigger {
+                let trigger_key = trigger_char.key;
+                // Only for circumflex-capable vowels: a, e, o
+                if matches!(trigger_key, keys::A | keys::E | keys::O) {
+                    // Look for pattern: same_vowel + consonant(s) + trigger_vowel
+                    // Search backwards for the matching vowel
+                    let mut found_vowel_pos: Option<usize> = None;
+                    let mut has_consonant_between = false;
+
+                    for i in (0..last_pos).rev() {
+                        if let Some(c) = self.buf.get(i) {
+                            if keys::is_vowel(c.key) {
+                                // Found a vowel - check if it matches trigger
+                                if c.key == trigger_key && has_consonant_between {
+                                    found_vowel_pos = Some(i);
+                                }
+                                break; // Stop at first vowel we encounter going backwards
+                            } else {
+                                has_consonant_between = true;
+                            }
+                        }
+                    }
+
+                    if let Some(vowel_pos) = found_vowel_pos {
+                        // Validate: buffer without trigger vowel should be valid Vietnamese
+                        let buffer_without_trigger: Vec<u16> =
+                            self.buf.iter().take(last_pos).map(|c| c.key).collect();
+                        if is_valid(&buffer_without_trigger) {
+                            // Apply delayed circumflex: add circumflex to target vowel
+                            if let Some(c) = self.buf.get_mut(vowel_pos) {
+                                c.tone = tone::CIRCUMFLEX;
+                                self.had_any_transform = true;
+                            }
+                            // Remove trigger vowel
+                            self.buf.pop();
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        };
+
         // Issue #44: Apply pending breve before adding mark
         // When user types "aws" (Telex) or "a81" (VNI), they want "ắ" (breve + sắc)
         // Breve was deferred due to open syllable, but adding mark confirms Vietnamese input
@@ -1370,6 +1444,19 @@ impl Engine {
                     .filter_map(|&c| char::from_u32(c))
                     .collect();
                 // Add 1 to backspace for the trigger 'd' that was on screen but removed from buffer
+                return Some(Result::send(result.backspace + 1, &chars));
+            }
+
+            // If delayed circumflex was applied, rebuild from position 0
+            // and add extra backspace for the trigger vowel that was on screen
+            if had_delayed_circumflex {
+                rebuild_pos = 0;
+                let result = self.rebuild_from(rebuild_pos);
+                let chars: Vec<char> = result.chars[..result.count as usize]
+                    .iter()
+                    .filter_map(|&c| char::from_u32(c))
+                    .collect();
+                // Add 1 to backspace for the trigger vowel that was on screen but removed from buffer
                 return Some(Result::send(result.backspace + 1, &chars));
             }
 

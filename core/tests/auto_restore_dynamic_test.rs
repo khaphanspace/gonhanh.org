@@ -883,8 +883,12 @@ fn valid_vietnamese_structure_not_restored() {
         // Vietnamese words with tone + circumflex marks
         ("loxoi ", "lỗi "), // lỗi (error) - l + o + x(hỏi) + o(circumflex) + i
         ("soso ", "số "),   // số (number) - s + o + s(sắc) + o(circumflex)
-                            // Short words with x producing valid Vietnamese
-                            // mix → mĩ, box → bõ, six → sĩ (valid Vietnamese)
+        // Delayed circumflex: vowel + consonant(s) + same_vowel + tone_mark
+        ("totos ", "tốt "), // tốt (good) - t + o + t + o(circumflex) + s(sắc)
+        // Delayed stroke with same-vowel trigger: d + vowel + d + same_vowel → đ + vowel
+        ("dodo ", "đo "), // đo (measure) - d + o + d + o(triggers stroke, absorbed)
+                          // Short words with x producing valid Vietnamese
+                          // mix → mĩ, box → bõ, six → sĩ (valid Vietnamese)
     ]);
 }
 

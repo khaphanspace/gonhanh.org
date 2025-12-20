@@ -328,6 +328,13 @@ fn stroke_delayed_valid_vietnamese() {
         ("docd", "đoc"), // Has final 'c' - immediate delayed stroke
         ("datd", "đat"), // Has final 't' - immediate delayed stroke
     ]);
+
+    // Delayed stroke with same-vowel trigger
+    telex(&[
+        ("dodo", "đo"), // Same vowel triggers delayed stroke
+        ("dada", "đa"), // Same vowel triggers delayed stroke
+        ("didi", "đi"), // Same vowel triggers delayed stroke
+    ]);
 }
 
 #[test]

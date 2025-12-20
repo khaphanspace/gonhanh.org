@@ -1157,11 +1157,11 @@ const TELEX_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
     ("deadline", "deadline"),
     ("dedicated", "dedicated"),
     ("decided", "decided"),
-    // Open syllables (d + vowel + d) - stroke is DEFERRED to mark key
-    // This prevents false transformation of English-like patterns
-    ("dede", "dede"), // No mark key, stroke deferred
-    ("dada", "dada"), // No mark key, stroke deferred
-    ("dodo", "dodo"), // No mark key, stroke deferred
+    // Same-vowel trigger: d + vowel + d + same_vowel → đ + vowel
+    // The 4th char (same vowel) confirms stroke and is absorbed
+    ("dede", "đe"), // Same-vowel trigger: đe
+    ("dada", "đa"), // Same-vowel trigger: đa
+    ("dodo", "đo"), // Same-vowel trigger: đo
     // Mixed: adjacent dd at start
     ("ddead", "đead"),           // dd at start is adjacent → đ, then "ead"
     ("ddedicated", "đedicated"), // dd at start
