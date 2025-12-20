@@ -79,25 +79,38 @@ VALID_FINALS_2: [ch, ng, nh]
 | `gh` | a, o, u | → `g` |
 | `ngh` | a, o, u | → `ng` |
 
-### 3.4 Invalid Vowel Patterns (Exclusion Approach)
+### 3.4 Valid Vowel Pairs (Inclusion Approach)
 
 ```rust
-// Pattern nguyên âm KHÔNG tồn tại trong tiếng Việt
-INVALID_VOWEL_PATTERNS: [[O, U], [Y, O]]
-// ou → you, our, house, about, would
-// yo → yoke, York, your, beyond
+// Valid vowel combinations in Vietnamese
+VALID_VOWEL_PAIRS: [
+    // Standard Vietnamese diphthongs (direction matters!)
+    [A, I], [A, O], [A, U], [A, Y],  // ai, ao, au, ay
+    [E, I], [E, O], [E, U],          // ei (Telex), eo, êu
+    [I, A], [I, E], [I, U],          // ia, iê, iu
+    [O, A], [O, E], [O, I],          // oa, oe, oi/ôi/ơi
+    [U, A], [U, E], [U, I], [U, O], [U, Y], [U, U],  // ua/ưa, uê, ui/ưi, uo/uô/ươ, uy, ưu
+    [Y, E],                          // yê
+    // Telex intermediate states (for delayed transformations)
+    [A, A], [E, E], [O, O],          // aa→â, ee→ê, oo→ô toggle
+]
+// Note: [O, U] (như "ou" trong "you") KHÔNG có trong list → Invalid
 ```
 
-**Tại sao dùng Exclusion thay vì Inclusion?**
+**Tại sao dùng Inclusion thay vì Exclusion?**
 
 | Aspect | Inclusion (valid patterns) | Exclusion (invalid patterns) |
 |--------|---------------------------|------------------------------|
-| Danh sách | ~30+ diphthongs, ~10 triphthongs | Chỉ 2: `ou`, `yo` |
-| Maintenance | Cao - phải cover hết | Thấp - chỉ thêm khi gặp |
-| Risk | False negative (miss valid) | False positive (miss invalid) |
+| Coverage | Toàn diện - bắt tất cả invalid | Chỉ bắt patterns được list |
+| Maintenance | Cần thêm Telex intermediate | Dễ miss edge cases |
+| Risk | False negative (cần thêm Telex states) | False positive (miss invalid) |
 
-Validation hiện tại đã cover: initials (27), finals (12), spelling rules (6).
-Chỉ còn rất ít vowel patterns "lọt lưới" → Exclusion hiệu quả hơn.
+**Lưu ý:** Danh sách bao gồm cả Telex intermediate states như `[E, I]`, `[A, A]`, `[E, E]`, `[O, O]` để hỗ trợ các pattern như "eie" → "êi" và "aaaa" → "aâ".
+
+**Invalid patterns (for reference):**
+- `ea` → sea, beach, teacher, search
+- `ou` → you, our, house, about, would
+- `yo` → yoke, York, your, beyond
 
 ---
 
@@ -203,12 +216,14 @@ match final.len() {
 ### Rule 6: Valid Vowel Pattern
 
 ```rust
-// Check vowel pairs không thuộc INVALID_VOWEL_PATTERNS
+// INCLUSION approach: Check vowel pairs phải thuộc VALID_VOWEL_PAIRS
 for pair in consecutive_vowel_pairs {
-    if pair in INVALID_VOWEL_PATTERNS → InvalidVowelPattern
+    if pair NOT in VALID_VOWEL_PAIRS → InvalidVowelPattern
 }
-// Ví dụ: "you" có pair [O,U] → Invalid
-// Ví dụ: "yeu" có pair [E,U] → Valid (không trong list)
+// Ví dụ: "you" có pair [O,U] → Invalid (không trong list)
+// Ví dụ: "sea" có pair [E,A] → Invalid (không trong list)
+// Ví dụ: "yeu" có pair [E,U] → Valid (trong list - êu)
+// Ví dụ: "eie" có pair [E,I] → Valid (trong list - Telex intermediate)
 ```
 
 ---
@@ -290,13 +305,17 @@ ge             → nên dùng ghe
 exp, expect, test, claudeco, claus
 ```
 
-### Invalid - Vowel Patterns (NEW)
+### Invalid - Vowel Patterns (Inclusion Check)
 
 ```
-you, your, house, about, would, south  → "ou" pattern
-yoke, York, beyond                      → "yo" pattern
-metric, spectrum, matrix                → T+R, C+R clusters
-describe, design                        → "de" + 's' prefix
+# Pairs NOT in VALID_VOWEL_PAIRS:
+search, teacher, beach, real           → "ea" pattern [E,A]
+you, your, house, about, would, south  → "ou" pattern [O,U]
+yoke, York, beyond                     → "yo" pattern [Y,O]
+
+# Other foreign word patterns (detected by is_foreign_word_pattern):
+metric, spectrum, matrix               → T+R, C+R clusters
+describe, design                       → "de" + 's' prefix
 ```
 
 ---
@@ -322,12 +341,19 @@ on_key(key)
 
 ## Changelog
 
+- **2025-12-17**: Chuyển sang Inclusion approach với VALID_VOWEL_PAIRS
+  - Thay đổi từ Exclusion (INVALID_VOWEL_PATTERNS) sang Inclusion (VALID_VOWEL_PAIRS)
+  - Thêm ~30 valid vowel pairs dựa trên Vietnamese phonology matrix
+  - Thêm Telex intermediate states: [E,I], [A,A], [E,E], [O,O]
+  - Fix "search" → "search" (không transform vì "ea" không valid)
+  - Fix "teacher", "beach", "real" - tất cả foreign words với "ea"
+  - Cập nhật `rule_valid_vowel_pattern` và `is_foreign_word_pattern()`
+
 - **2025-12-16**: Thêm Rule 6 (Vowel Pattern Validation)
   - Thêm `INVALID_VOWEL_PATTERNS` (ou, yo) vào constants
   - Thêm `rule_valid_vowel_pattern` - Rule 6
   - Thêm `is_foreign_word_pattern()` cho foreign word detection
   - Thêm `InvalidVowelPattern` vào ValidationResult
-  - Document approach: Exclusion vs Inclusion (chọn Exclusion)
   - Fix issue #15: "metric" không còn bị transform thành "mẻtic"
 
 - **2025-12-11**: Viết lại document theo code thực tế

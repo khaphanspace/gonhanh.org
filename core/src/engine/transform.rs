@@ -104,11 +104,15 @@ fn find_tone_targets(buffer_keys: &[u16], key: u16, tone_value: u8, method: u8) 
 
     // Telex patterns
     if method == 0 {
-        // aa, ee, oo → circumflex
+        // aa, ee, oo → circumflex (immediate doubling only)
+        // The target vowel must be at the LAST position in the buffer
+        // This ensures "ee" doubling only works for consecutive presses,
+        // not for words like "teacher" where 'e' appears twice non-adjacently
         if tone_value == tone::CIRCUMFLEX && matches!(key, keys::A | keys::E | keys::O) {
-            // Find matching vowel (same key)
+            // Find matching vowel (same key) - must be at last position
+            let last_pos = buffer_keys.len().saturating_sub(1);
             for &pos in vowel_positions.iter().rev() {
-                if buffer_keys[pos] == key {
+                if buffer_keys[pos] == key && pos == last_pos {
                     targets.push(pos);
                     break;
                 }

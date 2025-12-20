@@ -70,6 +70,27 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var escRestore: Bool = false {
+        didSet {
+            UserDefaults.standard.set(escRestore, forKey: SettingsKey.escRestore)
+            RustBridge.setEscRestore(escRestore)
+        }
+    }
+
+    @Published var modernTone: Bool = true {
+        didSet {
+            UserDefaults.standard.set(modernTone, forKey: SettingsKey.modernTone)
+            RustBridge.setModernTone(modernTone)
+        }
+    }
+
+    @Published var englishAutoRestore: Bool = false {
+        didSet {
+            UserDefaults.standard.set(englishAutoRestore, forKey: SettingsKey.englishAutoRestore)
+            RustBridge.setEnglishAutoRestore(englishAutoRestore)
+        }
+    }
+
     @Published var toggleShortcut: KeyboardShortcut {
         didSet {
             toggleShortcut.save()
@@ -80,6 +101,7 @@ class AppState: ObservableObject {
     @Published var updateStatus: UpdateStatus = .idle
     @Published var shortcuts: [ShortcutItem] = []
     @Published var isLaunchAtLoginEnabled: Bool = false
+    @Published var requiresManualLaunchAtLogin: Bool = false
 
     // MARK: - Init
 
@@ -90,6 +112,9 @@ class AppState: ObservableObject {
 
         loadSmartMode()
         loadAutoWShortcut()
+        loadEscRestore()
+        loadModernTone()
+        loadEnglishAutoRestore()
         loadShortcuts()
         setupObservers()
         setupLaunchAtLoginMonitoring()
@@ -113,6 +138,36 @@ class AppState: ObservableObject {
             autoWShortcut = UserDefaults.standard.bool(forKey: SettingsKey.autoWShortcut)
         }
         RustBridge.setSkipWShortcut(!autoWShortcut)
+    }
+
+    private func loadEscRestore() {
+        if UserDefaults.standard.object(forKey: SettingsKey.escRestore) == nil {
+            escRestore = false
+            UserDefaults.standard.set(false, forKey: SettingsKey.escRestore)
+        } else {
+            escRestore = UserDefaults.standard.bool(forKey: SettingsKey.escRestore)
+        }
+        RustBridge.setEscRestore(escRestore)
+    }
+
+    private func loadModernTone() {
+        if UserDefaults.standard.object(forKey: SettingsKey.modernTone) == nil {
+            modernTone = true
+            UserDefaults.standard.set(true, forKey: SettingsKey.modernTone)
+        } else {
+            modernTone = UserDefaults.standard.bool(forKey: SettingsKey.modernTone)
+        }
+        RustBridge.setModernTone(modernTone)
+    }
+
+    private func loadEnglishAutoRestore() {
+        if UserDefaults.standard.object(forKey: SettingsKey.englishAutoRestore) == nil {
+            englishAutoRestore = false
+            UserDefaults.standard.set(false, forKey: SettingsKey.englishAutoRestore)
+        } else {
+            englishAutoRestore = UserDefaults.standard.bool(forKey: SettingsKey.englishAutoRestore)
+        }
+        RustBridge.setEnglishAutoRestore(englishAutoRestore)
     }
 
     private func loadShortcuts() {
@@ -149,21 +204,42 @@ class AppState: ObservableObject {
 
     private func setupLaunchAtLoginMonitoring() {
         isLaunchAtLoginEnabled = LaunchAtLoginManager.shared.isEnabled
+
+        // Auto-enable launch at login if not already enabled
+        if !isLaunchAtLoginEnabled {
+            autoEnableLaunchAtLogin()
+        }
+
         launchAtLoginTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { self?.refreshLaunchAtLoginStatus() }
+        }
+    }
+
+    private func autoEnableLaunchAtLogin() {
+        do {
+            try LaunchAtLoginManager.shared.enable()
+            refreshLaunchAtLoginStatus()
+            requiresManualLaunchAtLogin = false
+        } catch {
+            // Auto-enable failed, user needs to manually enable
+            requiresManualLaunchAtLogin = true
         }
     }
 
     func refreshLaunchAtLoginStatus() {
         let newStatus = LaunchAtLoginManager.shared.isEnabled
         if newStatus != isLaunchAtLoginEnabled { isLaunchAtLoginEnabled = newStatus }
+        // Clear manual requirement flag if now enabled
+        if isLaunchAtLoginEnabled { requiresManualLaunchAtLogin = false }
     }
 
     func enableLaunchAtLogin() {
         do {
             try LaunchAtLoginManager.shared.enable()
             refreshLaunchAtLoginStatus()
+            requiresManualLaunchAtLogin = false
         } catch {
+            requiresManualLaunchAtLogin = true
             openLoginItemsSettings()
         }
     }
@@ -546,14 +622,12 @@ struct SettingsPageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Spacer()
-
-            // Launch at Login warning
-            if !appState.isLaunchAtLoginEnabled {
+            // Launch at Login warning (only show if auto-enable failed)
+            if appState.requiresManualLaunchAtLogin {
                 LaunchAtLoginBanner { appState.enableLaunchAtLogin() }
             }
 
-            // General settings
+            // Input method settings
             VStack(spacing: 0) {
                 SettingsToggleRow("Bộ gõ tiếng Việt", isOn: $appState.isEnabled)
                 Divider().padding(.leading, 12)
@@ -570,22 +644,35 @@ struct SettingsPageView: View {
             // Toggle shortcut section
             VStack(spacing: 0) {
                 ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
-                                    isRecording: $isRecordingShortcut,
-                                    subtitle: "Nhấn để thay đổi phím tắt bật/tắt bộ gõ")
+                                    isRecording: $isRecordingShortcut)
             }
             .cardBackground()
 
-            // Smart mode section
+            // Other options
             VStack(spacing: 0) {
                 SettingsToggleRow("Chuyển chế độ thông minh",
                                   subtitle: "Tự động nhớ trạng thái Anh/Việt cho từng ứng dụng",
                                   isOn: $appState.isSmartModeEnabled)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Đặt dấu kiểu mới (oà, uý)",
+                                  subtitle: "Thay vì kiểu cũ (òa, úy)",
+                                  isOn: $appState.modernTone)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Gõ ESC để chuyển về tiếng Anh",
+                                  subtitle: "Nhấn ESC hoàn tác dấu tiếng Việt về ASCII",
+                                  isOn: $appState.escRestore)
+                Divider().padding(.leading, 12)
+                shortcutsRow
             }
             .cardBackground()
 
-            // Shortcuts section
+            // Experimental features
             VStack(spacing: 0) {
-                shortcutsRow
+                experimentalHeader
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Tự động khôi phục từ tiếng Anh",
+                                  subtitle: "Tự nhận diện và khôi phục từ tiếng Anh khi gõ sai",
+                                  isOn: $appState.englishAutoRestore)
             }
             .cardBackground()
 
@@ -603,6 +690,30 @@ struct SettingsPageView: View {
             }
             .labelsHidden()
             .frame(width: 100)
+        }
+    }
+
+    private var experimentalHeader: some View {
+        SettingsRow {
+            HStack(spacing: 8) {
+                Text("Tính năng thử nghiệm").font(.system(size: 13, weight: .medium))
+                Text("Beta")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.orange))
+            }
+            Spacer()
+            Link(destination: URL(string: "https://github.com/khaphanspace/gonhanh.org/issues/26")!) {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                    Text("Góp ý")
+                }
+                .font(.system(size: 11))
+                .foregroundColor(.accentColor)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -635,19 +746,27 @@ struct SettingsPageView: View {
 struct ShortcutsSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
-    @State private var selection = Set<UUID>()
+
+    // Form state
+    @State private var formKey: String = ""
+    @State private var formValue: String = ""
+    @State private var editingId: UUID? = nil  // For form editing
+    @State private var selectedIds: Set<UUID> = []  // For table multi-selection
+
+    private var isEditing: Bool { editingId != nil }
+    private var canSave: Bool { !formKey.isEmpty && !formValue.isEmpty }
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            Divider()
+            formSection
             Divider()
             tableContent
             Divider()
             toolbar
         }
         .frame(width: 480, height: 420)
-        .onDeleteCommand { if !selection.isEmpty { removeSelected() } }
-        .onDisappear { cleanupEmptyShortcuts() }
     }
 
     private var header: some View {
@@ -657,10 +776,42 @@ struct ShortcutsSheet: View {
                 Text("\(appState.shortcuts.count) mục").font(.system(size: 11)).foregroundColor(.secondary)
             }
             Spacer()
-            Button("Xong") { dismiss() }.keyboardShortcut(.return, modifiers: [])
+            Button("Xong") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
+    }
+
+    private var formSection: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Viết tắt").font(.system(size: 11)).foregroundColor(.secondary)
+                    TextField("vd: tphcm", text: $formKey)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Nội dung").font(.system(size: 11)).foregroundColor(.secondary)
+                    TextField("vd: Thành phố Hồ Chí Minh", text: $formValue)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            HStack(spacing: 8) {
+                if isEditing {
+                    Button("Huỷ") { clearForm() }
+                    Button("Xoá", role: .destructive) { deleteSelected() }
+                        .foregroundColor(.red)
+                }
+                Spacer()
+                Button(isEditing ? "Cập nhật" : "Thêm") { saveForm() }
+                    .disabled(!canSave)
+                    .keyboardShortcut(.return, modifiers: [])
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
 
     @ViewBuilder
@@ -669,51 +820,98 @@ struct ShortcutsSheet: View {
             VStack(spacing: 8) {
                 Image(systemName: "text.badge.plus").font(.system(size: 32)).foregroundColor(.secondary)
                 Text("Chưa có từ viết tắt").font(.system(size: 13)).foregroundColor(.secondary)
-                Text("Nhấn + để thêm mới").font(.system(size: 11)).foregroundColor(Color(NSColor.tertiaryLabelColor))
+                Text("Điền form ở trên để thêm mới").font(.system(size: 11)).foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            Table($appState.shortcuts, selection: $selection) {
-                TableColumn("Viết tắt") { $item in ClickableTextField(text: $item.key) }.width(min: 60, ideal: 80, max: 100)
-                TableColumn("Nội dung") { $item in ClickableTextField(text: $item.value) }
-                TableColumn("Bật") { $item in Toggle("", isOn: $item.isEnabled).labelsHidden() }.width(40)
+            Table(appState.shortcuts, selection: $selectedIds) {
+                TableColumn("") { item in
+                    Toggle("", isOn: Binding(
+                        get: { item.isEnabled },
+                        set: { newValue in
+                            if let idx = appState.shortcuts.firstIndex(where: { $0.id == item.id }) {
+                                appState.shortcuts[idx].isEnabled = newValue
+                            }
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+                }
+                .width(24)
+
+                TableColumn("Viết tắt") { item in
+                    Text(item.key)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(item.isEnabled ? .primary : .secondary)
+                }
+                .width(min: 80, ideal: 100, max: 140)
+
+                TableColumn("Nội dung") { item in
+                    Text(item.value)
+                        .font(.system(size: 12))
+                        .foregroundColor(item.isEnabled ? .primary : .secondary)
+                        .lineLimit(1)
+                }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .onDeleteCommand { deleteSelected() }
+            .onChange(of: selectedIds) { newSelection in
+                // Load single selection into form for editing
+                if newSelection.count == 1, let id = newSelection.first,
+                   let item = appState.shortcuts.first(where: { $0.id == id }) {
+                    selectItem(item)
+                } else {
+                    clearForm()
+                }
+            }
         }
     }
 
     private var toolbar: some View {
-        HStack(spacing: 0) {
-            Button(action: addShortcut) { Image(systemName: "plus").frame(width: 24, height: 24) }
-                .buttonStyle(.borderless).help("Thêm")
-            Button(action: removeSelected) { Image(systemName: "minus").frame(width: 24, height: 24) }
-                .buttonStyle(.borderless).disabled(selection.isEmpty).help("Xoá (Delete)")
+        HStack(spacing: 8) {
+            Button(action: importShortcuts) {
+                Image(systemName: "square.and.arrow.down").frame(width: 20, height: 20)
+            }
+            .buttonStyle(.borderless).help("Nhập từ file")
+            Button(action: exportShortcuts) {
+                Image(systemName: "square.and.arrow.up").frame(width: 20, height: 20)
+            }
+            .buttonStyle(.borderless).disabled(appState.shortcuts.isEmpty).help("Xuất ra file")
             Spacer()
-            Button(action: importShortcuts) { Image(systemName: "square.and.arrow.down").frame(width: 24, height: 24) }
-                .buttonStyle(.borderless).help("Nhập")
-            Button(action: exportShortcuts) { Image(systemName: "square.and.arrow.up").frame(width: 24, height: 24) }
-                .buttonStyle(.borderless).disabled(appState.shortcuts.isEmpty).help("Xuất")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
     }
 
-    // MARK: - Actions
-
-    private func cleanupEmptyShortcuts() {
-        appState.shortcuts.removeAll { $0.key.isEmpty || $0.value.isEmpty }
-        selection.removeAll()
+    private func selectItem(_ item: ShortcutItem) {
+        editingId = item.id
+        formKey = item.key
+        formValue = item.value
     }
 
-    private func addShortcut() {
-        let item = ShortcutItem(key: "", value: "")
-        appState.shortcuts.append(item)
-        selection = [item.id]
+    private func clearForm() {
+        editingId = nil
+        formKey = ""
+        formValue = ""
     }
 
-    private func removeSelected() {
-        appState.shortcuts.removeAll { selection.contains($0.id) }
-        selection.removeAll()
+    private func saveForm() {
+        if let id = editingId, let idx = appState.shortcuts.firstIndex(where: { $0.id == id }) {
+            // Update existing - only key and value, keep isEnabled unchanged
+            appState.shortcuts[idx].key = formKey
+            appState.shortcuts[idx].value = formValue
+        } else {
+            // Add new - default enabled
+            appState.shortcuts.append(ShortcutItem(key: formKey, value: formValue, isEnabled: true))
+        }
+        clearForm()
+    }
+
+    private func deleteSelected() {
+        guard !selectedIds.isEmpty else { return }
+        appState.shortcuts.removeAll { selectedIds.contains($0.id) }
+        selectedIds.removeAll()
+        clearForm()
     }
 
     private func importShortcuts() {
@@ -817,7 +1015,6 @@ private let systemShortcuts: Set<String> = [
 struct ShortcutRecorderRow: View {
     @Binding var shortcut: KeyboardShortcut
     @Binding var isRecording: Bool
-    var subtitle: String? = nil
     @State private var hovered = false
     @State private var recordedObserver: NSObjectProtocol?
     @State private var cancelledObserver: NSObjectProtocol?
@@ -829,9 +1026,9 @@ struct ShortcutRecorderRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Phím tắt bật/tắt").font(.system(size: 13))
-                if let subtitle = subtitle {
-                    Text(subtitle).font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
-                }
+                Text("Nhấn để thay đổi (tối thiểu 2 phím, VD: ⌘⇧)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
             }
             Spacer()
             shortcutDisplay

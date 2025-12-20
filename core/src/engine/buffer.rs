@@ -112,6 +112,17 @@ impl Buffer {
         }
     }
 
+    /// Remove element at index, shifting subsequent elements left
+    pub fn remove(&mut self, index: usize) {
+        if index < self.len {
+            // Shift elements left to fill the gap
+            for i in index..self.len - 1 {
+                self.data[i] = self.data[i + 1];
+            }
+            self.len -= 1;
+        }
+    }
+
     /// Find indices of vowels in buffer
     pub fn find_vowels(&self) -> Vec<usize> {
         use crate::data::keys;

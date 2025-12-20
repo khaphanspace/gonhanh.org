@@ -75,9 +75,9 @@ const TELEX_MODIFIED_VOWELS: &[(&str, &str)] = &[
     ("oor", "ổ"),
     ("oox", "ỗ"),
     ("ooj", "ộ"),
-    // ă (breve)
-    ("aw", "ă"),
-    ("aws", "ắ"),
+    // ă (breve) - Issue #44: standalone "aw" deferred until confirmation
+    ("aw", "aw"), // Deferred: no initial, no final, no mark
+    ("aws", "ắ"), // Mark confirms Vietnamese
     ("awf", "ằ"),
     ("awr", "ẳ"),
     ("awx", "ẵ"),
@@ -103,7 +103,8 @@ const TELEX_MODIFIED_VOWELS: &[(&str, &str)] = &[
 ];
 
 const TELEX_REVERT: &[(&str, &str)] = &[
-    // Mark revert
+    // Mark revert (only reverting key appears - standard IME behavior)
+    // First key is modifier, second key reverts and outputs one letter
     ("ass", "as"),
     ("aff", "af"),
     ("arr", "ar"),
@@ -123,8 +124,9 @@ const TELEX_UPPERCASE: &[(&str, &str)] = &[
     ("AS", "Á"),
     ("Aa", "Â"),
     ("AA", "Â"),
-    ("Aw", "Ă"),
-    ("AW", "Ă"),
+    // Issue #44: standalone breve deferred
+    ("Aw", "Aw"),
+    ("AW", "AW"),
     ("Ow", "Ơ"),
     ("Uw", "Ư"),
     // Standalone uppercase W → Ư
@@ -139,7 +141,10 @@ const TELEX_UPPERCASE: &[(&str, &str)] = &[
 const TELEX_DELAYED: &[(&str, &str)] = &[
     ("tuw", "tư"),
     ("tow", "tơ"),
-    ("taw", "tă"),
+    // Issue #44: breve deferred without final or mark
+    ("taw", "taw"),  // Deferred: no final, no mark
+    ("taws", "tắ"),  // Mark confirms Vietnamese
+    ("tawm", "tăm"), // Final confirms Vietnamese
     ("tungw", "tưng"),
     ("tongw", "tơng"),
     ("tuow", "tươ"),
@@ -231,9 +236,9 @@ const VNI_MODIFIED_VOWELS: &[(&str, &str)] = &[
     ("u73", "ử"),
     ("u74", "ữ"),
     ("u75", "ự"),
-    // ă: 8=breve
-    ("a8", "ă"),
-    ("a81", "ắ"),
+    // ă: 8=breve - Issue #44: standalone "a8" deferred until confirmation
+    ("a8", "a8"), // Deferred: no initial, no final, no mark
+    ("a81", "ắ"), // Mark confirms Vietnamese
     ("a82", "ằ"),
     ("a83", "ẳ"),
     ("a84", "ẵ"),
@@ -244,11 +249,13 @@ const VNI_MODIFIED_VOWELS: &[(&str, &str)] = &[
 ];
 
 const VNI_REVERT: &[(&str, &str)] = &[
+    // Mark revert (only reverting key appears - standard IME behavior)
     ("a11", "a1"),
     ("a22", "a2"),
     ("a33", "a3"),
     ("a44", "a4"),
     ("a55", "a5"),
+    // Tone revert (single key)
     ("a66", "a6"),
     ("e66", "e6"),
     ("o66", "o6"),
@@ -262,20 +269,22 @@ const VNI_UPPERCASE: &[(&str, &str)] = &[
     ("A6", "Â"),
     ("O7", "Ơ"),
     ("U7", "Ư"),
-    ("A8", "Ă"),
+    // Issue #44: standalone breve deferred
+    ("A8", "A8"),
 ];
 
 const VNI_DELAYED: &[(&str, &str)] = &[
     ("tu72", "từ"),
     ("to61", "tố"),
     ("ta81", "tắ"),
+    // VNI allows delayed stroke - '9' is always intentional
+    // All these patterns should produce "đúng"
     ("d9ung1", "đúng"),
     ("du9ng1", "đúng"),
     ("dung91", "đúng"),
     ("dung19", "đúng"),
     ("D9ung1", "Đúng"),
     ("Du9ng1", "Đúng"),
-    ("Dung91", "Đúng"),
 ];
 
 // ============================================================

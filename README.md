@@ -58,10 +58,11 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 
 ### 🔥 Highlight
 
-- 🔍 **Fix lỗi Chrome/Spotlight/Claude Code/JetBrains** - Tự động sửa dính chữ trong address bar, thanh tìm kiếm
+- 🔍 **Fix lỗi Chrome/Spotlight/Arc/Claude Code/JetBrains** - Tự động sửa dính chữ trong address bar, thanh tìm kiếm, Arc history
 - 🔤 **Auto-restore tiếng Anh** — Gõ `text` `expect` `user` `push` `sort` → tự khôi phục khi nhấn space. [Xem chi tiết ↓](#-auto-restore-tiếng-anh)
 - ⎋ **Gõ ESC tự khôi phục** — Gõ `user` → `úẻ` → nhấn **ESC** → `user`. Không cần tắt bộ gõ khi gõ tiếng Anh!
 - 🧠 **Chuyển chế độ thông minh** — Tự nhớ ON/OFF cho từng app. Code trên VS Code (tắt) → Chat trên Slack (bật) → tự chuyển
+- 🔄 **Tự động theo input source** — Dùng tiếng Nhật, Hàn, Trung... → Gõ Nhanh tự tắt. Chuyển về tiếng Anh → tự bật lại
 - ⚡ **Siêu nhanh** — <1ms latency · ~5MB RAM. Hỗ trợ đa nền tảng trên cùng một engine
 
 ### 📋 Đầy đủ
@@ -85,9 +86,11 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 |:------------------|:----------:|:--------:|
 | Gõ tiếng Anh xen kẽ | ⚠️ Phải tắt/bật bộ gõ | ✅ Nhấn `ESC` khôi phục |
 | Dính chữ trên Chrome/Edge | ⚠️ Phải tắt autocomplete | ✅ Tự động fix |
+| Lặp chữ trên Arc browser | ❌ Conflict với history | ✅ Tự động fix |
 | Lặp chữ trên Google Docs | ⚠️ Phải bật "Sửa lỗi" | ✅ Tự động fix |
 | Nhảy chữ trên Terminal | ❌ Không hỗ trợ tốt | ✅ Hoạt động tốt |
 | Gạch chân khó chịu (macOS) | ❌ Luôn hiển thị | ✅ Không gạch chân |
+| Dùng nhiều ngôn ngữ | ⚠️ Phải tắt thủ công | ✅ Tự tắt khi dùng tiếng khác |
 | Cấu hình phức tạp | ⚠️ 10+ tùy chọn | ✅ Cài là dùng |
 | Gõ trong ô mật khẩu | ❌ Bị chặn | ✅ Hoạt động bình thường |
 

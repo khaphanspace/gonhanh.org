@@ -1,7 +1,7 @@
 .PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major
 
 # Auto-versioning
-TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
 VER := $(subst v,,$(TAG))
 NEXT_PATCH := $(shell echo $(VER) | awk -F. '{print $$1"."$$2"."$$3+1}')
 NEXT_MINOR := $(shell echo $(VER) | awk -F. '{print $$1"."$$2+1".0"}')

@@ -54,6 +54,39 @@ pub fn key_to_char(key: u16, caps: bool) -> Option<char> {
     Some(if caps { ch.to_ascii_uppercase() } else { ch })
 }
 
+/// Convert key code to character with shift state support
+/// Handles shifted symbols like @ (Shift+2), # (Shift+3), etc.
+pub fn key_to_char_ext(key: u16, caps: bool, shift: bool) -> Option<char> {
+    // If shift is pressed, check for shifted symbols first
+    if shift {
+        return match key {
+            keys::N1 => Some('!'),
+            keys::N2 => Some('@'),
+            keys::N3 => Some('#'),
+            keys::N4 => Some('$'),
+            keys::N5 => Some('%'),
+            keys::N6 => Some('^'),
+            keys::N7 => Some('&'),
+            keys::N8 => Some('*'),
+            keys::N9 => Some('('),
+            keys::N0 => Some(')'),
+            keys::MINUS => Some('_'),
+            keys::EQUAL => Some('+'),
+            keys::SEMICOLON => Some(':'),
+            keys::QUOTE => Some('"'),
+            keys::COMMA => Some('<'),
+            keys::DOT => Some('>'),
+            keys::SLASH => Some('?'),
+            keys::BACKSLASH => Some('|'),
+            keys::LBRACKET => Some('{'),
+            keys::RBRACKET => Some('}'),
+            keys::BACKQUOTE => Some('~'),
+            _ => key_to_char(key, caps),
+        };
+    }
+    key_to_char(key, caps)
+}
+
 /// Collect vowels from buffer with phonological info
 pub fn collect_vowels(buf: &Buffer) -> Vec<Vowel> {
     buf.iter()
@@ -174,7 +207,20 @@ mod test_utils {
             '<' => keys::DELETE,
             ' ' => keys::SPACE,
             '\x1b' => keys::ESC, // ESC character
-            _ => 255,            // Unknown/Other
+            // Common symbols - map to base key (handler checks shift state)
+            '@' => keys::N2,    // Shift+2
+            '!' => keys::N1,    // Shift+1
+            '#' => keys::N3,    // Shift+3
+            '$' => keys::N4,    // Shift+4
+            '%' => keys::N5,    // Shift+5
+            '^' => keys::N6,    // Shift+6
+            '&' => keys::N7,    // Shift+7
+            '*' => keys::N8,    // Shift+8
+            '(' => keys::N9,    // Shift+9
+            ')' => keys::N0,    // Shift+0
+            '_' => keys::MINUS, // Shift+-
+            '+' => keys::EQUAL, // Shift+=
+            _ => 255,           // Unknown/Other
         }
     }
 
@@ -191,11 +237,35 @@ mod test_utils {
     pub fn type_word(e: &mut Engine, input: &str) -> String {
         let mut screen = String::new();
         for c in input.chars() {
-            let key = char_to_key(c);
+            // Detect shifted symbols and get proper (key, shift) pair
+            // NOTE: '<' is NOT included here - it maps to DELETE in test utilities
+            let (key, shift) = match c {
+                '@' => (keys::N2, true),
+                '!' => (keys::N1, true),
+                '#' => (keys::N3, true),
+                '$' => (keys::N4, true),
+                '%' => (keys::N5, true),
+                '^' => (keys::N6, true),
+                '&' => (keys::N7, true),
+                '*' => (keys::N8, true),
+                '(' => (keys::N9, true),
+                ')' => (keys::N0, true),
+                '_' => (keys::MINUS, true),
+                '+' => (keys::EQUAL, true),
+                ':' => (keys::SEMICOLON, true),
+                '"' => (keys::QUOTE, true),
+                '>' => (keys::DOT, true),
+                '?' => (keys::SLASH, true),
+                '|' => (keys::BACKSLASH, true),
+                '{' => (keys::LBRACKET, true),
+                '}' => (keys::RBRACKET, true),
+                '~' => (keys::BACKQUOTE, true),
+                _ => (char_to_key(c), false),
+            };
             let is_caps = c.is_uppercase();
 
             if key == keys::DELETE {
-                let r = e.on_key(key, false, false);
+                let r = e.on_key_ext(key, false, false, false);
                 if r.action == Action::Send as u8 {
                     // Restore from history - apply backspaces and replacement
                     for _ in 0..r.backspace {
@@ -215,7 +285,7 @@ mod test_utils {
 
             // ESC key: restore to raw ASCII
             if key == keys::ESC {
-                let r = e.on_key(key, false, false);
+                let r = e.on_key_ext(key, false, false, false);
                 if r.action == Action::Send as u8 {
                     for _ in 0..r.backspace {
                         screen.pop();
@@ -231,7 +301,7 @@ mod test_utils {
 
             if key == keys::SPACE {
                 // Space can trigger shortcuts - process result
-                let r = e.on_key(key, false, false);
+                let r = e.on_key_ext(key, false, false, false);
                 if r.action == Action::Send as u8 {
                     // Shortcut triggered - apply backspaces and replacement
                     for _ in 0..r.backspace {
@@ -249,7 +319,7 @@ mod test_utils {
                 continue;
             }
 
-            let r = e.on_key(key, is_caps, false);
+            let r = e.on_key_ext(key, is_caps, false, shift);
             if r.action == Action::Send as u8 {
                 for _ in 0..r.backspace {
                     screen.pop();
@@ -258,6 +328,11 @@ mod test_utils {
                     if let Some(ch) = char::from_u32(r.chars[i]) {
                         screen.push(ch);
                     }
+                }
+                // For break keys (punctuation), add the character after auto-restore
+                // The restored text doesn't include the break character
+                if keys::is_break(key) {
+                    screen.push(c);
                 }
             } else {
                 // Pass through if not handled (mimic editor receiving char)
@@ -280,6 +355,20 @@ mod test_utils {
         }
     }
 
+    /// Run Telex test cases with English auto-restore enabled
+    pub fn telex_auto_restore(cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            e.set_english_auto_restore(true);
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Telex AutoRestore] '{}' → '{}'",
+                input, result
+            );
+        }
+    }
+
     /// Run VNI test cases
     pub fn vni(cases: &[(&str, &str)]) {
         for (input, expected) in cases {
@@ -287,6 +376,35 @@ mod test_utils {
             e.set_method(1);
             let result = type_word(&mut e, input);
             assert_eq!(result, *expected, "[VNI] '{}' → '{}'", input, result);
+        }
+    }
+
+    /// Run Telex test cases with traditional tone placement (hòa, thúy style)
+    pub fn telex_traditional(cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            e.set_modern_tone(false);
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Telex Traditional] '{}' → '{}'",
+                input, result
+            );
+        }
+    }
+
+    /// Run VNI test cases with traditional tone placement (hòa, thúy style)
+    pub fn vni_traditional(cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            e.set_method(1);
+            e.set_modern_tone(false);
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[VNI Traditional] '{}' → '{}'",
+                input, result
+            );
         }
     }
 
@@ -371,21 +489,16 @@ mod test_utils {
                         screen.push(ch);
                     }
                 }
+                // For break keys (punctuation), add the character after auto-restore
+                if keys::is_break(key) {
+                    screen.push(c);
+                }
             } else {
                 // Pass through if not handled
                 screen.push(c);
             }
         }
         screen
-    }
-
-    /// Run raw mode test cases (with shift support for prefix chars)
-    pub fn raw_mode(cases: &[(&str, &str)]) {
-        for (input, expected) in cases {
-            let mut e = Engine::new();
-            let result = type_word_ext(&mut e, input);
-            assert_eq!(result, *expected, "[RawMode] '{}' → '{}'", input, result);
-        }
     }
 }
 

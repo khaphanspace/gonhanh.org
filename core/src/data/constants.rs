@@ -120,6 +120,7 @@ pub const VALID_TRIPHTHONGS: &[[u16; 3]] = &[
     [keys::U, keys::Y, keys::A], // #37 uya (khuya)
     [keys::U, keys::O, keys::U], // #39 ươu
     [keys::U, keys::Y, keys::E], // #40 uyê
+    [keys::U, keys::Y, keys::U], // #41 uyu (khuỷu - elbow)
 ];
 
 // =============================================================================

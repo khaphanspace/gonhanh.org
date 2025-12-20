@@ -1,7 +1,7 @@
 //! Typing Tests - Real-world typing scenarios, sentences, behaviors
 
 mod common;
-use common::{telex, vni};
+use common::{telex, telex_auto_restore, telex_traditional, vni, vni_traditional};
 
 // ============================================================
 // BACKSPACE & CORRECTIONS
@@ -166,6 +166,12 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("ejo", "ẹo"),     // e + j + o → ẹo
     ("keso", "kéo"),   // k + e + s + o → kéo
     ("treso", "tréo"), // tr + e + s + o → tréo
+    // Issue #48: dd + eso pattern (đ + e + s + o → đéo)
+    ("ddeso", "đéo"), // dd + e + s + o → đéo
+    ("ddefo", "đèo"), // dd + e + f + o → đèo (đèo = mountain pass)
+    ("ddero", "đẻo"), // dd + e + r + o → đẻo
+    ("ddexo", "đẽo"), // dd + e + x + o → đẽo
+    ("ddejo", "đẹo"), // dd + e + j + o → đẹo
     //
     // --- Pattern: êu (ê + glide u) ---
     ("eesu", "ếu"),   // ee + s + u → ếu (ee = ê)
@@ -358,7 +364,7 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     // EXISTING TEST CASES (preserved)
     // ============================================================
     //
-    // Double mark → revert
+    // Double mark → revert (only reverting key appears - standard IME behavior)
     ("ass", "as"),
     ("aff", "af"),
     ("arr", "ar"),
@@ -663,7 +669,7 @@ const TELEX_COMMON_ISSUES: &[(&str, &str)] = &[
     ("sa", "sa"),
     ("as", "á"),
     ("sas", "sá"),
-    ("sass", "sas"),
+    ("sass", "sas"), // first s modifier for sắc, second s reverts + outputs one s
     ("fa", "fa"),
     ("af", "à"),
     // Long compound words
@@ -767,7 +773,8 @@ const VNI_MARK_REPOSITION: &[(&str, &str)] = &[
 ];
 
 const TELEX_MARK_REPOSITION: &[(&str, &str)] = &[
-    ("uafw", "uằ"),
+    // ua pattern: when U has mark, horn goes to U (not breve on A)
+    ("uafw", "ừa"), // uaf → ùa, then w → ừa (horn on U)
     ("uwaf", "ừa"),
     ("oafw", "oằ"),
     // ươ compound
@@ -831,7 +838,13 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tung7", "tưng"),
     ("tong7", "tơng"),
     ("tang8", "tăng"),
+    // VNI allows delayed stroke - '9' is always intentional, not a letter
+    // All positions of '9' should work
+    ("d9ung", "đung"),
+    ("du9ng", "đung"),
     ("dung9", "đung"),
+    ("D9ung", "Đung"),
+    ("Du9ng", "Đung"),
     ("Dung9", "Đung"),
 ];
 
@@ -919,15 +932,20 @@ const VNI_DELAYED_TONE: &[(&str, &str)] = &[
     ("cu72", "cừ"),
     ("to71", "tớ"),
     ("ho72", "hờ"),
-    // Words with ươ - delayed marks then tone (duong + 9 + 7 + 2)
-    ("duong972", "đường"),
-    ("truong72", "trường"),
-    ("nuoc71", "nước"),
-    ("nguoi72", "người"),
-    // Words with đ - delayed (d + 9)
-    ("di9", "đi"),
-    ("do91", "đó"),
-    ("dang92", "đàng"),
+    // VNI delayed stroke - '9' is always intentional stroke command
+    // All positions of '9' should work for đường
+    ("d9uong72", "đường"),  // d9 + uong + 7 (horn) + 2 (huyền)
+    ("du9ong72", "đường"),  // d + u9 + ong + 7 + 2
+    ("duo9ng72", "đường"),  // d + uo + 9 + ng + 7 + 2
+    ("duon9g72", "đường"),  // d + uon + 9 + g + 7 + 2
+    ("duong972", "đường"),  // d + uong + 9 + 7 + 2
+    ("truong72", "trường"), // no đ, just ươ compound
+    ("nuoc71", "nước"),     // no đ
+    ("nguoi72", "người"),   // no đ
+    // đ with adjacent d9
+    ("d9i", "đi"),
+    ("d9o1", "đó"),
+    ("d9ang2", "đàng"),
 ];
 
 // ============================================================
@@ -1118,6 +1136,56 @@ fn telex_switch_diacritics() {
 #[test]
 fn vni_switch_diacritics() {
     vni(VNI_SWITCH_DIACRITICS);
+}
+
+// ============================================================
+// NON-ADJACENT STROKE - Issue #51
+// ============================================================
+//
+// Telex stroke behavior:
+// - dd → đ (adjacent stroke, always works)
+// - d + vowel + d → deferred (open syllable, waits for mark key)
+// - d + vowel + consonant + d → đ + vowel + consonant (has final, immediate stroke)
+//
+// Delayed stroke is DEFERRED for open syllables to prevent "dede" → "đê"
+// Only when a mark key (s,f,r,x,j) is typed does the stroke + mark apply together.
+// This enables "dods" → "đó" while preventing "dedicated" → "đeicated".
+
+const TELEX_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
+    // English words with invalid Vietnamese vowel patterns stay unchanged
+    // (ea, io, etc. are NOT valid Vietnamese diphthongs)
+    ("deadline", "deadline"),
+    ("dedicated", "dedicated"),
+    ("decided", "decided"),
+    // Open syllables (d + vowel + d) - stroke is DEFERRED to mark key
+    // This prevents false transformation of English-like patterns
+    ("dede", "dede"), // No mark key, stroke deferred
+    ("dada", "dada"), // No mark key, stroke deferred
+    ("dodo", "dodo"), // No mark key, stroke deferred
+    // Mixed: adjacent dd at start
+    ("ddead", "đead"),           // dd at start is adjacent → đ, then "ead"
+    ("ddedicated", "đedicated"), // dd at start
+    // Note: "deadd" → "deadd" because "dead" is invalid (d not a valid final),
+    // so even though 5th d is adjacent to 4th d, validation fails
+    ("deadd", "deadd"),
+];
+
+const VNI_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
+    // In VNI, d9 → đ only when '9' immediately follows 'd'
+    // "deadline" has no '9', so it stays unchanged
+    ("deadline", "deadline"),
+    ("dedicated", "dedicated"),
+    ("d9eadline", "đeadline"), // d9 at start → đ
+];
+
+#[test]
+fn telex_non_adjacent_stroke() {
+    telex(TELEX_NON_ADJACENT_STROKE);
+}
+
+#[test]
+fn vni_non_adjacent_stroke() {
+    vni(VNI_NON_ADJACENT_STROKE);
 }
 
 // ============================================================
@@ -1345,12 +1413,127 @@ fn vni_invalid_breve_diphthong() {
     vni(VNI_INVALID_BREVE_DIPHTHONG);
 }
 
+// NOTE: Requires english_auto_restore to be enabled (experimental feature).
 #[test]
 fn telex_english_aw_words() {
-    telex(TELEX_ENGLISH_AW_WORDS);
+    telex_auto_restore(TELEX_ENGLISH_AW_WORDS);
 }
 
 #[test]
 fn telex_breve_edge_cases() {
     telex(TELEX_BREVE_EDGE_CASES);
+}
+
+// ============================================================
+// TRADITIONAL TONE PLACEMENT - Issue #64
+// ============================================================
+//
+// When "modern tone" setting is OFF (traditional style):
+// - hòa, thúy (tone on 1st vowel) instead of hoà, thuý (tone on 2nd)
+//
+// Bug: Even with setting OFF, out-of-order typing (e.g., "xosa", "tufy")
+// still produces modern-style results due to hardcoded `true` in
+// `reposition_tone_if_needed()` function.
+
+const TELEX_TRADITIONAL_TONE: &[(&str, &str)] = &[
+    // ============================================================
+    // Issue #64: Out-of-order typing with traditional tone setting
+    // When typing tone BEFORE the second vowel, then adding second vowel,
+    // tone should stay on FIRST vowel in traditional mode
+    // ============================================================
+    //
+    // --- Pattern: oa (traditional: tone on 'o') ---
+    ("osa", "óa"),   // o + s + a → óa (NOT oá)
+    ("ofa", "òa"),   // o + f + a → òa (NOT oà)
+    ("ora", "ỏa"),   // o + r + a → ỏa (NOT oả)
+    ("oxa", "õa"),   // o + x + a → õa (NOT oã)
+    ("oja", "ọa"),   // o + j + a → ọa (NOT oạ)
+    ("hosa", "hóa"), // h + o + s + a → hóa (NOT hoá)
+    ("hofa", "hòa"), // h + o + f + a → hòa (NOT hoà)
+    ("xosa", "xóa"), // x + o + s + a → xóa (NOT xoá) - Issue #64 case
+    ("losa", "lóa"), // l + o + s + a → lóa (NOT loá)
+    ("tosa", "tóa"), // t + o + s + a → tóa (NOT toá)
+    //
+    // --- Pattern: oe (traditional: tone on 'o') ---
+    ("ose", "óe"),     // o + s + e → óe (NOT oé)
+    ("ofe", "òe"),     // o + f + e → òe (NOT oè)
+    ("khose", "khóe"), // kh + o + s + e → khóe (NOT khoé)
+    ("xose", "xóe"),   // x + o + s + e → xóe (NOT xoé)
+    //
+    // --- Pattern: uy (traditional: tone on 'u') ---
+    ("usy", "úy"),     // u + s + y → úy (NOT uý)
+    ("ufy", "ùy"),     // u + f + y → ùy (NOT uỳ)
+    ("ury", "ủy"),     // u + r + y → ủy (NOT uỷ)
+    ("uxy", "ũy"),     // u + x + y → ũy (NOT uỹ)
+    ("ujy", "ụy"),     // u + j + y → ụy (NOT uỵ)
+    ("tusy", "túy"),   // t + u + s + y → túy (NOT tuý)
+    ("tufy", "tùy"),   // t + u + f + y → tùy (NOT tuỳ) - Issue #64 case
+    ("husy", "húy"),   // h + u + s + y → húy (NOT huý)
+    ("thusy", "thúy"), // th + u + s + y → thúy (NOT thuý)
+    //
+    // --- qu- special case (always tone on 2nd vowel regardless) ---
+    // qu is treated as initial, so 'u' is not the vowel
+    ("qusy", "quý"), // qu + s + y → quý (same in both modes)
+    //
+    // ============================================================
+    // Delayed tone (typing tone AFTER all vowels) - should also respect setting
+    // ============================================================
+    //
+    // --- oa + delayed tone ---
+    ("hoas", "hóa"), // h + o + a + s → hóa (traditional)
+    ("hoaf", "hòa"), // h + o + a + f → hòa (traditional)
+    ("xoas", "xóa"), // x + o + a + s → xóa (traditional)
+    //
+    // --- oe + delayed tone ---
+    ("khoes", "khóe"), // kh + o + e + s → khóe (traditional)
+    //
+    // --- uy + delayed tone ---
+    ("tuys", "túy"),   // t + u + y + s → túy (traditional)
+    ("tuyf", "tùy"),   // t + u + y + f → tùy (traditional)
+    ("thuys", "thúy"), // th + u + y + s → thúy (traditional)
+    //
+    // ============================================================
+    // Normal order (tone typed correctly) - for comparison
+    // ============================================================
+    ("hosa", "hóa"),   // same as above
+    ("thusa", "thúa"), // th + u + s + a → thúa (u is main vowel, a is glide)
+];
+
+const VNI_TRADITIONAL_TONE: &[(&str, &str)] = &[
+    // ============================================================
+    // Issue #64: VNI with traditional tone setting
+    // ============================================================
+    //
+    // --- Pattern: oa (traditional: tone on 'o') ---
+    ("o1a", "óa"),   // o + 1 + a → óa (NOT oá)
+    ("o2a", "òa"),   // o + 2 + a → òa (NOT oà)
+    ("ho1a", "hóa"), // h + o + 1 + a → hóa (NOT hoá)
+    ("ho2a", "hòa"), // h + o + 2 + a → hòa (NOT hoà)
+    ("xo1a", "xóa"), // x + o + 1 + a → xóa (NOT xoá) - Issue #64 case
+    //
+    // --- Pattern: oe (traditional: tone on 'o') ---
+    ("o1e", "óe"),     // o + 1 + e → óe (NOT oé)
+    ("kho1e", "khóe"), // kh + o + 1 + e → khóe (NOT khoé)
+    //
+    // --- Pattern: uy (traditional: tone on 'u') ---
+    ("u1y", "úy"),   // u + 1 + y → úy (NOT uý)
+    ("u2y", "ùy"),   // u + 2 + y → ùy (NOT uỳ)
+    ("tu1y", "túy"), // t + u + 1 + y → túy (NOT tuý)
+    ("tu2y", "tùy"), // t + u + 2 + y → tùy (NOT tuỳ) - Issue #64 case
+    //
+    // --- Delayed tone ---
+    ("hoa1", "hóa"), // h + o + a + 1 → hóa (traditional)
+    ("hoa2", "hòa"), // h + o + a + 2 → hòa (traditional)
+    ("tuy1", "túy"), // t + u + y + 1 → túy (traditional)
+    ("tuy2", "tùy"), // t + u + y + 2 → tùy (traditional)
+];
+
+#[test]
+fn telex_traditional_tone_placement() {
+    telex_traditional(TELEX_TRADITIONAL_TONE);
+}
+
+#[test]
+fn vni_traditional_tone_placement() {
+    vni_traditional(VNI_TRADITIONAL_TONE);
 }

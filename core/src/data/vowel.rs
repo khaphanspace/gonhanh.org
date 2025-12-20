@@ -234,6 +234,12 @@ pub const TRIPHTHONG_PATTERNS: &[TriphthongTonePattern] = &[
         v3: keys::U,
         position: TonePosition::Second,
     }, // ươu: rượu
+    TriphthongTonePattern {
+        v1: keys::I,
+        v2: keys::U,
+        v3: keys::O,
+        position: TonePosition::Last,
+    }, // iươ: giường (gi + ươ, tone on ơ)
     // Special: uyê uses Last position
     TriphthongTonePattern {
         v1: keys::U,
@@ -276,7 +282,22 @@ impl Phonology {
                 has_gi_initial,
             ),
             3 => Self::find_triphthong_position(vowels),
-            _ => Self::find_default_position(vowels),
+            _ => {
+                // For 4+ vowels, check if first 3 form a triphthong pattern
+                // This handles cases like "cuoiwsi" → "cướii" (ươi + i)
+                // where the triphthong "ươi" should get the tone on ơ (position 2)
+                if vowels.len() >= 3 {
+                    let first_three = &vowels[0..3];
+                    let triphthong_pos = Self::find_triphthong_position(first_three);
+                    // triphthong_pos is already a buffer position from vowels[i].pos
+                    // Check if it's within the first 3 vowels (valid triphthong match)
+                    if triphthong_pos >= vowels[0].pos && triphthong_pos <= vowels[2].pos {
+                        return triphthong_pos;
+                    }
+                }
+                // Fall back to default position
+                Self::find_default_position(vowels)
+            }
         }
     }
 
@@ -311,23 +332,37 @@ impl Phonology {
             return if has_gi_initial { v2.pos } else { v1.pos };
         }
 
-        // ua: 1st unless qu-initial (mùa → u, quá → a)
+        // ua: 1st unless qu-initial (mùa → u, quà → a)
+        // Note: qu-initial means 'u' is part of consonant, not affected by modern setting
         if v1.key == keys::U && v2.key == keys::A {
-            if has_qu_initial {
-                return if modern { v2.pos } else { v1.pos };
-            }
-            return v1.pos;
+            return if has_qu_initial { v2.pos } else { v1.pos };
+        }
+
+        // uy with qu-initial: always on y (quý - 'u' is part of qu consonant)
+        // Not affected by modern setting
+        if v1.key == keys::U && v2.key == keys::Y && has_qu_initial {
+            return v2.pos;
         }
 
         // Rule 4: Pattern table lookup
         let pair = [v1.key, v2.key];
 
         // Check TONE_SECOND_PATTERNS (medial + main, compound)
+        // Modern setting only affects: oa, oe, uy (without qu-initial)
         if TONE_SECOND_PATTERNS
             .iter()
             .any(|p| p[0] == pair[0] && p[1] == pair[1])
         {
-            return if modern { v2.pos } else { v1.pos };
+            // Only oa, oe, uy are affected by modern/traditional debate
+            let is_modern_pattern = matches!(
+                (v1.key, v2.key),
+                (keys::O, keys::A) | (keys::O, keys::E) | (keys::U, keys::Y)
+            );
+            if is_modern_pattern {
+                return if modern { v2.pos } else { v1.pos };
+            }
+            // Other patterns (uê, iê, uô): always 2nd vowel
+            return v2.pos;
         }
 
         // Check TONE_FIRST_PATTERNS (main + glide)
@@ -346,17 +381,8 @@ impl Phonology {
     fn find_triphthong_position(vowels: &[Vowel]) -> usize {
         let (k0, k1, k2) = (vowels[0].key, vowels[1].key, vowels[2].key);
 
-        // Rule 1: Diacritic priority
-        // Middle with diacritic → middle (ươi: ơ has diacritic)
-        if vowels[1].has_diacritic() {
-            return vowels[1].pos;
-        }
-        // Last with diacritic → last (uyê: ê has diacritic)
-        if vowels[2].has_diacritic() {
-            return vowels[2].pos;
-        }
-
-        // Rule 2: Pattern table lookup
+        // Rule 1: Pattern table lookup (takes priority)
+        // Patterns define exact tone positions for known triphthongs
         for pattern in TRIPHTHONG_PATTERNS {
             if k0 == pattern.v1 && k1 == pattern.v2 && k2 == pattern.v3 {
                 return match pattern.position {
@@ -365,6 +391,20 @@ impl Phonology {
                     TonePosition::Last => vowels[2].pos,
                 };
             }
+        }
+
+        // Rule 2: Diacritic priority (for unmatched patterns)
+        // First with diacritic → first (ơi: ơ has diacritic, tone on ơ)
+        if vowels[0].has_diacritic() {
+            return vowels[0].pos;
+        }
+        // Middle with diacritic → middle (ươi: ơ has diacritic)
+        if vowels[1].has_diacritic() {
+            return vowels[1].pos;
+        }
+        // Last with diacritic → last (uyê: ê has diacritic)
+        if vowels[2].has_diacritic() {
+            return vowels[2].pos;
         }
 
         // Default: middle vowel
@@ -421,15 +461,17 @@ impl Phonology {
                 let k1 = buffer_keys.get(pos1).copied().unwrap_or(0);
                 let k2 = buffer_keys.get(pos2).copied().unwrap_or(0);
 
-                // Special case: "ua" - check preceding consonant (Q excluded)
+                // Special case: "ua" pattern
+                // - "qua" → Q is part of initial, so target A for breve → "quă"
+                // - "ua" standalone → target U for horn → "ưa"
+                // - "mua", "chua" → target U for horn → "mưa", "chưa"
                 if k1 == keys::U && k2 == keys::A {
-                    let has_non_q_consonant = pos1 > 0
-                        && buffer_keys
-                            .get(pos1 - 1)
-                            .map(|&k| keys::is_consonant(k) && k != keys::Q)
-                            .unwrap_or(false);
+                    let preceded_by_q =
+                        pos1 > 0 && buffer_keys.get(pos1 - 1).copied() == Some(keys::Q);
 
-                    result.push(if has_non_q_consonant { pos1 } else { pos2 });
+                    // Only apply breve to A when preceded by Q (qu-initial)
+                    // Otherwise apply horn to U
+                    result.push(if preceded_by_q { pos2 } else { pos1 });
                     return result;
                 }
 
@@ -458,6 +500,14 @@ impl Phonology {
         for &pos in vowel_positions.iter().rev() {
             let k = buffer_keys.get(pos).copied().unwrap_or(0);
             if k == keys::U || k == keys::O {
+                // Check if this creates invalid vowel combination
+                // "oe" pattern: horn on 'o' creates invalid "ơe" - skip this position
+                if k == keys::O {
+                    let next_key = buffer_keys.get(pos + 1).copied();
+                    if next_key == Some(keys::E) {
+                        continue; // Skip - "oe" doesn't accept horn on 'o'
+                    }
+                }
                 result.push(pos);
                 return result;
             }

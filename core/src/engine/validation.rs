@@ -159,6 +159,11 @@ fn rule_valid_final(snap: &BufferSnapshot, syllable: &Syllable) -> Option<Valida
 /// - 29 diphthongs (nguyên âm đôi)
 /// - 11 triphthongs (nguyên âm ba)
 ///
+/// This catches common English patterns NOT in Vietnamese:
+/// - "ea" (search, beach, teacher) - not valid in Vietnamese
+/// - "ou" (you, our, house, about) - not valid in Vietnamese
+/// - "yo" (yoke, York, your) - not valid in Vietnamese
+///
 /// Modifier requirements (circumflex checks) are ONLY enforced when tone info
 /// is available (tones not all zeros). This allows legacy is_valid() to work
 /// while is_valid_with_tones() can do full validation.
@@ -315,8 +320,21 @@ pub fn is_valid_for_transform(buffer_keys: &[u16]) -> bool {
 
 /// Check if the buffer shows patterns that suggest foreign word input.
 ///
-/// Returns true if vowel pattern is NOT in valid Vietnamese whitelist.
-pub fn is_foreign_word_pattern(buffer_keys: &[u16], modifier_key: u16) -> bool {
+/// This is a heuristic to detect when the user is likely typing a foreign word
+/// rather than Vietnamese. It checks for:
+/// 1. Invalid vowel patterns that don't exist in Vietnamese (using whitelist)
+/// 2. Consonant clusters after finals that are common in English (T+R, P+R, C+R)
+/// 3. Common English prefix patterns (de + s → describe, design)
+///
+/// `buffer_tones` contains tone values for each character (0=none, 1=circumflex, 2=horn).
+/// This is needed to distinguish "le" (plain e, English-like) from "lê" (e with circumflex, Vietnamese).
+///
+/// Returns true if the pattern suggests foreign word input.
+pub fn is_foreign_word_pattern(
+    buffer_keys: &[u16],
+    _buffer_tones: &[u8],
+    modifier_key: u16,
+) -> bool {
     let syllable = parse(buffer_keys);
 
     // Check 1: Invalid vowel patterns (not in whitelist)
@@ -369,6 +387,51 @@ pub fn is_foreign_word_pattern(buffer_keys: &[u16], modifier_key: u16) -> bool {
 
         if initial == keys::D && vowel == keys::E {
             return true;
+        }
+    }
+
+    // Check 4: REMOVED - Was too aggressive
+    // Previously blocked "tex" → "tẽ" treating it as English "-ex-" pattern.
+    // Now we allow "tex" → "tẽ" (valid Vietnamese) and rely on auto-restore
+    // when additional consonants are typed (e.g., "text" → "text").
+    //
+    // The auto-restore logic in handle_normal_letter will detect invalid
+    // Vietnamese patterns like "tẽt" and restore to "text".
+
+    // Check 5: Invalid final consonant + mark modifier → likely English
+    // When buffer has vowel + INVALID final consonant pattern
+    // Example: "exp" + 'r' = [E, X, P] + R → likely English "express"
+    //          "ex" + 'p' = [E, X] + P → likely English (X is invalid final)
+    //
+    // Valid Vietnamese finals: C, M, N, P, T (single) + CH, NG, NH (double)
+    // Invalid: X, B, D, G, H, K, L, Q, R, S, V, or any consonant cluster not listed above
+    //
+    // Note: "an" + 's' → "án" should NOT trigger this (N is valid final)
+    if syllable.initial.is_empty() && syllable.vowel.len() == 1 && !syllable.final_c.is_empty() {
+        // Check if the final consonant pattern is invalid for Vietnamese
+        let finals: Vec<u16> = syllable.final_c.iter().map(|&i| buffer_keys[i]).collect();
+        let is_invalid_final = match finals.len() {
+            1 => {
+                // Invalid single finals: X, B, D, G, H, K, L, Q, R, S, V
+                let f = finals[0];
+                !matches!(f, keys::C | keys::M | keys::N | keys::P | keys::T)
+            }
+            2 => {
+                // Valid double finals: CH, NG, NH
+                let pair = [finals[0], finals[1]];
+                !constants::VALID_FINALS_2.contains(&pair)
+            }
+            _ => true, // 3+ consonants after vowel is always invalid Vietnamese
+        };
+
+        if is_invalid_final {
+            let is_mark_modifier = matches!(
+                modifier_key,
+                keys::S | keys::F | keys::R | keys::X | keys::J
+            );
+            if is_mark_modifier {
+                return true;
+            }
         }
     }
 

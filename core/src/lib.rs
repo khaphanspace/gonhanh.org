@@ -153,15 +153,115 @@ pub extern "C" fn ime_skip_w_shortcut(skip: bool) {
     }
 }
 
+/// Set whether ESC key restores raw ASCII input.
+///
+/// When `enabled` is true (default), pressing ESC restores original keystrokes.
+/// When `enabled` is false, ESC key is passed through without restoration.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_esc_restore(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_esc_restore(enabled);
+    }
+}
+
+/// Set whether to enable free tone placement (skip validation).
+///
+/// When `enabled` is true, allows placing diacritics anywhere without
+/// spelling validation (e.g., "Zìa" is allowed).
+/// When `enabled` is false (default), validates Vietnamese spelling rules.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_free_tone(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_free_tone(enabled);
+    }
+}
+
+/// Set whether to use modern orthography for tone placement.
+///
+/// When `modern` is true: hoà, thuý (tone on second vowel - new style)
+/// When `modern` is false (default): hòa, thúy (tone on first vowel - traditional)
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_modern(modern: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_modern_tone(modern);
+    }
+}
+
+/// Enable/disable English auto-restore (experimental feature).
+///
+/// When `enabled` is true, automatically restores English words that were
+/// accidentally transformed (e.g., "tẽt" → "text", "ễpct" → "expect").
+/// When `enabled` is false (default), no auto-restore happens.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_english_auto_restore(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_english_auto_restore(enabled);
+    }
+}
+
 /// Clear the input buffer.
 ///
-/// Call on word boundaries (space, punctuation, mouse click, focus change).
+/// Call on word boundaries (space, punctuation).
+/// Preserves word history for backspace-after-space feature.
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_clear() {
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.clear();
+    }
+}
+
+/// Clear everything including word history.
+///
+/// Call when cursor position changes (mouse click, arrow keys, focus change).
+/// This prevents accidental restore from stale history.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_clear_all() {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.clear_all();
+    }
+}
+
+/// Get the full composed buffer as UTF-32 codepoints.
+///
+/// Used for "Select All + Replace" injection method where the entire
+/// buffer content is needed instead of incremental backspace + chars.
+///
+/// # Arguments
+/// * `out` - Pointer to output buffer for UTF-32 codepoints
+/// * `max_len` - Maximum number of codepoints to write
+///
+/// # Returns
+/// Number of codepoints written to `out`.
+///
+/// # Safety
+/// `out` must point to valid memory of at least `max_len * sizeof(u32)` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn ime_get_buffer(out: *mut u32, max_len: i64) -> i64 {
+    if out.is_null() || max_len <= 0 {
+        return 0;
+    }
+
+    let guard = lock_engine();
+    if let Some(ref e) = *guard {
+        let full = e.get_buffer_string();
+        let utf32: Vec<u32> = full.chars().map(|c| c as u32).collect();
+        let len = utf32.len().min(max_len as usize);
+        std::ptr::copy_nonoverlapping(utf32.as_ptr(), out, len);
+        len as i64
+    } else {
+        0
     }
 }
 

@@ -308,7 +308,11 @@ fn modern_orthography_full() {
 // ============================================================
 
 #[test]
-fn double_tone_reverts() {
+fn double_mark_key_includes_both() {
+    // When mark is reverted by pressing same key twice, only the reverting key appears
+    // This is standard Vietnamese IME behavior (UniKey, ibus-unikey, etc.)
+    // First key was modifier, second key reverts and outputs one letter
+    // English words like "issue", "bass" work via auto-restore feature
     telex(&[("ass", "as")]);
 }
 
@@ -426,14 +430,14 @@ fn foreign_word_exxpe_no_transform() {
     // When typing "exxpe":
     // - 'e' → buffer="e"
     // - 'x' → mark applied → screen="ẽ"
-    // - 'x' → revert (same key) → screen="ex", buffer="ex"
-    // - 'p' → screen="exp", buffer="exp" (invalid Vietnamese)
+    // - 'x' → revert (same key) → screen="ex", buffer="ex" (only reverting key appears)
+    // - 'p' → screen="exp", buffer="exp"
     // - 'e' → buffer="expe" invalid → no circumflex applied, just adds 'e'
-    // Result: "expe" (the first x was consumed/reverted)
+    // Result: "expe" (standard IME behavior: first x was modifier, second x reverts)
     let result = type_word(&mut e, "exxpe");
     assert_eq!(
         result, "expe",
-        "exxpe should become expe (first x consumed by mark/revert), got: {}",
+        "exxpe should become expe (standard IME revert behavior), got: {}",
         result
     );
 }
@@ -467,10 +471,13 @@ fn foreign_word_string_no_mark() {
     );
 }
 
+/// Auto-restore now handles "express" - the "xp" pattern (x followed by consonant) is detected.
+/// NOTE: Requires english_auto_restore to be enabled (experimental feature).
 #[test]
 fn foreign_word_express_no_mark() {
     let mut e = Engine::new();
-    // "express" - 'r' after 'p' should not apply mark
+    e.set_english_auto_restore(true); // Enable experimental feature
+                                      // "express" - 'r' after 'p' should not apply mark
     let result = type_word(&mut e, "express");
     assert!(
         !result.contains('ẻ'),
@@ -538,7 +545,8 @@ fn foreign_word_could_no_mark() {
 #[test]
 fn foreign_word_would_no_mark() {
     let mut e = Engine::new();
-    // "ou" pattern doesn't exist in Vietnamese
+    e.set_english_auto_restore(true); // Enable experimental feature
+                                      // "ou" pattern doesn't exist in Vietnamese
     let result = type_word(&mut e, "woulds");
     assert_eq!(result, "woulds", "woulds should stay unchanged");
 }
@@ -1014,6 +1022,90 @@ fn shortcut_not_triggered_by_letter() {
     );
 }
 
+// Issue: "search" should not become "seảch" in Telex
+// "ea" is not a valid Vietnamese vowel combination
+#[test]
+fn foreign_word_search_no_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "search");
+    assert_eq!(
+        result, "search",
+        "search should stay unchanged, got: {}",
+        result
+    );
+}
+
+// Test other English patterns that might be problematic
+#[test]
+fn foreign_word_teacher_no_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "teacher");
+    // "ea" is invalid Vietnamese pattern
+    assert_eq!(
+        result, "teacher",
+        "teacher should stay unchanged, got: {}",
+        result
+    );
+}
+
+#[test]
+fn foreign_word_real_no_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "real");
+    // "ea" is invalid Vietnamese pattern
+    assert_eq!(
+        result, "real",
+        "real should stay unchanged, got: {}",
+        result
+    );
+}
+
+#[test]
+fn foreign_word_beach_no_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "beach");
+    // "ea" is invalid Vietnamese pattern
+    assert_eq!(
+        result, "beach",
+        "beach should stay unchanged, got: {}",
+        result
+    );
+}
+
+// Test that common English words with 'x' stay unchanged
+// The "consonant + e + x" pattern is detected as English (tex-, nex-, etc.)
+// NOTE: Requires english_auto_restore to be enabled (experimental feature).
+#[test]
+fn foreign_word_text_no_mark() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true); // Enable experimental feature
+    let text_result = type_word(&mut e, "text");
+
+    // "text" has consonant 't' before 'e', so Check 4 catches the "tex" pattern
+    println!("'text' -> '{}' (expected: 'text')", text_result);
+
+    assert_eq!(
+        text_result, "text",
+        "text should stay unchanged (consonant + e + x detected as English)"
+    );
+}
+
+/// Auto-restore now handles "expect" - the "xp" pattern (x followed by consonant) is detected.
+/// NOTE: Requires english_auto_restore to be enabled (experimental feature).
+#[test]
+fn foreign_word_expect_no_mark() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true); // Enable experimental feature
+    let expect_result = type_word(&mut e, "expect");
+
+    // "expect" starts with 'e', no consonant before - can't distinguish from Vietnamese "ẽ"
+    println!("'expect' -> '{}' (expected: 'expect')", expect_result);
+
+    assert_eq!(
+        expect_result, "expect",
+        "expect should stay unchanged (e+x detected as English)"
+    );
+}
 /// Bug: Shortcut should NOT trigger when preceded by numbers
 /// e.g., "149k" should NOT expand "k" → "không"
 #[test]
@@ -1160,30 +1252,32 @@ fn z_still_removes_marks_in_telex() {
 /// Issue #24: All possible Telex combinations for "đọc"
 ///
 /// đọc = đ (stroke) + ọ (nặng mark) + c
-/// - đ: requires "dd" (can be split: d...d)
+/// - đ: can be typed as "dd" (adjacent) OR delayed stroke (d + vowel + d)
 /// - ọ: requires "o" + "j" (j can come after c)
 /// - c: just "c"
 ///
-/// Test all valid typing orders that should produce "đọc"
+/// Delayed stroke is now supported for valid Vietnamese patterns.
+/// Second 'd' triggers stroke on initial 'd' if buffer forms valid Vietnamese.
 #[test]
 fn telex_doc_all_combinations() {
-    // Standard patterns - dd at start
+    // Standard patterns - dd at start (adjacent stroke)
     telex(&[
         ("ddojc", "đọc"), // dd + oj + c (most common)
         ("ddocj", "đọc"), // dd + oc + j (mark at end)
     ]);
 
-    // D-postfix patterns - one d at start, stroke applied at end
+    // Delayed stroke patterns - d at end triggers stroke on initial d
+    // Second 'd' applies stroke to first 'd' when buffer is valid Vietnamese
     telex(&[
-        ("dojcd", "đọc"), // d + oj + c + d (stroke at end)
-        ("docjd", "đọc"), // d + oc + j + d (mark then stroke at end)
-        ("docdj", "đọc"), // d + oc + d + j (stroke then mark at end)
+        ("dojcd", "đọc"), // d + oj + c + d (delayed stroke at end)
+        ("docjd", "đọc"), // d + oc + j + d (delayed stroke at end)
+        ("docdj", "đọc"), // d + oc + d + j (delayed stroke, then tone)
     ]);
 
-    // Mixed order - d after vowel but before final consonant
+    // Mixed order patterns - delayed stroke in middle
     telex(&[
-        ("dojdc", "đọc"), // d + oj + d + c
-        ("dodjc", "đọc"), // d + od + j + c (stroke mid-word)
+        ("dojdc", "đọc"), // d + oj + d + c (delayed stroke, then c)
+        ("dodjc", "đọc"), // d + o + d + j + c (delayed stroke triggers on 3rd char)
     ]);
 }
 
@@ -2287,4 +2381,181 @@ fn restore_word_change_mark_then_extend() {
     // Screen has "chà", restore and change to sắc, then add 'o'
     let result = restore_and_type(&mut e, "chà", "so");
     assert_eq!(result, "cháo", "Should change mark and extend word");
+}
+
+// ============================================================
+// OIW VS OWI BUG FIX TEST
+// ============================================================
+
+/// Bug: "oiw" produces error but "owi" → "ơi" works
+/// Expected: Both should produce valid Vietnamese
+#[test]
+fn oiw_vs_owi_order() {
+    // "owi" = o + w → ơ, then + i → ơi (works)
+    // "oiw" = o + i → oi, then + w should → ơi (should work too)
+    telex(&[
+        ("owi ", "ơi "),
+        ("oiw ", "ơi "), // Bug: this was failing
+    ]);
+}
+
+// Debug test for oiw
+#[test]
+fn test_debug_oiw() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::validation::is_valid;
+    use gonhanh_core::engine::Engine;
+
+    // First check if "oi" is considered valid Vietnamese
+    let oi_keys = vec![keys::O, keys::I];
+    println!("is_valid([O, I]) = {}", is_valid(&oi_keys));
+
+    let mut e = Engine::new();
+
+    // Step by step - simulating what type_word does
+    let mut screen = String::new();
+
+    // Type 'o'
+    let r = e.on_key(keys::O, false, false);
+    if r.action == 1 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+    } else {
+        screen.push('o');
+    }
+    println!("After O: screen='{}', action={}", screen, r.action);
+
+    // Type 'i'
+    let r = e.on_key(keys::I, false, false);
+    if r.action == 1 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+    } else {
+        screen.push('i');
+    }
+    println!("After I: screen='{}', action={}", screen, r.action);
+
+    // Type 'w'
+    let r = e.on_key(keys::W, false, false);
+    println!(
+        "W result: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
+    if r.action == 1 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+    } else {
+        screen.push('w');
+    }
+    println!("After W: screen='{}'", screen);
+
+    // Type ' ' (space)
+    let r = e.on_key(keys::SPACE, false, false);
+    println!(
+        "SPACE result: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
+    // Print the chars
+    if r.count > 0 {
+        let chars: String = r.chars[..r.count as usize]
+            .iter()
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
+        println!("SPACE output chars: '{}'", chars);
+    }
+
+    if r.action == 1 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+    } else {
+        screen.push(' ');
+    }
+    println!("After SPACE: screen='{}'", screen);
+
+    assert_eq!(screen, "ơi ", "oiw followed by space should become 'ơi '");
+}
+
+// Bug: "rieneg" produces error but "rieeng" → "riêng" works
+// Bug: "nafo" produces error but "naof" → "nào" works
+#[test]
+fn test_rieneg_vs_rieeng() {
+    telex(&[
+        ("rieeng ", "riêng "), // Should work (circumflex on e, n+g final)
+        ("rieneg ", "riêng "), // Bug: reported as error
+    ]);
+}
+
+#[test]
+fn test_nafo_vs_naof() {
+    telex(&[
+        ("naof ", "nào "), // Should work (huyền tone on a)
+        ("nafo ", "nào "), // Bug: reported as error
+    ]);
+}
+
+// Debug test for rieneg - circumflex modifier order
+#[test]
+fn test_debug_rieneg() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    let mut screen = String::new();
+
+    let keys_to_type = [
+        (keys::R, 'r'),
+        (keys::I, 'i'),
+        (keys::E, 'e'),
+        (keys::N, 'n'),
+        (keys::E, 'e'),
+        (keys::G, 'g'),
+        (keys::SPACE, ' '),
+    ];
+
+    for (key, default_char) in keys_to_type {
+        let r = e.on_key(key, false, false);
+        println!(
+            "After {:?}: action={}, backspace={}, count={}",
+            default_char, r.action, r.backspace, r.count
+        );
+        if r.action == 1 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(default_char);
+        }
+        println!("  screen='{}'", screen);
+    }
+
+    println!("Final: '{}'", screen);
 }

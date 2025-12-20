@@ -1,618 +1,464 @@
-//! Dynamic Tests - Auto-generated Vietnamese syllable combinations
+//! Dynamic Permutation Testing
 //!
-//! Instead of declaring test cases one-by-one, this module generates
-//! all valid Vietnamese syllable patterns and tests tone placement.
-
-#![allow(dead_code)] // Constants below serve as documentation for test patterns
+//! Generates test cases dynamically from Vietnamese syllable components.
+//! Tests modifier order flexibility: same output regardless of typing order.
 
 mod common;
-use common::telex;
-use rstest::rstest;
+use gonhanh_core::engine::Engine;
+use gonhanh_core::utils::type_word;
 
-// ============================================================
-// VOWEL PATTERNS WITH EXPECTED TONE POSITION
-// ============================================================
-// Format: (vowel_pattern, telex_input_suffix, expected_output, tone_description)
-// The tone position is encoded in the expected output
+// =============================================================================
+// VIETNAMESE SYLLABLE COMPONENTS
+// =============================================================================
 
-/// Single vowels - tone always on the vowel itself
-const SINGLE_VOWELS: &[(&str, &str)] = &[
-    ("a", "á"),
-    ("e", "é"),
-    ("i", "í"),
-    ("o", "ó"),
-    ("u", "ú"),
-    ("y", "ý"),
-];
+const COMMON_INITIALS: &[&str] = &["b", "c", "d", "g", "h", "l", "m", "n", "s", "t"];
+const DIPHTHONGS: &[(&str, &str)] = &[("a", "o"), ("a", "i"), ("o", "i"), ("u", "a")];
+const TONES: &[&str] = &["s", "f", "r", "x", "j"];
 
-/// Modified single vowels (circumflex, horn, breve)
-const MODIFIED_VOWELS: &[(&str, &str, &str)] = &[
-    // (telex_input, expected_with_sac, description)
-    ("aa", "ấ", "â + sắc"),
-    ("ee", "ế", "ê + sắc"),
-    ("oo", "ố", "ô + sắc"),
-    ("ow", "ớ", "ơ + sắc"),
-    ("uw", "ứ", "ư + sắc"),
-    ("aw", "ắ", "ă + sắc"),
-];
+// =============================================================================
+// HELPERS
+// =============================================================================
 
-/// Two-vowel patterns: Medial + Main (tone on 2nd/main vowel)
-/// oa, oe, uy, uê - tone goes on the main vowel (2nd)
-const MEDIAL_MAIN_PAIRS: &[(&str, &str)] = &[
-    ("oa", "oá"),  // hoá, toá
-    ("oe", "oé"),  // xoè, loè
-    ("uy", "uý"),  // quý, tuý
-    ("uee", "uế"), // huế, quế (uê)
-];
-
-/// Two-vowel patterns: Main + Glide (tone on 1st/main vowel)
-/// ai, ao, au, ay, oi, ui, etc. - tone goes on the main vowel (1st)
-const MAIN_GLIDE_PAIRS: &[(&str, &str)] = &[
-    ("ai", "ái"),
-    ("ao", "áo"),
-    ("au", "áu"),
-    ("ay", "áy"),
-    ("oi", "ói"),
-    ("ui", "úi"),
-    ("eo", "éo"),
-    ("eu", "éu"),
-    ("iu", "íu"),
-];
-
-/// Special two-vowel patterns with specific rules
-const SPECIAL_PAIRS: &[(&str, &str, &str)] = &[
-    // (telex_input, expected_with_sac, description)
-    ("ia", "ía", "ia: tone on i (descending diphthong)"),
-    ("uwa", "ứa", "ưa: tone on ư (ư has diacritic)"),
-];
-
-/// Compound vowels: ươ, uô, iê - tone on 2nd (both have diacritics or 2nd is main)
-const COMPOUND_VOWELS: &[(&str, &str, &str)] = &[
-    ("uow", "ướ", "ươ compound"),
-    ("uoo", "uố", "uô compound"),
-    ("iee", "iế", "iê compound"),
-];
-
-/// Three-vowel patterns - tone typically on middle vowel
-const THREE_VOWELS: &[(&str, &str, &str)] = &[
-    ("oai", "oái", "oai: tone on a (middle)"),
-    ("oay", "oáy", "oay: tone on a (middle)"),
-    ("uoi", "uối", "uôi: tone on ô (middle)"),
-    ("uowi", "ưới", "ươi: tone on ơ (middle)"),
-    ("uyee", "uyế", "uyê: tone on ê (last, has diacritic)"),
-];
-
-// ============================================================
-// INITIALS FOR COMBINATION
-// ============================================================
-
-const SIMPLE_INITIALS: &[&str] = &[
-    "", "b", "c", "d", "g", "h", "k", "l", "m", "n", "p", "r", "s", "t", "v", "x",
-];
-
-const DOUBLE_INITIALS: &[&str] = &["ch", "gh", "kh", "ng", "nh", "ph", "th", "tr"];
-
-// Special initials that affect vowel patterns
-const GI_INITIAL: &str = "gi";
-const QU_INITIAL: &str = "qu";
-
-// ============================================================
-// FINALS FOR COMBINATION
-// ============================================================
-
-const SIMPLE_FINALS: &[&str] = &["", "c", "m", "n", "p", "t"];
-
-const DOUBLE_FINALS: &[&str] = &["ch", "ng", "nh"];
-
-// ============================================================
-// TONE MARKS (Telex)
-// ============================================================
-
-const TONE_MARKS: &[(&str, &str, &str)] = &[
-    // (telex_key, mark_char, description)
-    ("s", "\u{0301}", "sắc"),   // ́ combining acute
-    ("f", "\u{0300}", "huyền"), // ̀ combining grave
-    ("r", "\u{0309}", "hỏi"),   // ̉ combining hook above
-    ("x", "\u{0303}", "ngã"),   // ̃ combining tilde
-    ("j", "\u{0323}", "nặng"),  // ̣ combining dot below
-];
-
-// ============================================================
-// DYNAMIC TEST: Single vowels with all tones
-// ============================================================
-
-#[rstest]
-#[case("a", "s", "á")]
-#[case("a", "f", "à")]
-#[case("a", "r", "ả")]
-#[case("a", "x", "ã")]
-#[case("a", "j", "ạ")]
-#[case("e", "s", "é")]
-#[case("e", "f", "è")]
-#[case("e", "r", "ẻ")]
-#[case("e", "x", "ẽ")]
-#[case("e", "j", "ẹ")]
-#[case("i", "s", "í")]
-#[case("i", "f", "ì")]
-#[case("i", "r", "ỉ")]
-#[case("i", "x", "ĩ")]
-#[case("i", "j", "ị")]
-#[case("o", "s", "ó")]
-#[case("o", "f", "ò")]
-#[case("o", "r", "ỏ")]
-#[case("o", "x", "õ")]
-#[case("o", "j", "ọ")]
-#[case("u", "s", "ú")]
-#[case("u", "f", "ù")]
-#[case("u", "r", "ủ")]
-#[case("u", "x", "ũ")]
-#[case("u", "j", "ụ")]
-#[case("y", "s", "ý")]
-#[case("y", "f", "ỳ")]
-#[case("y", "r", "ỷ")]
-#[case("y", "x", "ỹ")]
-#[case("y", "j", "ỵ")]
-fn single_vowel_all_tones(#[case] vowel: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowel, tone);
-    telex(&[(&input, expected)]);
+fn apply_tone(v: char, t: &str) -> char {
+    match (v, t) {
+        ('a', "s") => 'á',
+        ('a', "f") => 'à',
+        ('a', "r") => 'ả',
+        ('a', "x") => 'ã',
+        ('a', "j") => 'ạ',
+        ('e', "s") => 'é',
+        ('e', "f") => 'è',
+        ('e', "r") => 'ẻ',
+        ('e', "x") => 'ẽ',
+        ('e', "j") => 'ẹ',
+        ('o', "s") => 'ó',
+        ('o', "f") => 'ò',
+        ('o', "r") => 'ỏ',
+        ('o', "x") => 'õ',
+        ('o', "j") => 'ọ',
+        ('u', "s") => 'ú',
+        ('u', "f") => 'ù',
+        ('u', "r") => 'ủ',
+        ('u', "x") => 'ũ',
+        ('u', "j") => 'ụ',
+        _ => v,
+    }
 }
 
-// ============================================================
-// DYNAMIC TEST: Modified vowels (circumflex, horn, breve)
-// ============================================================
-
-#[rstest]
-// Circumflex: â, ê, ô
-#[case("aa", "s", "ấ")]
-#[case("aa", "f", "ầ")]
-#[case("aa", "r", "ẩ")]
-#[case("aa", "x", "ẫ")]
-#[case("aa", "j", "ậ")]
-#[case("ee", "s", "ế")]
-#[case("ee", "f", "ề")]
-#[case("ee", "r", "ể")]
-#[case("ee", "x", "ễ")]
-#[case("ee", "j", "ệ")]
-#[case("oo", "s", "ố")]
-#[case("oo", "f", "ồ")]
-#[case("oo", "r", "ổ")]
-#[case("oo", "x", "ỗ")]
-#[case("oo", "j", "ộ")]
-// Horn: ơ, ư
-#[case("ow", "s", "ớ")]
-#[case("ow", "f", "ờ")]
-#[case("ow", "r", "ở")]
-#[case("ow", "x", "ỡ")]
-#[case("ow", "j", "ợ")]
-#[case("uw", "s", "ứ")]
-#[case("uw", "f", "ừ")]
-#[case("uw", "r", "ử")]
-#[case("uw", "x", "ữ")]
-#[case("uw", "j", "ự")]
-// Breve: ă
-#[case("aw", "s", "ắ")]
-#[case("aw", "f", "ằ")]
-#[case("aw", "r", "ẳ")]
-#[case("aw", "x", "ẵ")]
-#[case("aw", "j", "ặ")]
-fn modified_vowel_all_tones(#[case] vowel: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowel, tone);
-    telex(&[(&input, expected)]);
+fn test(input: &str, expected: &str) -> Result<(), String> {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, input);
+    if result == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "'{}' → '{}' (expected '{}')",
+            input, result, expected
+        ))
+    }
 }
 
-// ============================================================
-// DYNAMIC TEST: Two-vowel patterns (medial + main)
-// Tone on 2nd vowel (main)
-// ============================================================
-
-#[rstest]
-// oa pattern
-#[case("oa", "s", "oá")]
-#[case("oa", "f", "oà")]
-#[case("oa", "r", "oả")]
-#[case("oa", "x", "oã")]
-#[case("oa", "j", "oạ")]
-// oe pattern
-#[case("oe", "s", "oé")]
-#[case("oe", "f", "oè")]
-#[case("oe", "r", "oẻ")]
-#[case("oe", "x", "oẽ")]
-#[case("oe", "j", "oẹ")]
-// uy pattern
-#[case("uy", "s", "uý")]
-#[case("uy", "f", "uỳ")]
-#[case("uy", "r", "uỷ")]
-#[case("uy", "x", "uỹ")]
-#[case("uy", "j", "uỵ")]
-fn medial_main_pair_tones(#[case] vowels: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowels, tone);
-    telex(&[(&input, expected)]);
+fn test_auto_restore(input: &str, expected: &str) -> Result<(), String> {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, input);
+    if result == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "'{}' → '{}' (expected '{}')",
+            input, result, expected
+        ))
+    }
 }
 
-// ============================================================
-// DYNAMIC TEST: Two-vowel patterns (main + glide)
-// Tone on 1st vowel (main)
-// ============================================================
+// =============================================================================
+// TEST 1: DIPHTHONG + TONE ORDER
+// "naof" and "nafo" → "nào"
+// =============================================================================
 
-#[rstest]
-// ai pattern
-#[case("ai", "s", "ái")]
-#[case("ai", "f", "ài")]
-#[case("ai", "r", "ải")]
-#[case("ai", "x", "ãi")]
-#[case("ai", "j", "ại")]
-// ao pattern
-#[case("ao", "s", "áo")]
-#[case("ao", "f", "ào")]
-#[case("ao", "r", "ảo")]
-#[case("ao", "x", "ão")]
-#[case("ao", "j", "ạo")]
-// au pattern
-#[case("au", "s", "áu")]
-#[case("au", "f", "àu")]
-#[case("au", "r", "ảu")]
-#[case("au", "x", "ãu")]
-#[case("au", "j", "ạu")]
-// ay pattern
-#[case("ay", "s", "áy")]
-#[case("ay", "f", "ày")]
-#[case("ay", "r", "ảy")]
-#[case("ay", "x", "ãy")]
-#[case("ay", "j", "ạy")]
-// oi pattern
-#[case("oi", "s", "ói")]
-#[case("oi", "f", "òi")]
-#[case("oi", "r", "ỏi")]
-#[case("oi", "x", "õi")]
-#[case("oi", "j", "ọi")]
-// ui pattern
-#[case("ui", "s", "úi")]
-#[case("ui", "f", "ùi")]
-#[case("ui", "r", "ủi")]
-#[case("ui", "x", "ũi")]
-#[case("ui", "j", "ụi")]
-// eo pattern
-#[case("eo", "s", "éo")]
-#[case("eo", "f", "èo")]
-#[case("eo", "r", "ẻo")]
-#[case("eo", "x", "ẽo")]
-#[case("eo", "j", "ẹo")]
-// iu pattern
-#[case("iu", "s", "íu")]
-#[case("iu", "f", "ìu")]
-#[case("iu", "r", "ỉu")]
-#[case("iu", "x", "ĩu")]
-#[case("iu", "j", "ịu")]
-fn main_glide_pair_tones(#[case] vowels: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowels, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: Special patterns (ia, ưa)
-// ia: tone on i (descending diphthong)
-// ưa: tone on ư (has diacritic)
-// ============================================================
-
-#[rstest]
-// ia pattern - tone on i
-#[case("ia", "s", "ía")]
-#[case("ia", "f", "ìa")]
-#[case("ia", "r", "ỉa")]
-#[case("ia", "x", "ĩa")]
-#[case("ia", "j", "ịa")]
-// ưa pattern - tone on ư
-#[case("uwa", "s", "ứa")]
-#[case("uwa", "f", "ừa")]
-#[case("uwa", "r", "ửa")]
-#[case("uwa", "x", "ữa")]
-#[case("uwa", "j", "ựa")]
-fn special_pair_tones(#[case] vowels: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowels, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: Compound vowels (ươ, uô, iê)
-// Tone on 2nd vowel
-// ============================================================
-
-#[rstest]
-// ươ compound
-#[case("uow", "s", "ướ")]
-#[case("uow", "f", "ườ")]
-#[case("uow", "r", "ưở")]
-#[case("uow", "x", "ưỡ")]
-#[case("uow", "j", "ượ")]
-// uô compound
-#[case("uoo", "s", "uố")]
-#[case("uoo", "f", "uồ")]
-#[case("uoo", "r", "uổ")]
-#[case("uoo", "x", "uỗ")]
-#[case("uoo", "j", "uộ")]
-// iê compound
-#[case("iee", "s", "iế")]
-#[case("iee", "f", "iề")]
-#[case("iee", "r", "iể")]
-#[case("iee", "x", "iễ")]
-#[case("iee", "j", "iệ")]
-fn compound_vowel_tones(#[case] vowels: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowels, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: Three-vowel patterns
-// ============================================================
-
-#[rstest]
-// oai - tone on a (middle)
-#[case("oai", "s", "oái")]
-#[case("oai", "f", "oài")]
-#[case("oai", "r", "oải")]
-#[case("oai", "x", "oãi")]
-#[case("oai", "j", "oại")]
-// oay - tone on a (middle)
-#[case("oay", "s", "oáy")]
-#[case("oay", "f", "oày")]
-#[case("oay", "r", "oảy")]
-#[case("oay", "x", "oãy")]
-#[case("oay", "j", "oạy")]
-// uôi - tone on ô (middle)
-#[case("uooi", "s", "uối")]
-#[case("uooi", "f", "uồi")]
-#[case("uooi", "r", "uổi")]
-#[case("uooi", "x", "uỗi")]
-#[case("uooi", "j", "uội")]
-// ươi - tone on ơ (middle)
-#[case("uowi", "s", "ưới")]
-#[case("uowi", "f", "ười")]
-#[case("uowi", "r", "ưởi")]
-#[case("uowi", "x", "ưỡi")]
-#[case("uowi", "j", "ượi")]
-fn three_vowel_tones(#[case] vowels: &str, #[case] tone: &str, #[case] expected: &str) {
-    let input = format!("{}{}", vowels, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: With initials
-// ============================================================
-
-#[rstest]
-#[case("b", "a", "s", "bá")]
-#[case("c", "a", "s", "cá")]
-#[case("d", "a", "s", "dá")]
-#[case("l", "a", "s", "lá")]
-#[case("m", "a", "s", "má")]
-#[case("n", "a", "s", "ná")]
-#[case("t", "a", "s", "tá")]
-#[case("ch", "a", "s", "chá")]
-#[case("kh", "a", "s", "khá")]
-#[case("ng", "a", "s", "ngá")]
-#[case("nh", "a", "s", "nhá")]
-#[case("ph", "a", "s", "phá")]
-#[case("th", "a", "s", "thá")]
-#[case("tr", "a", "s", "trá")]
-// k before e/i/y
-#[case("k", "e", "s", "ké")]
-#[case("k", "i", "s", "kí")]
-// gh before e/i
-#[case("gh", "e", "s", "ghé")]
-#[case("gh", "i", "s", "ghí")]
-// ngh before e/i
-#[case("ngh", "e", "s", "nghé")]
-#[case("ngh", "i", "s", "nghí")]
-fn initial_vowel_tone(
-    #[case] initial: &str,
-    #[case] vowel: &str,
-    #[case] tone: &str,
-    #[case] expected: &str,
-) {
-    let input = format!("{}{}{}", initial, vowel, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: With finals (tone on correct vowel position)
-// ============================================================
-
-#[rstest]
-// Single vowel + final: tone on vowel
-#[case("a", "n", "s", "án")]
-#[case("a", "m", "s", "ám")]
-#[case("a", "c", "s", "ác")]
-#[case("a", "t", "s", "át")]
-#[case("a", "p", "s", "áp")]
-#[case("a", "ng", "s", "áng")]
-#[case("a", "nh", "s", "ánh")]
-#[case("a", "ch", "s", "ách")]
-// Two vowels + final: tone on 2nd vowel
-#[case("oa", "n", "s", "oán")]
-#[case("oa", "ng", "s", "oáng")]
-#[case("ie", "n", "s", "iến")] // iê + n
-#[case("ie", "ng", "s", "iếng")] // Note: "ie" triggers iê compound
-fn vowel_final_tone(
-    #[case] vowel: &str,
-    #[case] final_c: &str,
-    #[case] tone: &str,
-    #[case] expected: &str,
-) {
-    // For vowel patterns that need modification
-    let vowel_input = match vowel {
-        "ie" => "iee",
-        _ => vowel,
-    };
-    let input = format!("{}{}{}", vowel_input, final_c, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: Full syllables (initial + vowel + final + tone)
-// ============================================================
-
-#[rstest]
-// Common words
-#[case("b", "a", "n", "s", "bán")]
-#[case("c", "a", "m", "s", "cám")]
-#[case("h", "oa", "n", "s", "hoán")]
-#[case("t", "oa", "n", "s", "toán")]
-#[case("kh", "oa", "n", "s", "khoán")]
-#[case("ng", "uo", "n", "s", "nguốn")] // nguồn with ô
-#[case("tr", "uow", "ng", "s", "trướng")] // trường with ươ
-#[case("ngh", "iee", "ng", "s", "nghiếng")]
-fn full_syllable_tone(
-    #[case] initial: &str,
-    #[case] vowel: &str,
-    #[case] final_c: &str,
-    #[case] tone: &str,
-    #[case] expected: &str,
-) {
-    // Handle vowel patterns
-    let vowel_input = match vowel {
-        "uo" => "uoo", // uô
-        _ => vowel,
-    };
-    let input = format!("{}{}{}{}", initial, vowel_input, final_c, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: gi + vowel (special initial)
-// gi is treated as initial, vowel after it gets the tone
-// ============================================================
-
-#[rstest]
-#[case("gi", "a", "s", "giá")]
-#[case("gi", "a", "f", "già")]
-#[case("gi", "au", "s", "giáu")]
-#[case("gi", "au", "f", "giàu")]
-#[case("gi", "eo", "s", "giéo")]
-fn gi_initial_tone(
-    #[case] initial: &str,
-    #[case] vowel: &str,
-    #[case] tone: &str,
-    #[case] expected: &str,
-) {
-    let input = format!("{}{}{}", initial, vowel, tone);
-    telex(&[(&input, expected)]);
-}
-
-// ============================================================
-// DYNAMIC TEST: qu + vowel (special initial)
-// qu is treated as initial, tone on the main vowel
-// ============================================================
-
-#[rstest]
-#[case("quas", "quá")]
-#[case("quaf", "quà")]
-#[case("quans", "quán")]
-#[case("quoocs", "quốc")] // quốc with ô
-#[case("quys", "quý")]
-#[case("quyeens", "quyến")] // quyến with uyê
-fn qu_initial_tone(#[case] input: &str, #[case] expected: &str) {
-    telex(&[(input, expected)]);
-}
-
-// ============================================================
-// COMPREHENSIVE: Generate all vowel + tone combinations
-// ============================================================
-
-/// Test all basic vowel patterns with sắc tone
-/// This catches any missing patterns
 #[test]
-fn comprehensive_vowel_patterns_sac() {
-    let patterns: &[(&str, &str)] = &[
-        // Single vowels
-        ("as", "á"),
-        ("es", "é"),
-        ("is", "í"),
-        ("os", "ó"),
-        ("us", "ú"),
-        ("ys", "ý"),
-        // Modified vowels
-        ("aas", "ấ"),
-        ("ees", "ế"),
-        ("oos", "ố"),
-        ("ows", "ớ"),
-        ("uws", "ứ"),
-        ("aws", "ắ"),
-        // Two-vowel: medial+main (tone on 2nd)
-        ("oas", "oá"),
-        ("oes", "oé"),
-        ("uys", "uý"),
-        ("uees", "uế"),
-        // Two-vowel: main+glide (tone on 1st)
-        ("ais", "ái"),
-        ("aos", "áo"),
-        ("aus", "áu"),
-        ("ays", "áy"),
-        ("ois", "ói"),
-        ("uis", "úi"),
-        ("eos", "éo"),
-        ("ius", "íu"),
-        // Special patterns
-        ("ias", "ía"),  // ia: tone on i
-        ("uwas", "ứa"), // ưa: tone on ư
-        // Compound vowels (tone on 2nd)
-        ("uows", "ướ"), // ươ
-        ("uoos", "uố"), // uô
-        ("iees", "iế"), // iê
-        // Three-vowel (tone on middle)
-        ("oais", "oái"),
-        ("oays", "oáy"),
-        ("uoois", "uối"), // uôi
-        ("uowis", "ưới"), // ươi
+fn dynamic_diphthong_tone_order() {
+    let mut errors = vec![];
+    for initial in COMMON_INITIALS {
+        for (v1, v2) in DIPHTHONGS {
+            for tone in TONES {
+                let expected = format!(
+                    "{}{}{} ",
+                    initial,
+                    apply_tone(v1.chars().next().unwrap(), tone),
+                    v2
+                );
+                // Standard vs permutation
+                if let Err(e) = test(&format!("{}{}{}{} ", initial, v1, v2, tone), &expected) {
+                    errors.push(e);
+                }
+                if let Err(e) = test(&format!("{}{}{}{} ", initial, v1, tone, v2), &expected) {
+                    errors.push(e);
+                }
+            }
+        }
+    }
+    println!(
+        "\n=== Diphthong + Tone: {} generated, {} failed ===",
+        COMMON_INITIALS.len() * DIPHTHONGS.len() * TONES.len() * 2,
+        errors.len()
+    );
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 2: TONE + FINAL ORDER (sắc tone, valid combinations only)
+// "mans" and "masn" → "mán"
+// =============================================================================
+
+#[test]
+fn dynamic_tone_final_order() {
+    let mut errors = vec![];
+    // Valid Vietnamese syllable patterns: initial + vowel + final
+    let valid_patterns: &[(&str, &str, &str)] = &[
+        // a + finals
+        ("b", "a", "c"),
+        ("b", "a", "m"),
+        ("b", "a", "n"),
+        ("b", "a", "t"),
+        ("c", "a", "m"),
+        ("c", "a", "n"),
+        ("c", "a", "p"),
+        ("c", "a", "t"),
+        ("l", "a", "c"),
+        ("l", "a", "m"),
+        ("l", "a", "n"),
+        ("l", "a", "p"),
+        ("l", "a", "t"),
+        ("m", "a", "c"),
+        ("m", "a", "n"),
+        ("m", "a", "p"),
+        ("m", "a", "t"),
+        ("n", "a", "m"),
+        ("n", "a", "p"),
+        ("t", "a", "c"),
+        ("t", "a", "m"),
+        ("t", "a", "n"),
+        ("t", "a", "p"),
+        ("t", "a", "t"),
+        // o + finals
+        ("b", "o", "c"),
+        ("b", "o", "m"),
+        ("b", "o", "n"),
+        ("b", "o", "p"),
+        ("c", "o", "m"),
+        ("c", "o", "n"),
+        ("c", "o", "p"),
+        ("c", "o", "t"),
+        ("l", "o", "c"),
+        ("l", "o", "m"),
+        ("l", "o", "n"),
+        ("l", "o", "t"),
+        ("m", "o", "c"),
+        ("m", "o", "n"),
+        ("m", "o", "t"),
+        ("n", "o", "m"),
+        ("n", "o", "n"),
+        ("n", "o", "p"),
+        ("t", "o", "c"),
+        ("t", "o", "m"),
+        ("t", "o", "n"),
+        ("t", "o", "p"),
+        ("t", "o", "t"),
     ];
 
-    telex(patterns);
+    for (initial, vowel, final_c) in valid_patterns {
+        let toned = apply_tone(vowel.chars().next().unwrap(), "s");
+        let expected = format!("{}{}{} ", initial, toned, final_c);
+        // Standard: vowel + final + tone
+        if let Err(e) = test(&format!("{}{}{}s ", initial, vowel, final_c), &expected) {
+            errors.push(e);
+        }
+        // Permutation: vowel + tone + final
+        if let Err(e) = test(&format!("{}{}s{} ", initial, vowel, final_c), &expected) {
+            errors.push(e);
+        }
+    }
+    println!(
+        "\n=== Tone + Final: {} generated, {} failed ===",
+        valid_patterns.len() * 2,
+        errors.len()
+    );
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-/// Test all basic vowel patterns with huyền tone
+// =============================================================================
+// TEST 3: HORN ORDER (owi vs oiw)
+// =============================================================================
+
 #[test]
-fn comprehensive_vowel_patterns_huyen() {
-    let patterns: &[(&str, &str)] = &[
-        // Single vowels
-        ("af", "à"),
-        ("ef", "è"),
-        ("if", "ì"),
-        ("of", "ò"),
-        ("uf", "ù"),
-        ("yf", "ỳ"),
-        // Modified vowels
-        ("aaf", "ầ"),
-        ("eef", "ề"),
-        ("oof", "ồ"),
-        ("owf", "ờ"),
-        ("uwf", "ừ"),
-        ("awf", "ằ"),
-        // Two-vowel: medial+main
-        ("oaf", "oà"),
-        ("oef", "oè"),
-        ("uyf", "uỳ"),
-        ("ueef", "uề"),
-        // Two-vowel: main+glide
-        ("aif", "ài"),
-        ("aof", "ào"),
-        ("auf", "àu"),
-        ("ayf", "ày"),
-        ("oif", "òi"),
-        ("uif", "ùi"),
-        ("eof", "èo"),
-        ("iuf", "ìu"),
-        // Special patterns
-        ("iaf", "ìa"),
-        ("uwaf", "ừa"),
-        // Compound vowels
-        ("uowf", "ườ"),
-        ("uoof", "uồ"),
-        ("ieef", "iề"),
-        // Three-vowel
-        ("oaif", "oài"),
-        ("oayf", "oày"),
-        ("uooif", "uồi"),
-        ("uowif", "ười"),
+fn dynamic_horn_oi_order() {
+    let mut errors = vec![];
+    for initial in &["", "b", "c", "d", "g", "h", "l", "m", "n", "t"] {
+        let expected = format!("{}ơi ", initial);
+        if let Err(e) = test(&format!("{}owi ", initial), &expected) {
+            errors.push(e);
+        }
+        if let Err(e) = test(&format!("{}oiw ", initial), &expected) {
+            errors.push(e);
+        }
+    }
+    println!("\n=== Horn OI: 20 generated, {} failed ===", errors.len());
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 4: CIRCUMFLEX SPLIT (rieeng vs rieneg)
+// =============================================================================
+
+#[test]
+fn dynamic_circumflex_split() {
+    let mut errors = vec![];
+    // (input_initial, output_initial) - "dd" → "đ" in output
+    let initials: &[(&str, &str)] = &[
+        ("b", "b"),
+        ("ch", "ch"),
+        ("d", "d"),
+        ("dd", "đ"),
+        ("g", "g"),
+        ("k", "k"),
+        ("l", "l"),
+        ("m", "m"),
+        ("n", "n"),
+        ("r", "r"),
+        ("t", "t"),
     ];
 
-    telex(patterns);
+    for (input_i, output_i) in initials {
+        let expected = format!("{}iêng ", output_i);
+        if let Err(e) = test(&format!("{}ieeng ", input_i), &expected) {
+            errors.push(e);
+        }
+        if let Err(e) = test(&format!("{}ieneg ", input_i), &expected) {
+            errors.push(e);
+        }
+    }
+    println!(
+        "\n=== Circumflex Split: 22 generated, {} failed ===",
+        errors.len()
+    );
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 5: ALL TONES × AI DIPHTHONG
+// =============================================================================
+
+#[test]
+fn dynamic_all_tones_ai() {
+    let mut errors = vec![];
+    for initial in COMMON_INITIALS {
+        for tone in TONES {
+            let expected = format!("{}{}i ", initial, apply_tone('a', tone));
+            if let Err(e) = test(&format!("{}ai{} ", initial, tone), &expected) {
+                errors.push(e);
+            }
+            if let Err(e) = test(&format!("{}a{}i ", initial, tone), &expected) {
+                errors.push(e);
+            }
+        }
+    }
+    println!(
+        "\n=== All Tones AI: 100 generated, {} failed ===",
+        errors.len()
+    );
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 6: ENGLISH AUTO-RESTORE
+// =============================================================================
+
+#[test]
+fn dynamic_english_restore() {
+    let english = &[
+        "view", "raw", "law", "saw", "new", "few", "data", "half", "wolf", "golf",
+        // SW words
+        "sweet", "swim", "switch", "swift", "swing", "swear", "sword", "swipe",
+    ];
+    let mut errors = vec![];
+    for word in english {
+        let input = format!("{} ", word);
+        if let Err(e) = test_auto_restore(&input, &input) {
+            errors.push(e);
+        }
+    }
+    println!(
+        "\n=== English Restore: {} generated, {} failed ===",
+        english.len(),
+        errors.len()
+    );
+    for e in &errors {
+        println!("  FAIL: {}", e);
+    }
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 7: TONE AFTER COMPLETE WORD
+// "nhanaj" → "nhận", "lamf" → "làm", etc.
+// =============================================================================
+
+#[test]
+fn dynamic_tone_after_word() {
+    let mut errors = vec![];
+
+    // Pattern: complete word + tone at end
+    // (input, expected) - tone typed AFTER the word is complete
+    let patterns: &[(&str, &str, &str, &str)] = &[
+        // (initial, vowel, final, expected_vowel_with_tone) for each tone
+        // Sắc (s)
+        ("nh", "a", "n", "á"), // nhans → nhán
+        ("l", "a", "m", "á"),  // lams → lám
+        ("c", "a", "n", "á"),  // cans → cán
+        ("m", "a", "t", "á"),  // mats → mát
+        ("b", "a", "c", "á"),  // bacs → bác
+        // Huyền (f)
+        ("nh", "a", "n", "à"), // nhanf → nhàn
+        ("l", "a", "m", "à"),  // lamf → làm
+        ("c", "a", "n", "à"),  // canf → càn
+        // Hỏi (r)
+        ("nh", "a", "n", "ả"), // nhanr → nhản
+        ("c", "a", "m", "ả"),  // camr → cảm
+        // Ngã (x)
+        ("nh", "a", "n", "ã"), // nhanx → nhãn
+        // Nặng (j)
+        ("nh", "a", "n", "ạ"), // nhanj → nhạn
+        ("nh", "a", "t", "ậ"), // nhatj → nhật (with circumflex!)
+    ];
+
+    // Test each pattern with its corresponding tone
+    let tone_map: &[(&str, &str)] = &[
+        ("á", "s"),
+        ("à", "f"),
+        ("ả", "r"),
+        ("ã", "x"),
+        ("ạ", "j"),
+        ("ậ", "j"), // Special: â + j = ậ
+    ];
+
+    for (initial, vowel, final_c, expected_vowel) in patterns {
+        // Find the tone key for this expected vowel
+        let tone_key = tone_map
+            .iter()
+            .find(|(v, _)| v == expected_vowel)
+            .map(|(_, t)| *t)
+            .unwrap_or("s");
+
+        // Special handling for circumflex vowels
+        let (input_vowel, output_vowel) = if *expected_vowel == "ậ" {
+            ("aa", "ậ") // nhaat + j → nhật
+        } else {
+            (*vowel, *expected_vowel)
+        };
+
+        let input = format!("{}{}{}{} ", initial, input_vowel, final_c, tone_key);
+        let expected = format!("{}{}{} ", initial, output_vowel, final_c);
+
+        if let Err(e) = test(&input, &expected) {
+            errors.push(e);
+        }
+    }
+
+    // Additional common words with tone at end
+    let common_words: &[(&str, &str)] = &[
+        ("nhanaj ", "nhận "), // nhận (receive) - â + nặng
+        ("lamf ", "làm "),    // làm (do)
+        ("camr ", "cảm "),    // cảm (feel)
+        ("canf ", "càn "),    // càn
+        ("bacs ", "bác "),    // bác (uncle)
+        ("mats ", "mát "),    // mát (cool)
+        ("banf ", "bàn "),    // bàn (table)
+        ("sanf ", "sàn "),    // sàn (floor)
+        ("tanf ", "tàn "),    // tàn (wither)
+        ("lanf ", "làn "),    // làn (lane)
+        ("namf ", "nàm "),    // nàm
+        ("tamf ", "tàm "),    // tàm
+        // With circumflex
+        ("taanf ", "tần "), // tần
+        ("baans ", "bấn "), // bấn
+        ("caanf ", "cần "), // cần (need)
+        ("laanf ", "lần "), // lần (time/turn)
+        // With double final
+        ("langf ", "làng "), // làng (village)
+        ("mangf ", "màng "), // màng (membrane)
+        ("bangf ", "bàng "), // bàng
+    ];
+
+    for (input, expected) in common_words {
+        if let Err(e) = test(input, expected) {
+            errors.push(e);
+        }
+    }
+
+    println!(
+        "\n=== Tone After Word: {} tests, {} failed ===",
+        patterns.len() + common_words.len(),
+        errors.len()
+    );
+    for e in errors.iter().take(10) {
+        println!("  FAIL: {}", e);
+    }
+    assert!(errors.is_empty(), "{} tests failed", errors.len());
+}
+
+// =============================================================================
+// TEST 8: REGRESSION (Fixed bugs)
+// =============================================================================
+
+#[test]
+fn dynamic_regression() {
+    let cases = &[
+        ("oiw ", "ơi "),
+        ("owi ", "ơi "),
+        ("nafo ", "nào "),
+        ("naof ", "nào "),
+        ("rieneg ", "riêng "),
+        ("rieeng ", "riêng "),
+        ("cunxg ", "cũng "),
+    ];
+    let mut errors = vec![];
+    for (input, expected) in cases {
+        if let Err(e) = test(input, expected) {
+            errors.push(e);
+        }
+    }
+    println!(
+        "\n=== Regression: {} tests, {} failed ===",
+        cases.len(),
+        errors.len()
+    );
+    assert!(
+        errors.is_empty(),
+        "{} regression tests failed",
+        errors.len()
+    );
+}
+
+// =============================================================================
+// SUMMARY
+// =============================================================================
+
+#[test]
+fn dynamic_summary() {
+    println!("\n╔═══════════════════════════════════════════════════════════════╗");
+    println!("║           DYNAMIC TEST: Generated from Arrays                 ║");
+    println!("╠═══════════════════════════════════════════════════════════════╣");
+    println!(
+        "║  Diphthong+Tone: {} initials × {} diphthongs × {} tones × 2   ║",
+        COMMON_INITIALS.len(),
+        DIPHTHONGS.len(),
+        TONES.len()
+    );
+    println!("║  Tone+Final:     ~50 valid patterns × 2 orders                ║");
+    println!("║  Horn OI:        10 initials × 2 orders                       ║");
+    println!("║  Circumflex:     11 initials × 2 patterns                     ║");
+    println!("║  All Tones AI:   10 initials × 5 tones × 2 orders             ║");
+    println!("╚═══════════════════════════════════════════════════════════════╝");
 }

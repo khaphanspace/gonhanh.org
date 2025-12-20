@@ -58,9 +58,10 @@ jobs:
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           BASE_VERSION="${LATEST_TAG#v}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
-          VERSION="${BASE_VERSION}-pre.${SHORT_SHA}"
+          BUILD_NUM="${GITHUB_RUN_NUMBER}"
+          VERSION="${BASE_VERSION}-pre.${BUILD_NUM}.${SHORT_SHA}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Pre-release version: $VERSION"
+          echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
 
       - name: Create DMG
         run: |
@@ -85,42 +86,39 @@ jobs:
           path: platforms/macos/build/*.dmg
           retention-days: 14
 
-      - name: Get DMG filename
+      - name: Comment on PR with artifact link
         if: github.event_name == 'pull_request'
-        id: dmg
-        run: |
-          DMG_FILE=$(ls platforms/macos/build/*.dmg | head -1)
-          DMG_NAME=$(basename "$DMG_FILE")
-          echo "file=$DMG_FILE" >> $GITHUB_OUTPUT
-          echo "name=$DMG_NAME" >> $GITHUB_OUTPUT
-
-      - name: Upload to pre-release
-        if: github.event_name == 'pull_request'
-        uses: softprops/action-gh-release@v2
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
         with:
-          tag_name: pr-${{ github.event.pull_request.number }}
-          name: "PR #${{ github.event.pull_request.number }} Preview"
-          prerelease: true
-          files: ${{ steps.dmg.outputs.file }}
-          body: |
-            🔄 Auto-generated preview build for PR #${{ github.event.pull_request.number }}
+          script: |
+            const shortSha = process.env.COMMIT_SHA.substring(0, 7);
+            const version = process.env.VERSION;
+            const prNumber = process.env.PR_NUMBER;
+            const runId = process.env.RUN_ID;
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-            **Version:** `${{ steps.version.outputs.version }}`
-            **Commit:** ${{ github.sha }}
+            const body = [
+              '## 📦 macOS Build Ready',
+              '',
+              '| Commit | Version | Download |',
+              '|--------|---------|----------|',
+              `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-macOS.zip**](${artifactUrl}#artifacts) |`,
+              '',
+              `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
+              `> 📁 Artifact expires in 14 days`
+            ].join('\n');
 
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: dmg-download
-          message: |
-            ## 📦 macOS Build Ready
-
-            | Version | Download |
-            |---------|----------|
-            | `${{ steps.version.outputs.version }}` | [⬇️ **${{ steps.dmg.outputs.name }}**](https://github.com/${{ github.repository }}/releases/download/pr-${{ github.event.pull_request.number }}/${{ steps.dmg.outputs.name }}) |
-
-            > 💡 Direct download link - no login required
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: body
+            });
 
   build-linux:
     # Only for manual trigger (not PR) - Linux build is optional
@@ -164,9 +162,10 @@ jobs:
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           BASE_VERSION="${LATEST_TAG#v}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
-          VERSION="${BASE_VERSION}-pre.${SHORT_SHA}"
+          BUILD_NUM="${GITHUB_RUN_NUMBER}"
+          VERSION="${BASE_VERSION}-pre.${BUILD_NUM}.${SHORT_SHA}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Pre-release version: $VERSION"
+          echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
 
       - name: Package
         run: |
