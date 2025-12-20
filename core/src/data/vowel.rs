@@ -282,7 +282,22 @@ impl Phonology {
                 has_gi_initial,
             ),
             3 => Self::find_triphthong_position(vowels),
-            _ => Self::find_default_position(vowels),
+            _ => {
+                // For 4+ vowels, check if first 3 form a triphthong pattern
+                // This handles cases like "cuoiwsi" → "cướii" (ươi + i)
+                // where the triphthong "ươi" should get the tone on ơ (position 2)
+                if vowels.len() >= 3 {
+                    let first_three = &vowels[0..3];
+                    let triphthong_pos = Self::find_triphthong_position(first_three);
+                    // triphthong_pos is already a buffer position from vowels[i].pos
+                    // Check if it's within the first 3 vowels (valid triphthong match)
+                    if triphthong_pos >= vowels[0].pos && triphthong_pos <= vowels[2].pos {
+                        return triphthong_pos;
+                    }
+                }
+                // Fall back to default position
+                Self::find_default_position(vowels)
+            }
         }
     }
 
@@ -379,6 +394,10 @@ impl Phonology {
         }
 
         // Rule 2: Diacritic priority (for unmatched patterns)
+        // First with diacritic → first (ơi: ơ has diacritic, tone on ơ)
+        if vowels[0].has_diacritic() {
+            return vowels[0].pos;
+        }
         // Middle with diacritic → middle (ươi: ơ has diacritic)
         if vowels[1].has_diacritic() {
             return vowels[1].pos;

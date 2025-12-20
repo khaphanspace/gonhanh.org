@@ -22,18 +22,20 @@ fn bug1_did_to_di() {
 }
 
 // =============================================================================
-// BUG 2: "thowii" -> "thơìi", expected "thờii"
+// BUG 2: "thowifi" -> "thơìi", expected "thờii"
 // Current: thơìi (horn on o, huyền on second i)
 // Expected: thờii (horn+huyền on o, plain ii)
 // =============================================================================
 
 #[test]
-fn bug2_thowii() {
+fn bug2_thowifi() {
+    // Test with huyền tone mark (f) - the actual input sequence
+    // "thowifi" should produce "thờii" (tone on ơ, not on i)
     let mut e = Engine::new();
-    let result = type_word(&mut e, "thowii");
-    println!("'thowii' -> '{}' (expected: 'thờii')", result);
+    let result = type_word(&mut e, "thowifi");
+    println!("'thowifi' -> '{}' (expected: 'thờii')", result);
     // TODO: Verify expected behavior
-    // telex(&[("thowii", "thờii")]);
+    // telex(&[("thowifi", "thờii")]);
 }
 
 // =============================================================================
@@ -52,13 +54,30 @@ fn bug3_uawf() {
 }
 
 // =============================================================================
-// BUG 4: "ddd" -> "đd", expected "dd"
+// BUG 4: "cuoiwsi" -> "cươii", expected "cướii"
+// Current: cươii (ươ without tone, or tone on wrong position)
+// Expected: cướii (ươ + sắc tone on ươ)
+// =============================================================================
+
+#[test]
+fn bug4_thuoiwfi() {
+    // Test with compound vowel ươ + sắc tone mark (s)
+    // "cuoiwsi" should produce "cướii" (tone on ươ, not on i)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "cuoiwsi");
+    println!("'cuoiwsi' -> '{}' (expected: 'cướii')", result);
+    // TODO: Verify expected behavior
+    // telex(&[("cuoiwsi", "cướii")]);
+}
+
+// =============================================================================
+// BUG 5: "ddd" -> "đd", expected "dd"
 // Current: đd (đ + d because third d is just added)
 // Expected: dd (third d reverts stroke, returning to raw)
 // =============================================================================
 
 #[test]
-fn bug4_ddd_revert() {
+fn bug5_ddd_revert() {
     let mut e = Engine::new();
     let result = type_word(&mut e, "ddd");
     println!("'ddd' -> '{}' (expected: 'dd')", result);
