@@ -469,12 +469,16 @@ impl Engine {
         // - Mark keys (s, f, r, x, j) - confirm Vietnamese intent
         // - Tone keys (a, e, o, w) that can apply to buffer - allows fast typing
         //   e.g., "dod" → "đo" + 'o' → "đô" (user typed d-o-d-o fast, intended "ddoo")
+        // - Stroke keys ('d') - handled separately in try_stroke for proper revert behavior
+        //   e.g., "dadd" → "dad" (d reverts stroke and adds itself, not "dadd")
         let is_mark_key = m.mark(key).is_some();
         let is_tone_key = m.tone(key).is_some();
+        let is_stroke_key = m.stroke(key);
 
         if keys::is_letter(key)
             && !is_mark_key
             && !is_tone_key
+            && !is_stroke_key
             && matches!(self.last_transform, Some(Transform::ShortPatternStroke))
         {
             // Build buffer_keys from raw_input (which already includes current key)
@@ -670,6 +674,29 @@ impl Engine {
         // If last transform was stroke and same key pressed again, revert the stroke
         if let Some(Transform::Stroke(last_key)) = self.last_transform {
             if last_key == key {
+                // Find the stroked 'd' to revert
+                if let Some(pos) = self.buf.iter().position(|c| c.key == keys::D && c.stroke) {
+                    // Revert: un-stroke the 'd'
+                    if let Some(c) = self.buf.get_mut(pos) {
+                        c.stroke = false;
+                    }
+                    // Add another 'd' as normal char
+                    self.buf.push(Char::new(key, false));
+                    self.last_transform = None;
+                    // Mark that stroke was reverted - subsequent 'd' keys will be normal letters
+                    self.stroke_reverted = true;
+                    // Use rebuild_from_after_insert because the new 'd' was just pushed
+                    // and hasn't been displayed on screen yet
+                    return Some(self.rebuild_from_after_insert(pos));
+                }
+            }
+        }
+
+        // Check for short-pattern stroke revert: dadd → dad
+        // If last transform was short-pattern stroke and 'd' is pressed again, revert the stroke
+        // This is similar to the ddd → dd revert above, but for delayed stroke patterns
+        if let Some(Transform::ShortPatternStroke) = self.last_transform {
+            if key == keys::D {
                 // Find the stroked 'd' to revert
                 if let Some(pos) = self.buf.iter().position(|c| c.key == keys::D && c.stroke) {
                     // Revert: un-stroke the 'd'

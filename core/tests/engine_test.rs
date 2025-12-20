@@ -331,6 +331,18 @@ fn stroke_delayed_valid_vietnamese() {
 }
 
 #[test]
+fn stroke_short_pattern_revert() {
+    // When short-pattern stroke is applied (dad → đa), another 'd' reverts it (dadd → dad)
+    // Similar to ddd → dd behavior for adjacent stroke
+    telex(&[
+        ("dadd", "dad"), // Short-pattern stroke reverted
+        ("didd", "did"), // Short-pattern stroke reverted
+        ("dodd", "dod"), // Short-pattern stroke reverted
+        ("dudd", "dud"), // Short-pattern stroke reverted
+    ]);
+}
+
+#[test]
 fn stroke_in_word() {
     telex(&[
         ("ddas", "đá"),
