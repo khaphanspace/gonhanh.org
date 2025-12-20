@@ -80,24 +80,6 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 - 🚫 **Không quảng cáo** — Không popup, không làm phiền
 - 🚫 **Không theo dõi** — Offline 100%, mã nguồn mở
 
-## 🆚 So sánh với bộ gõ khác
-
-| Vấn đề thường gặp | Bộ gõ khác | Gõ Nhanh |
-|:------------------|:----------:|:--------:|
-| Gõ tiếng Anh xen kẽ | ⚠️ Phải tắt/bật bộ gõ | ✅ Nhấn `ESC` khôi phục |
-| Dính chữ trên Chrome/Edge | ⚠️ Phải tắt autocomplete | ✅ Tự động fix |
-| Lặp chữ trên Arc browser | ❌ Conflict với history | ✅ Tự động fix |
-| Lặp chữ trên Google Docs | ⚠️ Phải bật "Sửa lỗi" | ✅ Tự động fix |
-| Nhảy chữ trên Terminal | ❌ Không hỗ trợ tốt | ✅ Hoạt động tốt |
-| Gạch chân khó chịu (macOS) | ❌ Luôn hiển thị | ✅ Không gạch chân |
-| Dùng nhiều ngôn ngữ | ⚠️ Phải tắt thủ công | ✅ Tự tắt khi dùng tiếng khác |
-| Cấu hình phức tạp | ⚠️ 10+ tùy chọn | ✅ Cài là dùng |
-| Gõ trong ô mật khẩu | ❌ Bị chặn | ✅ Hoạt động bình thường |
-
-> 💡 **Khi nào dùng bộ gõ khác?** Nếu bạn cần chuyển đổi bảng mã cũ (VNI, TCVN3...), hãy dùng UniKey/EVKey/OpenKey.
-
-Chi tiết: [Các lỗi thường gặp](docs/common-issues.md)
-
 ---
 
 ## 🔤 Auto-restore tiếng Anh
