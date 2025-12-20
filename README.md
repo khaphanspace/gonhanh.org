@@ -132,8 +132,8 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 | `luxury ` | `lủuy ` ❌ | `luxury ` ✅ |
 | `their ` | `thỉ ` ❌ | `their ` ✅ |
 | `wow ` | `ươ ` ❌ | `wow ` ✅ |
-| `mái ` | `mái ` ✅ | `mái ` ✅ |
-| `được ` | `được ` ✅ | `được ` ✅ |
+| `file ` | `file ` ✅ | `file ` ✅ |
+| `fix ` | `fix ` ✅ | `fix ` ✅ |
 
 ### ⚠️ Giới hạn
 
