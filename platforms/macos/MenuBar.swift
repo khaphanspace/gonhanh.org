@@ -104,10 +104,11 @@ class MenuBarController: NSObject, NSWindowDelegate {
             self?.updateMenu()
         }
 
-        // Observe AppState.isEnabled changes via Combine for app switch updates
+        // Observe AppState changes via Combine
         appState.$isEnabled
+            .combineLatest(appState.$currentMethod)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] _, _ in
                 self?.updateStatusButton()
                 self?.updateMenu()
             }
@@ -192,7 +193,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
         let toggleView = NSHostingView(rootView:
             Toggle("", isOn: Binding(
                 get: { [weak self] in self?.appState.isEnabled ?? true },
-                set: { [weak self] _ in self?.appState.toggle() }
+                set: { [weak self] newValue in
+                    self?.appState.isEnabled = newValue
+                    SoundManager.shared.playToggleSound(enabled: newValue)
+                }
             ))
             .toggleStyle(.switch)
             .labelsHidden()
