@@ -1,14 +1,21 @@
 import Foundation
 import Carbon.HIToolbox
 
+private let kAppleKeyLayoutPrefix = "com.apple.keylayout."
+
 /// Input sources that show V/E icon (Latin-based keyboards)
-private let allowedInputSources: Set<String> = [
-    "com.apple.keylayout.ABC",
-    "com.apple.keylayout.US",
-    "com.apple.keylayout.USInternational-PC",
-    "com.apple.keylayout.British",
-    "com.apple.keylayout.Australian"
-]
+private let allowedInputSources: Set<String> = Set([
+    // ABC variants
+    "ABC", "ABC-AZERTY", "ABC-India", "ABC-QWERTZ",
+    // US variants
+    "US", "USExtended", "USInternational-PC",
+    // UK variants
+    "British", "British-PC", "Australian", "Irish", "IrishExtended",
+    // Canadian
+    "Canadian", "Canadian-CSA", "CanadianFrench-PC",
+    // Alternative layouts
+    "Colemak", "Dvorak", "Dvorak-Left", "Dvorak-Right", "DVORAK-QWERTYCMD",
+].map { kAppleKeyLayoutPrefix + $0 })
 
 // MARK: - Input Source Observer
 

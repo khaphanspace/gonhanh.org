@@ -488,8 +488,10 @@ class RustBridge {
     }
 
     static func setEnabled(_ enabled: Bool) {
-        ime_enabled(enabled)
-        Log.info("Enabled: \(enabled)")
+        // GATE: Only enable if input source is allowed, always allow disable
+        let actualEnabled = enabled && InputSourceObserver.shared.isAllowedInputSource
+        ime_enabled(actualEnabled)
+        Log.info("Enabled: \(actualEnabled) (requested: \(enabled), allowed: \(InputSourceObserver.shared.isAllowedInputSource))")
     }
 
     /// Set whether to skip w→ư shortcut in Telex mode
