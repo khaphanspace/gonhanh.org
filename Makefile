@@ -40,10 +40,12 @@ build: format ## Build core + macos app
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh
 
-clean: ## Clean build artifacts
+clean: ## Clean build + settings
 	@cd core && cargo clean
 	@rm -rf platforms/macos/build
 	@rm -rf platforms/linux/build
+	@defaults delete org.gonhanh.GoNhanh 2>/dev/null || true
+	@echo "✅ Cleaned build artifacts + settings"
 
 setup: ## Setup dev environment
 	@./scripts/setup.sh
