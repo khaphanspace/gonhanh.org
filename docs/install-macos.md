@@ -17,7 +17,7 @@ Sau đó cấp quyền: System Settings → Privacy & Security → Accessibility
 
 2. **Cài đặt:** Mở file `.dmg` → Kéo vào **Applications**
 
-3. **Cho phép chạy:**
+3. **Cho phép chạy:** (Lưu ý phải tắt app trước khi chạy)
    ```bash
    xattr -cr /Applications/GoNhanh.app
    ```
