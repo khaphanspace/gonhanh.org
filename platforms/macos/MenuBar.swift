@@ -88,6 +88,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
             object: nil
         )
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShortcutChanged),
+            name: .shortcutChanged,
+            object: nil
+        )
+
         // Observe UpdateManager state changes to update menu
         updateStateObserver = NotificationCenter.default.addObserver(
             forName: .updateStateChanged,
@@ -173,9 +180,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
         nameLabel.frame = NSRect(x: 48, y: 16, width: 100, height: 16)
         view.addSubview(nameLabel)
 
-        let shortcut = KeyboardShortcut.load()
         let statusText = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
-        let statusLabel = NSTextField(labelWithString: "\(statusText) · \(shortcut.displayParts.joined())")
+        let statusLabel = NSTextField(labelWithString: "\(statusText) · \(appState.toggleShortcut.displayParts.joined())")
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.frame = NSRect(x: 48, y: 2, width: 100, height: 14)
@@ -359,6 +365,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     @objc private func handleInputSourceChanged() {
         updateStatusButton()
+        updateMenu()
+    }
+
+    @objc private func handleShortcutChanged() {
         updateMenu()
     }
 

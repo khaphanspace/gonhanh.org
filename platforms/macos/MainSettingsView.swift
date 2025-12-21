@@ -200,9 +200,9 @@ class AppState: ObservableObject {
     private func setupLaunchAtLoginMonitoring() {
         isLaunchAtLoginEnabled = LaunchAtLoginManager.shared.isEnabled
 
-        // Auto-enable on first launch (when user hasn't configured yet)
-        let hasConfigured = UserDefaults.standard.bool(forKey: SettingsKey.launchAtLoginConfigured)
-        if !hasConfigured {
+        // Auto-enable unless user has explicitly disabled it
+        let userDisabled = UserDefaults.standard.bool(forKey: SettingsKey.launchAtLoginUserDisabled)
+        if !userDisabled && !isLaunchAtLoginEnabled {
             autoEnableLaunchAtLogin()
         }
 
@@ -216,8 +216,6 @@ class AppState: ObservableObject {
             try LaunchAtLoginManager.shared.enable()
             refreshLaunchAtLoginStatus()
             requiresManualLaunchAtLogin = false
-            // Only mark as configured after successful enable
-            UserDefaults.standard.set(true, forKey: SettingsKey.launchAtLoginConfigured)
         } catch {
             // Auto-enable failed, will retry on next launch
             requiresManualLaunchAtLogin = true
@@ -236,6 +234,8 @@ class AppState: ObservableObject {
             try LaunchAtLoginManager.shared.enable()
             refreshLaunchAtLoginStatus()
             requiresManualLaunchAtLogin = false
+            // Clear user disabled flag when user explicitly enables
+            UserDefaults.standard.set(false, forKey: SettingsKey.launchAtLoginUserDisabled)
         } catch {
             requiresManualLaunchAtLogin = true
             openLoginItemsSettings()
@@ -246,6 +246,8 @@ class AppState: ObservableObject {
         do {
             try LaunchAtLoginManager.shared.disable()
             refreshLaunchAtLoginStatus()
+            // Track that user explicitly disabled
+            UserDefaults.standard.set(true, forKey: SettingsKey.launchAtLoginUserDisabled)
         } catch {
             // If disable fails, open settings for manual action
             openLoginItemsSettings()
