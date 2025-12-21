@@ -526,6 +526,13 @@ fn stroke_revert_on_invalid_final() {
         ("ddad", "dad"),   // đ + ad is invalid → revert to dad
         ("dded", "ded"),   // đ + ed is invalid → revert to ded
         ("ddead", "dead"), // đ + ead is invalid → revert to dead
+        // With circumflex (ee→ê, oo→ô, aa→â) - still revert because d is not valid final
+        ("ddeed", "dêd"), // đê + d is invalid → revert to dêd
+        ("ddood", "dôd"), // đô + d is invalid → revert to dôd
+        ("ddaad", "dâd"), // đâ + d is invalid → revert to dâd
+        // With horn (ow→ơ, uw→ư)
+        ("ddowd", "dơd"), // đơ + d is invalid → revert to dơd
+        ("dduwd", "dưd"), // đư + d is invalid → revert to dưd
     ]);
     // These should still work correctly:
     telex(&[

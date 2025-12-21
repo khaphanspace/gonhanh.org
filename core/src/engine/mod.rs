@@ -1800,23 +1800,28 @@ impl Engine {
 
             // Issue: Revert stroke when consonant creates invalid pattern
             // Example: "ddad" → "đa" + 'd' creates "đad" (invalid) → revert to "dad"
+            // Example: "ddeed" → "đê" + 'd' creates "đêd" (invalid) → revert to "dêd"
             // This handles cases where stroke was applied earlier (dd→đ) and later
             // consonants make the word invalid Vietnamese.
             // Only check when:
             // - Buffer has a stroked 'd'
             // - Buffer has at least one vowel (so it's a syllable structure, not just consonants)
             // - Current key is a consonant (not vowel - vowels might extend the word validly)
-            // - No marks have been applied (marks indicate Vietnamese intent)
+            // - No MARKS have been applied (marks = sắc, huyền, hỏi, ngã, nặng indicate Vietnamese intent)
             // - Resulting pattern is invalid Vietnamese
             //
-            // Skip when marks/tones present: "đọc" + 'c' → "đọcc" should NOT revert
+            // Note: We only check for marks (c.mark > 0), NOT tones (c.tone > 0)
+            // Tones like circumflex (ê from ee), horn (ơ from ow) are NOT Vietnamese intent indicators
+            // because they can be created by double vowels in English-like typing (e.g., "deed" → "dêd")
+            //
+            // Skip when marks present: "đọc" + 'c' → "đọcc" should NOT revert
             // because the mark 'j' indicates user wants Vietnamese
             // Skip when no vowels: "đ" + 'f' → "đf" should NOT revert (just consonant cluster)
             if keys::is_consonant(key) {
                 let has_stroke = self.buf.iter().any(|c| c.key == keys::D && c.stroke);
-                let has_mark_or_tone = self.buf.iter().any(|c| c.mark > 0 || c.tone > 0);
+                let has_mark = self.buf.iter().any(|c| c.mark > 0);
                 let has_vowel = self.buf.iter().any(|c| keys::is_vowel(c.key));
-                if has_stroke && !has_mark_or_tone && has_vowel {
+                if has_stroke && !has_mark && has_vowel {
                     let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
                     if !is_valid(&buffer_keys) {
                         // Revert stroke: find the stroked 'd' and un-stroke it
