@@ -1166,9 +1166,11 @@ const TELEX_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
     ("dede", "đê"), // Short stroke + circumflex
     ("dada", "đâ"), // Short stroke + circumflex
     ("dodo", "đô"), // Short stroke + circumflex
-    // Mixed: adjacent dd at start
-    ("ddead", "đead"),           // dd at start is adjacent → đ, then "ead"
-    ("ddedicated", "đedicated"), // dd at start
+    // Adjacent dd at start: when followed by consonant that creates invalid pattern,
+    // stroke is reverted because the resulting word is not valid Vietnamese
+    // This handles cases like "ddad" → "dad" (user typed extra 'd' by mistake)
+    ("ddead", "dead"), // dd creates đ, but "đead" is invalid → revert to "dead"
+    ("ddedicated", "dedicated"), // dd creates đ, but "đedicated" is invalid → revert
     // Note: "deadd" → "deadd" because "dead" is invalid (d not a valid final),
     // so even though 5th d is adjacent to 4th d, validation fails
     ("deadd", "deadd"),
@@ -1179,7 +1181,8 @@ const VNI_NON_ADJACENT_STROKE: &[(&str, &str)] = &[
     // "deadline" has no '9', so it stays unchanged
     ("deadline", "deadline"),
     ("dedicated", "dedicated"),
-    ("d9eadline", "đeadline"), // d9 at start → đ
+    // d9 creates đ, but when followed by invalid pattern, stroke is reverted
+    ("d9eadline", "deadline"), // d9 → đ, but "đeadline" is invalid → revert
 ];
 
 #[test]

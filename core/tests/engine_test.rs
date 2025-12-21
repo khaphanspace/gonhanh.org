@@ -517,3 +517,22 @@ fn edge_invalid_not_transformed() {
     // Note: 's' at the end might trigger mark, but 'http' part stays
     assert!(result.contains("http"));
 }
+
+#[test]
+fn stroke_revert_on_invalid_final() {
+    // When dd creates đ, but subsequent consonant creates invalid pattern, revert stroke
+    // This fixes the bug: "ddad" → "đad" should be "dad"
+    telex(&[
+        ("ddad", "dad"),   // đ + ad is invalid → revert to dad
+        ("dded", "ded"),   // đ + ed is invalid → revert to ded
+        ("ddead", "dead"), // đ + ead is invalid → revert to dead
+    ]);
+    // These should still work correctly:
+    telex(&[
+        ("dd", "đ"),      // Basic stroke
+        ("dda", "đa"),    // Stroke + vowel (valid open syllable)
+        ("ddaf", "đà"),   // Stroke + vowel + mark (valid Vietnamese)
+        ("ddocs", "đóc"), // Stroke + valid closed syllable
+        ("ddf", "đf"),    // Stroke + consonant (no vowel, don't revert)
+    ]);
+}

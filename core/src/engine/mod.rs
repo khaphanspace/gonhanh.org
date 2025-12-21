@@ -1798,6 +1798,63 @@ impl Engine {
             // Add the letter/number to buffer
             self.buf.push(Char::new(key, caps));
 
+            // Issue: Revert stroke when consonant creates invalid pattern
+            // Example: "ddad" → "đa" + 'd' creates "đad" (invalid) → revert to "dad"
+            // This handles cases where stroke was applied earlier (dd→đ) and later
+            // consonants make the word invalid Vietnamese.
+            // Only check when:
+            // - Buffer has a stroked 'd'
+            // - Buffer has at least one vowel (so it's a syllable structure, not just consonants)
+            // - Current key is a consonant (not vowel - vowels might extend the word validly)
+            // - No marks have been applied (marks indicate Vietnamese intent)
+            // - Resulting pattern is invalid Vietnamese
+            //
+            // Skip when marks/tones present: "đọc" + 'c' → "đọcc" should NOT revert
+            // because the mark 'j' indicates user wants Vietnamese
+            // Skip when no vowels: "đ" + 'f' → "đf" should NOT revert (just consonant cluster)
+            if keys::is_consonant(key) {
+                let has_stroke = self.buf.iter().any(|c| c.key == keys::D && c.stroke);
+                let has_mark_or_tone = self.buf.iter().any(|c| c.mark > 0 || c.tone > 0);
+                let has_vowel = self.buf.iter().any(|c| keys::is_vowel(c.key));
+                if has_stroke && !has_mark_or_tone && has_vowel {
+                    let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+                    if !is_valid(&buffer_keys) {
+                        // Revert stroke: find the stroked 'd' and un-stroke it
+                        if let Some(pos) =
+                            self.buf.iter().position(|c| c.key == keys::D && c.stroke)
+                        {
+                            if let Some(c) = self.buf.get_mut(pos) {
+                                c.stroke = false;
+                            }
+                            // Fix raw_input: remove the stroke-triggering 'd'
+                            // raw_input has [d, d, a, d] but should become [d, a, d]
+                            // The second 'd' was consumed by stroke, so remove it
+                            if self.raw_input.len() >= 2 {
+                                // Find position of second 'd' (the one that triggered stroke)
+                                // It's the one right after the first 'd'
+                                let mut found_first_d = false;
+                                let mut stroke_trigger_idx = None;
+                                for (i, &(k, _, _)) in self.raw_input.iter().enumerate() {
+                                    if k == keys::D {
+                                        if found_first_d {
+                                            stroke_trigger_idx = Some(i);
+                                            break;
+                                        }
+                                        found_first_d = true;
+                                    }
+                                }
+                                if let Some(idx) = stroke_trigger_idx {
+                                    self.raw_input.remove(idx);
+                                }
+                            }
+                            self.stroke_reverted = true;
+                            // Rebuild from the stroked 'd' position
+                            return self.rebuild_from_after_insert(pos);
+                        }
+                    }
+                }
+            }
+
             // Issue #44 (part 2): Apply deferred breve when valid final consonant is typed
             // "trawm" → after "traw" (pending breve on 'a'), typing 'm' applies breve → "trăm"
             if let Some(breve_pos) = self.pending_breve_pos {
