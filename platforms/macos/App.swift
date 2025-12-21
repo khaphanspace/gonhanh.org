@@ -33,8 +33,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func registerDefaultSettings() {
         UserDefaults.standard.register(defaults: [
             SettingsKey.enabled: true,
-            SettingsKey.method: 0,  // Telex
-            SettingsKey.smartModeEnabled: true,
+            SettingsKey.method: InputMode.telex.rawValue,
+            SettingsKey.perAppMode: true,
             SettingsKey.autoWShortcut: true,
             SettingsKey.escRestore: false,
             SettingsKey.modernTone: true,

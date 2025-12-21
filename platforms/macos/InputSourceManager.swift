@@ -80,7 +80,7 @@ final class InputSourceObserver {
 
         if isAllowedInputSource {
             // Restore user preference
-            let userEnabled = UserDefaults.standard.object(forKey: "gonhanh.enabled") as? Bool ?? true
+            let userEnabled = UserDefaults.standard.bool(forKey: SettingsKey.enabled)
             RustBridge.setEnabled(userEnabled)
         } else {
             // Force disable

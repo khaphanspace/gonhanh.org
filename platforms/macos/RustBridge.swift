@@ -1304,7 +1304,7 @@ class PerAppModeManager {
     /// Check for special panel apps on keyboard events
     /// Call this from the keyboard callback
     func checkSpecialPanelApp() {
-        guard AppState.shared.isSmartModeEnabled else { return }
+        guard AppState.shared.perAppModeEnabled else { return }
         
         let (appChanged, newBundleId, _) = SpecialPanelAppDetector.checkForAppChange()
         
@@ -1320,7 +1320,7 @@ class PerAppModeManager {
         RustBridge.clearBuffer()
         TextInjector.shared.clearSessionBuffer()
 
-        guard AppState.shared.isSmartModeEnabled else { return }
+        guard AppState.shared.perAppModeEnabled else { return }
 
         // Restore saved mode (default ON, only OFF apps are stored)
         let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
