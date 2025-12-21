@@ -637,11 +637,26 @@ class KeyboardHookManager {
     /// This is more reliable than CGEventTap for detecting mouse clicks
     private func startMouseMonitor() {
         // Monitor both mouseDown and mouseUp to catch clicks and drag-selects
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { _ in
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { event in
             TextInjector.shared.clearSessionBuffer()
             RustBridge.clearBufferAll()  // Clear everything including word history
             skipWordRestoreAfterClick = true
-            Log.info("Mouse event: cleared buffer, skip restore = true")
+            
+            // On mouseUp, try to restore word before cursor for continuous typing
+            if event.type == .leftMouseUp {
+                // Delay slightly to let cursor position update
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    if let word = getWordBeforeCursor() {
+                        RustBridge.restoreWord(word)
+                        skipWordRestoreAfterClick = false  // Allow normal operation
+                        Log.info("Mouse click: restored word '\(word)' for continuous typing")
+                    } else {
+                        Log.info("Mouse click: no word to restore")
+                    }
+                }
+            } else {
+                Log.info("Mouse down: cleared buffer")
+            }
         }
     }
 
@@ -689,6 +704,92 @@ private var shortcutObserver: NSObjectProtocol?
 private var skipWordRestoreAfterClick = false
 
 // MARK: - Word Restore Support
+
+/// Get the word immediately before the cursor (after mouse click)
+/// This allows continuing Vietnamese input on an existing word
+private func getWordBeforeCursor() -> String? {
+    let systemWide = AXUIElementCreateSystemWide()
+    var focused: CFTypeRef?
+
+    guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+          let el = focused else {
+        Log.info("getWordBeforeCursor: no focused element")
+        return nil
+    }
+
+    let axEl = el as! AXUIElement
+
+    // Get text value
+    var textValue: CFTypeRef?
+    let textResult = AXUIElementCopyAttributeValue(axEl, kAXValueAttribute as CFString, &textValue)
+    guard textResult == .success, let text = textValue as? String, !text.isEmpty else {
+        Log.info("getWordBeforeCursor: no text value")
+        return nil
+    }
+
+    // Get selected text range (cursor position)
+    var rangeValue: CFTypeRef?
+    let rangeResult = AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue)
+    guard rangeResult == .success else {
+        Log.info("getWordBeforeCursor: no range")
+        return nil
+    }
+
+    // Extract range from AXValue
+    var range = CFRange(location: 0, length: 0)
+    guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else {
+        Log.info("getWordBeforeCursor: can't extract range")
+        return nil
+    }
+
+    // If text is selected (not just cursor), don't restore
+    guard range.length == 0 else {
+        Log.info("getWordBeforeCursor: text selected, not restoring")
+        return nil
+    }
+
+    let cursorPos = range.location
+    guard cursorPos > 0 else { return nil }
+
+    let textChars = Array(text)
+    guard cursorPos <= textChars.count else {
+        Log.info("getWordBeforeCursor: cursor out of bounds")
+        return nil
+    }
+
+    let charBeforeCursor = textChars[cursorPos - 1]
+    
+    // If cursor is right after a space/punctuation, there's no word to continue
+    guard !charBeforeCursor.isWhitespace && !charBeforeCursor.isPunctuation else {
+        Log.info("getWordBeforeCursor: cursor after space/punct, no word")
+        return nil
+    }
+
+    // Find start of word (scan backwards)
+    var wordStart = cursorPos - 1
+    while wordStart > 0 && !textChars[wordStart - 1].isWhitespace && !textChars[wordStart - 1].isPunctuation {
+        wordStart -= 1
+    }
+
+    // Extract word from wordStart to cursor
+    let word = String(textChars[wordStart..<cursorPos])
+    guard !word.isEmpty else { return nil }
+
+    // Only return if it looks like Vietnamese (has diacritics or is pure ASCII letters)
+    let hasVietnameseDiacritics = word.contains { c in
+        let scalars = c.unicodeScalars
+        return scalars.first.map { $0.value >= 0x00C0 && $0.value <= 0x1EF9 } ?? false
+    }
+    let isPureASCIILetters = word.allSatisfy { $0.isLetter && $0.isASCII }
+
+    if hasVietnameseDiacritics || isPureASCIILetters {
+        Log.info("getWordBeforeCursor: found word '\(word)'")
+        return word
+    }
+
+    Log.info("getWordBeforeCursor: word '\(word)' not Vietnamese")
+    return nil
+}
 
 /// Get word that we're about to backspace into
 /// Returns the word only if cursor is right after a space/punctuation that follows a word
@@ -921,6 +1022,26 @@ private func keyboardCallback(
     if keyCode == 0x24 || keyCode == 0x35 {  // Enter or Escape
         TextInjector.shared.clearSessionBuffer()
         RustBridge.clearBuffer()
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Arrow keys: cursor moved, clear buffer and restore word at new position
+    if keyCode == KeyCode.leftArrow || keyCode == KeyCode.rightArrow ||
+       keyCode == KeyCode.upArrow || keyCode == KeyCode.downArrow {
+        TextInjector.shared.clearSessionBuffer()
+        RustBridge.clearBufferAll()
+        skipWordRestoreAfterClick = true
+        
+        // After arrow key, try to restore word before cursor for continuous typing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if let word = getWordBeforeCursor() {
+                RustBridge.restoreWord(word)
+                skipWordRestoreAfterClick = false
+                Log.info("Arrow key: restored word '\(word)' for continuous typing")
+            } else {
+                Log.info("Arrow key: no word to restore")
+            }
+        }
         return Unmanaged.passUnretained(event)
     }
 
