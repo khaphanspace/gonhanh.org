@@ -104,7 +104,7 @@ final class InputSourceObserver {
             case "ja": return "あ"
             case "zh-Hans", "zh-Hant", "zh": return "中"
             case "ko": return "한"
-            case "th": return "ไ"
+            case "th": return "ก"
             case "vi": return "V"
             case "ru": return "Р"
             case "ar": return "ع"
