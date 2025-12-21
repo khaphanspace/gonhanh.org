@@ -95,6 +95,11 @@ fn pattern2_oo_vowel_pair() {
 }
 
 #[test]
+fn pattern2_ee_vowel_pair() {
+    telex_auto_restore(&[("keep ", "keep ")]);
+}
+
+#[test]
 fn pattern2_aa_vowel_pair() {
     telex_auto_restore(&[
         // Double 'a' creates circumflex â, but result is not valid Vietnamese

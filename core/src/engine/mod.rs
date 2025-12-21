@@ -3216,8 +3216,23 @@ impl Engine {
                 let (v2, _, _) = self.raw_input[i + 1];
                 let (next, _, _) = self.raw_input[i + 2];
 
-                // Check for double vowel (same vowel twice)
+                // Check for double vowel (same vowel twice) followed by K
                 if keys::is_vowel(v1) && v1 == v2 && next == keys::K {
+                    return true;
+                }
+            }
+        }
+
+        // Pattern 6a: Double E (ee) followed by P at END → English (keep, deep, sleep, seep)
+        // Only EE+P, not AA+P or OO+P which can be valid Vietnamese (cấp = caaps)
+        if self.raw_input.len() >= 3 {
+            let len = self.raw_input.len();
+            let (last, _, _) = self.raw_input[len - 1];
+            if last == keys::P {
+                let (v1, _, _) = self.raw_input[len - 3];
+                let (v2, _, _) = self.raw_input[len - 2];
+                // Only match EE (not AA or OO)
+                if v1 == keys::E && v2 == keys::E {
                     return true;
                 }
             }
