@@ -39,6 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.escRestore: false,
             SettingsKey.modernTone: true,
             SettingsKey.englishAutoRestore: false,
+            SettingsKey.soundEnabled: false,
         ])
     }
 }

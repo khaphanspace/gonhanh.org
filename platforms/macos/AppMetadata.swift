@@ -79,6 +79,7 @@ enum SettingsKey {
     static let modernTone = "gonhanh.modernTone"
     static let englishAutoRestore = "gonhanh.englishAutoRestore"
     static let launchAtLoginConfigured = "gonhanh.launchAtLogin.configured"
+    static let soundEnabled = "gonhanh.soundEnabled"
 }
 
 // MARK: - Keyboard Shortcut Model

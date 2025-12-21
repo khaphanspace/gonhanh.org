@@ -1,6 +1,23 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import Combine
+import AppKit
+
+// MARK: - Sound Manager
+
+class SoundManager {
+    static let shared = SoundManager()
+
+    private init() {}
+
+    func playToggleSound(enabled: Bool) {
+        guard AppState.shared.soundEnabled else { return }
+        // Use different system sounds for on/off states
+        // "Tink" for enabling Vietnamese, "Pop" for disabling
+        let soundName = enabled ? "Tink" : "Pop"
+        NSSound(named: NSSound.Name(soundName))?.play()
+    }
+}
 
 // MARK: - Navigation
 
@@ -91,6 +108,12 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var soundEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(soundEnabled, forKey: SettingsKey.soundEnabled)
+        }
+    }
+
     @Published var toggleShortcut: KeyboardShortcut {
         didSet {
             toggleShortcut.save()
@@ -115,6 +138,7 @@ class AppState: ObservableObject {
         loadEscRestore()
         loadModernTone()
         loadEnglishAutoRestore()
+        loadSoundEnabled()
         loadShortcuts()
         setupObservers()
         setupLaunchAtLoginMonitoring()
@@ -168,6 +192,15 @@ class AppState: ObservableObject {
             englishAutoRestore = UserDefaults.standard.bool(forKey: SettingsKey.englishAutoRestore)
         }
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
+    }
+
+    private func loadSoundEnabled() {
+        if UserDefaults.standard.object(forKey: SettingsKey.soundEnabled) == nil {
+            soundEnabled = false
+            UserDefaults.standard.set(false, forKey: SettingsKey.soundEnabled)
+        } else {
+            soundEnabled = UserDefaults.standard.bool(forKey: SettingsKey.soundEnabled)
+        }
     }
 
     private func loadShortcuts() {
@@ -678,6 +711,10 @@ struct SettingsPageView: View {
                 SettingsToggleRow("Gõ ESC để chuyển về tiếng Anh",
                                   subtitle: "Nhấn ESC hoàn tác dấu tiếng Việt về ASCII",
                                   isOn: $appState.escRestore)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Phát âm thanh khi chuyển ngôn ngữ",
+                                  subtitle: "Phát tiếng khi bật/tắt gõ tiếng Việt",
+                                  isOn: $appState.soundEnabled)
                 Divider().padding(.leading, 12)
                 shortcutsRow
             }

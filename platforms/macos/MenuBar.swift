@@ -349,6 +349,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     @objc private func handleToggleVietnamese() {
         appState.toggle()
+        SoundManager.shared.playToggleSound(enabled: appState.isEnabled)
     }
 
     @objc private func handleMenuStateChanged() {
