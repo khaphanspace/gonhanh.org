@@ -5,7 +5,6 @@ import Combine
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let menuStateChanged = Notification.Name("menuStateChanged")
     static let showSettingsPage = Notification.Name("showSettingsPage")
 }
 
@@ -64,13 +63,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
             self,
             selector: #selector(checkForUpdates),
             name: .showUpdateWindow,
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleMenuStateChanged),
-            name: .menuStateChanged,
             object: nil
         )
 
@@ -360,11 +352,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
     @objc private func handleToggleVietnamese() {
         appState.toggle()
         SoundManager.shared.playToggleSound(enabled: appState.isEnabled)
-    }
-
-    @objc private func handleMenuStateChanged() {
-        updateStatusButton()
-        updateMenu()
     }
 
     @objc private func handleInputSourceChanged() {

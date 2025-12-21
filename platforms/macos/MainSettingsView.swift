@@ -54,7 +54,6 @@ class AppState: ObservableObject {
     @Published var isEnabled: Bool {
         didSet {
             RustBridge.setEnabled(isEnabled)
-            NotificationCenter.default.post(name: .menuStateChanged, object: nil)
             guard !isSilentUpdate else { return }
             UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
             if perAppModeEnabled {
@@ -72,7 +71,6 @@ class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(currentMethod.rawValue, forKey: SettingsKey.method)
             RustBridge.setMethod(currentMethod.rawValue)
-            NotificationCenter.default.post(name: .menuStateChanged, object: nil)
         }
     }
 
