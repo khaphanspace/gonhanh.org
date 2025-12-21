@@ -200,11 +200,10 @@ class AppState: ObservableObject {
     private func setupLaunchAtLoginMonitoring() {
         isLaunchAtLoginEnabled = LaunchAtLoginManager.shared.isEnabled
 
-        // Only auto-enable on first launch (when user hasn't configured yet)
+        // Auto-enable on first launch (when user hasn't configured yet)
         let hasConfigured = UserDefaults.standard.bool(forKey: SettingsKey.launchAtLoginConfigured)
-        if !hasConfigured && !isLaunchAtLoginEnabled {
+        if !hasConfigured {
             autoEnableLaunchAtLogin()
-            UserDefaults.standard.set(true, forKey: SettingsKey.launchAtLoginConfigured)
         }
 
         launchAtLoginTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
@@ -217,8 +216,10 @@ class AppState: ObservableObject {
             try LaunchAtLoginManager.shared.enable()
             refreshLaunchAtLoginStatus()
             requiresManualLaunchAtLogin = false
+            // Only mark as configured after successful enable
+            UserDefaults.standard.set(true, forKey: SettingsKey.launchAtLoginConfigured)
         } catch {
-            // Auto-enable failed, user needs to manually enable
+            // Auto-enable failed, will retry on next launch
             requiresManualLaunchAtLogin = true
         }
     }
