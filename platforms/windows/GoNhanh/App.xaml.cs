@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Media;
+using System.Runtime.InteropServices;
 using System.Windows;
 using GoNhanh.Core;
 using GoNhanh.Services;
@@ -8,7 +11,7 @@ namespace GoNhanh;
 /// <summary>
 /// GoNhanh - Vietnamese Input Method for Windows
 /// Main application entry point
-/// Matches macOS App.swift flow
+/// Matches macOS App.swift flow with Per-App Mode support
 /// </summary>
 public partial class App : System.Windows.Application
 {
@@ -16,6 +19,20 @@ public partial class App : System.Windows.Application
     private KeyboardHook? _keyboardHook;
     private readonly SettingsService _settings = new();
     private System.Threading.Mutex? _mutex;
+
+    // Per-app mode monitoring
+    private System.Threading.Timer? _appMonitorTimer;
+    private string _lastProcessName = "";
+
+    #region Win32 Imports for Per-App Mode
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    #endregion
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,7 +50,7 @@ public partial class App : System.Windows.Application
 
         // Load settings
         _settings.Load();
-        ApplySettings();
+        _settings.ApplyToEngine();
 
         // Initialize keyboard hook
         _keyboardHook = new KeyboardHook();
@@ -45,7 +62,14 @@ public partial class App : System.Windows.Application
         _trayIcon.OnExitRequested += ExitApplication;
         _trayIcon.OnMethodChanged += ChangeInputMethod;
         _trayIcon.OnEnabledChanged += ToggleEnabled;
+        _trayIcon.OnSettingsRequested += ShowSettings;
         _trayIcon.Initialize(_settings.CurrentMethod, _settings.IsEnabled);
+
+        // Start per-app mode monitoring
+        if (_settings.PerAppModeEnabled)
+        {
+            StartAppMonitoring();
+        }
 
         // Show onboarding if first run (like macOS)
         if (_settings.IsFirstRun)
@@ -69,13 +93,6 @@ public partial class App : System.Windows.Application
         return true;
     }
 
-    private void ApplySettings()
-    {
-        RustBridge.SetMethod(_settings.CurrentMethod);
-        RustBridge.SetEnabled(_settings.IsEnabled);
-        RustBridge.SetModernTone(_settings.UseModernTone);
-    }
-
     private void OnKeyPressed(object? sender, KeyPressedEventArgs e)
     {
         if (!_settings.IsEnabled) return;
@@ -94,6 +111,101 @@ public partial class App : System.Windows.Application
         }
     }
 
+    #region Per-App Mode
+
+    private void StartAppMonitoring()
+    {
+        // Check foreground app every 500ms
+        _appMonitorTimer = new System.Threading.Timer(
+            CheckForegroundApp,
+            null,
+            TimeSpan.FromMilliseconds(500),
+            TimeSpan.FromMilliseconds(500));
+    }
+
+    private void StopAppMonitoring()
+    {
+        _appMonitorTimer?.Dispose();
+        _appMonitorTimer = null;
+    }
+
+    private void CheckForegroundApp(object? state)
+    {
+        if (!_settings.PerAppModeEnabled) return;
+
+        try
+        {
+            var hwnd = GetForegroundWindow();
+            if (hwnd == IntPtr.Zero) return;
+
+            GetWindowThreadProcessId(hwnd, out uint processId);
+            if (processId == 0) return;
+
+            var process = Process.GetProcessById((int)processId);
+            var processName = process.ProcessName;
+
+            if (processName != _lastProcessName)
+            {
+                _lastProcessName = processName;
+
+                // Get per-app mode state
+                bool shouldEnable = _settings.GetPerAppMode(processName);
+
+                // Update state if different
+                if (shouldEnable != _settings.IsEnabled)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        SetEnabledSilently(shouldEnable);
+                    });
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors during monitoring
+        }
+    }
+
+    /// <summary>
+    /// Set enabled state without triggering per-app save
+    /// Used when switching apps with per-app mode
+    /// </summary>
+    private void SetEnabledSilently(bool enabled)
+    {
+        _settings.IsEnabled = enabled;
+        RustBridge.SetEnabled(enabled);
+        _trayIcon?.UpdateState(_settings.CurrentMethod, enabled);
+    }
+
+    #endregion
+
+    #region Sound
+
+    private void PlayToggleSound(bool enabled)
+    {
+        if (!_settings.SoundEnabled) return;
+
+        try
+        {
+            // Use Windows system sounds
+            if (enabled)
+            {
+                SystemSounds.Asterisk.Play();
+            }
+            else
+            {
+                SystemSounds.Exclamation.Play();
+            }
+        }
+        catch
+        {
+            // Ignore sound errors
+        }
+    }
+
+    #endregion
+
     private void ShowOnboarding()
     {
         var onboarding = new OnboardingWindow(_settings);
@@ -103,8 +215,29 @@ public partial class App : System.Windows.Application
         _settings.IsFirstRun = false;
         _settings.Save();
 
-        ApplySettings();
+        _settings.ApplyToEngine();
         _trayIcon?.UpdateState(_settings.CurrentMethod, _settings.IsEnabled);
+    }
+
+    private void ShowSettings()
+    {
+        var settings = new SettingsWindow(_settings);
+        settings.SettingsChanged += () =>
+        {
+            _settings.ApplyToEngine();
+            _trayIcon?.UpdateState(_settings.CurrentMethod, _settings.IsEnabled);
+
+            // Update per-app monitoring
+            if (_settings.PerAppModeEnabled && _appMonitorTimer == null)
+            {
+                StartAppMonitoring();
+            }
+            else if (!_settings.PerAppModeEnabled && _appMonitorTimer != null)
+            {
+                StopAppMonitoring();
+            }
+        };
+        settings.ShowDialog();
     }
 
     private void ChangeInputMethod(InputMethod method)
@@ -117,12 +250,23 @@ public partial class App : System.Windows.Application
     private void ToggleEnabled(bool enabled)
     {
         _settings.IsEnabled = enabled;
-        _settings.Save();
         RustBridge.SetEnabled(enabled);
+
+        // Play sound
+        PlayToggleSound(enabled);
+
+        // Save per-app mode if enabled
+        if (_settings.PerAppModeEnabled && !string.IsNullOrEmpty(_lastProcessName))
+        {
+            _settings.SavePerAppMode(_lastProcessName, enabled);
+        }
+
+        _settings.Save();
     }
 
     private void ExitApplication()
     {
+        StopAppMonitoring();
         _keyboardHook?.Stop();
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
@@ -133,6 +277,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        StopAppMonitoring();
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
         _mutex?.Dispose();

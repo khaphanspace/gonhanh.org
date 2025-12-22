@@ -26,6 +26,7 @@ public class TrayIcon : IDisposable
     public event Action? OnExitRequested;
     public event Action<InputMethod>? OnMethodChanged;
     public event Action<bool>? OnEnabledChanged;
+    public event Action? OnSettingsRequested;
 
     #endregion
 
@@ -41,6 +42,7 @@ public class TrayIcon : IDisposable
         _contextMenu.Font = new Font("Segoe UI", 9F);
         _contextMenu.ShowCheckMargin = true;
         _contextMenu.ShowImageMargin = false;
+        _contextMenu.Renderer = new ModernMenuRenderer();
 
         // Header with toggle (like macOS)
         _headerItem = new ToolStripMenuItem();
@@ -48,7 +50,7 @@ public class TrayIcon : IDisposable
         _contextMenu.Items.Add(_headerItem);
         _contextMenu.Items.Add(new ToolStripSeparator());
 
-        // Input methods with shortcuts (Ctrl+1, Ctrl+2 like macOS ⌘1, ⌘2)
+        // Input methods with shortcuts (Ctrl+1, Ctrl+2 like macOS Cmd+1, Cmd+2)
         _telexItem = new ToolStripMenuItem("Telex");
         _telexItem.ShortcutKeys = Keys.Control | Keys.D1;
         _telexItem.Click += (s, e) => SetMethod(InputMethod.Telex);
@@ -68,6 +70,12 @@ public class TrayIcon : IDisposable
         _contextMenu.Items.Add(toggleItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
+
+        // Settings (like macOS "Cài đặt")
+        var settingsItem = new ToolStripMenuItem("Cài đặt...");
+        settingsItem.ShortcutKeys = Keys.Control | Keys.Oemcomma;
+        settingsItem.Click += (s, e) => OnSettingsRequested?.Invoke();
+        _contextMenu.Items.Add(settingsItem);
 
         // About (like macOS "Giới thiệu GoNhanh")
         var aboutItem = new ToolStripMenuItem($"Giới thiệu {AppMetadata.Name}");
@@ -276,4 +284,33 @@ public class TrayIcon : IDisposable
     }
 
     #endregion
+}
+
+/// <summary>
+/// Modern menu renderer matching macOS style
+/// </summary>
+internal class ModernMenuRenderer : ToolStripProfessionalRenderer
+{
+    public ModernMenuRenderer() : base(new ModernColorTable()) { }
+
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    {
+        e.TextColor = Color.FromArgb(31, 41, 55); // Dark gray text
+        base.OnRenderItemText(e);
+    }
+}
+
+internal class ModernColorTable : ProfessionalColorTable
+{
+    public override Color MenuItemSelected => Color.FromArgb(243, 244, 246);
+    public override Color MenuItemSelectedGradientBegin => Color.FromArgb(243, 244, 246);
+    public override Color MenuItemSelectedGradientEnd => Color.FromArgb(243, 244, 246);
+    public override Color MenuBorder => Color.FromArgb(229, 231, 235);
+    public override Color MenuItemBorder => Color.Transparent;
+    public override Color ToolStripDropDownBackground => Color.White;
+    public override Color ImageMarginGradientBegin => Color.White;
+    public override Color ImageMarginGradientMiddle => Color.White;
+    public override Color ImageMarginGradientEnd => Color.White;
+    public override Color SeparatorLight => Color.FromArgb(229, 231, 235);
+    public override Color SeparatorDark => Color.FromArgb(229, 231, 235);
 }
