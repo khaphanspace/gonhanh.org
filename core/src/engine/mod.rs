@@ -627,13 +627,8 @@ impl Engine {
                 .try_match_for_method(&full_trigger, Some(' '), true, input_method)
         {
             let output: Vec<char> = m.output.chars().collect();
-            // If shortcut_prefix was used, we need to backspace it too (+1)
-            let backspace = if self.shortcut_prefix.is_some() {
-                m.backspace_count as u8 + 1
-            } else {
-                m.backspace_count as u8
-            };
-            return Result::send(backspace, &output);
+            // backspace_count = trigger.len() which already includes prefix (e.g., "#fne" = 4)
+            return Result::send(m.backspace_count as u8, &output);
         }
 
         Result::none()

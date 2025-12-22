@@ -2602,6 +2602,9 @@ fn shortcut_with_hash_prefix() {
         Action::Send as u8,
         "shortcut '#fne' should trigger"
     );
+    // Backspace count should be 4 (length of "#fne"), NOT 5
+    // Bug: +1 was incorrectly added, causing deletion of char from previous row
+    assert_eq!(r.backspace, 4, "backspace should equal trigger length");
     let chars: String = (0..r.count as usize)
         .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
         .collect();
@@ -2628,4 +2631,5 @@ fn shortcut_with_hash_prefix_fnv() {
         Action::Send as u8,
         "shortcut '#fnv' should trigger"
     );
+    assert_eq!(r.backspace, 4, "backspace = trigger.len() = 4");
 }
