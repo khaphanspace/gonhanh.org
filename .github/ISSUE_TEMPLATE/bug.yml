@@ -109,3 +109,7 @@ body:
         ```
         3. Gõ lại các từ/cụm từ bị lỗi
         4. Paste log vào hộp input này
+        5. Xoá file log sau khi thao tác xong
+        ```bash
+        rm -f /tmp/gonhanh_debug.log
+        ```
