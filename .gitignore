@@ -43,3 +43,6 @@ obj/
 .opencode/
 plans/
 CLAUDE.md
+
+# mkdocs
+site

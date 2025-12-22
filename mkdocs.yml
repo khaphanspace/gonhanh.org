@@ -1,0 +1,44 @@
+site_name: "Gõ Nhanh"
+site_url: https://gonhanh.org
+site_author: 'Gõ Nhanh'
+docs_dir: docs
+theme:
+  name: material
+  custom_dir: assets
+  palette:
+  - scheme: default
+    toggle:
+      icon: material/toggle-switch-off-outline
+      name: Switch to dark mode
+    primary: white
+    accent: light blue
+  - scheme: slate
+    toggle:
+      icon: material/toggle-switch
+      name: Switch to light mode
+    primary: black
+    accent: light blue
+  logo: logo.png
+  favicon: logo.png
+plugins:
+  - awesome-pages:
+  - include_dir_to_nav:
+markdown_extensions:
+  - toc:
+      title: On this page
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: 'core/src'
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+copyright: Copyright &copy; 2025 - Gõ Nhanh
