@@ -92,3 +92,20 @@ body:
         - Thỉnh thoảng (<50%)
         - Hiếm khi
         - Chỉ một lần
+
+  - type: textarea
+    id: debug-log
+    attributes:
+      label: Cung cấp debug log
+      placeholder: |
+        Bật debug log và dán vào ô này theo hướng dẫn sau:
+        1. Chạy câu lệnh tạo file log
+        ```bash
+        touch /tmp/gonhanh_debug.log && echo "Debug logging enabled at /tmp/gonhanh_debug.log"
+        ```
+        2. Bật chế độ theo dõi ghi log
+        ```bash
+        tail -f /tmp/gonhanh_debug.log
+        ```
+        3. Gõ lại các từ/cụm từ bị lỗi
+        4. Paste log vào hộp input này
