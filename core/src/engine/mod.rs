@@ -336,6 +336,7 @@ impl Engine {
                 self.spaces_after_commit = self.spaces_after_commit.saturating_add(1);
             }
             self.clear();
+            // Return restore result if auto-restore happened, otherwise none
             return restore_result;
         }
 
@@ -2162,9 +2163,17 @@ impl Engine {
                         || (next_key == keys::G && i >= 1 && self.raw_input[i - 1].0 == keys::N)
                         || (next_key == keys::H && i >= 1 && self.raw_input[i - 1].0 == keys::N);
 
-                    // Always skip for J and S - these are very common in Vietnamese
+                    // For J and S: skip only if NO vowel after the consonant
+                    // Vietnamese: "bức" = b-u-s-c (S + final C, nothing after) → skip
+                    // English: "system" = s-y-s-t-e-m (S + T + E + M, vowel E after T) → detect
                     if is_common_viet_mark {
-                        continue;
+                        // Check if there's a vowel after this consonant
+                        let has_vowel_after_consonant = (i + 2..self.raw_input.len())
+                            .any(|j| keys::is_vowel(self.raw_input[j].0));
+                        if !has_vowel_after_consonant {
+                            continue; // Vietnamese pattern: modifier + final consonant only
+                        }
+                        // Fall through to Case 1a/1b checks for English pattern
                     }
 
                     // For F, R, X: skip only if followed by sonorant (m, n, ng, nh)

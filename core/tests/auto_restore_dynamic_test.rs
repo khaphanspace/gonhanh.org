@@ -560,6 +560,10 @@ const MODIFIER_CONSONANT_WORDS: &[(&str, &str)] = &[
     ("next ", "next "),
     ("text ", "text "),
     ("textbook ", "textbook "),
+    // s modifier + consonant + vowel patterns
+    ("system ", "system "),
+    ("systemic ", "systemic "),
+    ("syntax ", "syntax "),
 ];
 
 #[test]
