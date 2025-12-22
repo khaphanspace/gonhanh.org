@@ -39,7 +39,15 @@ obj/
 *~
 
 # Agent configs (not project-specific)
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/commands/
+.claude/skills/*
+!.claude/skills/github-assistant/
+.claude/commands/*
+!.claude/commands/github.md
+.claude/.env*
+.claude/skills/.env*
 .opencode/
 plans/
 CLAUDE.md
