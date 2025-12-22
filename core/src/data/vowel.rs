@@ -160,7 +160,8 @@ pub const TONE_FIRST_PATTERNS: &[[u16; 2]] = &[
     [keys::I, keys::U], // iu: dịu, kíu
     [keys::O, keys::I], // oi: đói, còi
     [keys::U, keys::I], // ui: túi, mùi
-    [keys::U, keys::A], // ua: mùa, cúa (not after q)
+    // Note: "ua" removed - context-dependent, handled specially in find_diphthong_position()
+    // Open syllable: tone on u (mùa), Closed syllable: tone on a (chuẩn)
     [keys::U, keys::U], // ưu: lưu, hưu (when first has horn)
 ];
 
@@ -346,8 +347,21 @@ impl Phonology {
         has_gi_initial: bool,
     ) -> usize {
         let (v1, v2) = (&vowels[0], &vowels[1]);
+        let pair = [v1.key, v2.key];
 
-        // Rule 1: With final consonant → always 2nd (Section 7.3.2)
+        // Rule 0: TONE_FIRST_PATTERNS (main+glide) always get mark on first vowel
+        // This MUST come before final consonant rule because main+glide patterns
+        // have mark on main vowel regardless of syllable structure
+        // Example: "au" → mark on 'a' whether open (màu) or closed (aum → àum)
+        if TONE_FIRST_PATTERNS
+            .iter()
+            .any(|p| p[0] == pair[0] && p[1] == pair[1])
+        {
+            return v1.pos;
+        }
+
+        // Rule 1: With final consonant → 2nd vowel (for medial+main patterns)
+        // Only applies to patterns NOT in TONE_FIRST_PATTERNS
         if has_final_consonant {
             return v2.pos;
         }
@@ -368,10 +382,16 @@ impl Phonology {
             return if has_gi_initial { v2.pos } else { v1.pos };
         }
 
-        // ua: 1st unless qu-initial (mùa → u, quà → a)
-        // Note: qu-initial means 'u' is part of consonant, not affected by modern setting
+        // ua: context-dependent based on syllable structure
+        // - Open syllable (mùa): u is main, a is glide → tone on u (1st)
+        // - Closed syllable (chuẩn): u is medial, a is main → tone on a (2nd)
+        // - qu-initial (quà): u is part of consonant → tone on a (2nd)
         if v1.key == keys::U && v2.key == keys::A {
-            return if has_qu_initial { v2.pos } else { v1.pos };
+            return if has_final_consonant || has_qu_initial {
+                v2.pos
+            } else {
+                v1.pos
+            };
         }
 
         // uy with qu-initial: always on y (quý - 'u' is part of qu consonant)
@@ -380,10 +400,7 @@ impl Phonology {
             return v2.pos;
         }
 
-        // Rule 4: Pattern table lookup
-        let pair = [v1.key, v2.key];
-
-        // Check TONE_SECOND_PATTERNS (medial + main, compound)
+        // Rule 4: TONE_SECOND_PATTERNS (medial + main, compound)
         // Modern setting only affects: oa, oe, uy (without qu-initial)
         if TONE_SECOND_PATTERNS
             .iter()
@@ -401,15 +418,7 @@ impl Phonology {
             return v2.pos;
         }
 
-        // Check TONE_FIRST_PATTERNS (main + glide)
-        if TONE_FIRST_PATTERNS
-            .iter()
-            .any(|p| p[0] == pair[0] && p[1] == pair[1])
-        {
-            return v1.pos;
-        }
-
-        // Default: 2nd vowel
+        // Default: 2nd vowel (unknown patterns)
         v2.pos
     }
 
@@ -633,14 +642,25 @@ mod tests {
 
     #[test]
     fn test_ua_patterns() {
-        // ua without q (mua) → mark on u (pos 0)
+        // ua open syllable (mùa) → mark on u (pos 0)
+        // u is main vowel, a is glide
         let vowels = vec![v(keys::U, Modifier::None, 0), v(keys::A, Modifier::None, 1)];
         assert_eq!(
             Phonology::find_tone_position(&vowels, false, true, false, false),
             0
         );
 
-        // ua with q (qua) → mark on a (pos 1)
+        // ua with final consonant (chuẩn) → mark on a (pos 1)
+        // u is medial, a is main vowel
+        let vowels = vec![v(keys::U, Modifier::None, 0), v(keys::A, Modifier::None, 1)];
+        assert_eq!(
+            Phonology::find_tone_position(&vowels, true, true, false, false),
+            1,
+            "ua with final consonant should mark on a (chuẩn)"
+        );
+
+        // ua with q (quà) → mark on a (pos 1)
+        // u is part of qu consonant
         let vowels = vec![v(keys::U, Modifier::None, 0), v(keys::A, Modifier::None, 1)];
         assert_eq!(
             Phonology::find_tone_position(&vowels, false, true, true, false),

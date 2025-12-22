@@ -2798,3 +2798,502 @@ fn shortcut_backspace_with_mark() {
     assert_eq!(r.action, Action::Send as u8);
     assert_eq!(r.backspace, 2, "án = 2 chars");
 }
+
+// ============================================================
+// COMPLEX TYPING SCENARIOS: Type -> Delete -> Retype -> Clear
+// Tests for "màu sắc" with Telex + auto restore
+// ============================================================
+
+/// Comprehensive continuous typing session with multiple operations
+/// Simulates real user behavior: type->select->replace->arrow->backspace
+#[test]
+fn complex_mau_sac_continuous_session() {
+    let mut e = Engine::new();
+    e.set_method(0);
+    e.set_english_auto_restore(true);
+
+    // 1. Type "màu sắc", Cmd+A (select all), type new text to replace
+    let r1 = type_word(&mut e, "mauf ");
+    assert_eq!(r1, "màu ");
+    let r2 = type_word(&mut e, "sawsc");
+    assert_eq!(r2, "sắc");
+    e.on_key(keys::A, false, true); // Cmd+A / Ctrl+A select all -> clears buffer
+    let r3 = type_word(&mut e, "ddepj "); // Type to replace selection
+    assert_eq!(r3, "đẹp ");
+
+    // 2. Type word, Shift+Left (select chars), type to replace
+    let r4 = type_word(&mut e, "vieejt");
+    assert_eq!(r4, "việt");
+    e.on_key_ext(keys::LEFT, false, false, true); // Shift+Left -> select, clears buffer
+    let r5 = type_word(&mut e, "nam "); // Type replaces selection
+    assert_eq!(r5, "nam ");
+
+    // 3. Type word, Shift+Cmd+Left (select to line start), type to replace
+    type_word(&mut e, "mauf sawsc");
+    e.on_key(keys::LEFT, false, true); // Cmd+Left or Ctrl+Left -> clears buffer
+    let r6 = type_word(&mut e, "chafo "); // Fresh typing
+    assert_eq!(r6, "chào ");
+
+    // 4. Type multiple words, Cmd+A, type fresh sentence
+    let r7 = type_word(&mut e, "xin ");
+    assert_eq!(r7, "xin ");
+    type_word(&mut e, "chafo");
+    e.on_key(keys::A, false, true); // Select all
+    let r8 = type_word(&mut e, "mauf sawsc "); // Replace with "màu sắc "
+    assert_eq!(r8, "màu sắc ");
+
+    // 5. Type, arrow interrupt mid-word, continue fresh
+    type_word(&mut e, "ddepj");
+    e.on_key(keys::RIGHT, false, false); // Arrow clears buffer
+    let r9 = type_word(&mut e, "lawsm ");
+    assert_eq!(r9, "lắm ");
+
+    // 6. Type word, Shift+Right (extend selection), type to replace
+    let r10 = type_word(&mut e, "tuyeejt");
+    assert_eq!(r10, "tuyệt");
+    e.on_key_ext(keys::RIGHT, false, false, true); // Shift+Right -> clears buffer
+    let r11 = type_word(&mut e, "vowfi "); // Fresh type
+    assert_eq!(r11, "vời ");
+
+    // 7. Rapid: type -> select partial -> type -> select all -> type
+    let r12 = type_word(&mut e, "mauf ");
+    assert_eq!(r12, "màu ");
+    type_word(&mut e, "sawsc");
+    e.on_key_ext(keys::LEFT, false, false, true); // Shift+Left
+    e.on_key_ext(keys::LEFT, false, false, true); // Shift+Left again (more selection)
+    let r13 = type_word(&mut e, "ddor "); // Replace selection
+    assert_eq!(r13, "đỏ ");
+
+    // 8. Type sentence, Tab key (word boundary), type fresh
+    let r14 = type_word(&mut e, "toost ");
+    assert_eq!(r14, "tốt ");
+    type_word(&mut e, "lawsm");
+    e.on_key(keys::TAB, false, false); // Tab clears buffer
+    let r15 = type_word(&mut e, "raast "); // Fresh
+    assert_eq!(r15, "rất ");
+
+    // 9. Type, Enter key, continue fresh
+    type_word(&mut e, "tuyeejt");
+    e.on_key(keys::RETURN, false, false); // Enter clears buffer
+    let r16 = type_word(&mut e, "vowfi ");
+    assert_eq!(r16, "vời ");
+
+    // 10. Complex: type -> partial delete -> arrow -> fresh -> Cmd+A -> replace
+    let r17 = type_word(&mut e, "mauf<"); // màu -> mà (delete u)
+    assert_eq!(r17, "mà");
+    e.on_key(keys::LEFT, false, false); // Arrow clears buffer
+    let r18 = type_word(&mut e, "sawsc ");
+    assert_eq!(r18, "sắc ");
+    type_word(&mut e, "ddepj");
+    e.on_key(keys::A, false, true); // Select all
+    let r19 = type_word(&mut e, "xong ");
+    assert_eq!(r19, "xong ");
+}
+
+/// Test mark position for "aum" pattern (from debug log issue)
+/// "aumf" should produce "àum" (mark on 'a'), NOT "aùm" (mark on 'u')
+#[test]
+fn test_aum_mark_position() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // "aumf" = a + u + m + f(huyền) → mark should be on 'a' → "àum"
+    let r = type_word(&mut e, "aumf ");
+    assert_eq!(r, "àum ", "Mark should be on 'a', not 'u'");
+
+    // Also test "aufm" = same result
+    let r2 = type_word(&mut e, "aufm ");
+    assert_eq!(r2, "àum ");
+
+    // Test "aaumf" - should have circumflex from "aa" doubling → "ầum"
+    let r3 = type_word(&mut e, "aaumf ");
+    assert_eq!(r3, "ầum ", "aa doubling should add circumflex");
+
+    // Test "mauf" → "màu" (mau + f)
+    let r4 = type_word(&mut e, "mauf ");
+    assert_eq!(r4, "màu ");
+
+    // Test various "au" patterns
+    let r5 = type_word(&mut e, "sauf "); // sàu
+    assert_eq!(r5, "sàu ");
+
+    let r6 = type_word(&mut e, "mafu "); // màu (mark before u)
+    assert_eq!(r6, "màu ");
+}
+
+/// Test what input produces "ầum" (circumflex with huyền)
+/// User reported getting "ầum" when trying to type "màu"
+#[test]
+fn test_aum_circumflex() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // "aumf" should give "àum" (huyền on first vowel 'a' per TONE_FIRST_PATTERNS)
+    let r1 = type_word(&mut e, "aumf");
+    println!("aumf → '{}' (expected: àum)", r1);
+    assert_eq!(r1, "àum");
+
+    // Reset engine
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // "aaumf" would give "ầum" (aa→â, then f adds huyền)
+    let r2 = type_word(&mut e, "aaumf");
+    println!("aaumf → '{}' (expected: ầum)", r2);
+    assert_eq!(r2, "ầum", "aaumf produces ầum - this is what user sees");
+
+    // Now test if there's a way to get ầum from "màu sắc" delete sequence
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Type "sắc " first (last word before issue)
+    type_word(&mut e, "sawsc ");
+
+    // Now simulate various delete patterns and try to get ầum
+    // Pattern 1: Restore word, partially delete, then type
+    e.on_key(keys::DELETE, false, false); // Restore "sắc"
+    e.on_key(keys::DELETE, false, false); // sắ
+    e.on_key(keys::DELETE, false, false); // s
+    e.on_key(keys::DELETE, false, false); // empty
+    e.on_key(keys::DELETE, false, false); // still empty
+
+    // Now type "aumf" expecting "àum"
+    let r3 = type_word(&mut e, "aumf");
+    println!("After deleting sắc, aumf → '{}' (expected: àum)", r3);
+    assert_eq!(r3, "àum", "Should not get ầum from this sequence");
+}
+
+/// Test DELETE restore behavior
+/// After typing "màu " and pressing DELETE, buffer is restored.
+/// Need 5 DELETEs to fully clear: 1 (restore) + 3 (chars) + 1 (empty)
+#[test]
+fn test_delete_restore_behavior() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // Type "màu "
+    let r1 = type_word(&mut e, "mauf ");
+    assert_eq!(r1, "màu ");
+
+    // DELETE behavior after commit:
+    // - DELETE 1: Restores "màu" (3 chars) from word_history
+    // - DELETE 2-4: Pop chars one by one
+    // - DELETE 5+: Empty buffer, sets has_non_letter_prefix (affects shortcuts only)
+
+    // DELETE 1: Restore word
+    let del1 = e.on_key(keys::DELETE, false, false);
+    assert_eq!(del1.action, 1, "DELETE 1 should restore");
+
+    // DELETE 2-4: Pop from restored buffer
+    for _ in 0..3 {
+        e.on_key(keys::DELETE, false, false);
+    }
+
+    // DELETE 5: Empty buffer
+    e.on_key(keys::DELETE, false, false);
+
+    // Now typing fresh should work
+    let r2 = type_word(&mut e, "mauf ");
+    assert_eq!(r2, "màu ", "After full delete, typing should work");
+}
+
+/// Test "màu sắc" user journey - exact reproduction
+/// User reported: type "màu sắc", delete nhiều lần, gõ lại → "ầum" hoặc "ầumu"
+#[test]
+fn test_mau_sac_user_journey() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // === JOURNEY 1: Gõ "màu sắc" lần đầu ===
+    let r1 = type_word(&mut e, "mauf ");
+    assert_eq!(r1, "màu ", "Journey 1.1: mauf → màu");
+    let r2 = type_word(&mut e, "sawsc ");
+    assert_eq!(r2, "sắc ", "Journey 1.2: sawsc → sắc");
+
+    // === JOURNEY 2: Gõ "màu sắc" lần 2 ===
+    let r3 = type_word(&mut e, "mauf ");
+    assert_eq!(r3, "màu ", "Journey 2.1: mauf → màu");
+    let r4 = type_word(&mut e, "sawsc ");
+    assert_eq!(r4, "sắc ", "Journey 2.2: sawsc → sắc");
+
+    // === JOURNEY 3: Xóa nhiều lần rồi gõ lại ===
+    // Xóa 10 lần (nhiều hơn cần thiết để đảm bảo buffer trống)
+    for _ in 0..10 {
+        e.on_key(keys::DELETE, false, false);
+    }
+
+    // Gõ lại "màu sắc" - KHÔNG được có circumflex (ầ)
+    let r5 = type_word(&mut e, "mauf ");
+    assert_eq!(
+        r5, "màu ",
+        "Journey 3.1: After 10 DELETEs, mauf → màu (not ầum!)"
+    );
+    let r6 = type_word(&mut e, "sawsc ");
+    assert_eq!(r6, "sắc ", "Journey 3.2: sawsc → sắc");
+
+    // === JOURNEY 4: Xóa từng chữ và gõ lại ===
+    // Simulate: user delete "sắc " char by char, then type "màu"
+    for _ in 0..4 {
+        // "sắc " = 4 chars on screen
+        e.on_key(keys::DELETE, false, false);
+    }
+    let r7 = type_word(&mut e, "mauf ");
+    assert_eq!(r7, "màu ", "Journey 4: After deleting sắc, mauf → màu");
+
+    // === JOURNEY 5: Repeat cycle nhiều lần ===
+    for i in 0..5 {
+        // Gõ màu sắc
+        let m = type_word(&mut e, "mauf ");
+        let s = type_word(&mut e, "sawsc ");
+        assert_eq!(m, "màu ", "Journey 5.{}: mauf → màu", i);
+        assert_eq!(s, "sắc ", "Journey 5.{}: sawsc → sắc", i);
+
+        // Xóa hết
+        for _ in 0..15 {
+            e.on_key(keys::DELETE, false, false);
+        }
+    }
+
+    // Final check: sau nhiều cycle, vẫn phải đúng
+    let final_r = type_word(&mut e, "mauf ");
+    assert_eq!(final_r, "màu ", "Final: After many cycles, mauf → màu");
+}
+
+/// Test specific case: sau khi xóa và gõ lại nhiều lần
+/// Kiểm tra không có "ầ" (circumflex+huyền) khi chỉ gõ "màu"
+#[test]
+fn test_no_circumflex_contamination() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Pattern 1: Type → Delete all → Retype
+    for round in 0..10 {
+        let r = type_word(&mut e, "mauf ");
+        assert_eq!(r, "màu ", "Round {}: mauf → màu (not ầum)", round);
+
+        // Delete everything
+        for _ in 0..20 {
+            e.on_key(keys::DELETE, false, false);
+        }
+    }
+
+    // Pattern 2: Type màu sắc alternating
+    for round in 0..5 {
+        let r1 = type_word(&mut e, "mauf ");
+        let r2 = type_word(&mut e, "sawsc ");
+        assert!(
+            !r1.contains('ầ'),
+            "Round {}: màu should NOT contain ầ (got: {})",
+            round,
+            r1
+        );
+        assert_eq!(r1, "màu ");
+        assert_eq!(r2, "sắc ");
+
+        // Delete random amount
+        for _ in 0..(round + 5) {
+            e.on_key(keys::DELETE, false, false);
+        }
+    }
+}
+
+/// Test edge case: partial delete trong word
+#[test]
+fn test_partial_delete_in_word() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Type "mau" then delete 'u', type 'u' again, then 'f'
+    // m → a → u → DELETE → u → f → SPACE
+    e.on_key_ext(keys::M, false, false, false);
+    e.on_key_ext(keys::A, false, false, false);
+    e.on_key_ext(keys::U, false, false, false);
+    e.on_key(keys::DELETE, false, false); // Delete 'u'
+    e.on_key_ext(keys::U, false, false, false); // Re-type 'u'
+    let r = e.on_key_ext(keys::F, false, false, false);
+
+    // Should produce "màu" not "ầum"
+    // Check the transformation
+    if r.action == 1 {
+        let output: String = r.chars[..r.count as usize]
+            .iter()
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
+        assert!(
+            !output.contains('ầ'),
+            "Partial delete: should not produce circumflex (got: {})",
+            output
+        );
+    }
+}
+
+/// Test: gõ sai rồi sửa
+#[test]
+fn test_typo_correction() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // User gõ "maau" (lỡ 2 chữ a) rồi delete 1 'a', gõ tiếp
+    // m → a → a → DELETE → u → f
+    e.on_key_ext(keys::M, false, false, false);
+    e.on_key_ext(keys::A, false, false, false);
+    let aa_result = e.on_key_ext(keys::A, false, false, false); // This creates "â"
+    println!("After 'aa': action={}", aa_result.action);
+
+    e.on_key(keys::DELETE, false, false); // Delete to fix
+
+    e.on_key_ext(keys::U, false, false, false);
+    let f_result = e.on_key_ext(keys::F, false, false, false);
+
+    // After correction, should be "màu" not "ầu"
+    if f_result.action == 1 {
+        let output: String = f_result.chars[..f_result.count as usize]
+            .iter()
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
+        println!("Typo correction result: {}", output);
+        // Note: This might still have circumflex if 'aa' created 'â' and DELETE
+        // only removed 'u', not the circumflex. This could be the bug!
+    }
+}
+
+/// BUG REPRODUCTION: DELETE restore rồi gõ tiếp = append vào buffer cũ
+/// User nghĩ đang gõ mới nhưng thực ra đang append vào word đã restore
+#[test]
+fn test_bug_delete_restore_then_type() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Step 1: Gõ "sắc " và commit
+    let r1 = type_word(&mut e, "sawsc ");
+    assert_eq!(r1, "sắc ");
+    println!("After 'sắc ': committed");
+
+    // Step 2: DELETE 1 lần = restore "sắc" vào buffer
+    let del = e.on_key(keys::DELETE, false, false);
+    println!("DELETE: action={}, backspace={}", del.action, del.backspace);
+    // Buffer now = "sắc" (restored), NOT empty!
+
+    // Step 3: User NGHĨ buffer trống, gõ "mauf"
+    // Nhưng thực ra đang append vào "sắc" → "sắcmauf"
+    let r2 = type_word(&mut e, "mauf ");
+    println!("After typing 'mauf ': got '{}'", r2);
+
+    // BUG: User expect "màu " nhưng có thể nhận được gì đó khác
+    // vì buffer đang là "sắc" + "mauf" = "sắcmauf"
+    assert_eq!(
+        r2, "màu ",
+        "BUG: User expects fresh 'màu' but buffer was not empty!"
+    );
+}
+
+/// BUG REPRODUCTION 2: DELETE không đủ số lần
+/// User delete 3 lần cho "sắc " nhưng cần 4 (space + 3 chars) hoặc nhiều hơn
+#[test]
+fn test_bug_insufficient_deletes() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Gõ "màu sắc "
+    type_word(&mut e, "mauf ");
+    type_word(&mut e, "sawsc ");
+    println!("Typed 'màu sắc '");
+
+    // User delete 3 lần - KHÔNG ĐỦ để clear hết
+    // DELETE 1: restore "sắc"
+    // DELETE 2: "sắ"
+    // DELETE 3: "s"
+    // Buffer vẫn còn "s"!
+    for i in 0..3 {
+        let d = e.on_key(keys::DELETE, false, false);
+        println!("DELETE {}: action={}", i + 1, d.action);
+    }
+
+    // Gõ "mauf" - nhưng buffer còn "s" → "smauf"
+    let r = type_word(&mut e, "mauf ");
+    println!("After 3 DELETEs + 'mauf ': got '{}'", r);
+
+    // BUG: Expect "màu " nhưng có thể nhận được khác
+    assert_eq!(r, "màu ", "BUG: Insufficient deletes leaves stale buffer!");
+}
+
+/// BUG REPRODUCTION 3: Scenario chính xác từ user
+/// "màu sắc" → xóa nhiều lần → gõ lại → "ầum"
+#[test]
+fn test_bug_mau_sac_aum_output() {
+    let mut e = Engine::new();
+    e.set_method(0);
+
+    // Gõ "màu sắc" nhiều lần
+    for _ in 0..3 {
+        type_word(&mut e, "mauf ");
+        type_word(&mut e, "sawsc ");
+    }
+
+    // Xóa - nhưng có thể không đúng số lần
+    // Giả sử user xóa random số lần
+    for _ in 0..7 {
+        e.on_key(keys::DELETE, false, false);
+    }
+
+    // Gõ lại - expect "màu" nhưng user báo nhận "ầum"
+    let result = type_word(&mut e, "mauf ");
+    println!("Result after deletes: '{}'", result);
+
+    // Check không có circumflex
+    assert!(
+        !result.contains('ầ'),
+        "BUG REPRODUCED: Got '{}' instead of 'màu ' - circumflex contamination!",
+        result
+    );
+    assert_eq!(result, "màu ");
+}
+
+/// Test "chuẩn bị" - tone on â (not ủ)
+/// "ua" with final consonant: u is medial, a is main → tone on a
+#[test]
+fn test_chuan_bi_tone_position() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // "chuẩn" = ch + u + aa + r + n
+    // aa = circumflex on a → â
+    // r = hỏi tone
+    // With final 'n', "uâ" → tone on â (not ủ)
+    let result = type_word(&mut e, "chuaarn ");
+    assert_eq!(result, "chuẩn ", "ua with final consonant: tone on â, not ủ");
+
+    // "bị" = b + i + j
+    let result2 = type_word(&mut e, "bij ");
+    assert_eq!(result2, "bị ");
+}
+
+/// Test "thuận lợi" - another ua + final consonant case
+#[test]
+fn test_thuan_loi_tone_position() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // "thuận" = th + u + aa + j + n
+    let result = type_word(&mut e, "thuaajn ");
+    assert_eq!(result, "thuận ", "ua with final: tone on â");
+
+    // "lợi" = l + o + w + j + i
+    let result2 = type_word(&mut e, "lowji ");
+    assert_eq!(result2, "lợi ");
+}
+
+/// Test open syllable "mùa" vs closed syllable "muán"
+#[test]
+fn test_ua_open_vs_closed_syllable() {
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+
+    // Open syllable: tone on u (mùa)
+    let r1 = type_word(&mut e, "muaf ");
+    assert_eq!(r1, "mùa ", "ua open syllable: tone on u");
+
+    // Closed syllable: tone on a (muán)
+    let r2 = type_word(&mut e, "muasn ");
+    assert_eq!(r2, "muán ", "ua closed syllable: tone on a");
+}

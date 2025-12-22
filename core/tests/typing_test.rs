@@ -339,8 +339,10 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("quasn", "quán"),   // qu + a + s + n → quán
     ("quasng", "quáng"), // qu + a + s + ng → quáng
     //
-    // --- ua + C (without q) → tone on a (closed changes rule) ---
-    ("muasn", "muán"), // m + u + a + s + n → muán (final changes rule)
+    // --- ua + C (without q) → tone on a (medial+main pattern) ---
+    // With final consonant, 'u' becomes medial, 'a' becomes main vowel
+    // Same as "chuẩn" - ch + u + â + n → tone on â
+    ("muasn", "muán"), // m + u + a + s + n → muán (main vowel 'a' gets tone)
     //
     // --- iê + C → tone on ê ---
     ("tieesn", "tiến"), // t + i + ee + s + n → tiến

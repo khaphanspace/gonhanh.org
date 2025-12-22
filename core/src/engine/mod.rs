@@ -220,6 +220,9 @@ pub struct Engine {
     /// When a shifted symbol (like #, @, $) is typed first, store it here
     /// so shortcuts like "#fne" can match even though # is normally a break char
     shortcut_prefix: Option<char>,
+    /// Buffer was just restored from DELETE - clear on next letter input
+    /// This prevents typing after restore from appending to old buffer
+    restored_pending_clear: bool,
 }
 
 impl Default for Engine {
@@ -253,6 +256,7 @@ impl Engine {
             had_any_transform: false,
             had_vowel_triggered_circumflex: false,
             shortcut_prefix: None,
+            restored_pending_clear: false,
         }
     }
 
@@ -439,6 +443,9 @@ impl Engine {
                         // Restore raw_input from buffer (for ESC restore to work)
                         self.restore_raw_input_from_buffer(&restored_buf);
                         self.buf = restored_buf;
+                        // Mark that buffer was restored - if user types new letter,
+                        // clear buffer first (they want fresh word, not append)
+                        self.restored_pending_clear = true;
                     }
                 }
                 // Delete one space
@@ -460,7 +467,30 @@ impl Engine {
             // Reset stroke_reverted on backspace so user can re-trigger stroke
             // e.g., "ddddd" → "dddd", then backspace×3 → "d", then "d" → "đ"
             self.stroke_reverted = false;
+            // Only reset restored_pending_clear when buffer is empty
+            // (user finished deleting restored word completely)
+            // If buffer still has chars, user might think they cleared everything
+            // but actually didn't - let them start fresh on next letter input
+            if self.buf.is_empty() {
+                self.restored_pending_clear = false;
+            }
             return Result::none();
+        }
+
+        // After DELETE restore, determine if user wants to:
+        // 1. Continue editing restored word (add tone/mark) - vowels, mark keys, tone keys
+        // 2. Start fresh word - regular consonants (not mark/tone keys)
+        // This allows "cha" + restore + "f" → "chà" (f is mark key)
+        // But "cha" + restore + "m" → "m..." (m is consonant, start fresh)
+        if self.restored_pending_clear && keys::is_letter(key) {
+            let m = input::get(self.method);
+            let is_mark_or_tone = m.mark(key).is_some() || m.tone(key).is_some();
+            if keys::is_consonant(key) && !is_mark_or_tone {
+                // Regular consonant (not mark/tone key) = user starting new word
+                self.clear();
+            }
+            // Reset flag regardless - user is now actively typing
+            self.restored_pending_clear = false;
         }
 
         // Record raw keystroke for ESC restore (letters and numbers only)
@@ -2451,6 +2481,7 @@ impl Engine {
         self.pending_mark_revert_pop = false;
         self.had_any_transform = false;
         self.had_vowel_triggered_circumflex = false;
+        self.restored_pending_clear = false;
         self.shortcut_prefix = None;
     }
 

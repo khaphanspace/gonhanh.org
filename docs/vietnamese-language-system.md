@@ -190,7 +190,8 @@ Nguyên âm đầu đóng vai trò âm đệm (không phải âm chính).
 
 > **Lưu ý quan trọng về "ua"**:
 > - Sau "q" (qua, quả): u là âm đệm, a là âm chính → dấu trên a
-> - Không sau "q" (mua, cua): u là âm chính, a là bán nguyên âm → dấu trên u
+> - Âm tiết mở không có "q" (mua, cua): u là âm chính, a là bán nguyên âm → dấu trên u
+> - Âm tiết đóng có phụ âm cuối (chuẩn, thuận): u là âm đệm, â là âm chính → dấu trên â
 
 #### 3.2.2 Nguyên âm đôi đặc biệt (Special Cases)
 
@@ -885,8 +886,9 @@ Dấu phụ (circumflex ^, horn, breve ˘) được định nghĩa trong cột *
 | 15 | oi | O+I | - | **ó**i | **ò**i | **ỏ**i | **õ**i | **ọ**i |
 | 16 | ôi | O+I | o→ô (^) | **ố**i | **ồ**i | **ổ**i | **ỗ**i | **ộ**i |
 | 17 | ơi | O+I | o→ơ (ʼ) | **ớ**i | **ờ**i | **ở**i | **ỡ**i | **ợ**i |
-| 18 | ua | U+A | - | **ú**a | **ù**a | **ủ**a | **ũ**a | **ụ**a |
+| 18 | ua | U+A | (âm mở) | **ú**a | **ù**a | **ủ**a | **ũ**a | **ụ**a |
 | 19 | ua (q-) | U+A | (sau q) | qu**á** | qu**à** | qu**ả** | qu**ã** | qu**ạ** |
+| 19b | ua+C | U+A | (có phụ âm cuối) | mu**á**n | mu**à**n | mu**ả**n | mu**ã**n | mu**ạ**n |
 | 20 | uâ | U+A | a→â (^) | u**ấ** | u**ầ** | u**ẩ** | u**ẫ** | u**ậ** |
 | 21 | uê | U+E | e→ê (^) | u**ế** | u**ề** | u**ể** | u**ễ** | u**ệ** |
 | 22 | ui | U+I | - | **ú**i | **ù**i | **ủ**i | **ũ**i | **ụ**i |
@@ -917,7 +919,10 @@ Dấu phụ (circumflex ^, horn, breve ˘) được định nghĩa trong cột *
 | 42 | uêu | U+E+U | e→ê (^) | u**ế**u | u**ề**u | u**ể**u | u**ễ**u | u**ệ**u |
 | 43 | oao | O+A+O | - | o**á**o | o**à**o | o**ả**o | o**ã**o | o**ạ**o |
 
-> **Note**: Bold (**x**) = nguyên âm nhận dấu thanh. Pattern 19 (ua sau q) có vị trí dấu khác pattern 18.
+> **Note**: Bold (**x**) = nguyên âm nhận dấu thanh. Patterns 18/19/19b (ua) có vị trí dấu phụ thuộc ngữ cảnh:
+> - Pattern 18 (âm mở): dấu trên u (mùa, múa)
+> - Pattern 19 (sau q): dấu trên a (quà, quá)
+> - Pattern 19b (có phụ âm cuối): dấu trên a (chuẩn, thuận)
 >
 > **Added 2025-12**: Patterns 41-43 cho các từ đặc biệt:
 > - **uyu** (#41): khuỷu (khuỷu tay - elbow)
