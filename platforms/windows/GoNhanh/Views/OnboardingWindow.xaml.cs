@@ -3,6 +3,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using GoNhanh.Core;
 using GoNhanh.Services;
+using Color = System.Windows.Media.Color;
 
 namespace GoNhanh.Views;
 
