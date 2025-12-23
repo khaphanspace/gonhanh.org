@@ -36,6 +36,33 @@ Start here for context and onboarding:
    - Performance characteristics and scalability
    - Read this to understand "how it all works together"
 
+### Deep Dive (Advanced)
+
+5. **[Engine Architecture v2](./engine-architecture-v2.md)** (30 min read)
+   - Current state analysis (God File, State Explosion problems)
+   - Proposed improvements (State Machine, DualBuffer, Bidirectional Validation)
+   - Runtime memory optimization (zero-alloc hot path)
+   - Edge cases: English detection, typing behavior matrix
+   - Implementation phases and risk assessment
+
+### Technical Reference
+
+6. **[Vietnamese Language System](./vietnamese-language-system.md)** (45 min read)
+   - Vietnamese phonology and orthography
+   - Syllable structure: (C₁)(G)V(C₂)+T
+   - Tone placement rules, horn/breve patterns
+   - Foundation for engine validation logic
+
+7. **[Core Engine Algorithm](./core-engine-algorithm.md)** (20 min read)
+   - Transform pipeline details
+   - Pattern matching for diacritics
+   - Shortcut handling
+
+8. **[Validation Algorithm](./validation-algorithm.md)** (15 min read)
+   - 6 validation rules
+   - Phonotactic constraints
+   - Invalid pattern detection
+
 ## Documentation Map
 
 ```
@@ -65,6 +92,20 @@ system-architecture.md
   ├─ Platform integration (CGEventTap)
   ├─ Component interactions
   └─ Performance characteristics
+
+engine-architecture-v2.md (Advanced)
+  ├─ Current state analysis
+  │   ├─ God File problem (mod.rs 3,771 lines)
+  │   └─ State Explosion (15+ boolean flags)
+  ├─ Proposed improvements
+  │   ├─ State Machine design
+  │   ├─ DualBuffer abstraction
+  │   └─ Bidirectional validation (VN + EN)
+  ├─ Runtime memory optimization
+  │   ├─ Stack-first design
+  │   ├─ Zero-alloc hot path
+  │   └─ raw_input Vec → fixed array fix
+  └─ Implementation phases (1-4)
 ```
 
 ## Common Tasks
@@ -89,7 +130,11 @@ system-architecture.md
 | codebase-summary.md | 9.9 KB | 237 | 15 min |
 | code-standards.md | 8.5 KB | 314 | 15 min |
 | system-architecture.md | 16 KB | 351 | 20 min |
-| **Total** | **40 KB** | **1,090** | **60 min** |
+| **engine-architecture-v2.md** | **57 KB** | **1,150** | **30 min** |
+| vietnamese-language-system.md | 67 KB | 1,800 | 45 min |
+| core-engine-algorithm.md | 19 KB | 500 | 20 min |
+| validation-algorithm.md | 10 KB | 280 | 15 min |
+| **Total** | **~195 KB** | **~4,800** | **~3 hrs** |
 
 ## Key Concepts
 
@@ -187,7 +232,7 @@ Always include documentation updates in the same PR as code changes.
 
 ---
 
-**Last Updated**: 2025-12-10
+**Last Updated**: 2025-12-24
 **Status**: Production-ready for team development
-**Platforms**: macOS (v1.0.21+), Windows (production), Linux (planned)
+**Platforms**: macOS (v1.0.87+), Windows (production), Linux (beta)
 **Repository**: https://github.com/khaphanspace/gonhanh.org
