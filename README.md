@@ -66,6 +66,11 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 - 🔄 **Tự động theo input source** — Dùng tiếng Nhật, Hàn, Trung... → Gõ Nhanh tự tắt. Chuyển về tiếng Anh → tự bật lại
 - ⚡ **Siêu nhanh** — <1ms latency · ~5MB RAM. Hỗ trợ đa nền tảng trên cùng một engine
 
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/957ec6c6-d6df-4ca9-9161-0a1bb6cf98ce" width="100%"></video>
+</p>
+
 ### 📋 Đầy đủ
 
 - ⌨️ **Telex & VNI** — Chọn kiểu gõ quen thuộc
