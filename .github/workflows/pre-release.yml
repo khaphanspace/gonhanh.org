@@ -148,19 +148,32 @@ jobs:
         run: |
           cd core
           cargo build --release --target x86_64-pc-windows-msvc
-          # Copy DLL to Windows project
+
+          # Find and copy DLL
           $dllPath = "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll"
           $destPath = "../platforms/windows/GoNhanh/Native"
-          New-Item -ItemType Directory -Force -Path $destPath | Out-Null
-          Copy-Item $dllPath $destPath -Force
-          Write-Host "Copied gonhanh_core.dll to $destPath"
+
+          if (Test-Path $dllPath) {
+            New-Item -ItemType Directory -Force -Path $destPath | Out-Null
+            Copy-Item $dllPath $destPath -Force
+            Write-Host "✓ Copied gonhanh_core.dll to $destPath"
+            Get-ChildItem $destPath
+          } else {
+            Write-Host "::error::DLL not found at $dllPath"
+            Get-ChildItem -Recurse target/x86_64-pc-windows-msvc/release/*.dll
+            exit 1
+          }
 
       - name: Get version from latest tag
         id: version
         shell: pwsh
         run: |
-          git fetch --tags
-          $latestTag = git describe --tags --abbrev=0 2>$null
+          git fetch --tags 2>$null
+          try {
+            $latestTag = git describe --tags --abbrev=0 2>$null
+          } catch {
+            $latestTag = $null
+          }
           if (-not $latestTag) { $latestTag = "v1.0.0" }
           $baseVersion = $latestTag -replace '^v', ''
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
@@ -173,18 +186,39 @@ jobs:
         shell: pwsh
         run: |
           cd platforms/windows/GoNhanh
+
+          # Verify DLL exists
+          if (-not (Test-Path "Native/gonhanh_core.dll")) {
+            Write-Host "::error::Native DLL not found!"
+            exit 1
+          }
+
           dotnet restore
-          dotnet publish -c Release -r win-x64 --self-contained false -o publish
-          Write-Host "Build completed successfully"
+          dotnet build -c Release
+          dotnet publish -c Release -r win-x64 --self-contained false -o publish /p:PublishSingleFile=false
+
+          # Copy DLL to publish folder
+          Copy-Item "Native/gonhanh_core.dll" "publish/" -Force
+
+          Write-Host "✓ Build completed successfully"
+          Get-ChildItem publish/
 
       - name: Package Windows app
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
           cd platforms/windows/GoNhanh
+
+          # Verify publish folder
+          if (-not (Test-Path "publish/GoNhanh.exe")) {
+            Write-Host "::error::GoNhanh.exe not found in publish folder!"
+            exit 1
+          }
+
           $zipName = "GoNhanh-${version}-Windows-x64.zip"
           Compress-Archive -Path publish/* -DestinationPath $zipName -Force
-          Write-Host "Created $zipName"
+          Write-Host "✓ Created $zipName"
+          Get-ChildItem *.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
