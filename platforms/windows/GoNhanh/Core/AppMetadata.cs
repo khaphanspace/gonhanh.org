@@ -9,8 +9,8 @@ namespace GoNhanh.Core;
 public static class AppMetadata
 {
     // App Info
-    public static readonly string Name = "GoNhanh";
-    public static readonly string DisplayName = "GoNhanh - Gõ Nhanh";
+    public static readonly string Name = "Gõ Nhanh";
+    public static readonly string DisplayName = "Gõ Nhanh";
     public static readonly string Tagline = "Bộ gõ tiếng Việt hiệu suất cao";
 
     // Version
@@ -23,6 +23,16 @@ public static class AppMetadata
         }
     }
 
+    // Build Number
+    public static string BuildNumber
+    {
+        get
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            return $"{version?.Revision ?? 1}";
+        }
+    }
+
     // Author
     public static readonly string Author = "Kha Phan";
     public static readonly string AuthorEmail = "nhatkha1407@gmail.com";
@@ -32,13 +42,33 @@ public static class AppMetadata
     public static readonly string Website = "https://gonhanh.org";
     public static readonly string Repository = "https://github.com/khaphanspace/gonhanh.org";
     public static readonly string IssuesUrl = "https://github.com/khaphanspace/gonhanh.org/issues";
+    public static readonly string SponsorUrl = "https://github.com/sponsors/khaphanspace";
 
     // Legal
-    public static readonly string Copyright = $"Copyright (c) 2025 {Author}. All rights reserved.";
+    public static readonly string Copyright = $"Copyright © 2025 {Author}. All rights reserved.";
     public static readonly string License = "GPL-3.0-or-later";
 
     // Tech
     public static readonly string TechStack = "Rust + WPF";
+
+    // Credits for About panel
+    public static string Credits => $@"{Tagline}
+
+Tác giả: {Author}
+
+Made with {TechStack}";
+
+    // Full about text
+    public static string AboutText => $@"{DisplayName} v{Version}
+
+{Tagline}
+
+Tác giả: {Author}
+Website: {Website}
+GitHub: {Repository}
+
+{Copyright}
+License: {License}";
 }
 
 /// <summary>
