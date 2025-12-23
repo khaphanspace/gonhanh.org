@@ -168,18 +168,18 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          git fetch --tags 2>$null
-          try {
-            $latestTag = git describe --tags --abbrev=0 2>$null
-          } catch {
-            $latestTag = $null
+          $ErrorActionPreference = 'SilentlyContinue'
+          git fetch --tags 2>&1 | Out-Null
+          $latestTag = git describe --tags --abbrev=0 2>&1
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrEmpty($latestTag)) {
+            $latestTag = "v1.0.0"
           }
-          if (-not $latestTag) { $latestTag = "v1.0.0" }
+          $ErrorActionPreference = 'Stop'
           $baseVersion = $latestTag -replace '^v', ''
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
           $buildNum = $env:GITHUB_RUN_NUMBER
           $version = "${baseVersion}-pre.${buildNum}.${shortSha}"
-          echo "version=$version" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Pre-release version: $version (build #${buildNum})"
 
       - name: Build Windows app
