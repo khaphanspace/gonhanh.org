@@ -685,7 +685,7 @@ class KeyboardHookManager {
 // MARK: - Keyboard Callback
 
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
-private let kModifierMask: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
+private let kModifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .maskAlternate, .maskShift, .maskCommand]
 private var wasModifierShortcutPressed = false
 private var currentShortcut = KeyboardShortcut.load()
 private var isRecordingShortcut = false
