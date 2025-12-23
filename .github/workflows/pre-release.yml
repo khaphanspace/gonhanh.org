@@ -11,9 +11,10 @@ on:
         type: choice
         options:
           - macos
+          - windows
           - linux
           - all
-  # Auto build DMG for PRs
+  # Auto build for PRs
   pull_request:
     branches: [main]
 
@@ -109,6 +110,113 @@ jobs:
               '|--------|---------|----------|',
               `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-macOS.zip**](${artifactUrl}#artifacts) |`,
               '',
+              `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
+              `> 📁 Artifact expires in 14 days`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: body
+            });
+
+  build-windows:
+    # For manual trigger or PR
+    if: ${{ github.event_name == 'pull_request' || inputs.platform == 'windows' || inputs.platform == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Build Rust core (Windows x64)
+        shell: pwsh
+        run: |
+          cd core
+          cargo build --release --target x86_64-pc-windows-msvc
+          # Copy DLL to Windows project
+          $dllPath = "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll"
+          $destPath = "../platforms/windows/GoNhanh/Native"
+          New-Item -ItemType Directory -Force -Path $destPath | Out-Null
+          Copy-Item $dllPath $destPath -Force
+          Write-Host "Copied gonhanh_core.dll to $destPath"
+
+      - name: Get version from latest tag
+        id: version
+        shell: pwsh
+        run: |
+          git fetch --tags
+          $latestTag = git describe --tags --abbrev=0 2>$null
+          if (-not $latestTag) { $latestTag = "v1.0.0" }
+          $baseVersion = $latestTag -replace '^v', ''
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $buildNum = $env:GITHUB_RUN_NUMBER
+          $version = "${baseVersion}-pre.${buildNum}.${shortSha}"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Pre-release version: $version (build #${buildNum})"
+
+      - name: Build Windows app
+        shell: pwsh
+        run: |
+          cd platforms/windows/GoNhanh
+          dotnet restore
+          dotnet publish -c Release -r win-x64 --self-contained false -o publish
+          Write-Host "Build completed successfully"
+
+      - name: Package Windows app
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          cd platforms/windows/GoNhanh
+          $zipName = "GoNhanh-${version}-Windows-x64.zip"
+          Compress-Archive -Path publish/* -DestinationPath $zipName -Force
+          Write-Host "Created $zipName"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoNhanh-${{ steps.version.outputs.version }}-Windows
+          path: platforms/windows/GoNhanh/*.zip
+          retention-days: 14
+
+      - name: Comment on PR with Windows artifact link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const shortSha = process.env.COMMIT_SHA.substring(0, 7);
+            const version = process.env.VERSION;
+            const prNumber = process.env.PR_NUMBER;
+            const runId = process.env.RUN_ID;
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            const body = [
+              '## 📦 Windows Build Ready',
+              '',
+              '| Commit | Version | Download |',
+              '|--------|---------|----------|',
+              `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-Windows-x64.zip**](${artifactUrl}#artifacts) |`,
+              '',
+              '> ⚠️ **Requirements:** .NET 8.0 Runtime',
               `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
               `> 📁 Artifact expires in 14 days`
             ].join('\n');
