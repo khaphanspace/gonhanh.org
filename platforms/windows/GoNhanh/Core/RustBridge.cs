@@ -31,8 +31,16 @@ public static class RustBridge
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void ime_modern([MarshalAs(UnmanagedType.U1)] bool modern);
 
+    // Use ime_key_ext for full control: (keycode, caps, ctrl, shift)
+    // - caps: CapsLock state (for uppercase)
+    // - ctrl: Cmd/Ctrl/Alt pressed (bypasses IME)
+    // - shift: Shift key pressed (for VNI mode symbols)
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr ime_key(ushort keycode, [MarshalAs(UnmanagedType.U1)] bool shift, [MarshalAs(UnmanagedType.U1)] bool capslock);
+    private static extern IntPtr ime_key_ext(
+        ushort keycode,
+        [MarshalAs(UnmanagedType.U1)] bool caps,
+        [MarshalAs(UnmanagedType.U1)] bool ctrl,
+        [MarshalAs(UnmanagedType.U1)] bool shift);
 
     #endregion
 
@@ -81,9 +89,18 @@ public static class RustBridge
     /// <summary>
     /// Process a keystroke and get the result
     /// </summary>
-    public static ImeResult ProcessKey(ushort keycode, bool shift, bool capslock)
+    /// <param name="keycode">macOS virtual keycode (converted from Windows VK)</param>
+    /// <param name="shift">Shift key pressed (for VNI symbols)</param>
+    /// <param name="capslock">CapsLock state (for uppercase)</param>
+    /// <param name="ctrl">Ctrl/Alt pressed (bypasses IME)</param>
+    public static ImeResult ProcessKey(ushort keycode, bool shift, bool capslock, bool ctrl = false)
     {
-        IntPtr ptr = ime_key(keycode, shift, capslock);
+        // Rust FFI: ime_key_ext(key, caps, ctrl, shift)
+        // - caps = shift OR capslock (for uppercase letters)
+        // - ctrl = bypasses IME processing
+        // - shift = for VNI mode Shift+number detection
+        bool caps = shift || capslock;
+        IntPtr ptr = ime_key_ext(keycode, caps, ctrl, shift);
         if (ptr == IntPtr.Zero)
         {
             return ImeResult.Empty;
@@ -124,11 +141,13 @@ public enum ImeAction : byte
 
 /// <summary>
 /// Native result structure from Rust (must match core/src/lib.rs)
+/// Size: 64 UInt32 chars (256 bytes) + 4 bytes = 260 bytes total
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct NativeResult
 {
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    // 64 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
     public uint[] chars;
     public byte action;
     public byte backspace;
