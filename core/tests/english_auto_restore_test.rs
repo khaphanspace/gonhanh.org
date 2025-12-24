@@ -597,24 +597,17 @@ fn pattern9_re_prefix() {
 #[test]
 fn pattern9_double_mark_no_prefix() {
     // Words with double mark keys but NO matching prefix/suffix pattern
-    // These should use raw_input (preserve double letter)
+    // 5+ char words: restore to English (preserve double letter)
+    // 4-char words: keep reverted result (user explicitly typed double to revert)
     telex_auto_restore(&[
-        // Double 's' without dis-/mis-/trans- prefix
+        // 5+ char words: restore to English
         ("issue ", "issue "),
-        ("bass ", "bass "),
-        ("boss ", "boss "),
         ("class ", "class "),
         ("cross ", "cross "),
         ("dress ", "dress "),
         ("glass ", "glass "),
         ("grass ", "grass "),
         ("gross ", "gross "),
-        ("less ", "less "),
-        ("loss ", "loss "),
-        ("mass ", "mass "),
-        ("mess ", "mess "),
-        ("miss ", "miss "),
-        ("pass ", "pass "),
         ("press ", "press "),
         ("stress ", "stress "),
         ("assess ", "assess "),
@@ -637,6 +630,22 @@ fn pattern9_double_mark_no_prefix() {
         ("marry ", "marry "),
         ("sorry ", "sorry "),
         ("worry ", "worry "),
+    ]);
+}
+
+#[test]
+fn pattern9_double_mark_4char_keeps_reverted() {
+    // 4-char words with double mark: keep reverted result
+    // User typed double modifier to explicitly revert the mark
+    telex_auto_restore(&[
+        ("bass ", "bas "),
+        ("boss ", "bos "),
+        ("less ", "les "),
+        ("loss ", "los "),
+        ("mass ", "mas "),
+        ("mess ", "mes "),
+        ("miss ", "mis "),
+        ("pass ", "pas "),
     ]);
 }
 

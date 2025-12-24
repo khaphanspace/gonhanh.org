@@ -1401,6 +1401,27 @@ const TELEX_ENGLISH_AW_WORDS: &[(&str, &str)] = &[
     // nghiệp/hiệp patterns - valid Vietnamese, NOT restored
     ("nghieepj ", "nghiệp "), // nghiệp - occupation/karma
     ("hieepj ", "hiệp "),     // hiệp - united/round
+    // xếp pattern (ê) - all 3 typing orders
+    ("xeeps ", "xếp "), // standard: ee → p → s
+    ("xepes ", "xếp "), // delayed circumflex: e → p → e → s
+    ("xepse ", "xếp "), // post-tone: e → p → s → e
+    // xếp with different tones (post-tone circumflex)
+    // Note: 'r' doesn't work after consonant (treated as consonant, not tone modifier)
+    ("xepfe ", "xềp "), // huyền tone
+    ("xepxe ", "xễp "), // ngã tone
+    ("xepje ", "xệp "), // nặng tone
+    // tấm pattern (â) - all 3 typing orders
+    ("taams ", "tấm "), // standard: aa → m → s
+    ("tamas ", "tấm "), // delayed circumflex: a → m → a → s
+    ("tamsa ", "tấm "), // post-tone: a → m → s → a
+    // tốt pattern (ô) - all 3 typing orders
+    ("toots ", "tốt "), // standard: oo → t → s
+    ("totos ", "tốt "), // delayed circumflex: o → t → o → s
+    ("totso ", "tốt "), // post-tone: o → t → s → o
+    // Combined: sắp xếp
+    ("sapws xeeps ", "sắp xếp "), // standard
+    ("sapws xepes ", "sắp xếp "), // delayed
+    ("sapws xepse ", "sắp xếp "), // post-tone
     // au diphthong with delayed tone
     ("mauf ", "màu "), // m + a + u + f → màu (delayed huyền tone on 'a')
     ("mafu ", "màu "), // m + a + f + u → màu (tone between vowels)

@@ -967,43 +967,53 @@ fn case_sensitivity_restore() {
 // ============================================================
 // DOUBLE MARK KEYS (English words with repeated modifier keys)
 // When same mark key is pressed twice, both appear as letters
-// This allows typing English words like "issue", "bass", "boss"
+// This allows typing English words like "issue", "class", "error"
+// 4-char words with double modifiers keep reverted result (user intended revert)
+// 5+ char words restore to English (user typed English word)
 // ============================================================
 
 #[test]
 fn double_mark_english_words() {
     telex_auto_restore(&[
-        // Words with double 's' (sắc mark key)
+        // Words with double 's' (sắc mark key) - 5+ chars restore to English
         ("issue ", "issue "),
-        ("bass ", "bass "),
-        ("boss ", "boss "),
         ("class ", "class "),
         ("cross ", "cross "),
         ("dress ", "dress "),
         ("glass ", "glass "),
         ("grass ", "grass "),
         ("gross ", "gross "),
-        ("less ", "less "),
-        ("loss ", "loss "),
-        ("mass ", "mass "),
-        ("mess ", "mess "),
-        ("miss ", "miss "),
-        ("pass ", "pass "),
         ("press ", "press "),
         ("stress ", "stress "),
-        // Words with double 'f' (huyền mark key)
-        // Note: "off" (3 chars) is excluded - short words follow revert_at_end_keeps_result
+        // Words with double 'f' (huyền mark key) - 5+ chars restore to English
         ("staff ", "staff "),
         ("stuff ", "stuff "),
         ("cliff ", "cliff "),
         ("stiff ", "stiff "),
-        ("buff ", "buff "),
-        ("cuff ", "cuff "),
-        ("puff ", "puff "),
-        // Words with double 'r' (hỏi mark key)
+        // Words with double 'r' (hỏi mark key) - 5+ chars restore to English
         ("error ", "error "),
         ("mirror ", "mirror "),
         ("horror ", "horror "),
         ("terror ", "terror "),
+    ]);
+}
+
+#[test]
+fn double_mark_4char_keeps_reverted() {
+    // 4-char words with double modifiers: user intended revert, keep result
+    telex_auto_restore(&[
+        // Double s: 4-char → 3-char keeps reverted
+        ("bass ", "bas "),
+        ("boss ", "bos "),
+        ("loss ", "los "),
+        ("mass ", "mas "),
+        ("mess ", "mes "),
+        ("miss ", "mis "),
+        ("pass ", "pas "),
+        ("less ", "les "),
+        // Double f: 4-char → 3-char keeps reverted
+        ("buff ", "buf "),
+        ("cuff ", "cuf "),
+        ("puff ", "puf "),
     ]);
 }

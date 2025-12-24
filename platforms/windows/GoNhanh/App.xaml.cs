@@ -97,7 +97,11 @@ public partial class App : System.Windows.Application
     {
         if (!_settings.IsEnabled) return;
 
-        var result = RustBridge.ProcessKey(e.VirtualKeyCode, e.Shift, e.CapsLock);
+        // Convert Windows VK code to macOS keycode for Rust core
+        ushort macKeyCode = KeyCodes.ToMacKeyCode(e.VirtualKeyCode);
+        if (macKeyCode == 0xFFFF) return; // No mapping, skip
+
+        var result = RustBridge.ProcessKey(macKeyCode, e.Shift, e.CapsLock);
 
         if (result.Action == ImeAction.Send && result.Count > 0)
         {

@@ -685,7 +685,7 @@ class KeyboardHookManager {
 // MARK: - Keyboard Callback
 
 private let kEventMarker: Int64 = 0x474E4820  // "GNH "
-private let kModifierMask: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
+private let kModifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .maskAlternate, .maskShift, .maskCommand]
 private var wasModifierShortcutPressed = false
 private var currentShortcut = KeyboardShortcut.load()
 private var isRecordingShortcut = false
@@ -803,7 +803,16 @@ private func getWordToRestoreOnBackspace() -> String? {
 
 private extension CGEventFlags {
     var modifierCount: Int {
-        [contains(.maskControl), contains(.maskAlternate), contains(.maskShift), contains(.maskCommand)].filter { $0 }.count
+        [contains(.maskSecondaryFn), contains(.maskControl), contains(.maskAlternate), contains(.maskShift), contains(.maskCommand)].filter { $0 }.count
+    }
+    
+    /// Check if only fn key is pressed (no other modifiers)
+    var isFnOnly: Bool {
+        contains(.maskSecondaryFn) && 
+        !contains(.maskControl) && 
+        !contains(.maskAlternate) && 
+        !contains(.maskShift) && 
+        !contains(.maskCommand)
     }
 }
 
@@ -869,8 +878,10 @@ private func keyboardCallback(
 
         // Modifier changes: track peak modifiers and save on full release
         if type == .flagsChanged {
-            if mods.isEmpty && peakRecordingModifiers.modifierCount >= 2 {
-                // All modifiers released - save using peak modifiers (requires 2+ modifiers)
+            // Allow: fn alone OR 2+ modifiers (to prevent accidental single Ctrl/Shift/etc)
+            let canSave = peakRecordingModifiers.isFnOnly || peakRecordingModifiers.modifierCount >= 2
+            if mods.isEmpty && canSave {
+                // All modifiers released - save using peak modifiers
                 let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: peakRecordingModifiers.rawValue)
                 stopShortcutRecording()
                 DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }

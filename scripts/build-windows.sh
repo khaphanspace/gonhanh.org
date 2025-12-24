@@ -102,6 +102,10 @@ dotnet publish -c Release -r win-x64 --self-contained false \
     -o ../publish \
     -v quiet
 
+# Copy native DLL (not embedded with PublishSingleFile)
+cp "$PROJECT_ROOT/platforms/windows/GoNhanh/Native/gonhanh_core.dll" \
+   "$PROJECT_ROOT/platforms/windows/publish/"
+
 echo "  Output: platforms/windows/publish/"
 
 # Create ZIP package

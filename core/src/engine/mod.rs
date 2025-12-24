@@ -660,8 +660,17 @@ impl Engine {
             && matches!(self.last_transform, Some(Transform::ShortPatternStroke))
         {
             // Build buffer_keys from raw_input (which already includes current key)
-            let buffer_keys: Vec<u16> = self.raw_input.iter().map(|&(k, _, _)| k).collect();
-            if !is_valid(&buffer_keys) {
+            let raw_keys: Vec<u16> = self.raw_input.iter().map(|&(k, _, _)| k).collect();
+
+            // Also check if the buffer (with stroke) + new key would be valid Vietnamese
+            // This handles delayed stroke patterns like "dadu" → "đau":
+            // - raw_input = [d, a, d, u] (invalid as "dadu")
+            // - But buffer + key = [đ, a] + [u] = "đau" (valid)
+            // If buffer + key is valid, don't revert the stroke
+            let mut buf_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+            buf_keys.push(key);
+
+            if !is_valid(&raw_keys) && !is_valid(&buf_keys) {
                 // Invalid pattern - revert stroke and rebuild from raw_input
                 if let Some(raw_chars) = self.build_raw_chars() {
                     // Calculate backspace: screen shows buffer content (e.g., "đe")
@@ -809,6 +818,17 @@ impl Engine {
             let original_caps = self.buf.last().map(|c| c.caps).unwrap_or(caps);
             self.buf.pop();
             self.buf.push(Char::new(keys::W, original_caps));
+            // Fix raw_input: "ww" typed → raw has [w,w] but buffer is "w"
+            // Remove the shortcut-triggering 'w' from raw_input so restore works correctly
+            // raw_input: [a, w, w] → [a, w] (remove first 'w' that triggered shortcut)
+            // This ensures "awwait" → "await" not "awwait" on auto-restore
+            if self.raw_input.len() >= 2 {
+                let current = self.raw_input.pop(); // current 'w' (just added)
+                self.raw_input.pop(); // shortcut-trigger 'w' (consumed, discard)
+                if let Some(c) = current {
+                    self.raw_input.push(c);
+                }
+            }
             let w = if original_caps { 'W' } else { 'w' };
             return Some(Result::send(1, &[w]));
         }
@@ -2116,6 +2136,17 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
+                    // Fix raw_input: "ww" typed → raw has [w,w] but buffer is "w"
+                    // Remove the tone-triggering key from raw_input so restore works correctly
+                    // raw_input: [a, w, w] → [a, w] (remove first 'w' that triggered tone)
+                    // This ensures "awwait" → "await" not "awwait" on auto-restore
+                    if self.raw_input.len() >= 2 {
+                        let current = self.raw_input.pop(); // current key (just added)
+                        self.raw_input.pop(); // tone-trigger key (consumed, discard)
+                        if let Some(c) = current {
+                            self.raw_input.push(c);
+                        }
+                    }
                     return self.revert_and_rebuild(pos, key, caps);
                 }
             }
@@ -2256,6 +2287,53 @@ impl Engine {
                 // Screen has: "dât" (3 chars), buffer now has: "data" (4 chars)
                 // Need to delete "ât" (2 chars) and output "ata" (3 chars) → screen becomes "data"
                 return self.rebuild_from_after_insert(vowel_idx);
+            }
+        }
+
+        // Telex: Post-tone delayed circumflex (xepse → xếp)
+        // Pattern: initial-consonant + vowel-with-mark + non-extending-final (t, m, p) + same vowel
+        // When user types tone BEFORE circumflex modifier: "xeps" → "xép", then 'e' → "xếp"
+        // The second vowel triggers circumflex on the first vowel (keeping existing mark)
+        // IMPORTANT: Must have initial consonant to form valid Vietnamese syllable
+        // "expect" (e-x-p-e) should NOT trigger because no initial consonant
+        if self.method == 0 && matches!(key, keys::A | keys::E | keys::O) && self.buf.len() >= 3 {
+            let last_idx = self.buf.len() - 1;
+            let vowel_idx = self.buf.len() - 2;
+
+            // Check if there's at least one initial consonant before the vowel
+            let has_initial_consonant =
+                vowel_idx > 0 && self.buf.get(0).is_some_and(|c| keys::is_consonant(c.key));
+
+            // Check if last char is a non-extending final consonant
+            let last_is_non_extending = self
+                .buf
+                .get(last_idx)
+                .is_some_and(|c| matches!(c.key, keys::T | keys::M | keys::P));
+
+            // Check if second-to-last has mark but NO circumflex, and matches typed vowel
+            let should_add_circumflex = has_initial_consonant
+                && last_is_non_extending
+                && self.buf.get(vowel_idx).is_some_and(|c| {
+                    c.mark > 0 // has tone mark (sắc, huyền, etc.)
+                        && c.tone == tone::NONE // but no circumflex yet
+                        && c.key == key // matches typed vowel
+                        && matches!(c.key, keys::A | keys::E | keys::O)
+                });
+
+            if should_add_circumflex {
+                // Add circumflex to the vowel (keeping existing mark)
+                if let Some(c) = self.buf.get_mut(vowel_idx) {
+                    c.tone = tone::CIRCUMFLEX;
+                    self.had_any_transform = true;
+                }
+
+                // Track in raw_input for auto-restore detection
+                self.raw_input.push((key, caps, false));
+
+                // Rebuild from vowel position (second vowel is NOT added to buffer - it's modifier)
+                // Screen has: "xép" (3 chars), buffer stays: "xếp" (3 chars, vowel updated)
+                // Need to delete "ép" (2 chars) and output "ếp" (2 chars)
+                return self.rebuild_from(vowel_idx);
             }
         }
 
@@ -2648,6 +2726,8 @@ impl Engine {
         // If no Vietnamese transforms were ever applied this word, nothing to restore
         // This prevents false restore for words with numbers/symbols like "nhatkha1407@gmail.com"
         // where the buffer is invalid Vietnamese but no transforms were ever attempted
+        // Also handles words with invalid initials like "forr" - since 'f' is not valid,
+        // no mark was ever applied, so the result stays "forr" (not collapsed to "for")
         if !self.had_any_transform {
             return None;
         }
@@ -2699,6 +2779,25 @@ impl Engine {
             let has_marks = self.buf.iter().any(|c| c.mark > 0);
             if !has_marks {
                 return self.build_raw_chars();
+            }
+        }
+
+        // Check 4: Significant character consumption with invalid raw_input
+        // If raw_input is 2+ chars longer than buffer AND raw_input is not valid Vietnamese,
+        // this suggests transforms consumed chars that shouldn't have been consumed.
+        // Example: "await" (5 chars) → "âit" (3 chars) - diff of 2
+        // - "aw" triggers breve on 'a'
+        // - "a" triggers circumflex (double-vowel), consuming 'w' and second 'a'
+        // - Result: buffer is valid but user typed English word
+        if self.raw_input.len() >= self.buf.len() + 2 {
+            let raw_keys: Vec<u16> = self.raw_input.iter().map(|&(k, _, _)| k).collect();
+            if !is_valid(&raw_keys) {
+                // Check if buffer has circumflex without mark (like "await" → "âit")
+                let has_circumflex = self.buf.iter().any(|c| c.tone == tone::CIRCUMFLEX);
+                let has_marks = self.buf.iter().any(|c| c.mark > 0);
+                if has_circumflex && !has_marks {
+                    return self.build_raw_chars();
+                }
             }
         }
 
@@ -2762,12 +2861,20 @@ impl Engine {
             return false;
         }
 
-        // Very short words (3 chars or less) → likely intentional revert
+        // Very short words (3 chars or less raw input) → likely intentional revert
         if self.raw_input.len() <= 3 {
             return true;
         }
 
-        // For longer words (4+ chars), check modifier type:
+        // For 4-char raw input producing 3-char result (e.g., "SOSS" → "SOS", "varr" → "var"),
+        // keep the reverted result. The user explicitly typed double modifier to revert.
+        // This only applies when a transform WAS applied (valid Vietnamese initial).
+        // Words with invalid initials (f, j, w, z) never get transforms, so they stay as-is.
+        if self.raw_input.len() == 4 && self.buf.len() == 3 {
+            return true;
+        }
+
+        // For longer words (5+ chars), check modifier type:
         // - 'x', 'j' (Telex) or VNI numbers: not common doubles in English → keep
         // - 's', 'f', 'r' (Telex): very common doubles in English (bass, staff, error) → restore
         if self.method == 0 {
@@ -2992,6 +3099,26 @@ impl Engine {
             }
         }
 
+        // Check for double 's' in middle with exactly 2 chars after
+        // Pattern: "usser" → buffer "user" (double 's' in middle, ends with consonant 'r')
+        // This handles cases where user types "usser" to get "user"
+        // Only apply for double 's' (sắc mark) - most common revert pattern
+        // - "usser": u-ss-e-r → use buffer "user"
+        // - "offer": o-ff-e-r → keep raw "offer" (real word with double 'f')
+        if self.raw_input.len() == 5 && buf_str.len() == 4 {
+            let (last_key, _, _) = self.raw_input[4];
+            let (key_1, _, _) = self.raw_input[1];
+            let (key_2, _, _) = self.raw_input[2];
+
+            // Only apply for double 's' (not 'f', 'r', etc. which have common English doubles)
+            if key_1 == keys::S && key_2 == keys::S {
+                // Raw must end with consonant that's NOT 's'
+                if keys::is_consonant(last_key) && last_key != keys::S {
+                    return true;
+                }
+            }
+        }
+
         // Check for short words with double modifier at end that reverted
         // Pattern: "thiss" → buffer "this"
         // Raw input ends with double modifier (ss, rr, ff, xx, jj)
@@ -3165,6 +3292,23 @@ impl Engine {
 
         // Telex modifiers that add tone marks
         let tone_modifiers = [keys::S, keys::F, keys::R, keys::X, keys::J];
+
+        // Pattern: Consecutive tone modifiers followed by VOWEL (English pattern)
+        // Example: "cursor" = c-u-r-s-o-r → "rs" followed by vowel 'o' → English
+        // Counter-example: "đướng" typed as dduowfsng → "fs" followed by consonant 'n' → Vietnamese
+        // Vietnamese allows consecutive modifiers for tone adjustment (f→s changes huyền to sắc)
+        for i in 0..self.raw_input.len().saturating_sub(2) {
+            let (key, _, _) = self.raw_input[i];
+            let (next_key, _, _) = self.raw_input[i + 1];
+            let (after_key, _, _) = self.raw_input[i + 2];
+            // Two consecutive modifiers followed by vowel → English
+            if tone_modifiers.contains(&key)
+                && tone_modifiers.contains(&next_key)
+                && keys::is_vowel(after_key)
+            {
+                return true;
+            }
+        }
 
         // Find positions of modifiers in raw_input
         for i in 0..self.raw_input.len() {
@@ -3422,7 +3566,9 @@ impl Engine {
 
         // Pattern 6a: Double E (ee) followed by P at END → English (keep, deep, sleep, seep)
         // Only EE+P, not AA+P or OO+P which can be valid Vietnamese (cấp = caaps)
-        // Exception: I+EE+P is Vietnamese "iệp" pattern (nghiệp, hiệp, kiệp, v.v.)
+        // Exceptions:
+        //   - I+EE+P is Vietnamese "iệp" pattern (nghiệp, hiệp, kiệp, v.v.)
+        //   - X+EE+P is Vietnamese "xếp" pattern (xếp = to arrange)
         if self.raw_input.len() >= 3 {
             let len = self.raw_input.len();
             let (last, _, _) = self.raw_input[len - 1];
@@ -3431,12 +3577,12 @@ impl Engine {
                 let (v2, _, _) = self.raw_input[len - 2];
                 // Only match EE (not AA or OO)
                 if v1 == keys::E && v2 == keys::E {
-                    // Exception: I+EE+P is Vietnamese "iệp" (nghiệp, hiệp, kiệp)
-                    // Check if there's an I before the double E
+                    // Exception: I+EE+P or X+EE+P are Vietnamese patterns
+                    // Check if there's an I or X before the double E
                     if len >= 4 {
                         let (before_ee, _, _) = self.raw_input[len - 4];
-                        if before_ee == keys::I {
-                            // This is Vietnamese "iêp" pattern, don't restore
+                        if before_ee == keys::I || before_ee == keys::X {
+                            // This is Vietnamese "iêp" or "xêp" pattern, don't restore
                             // Continue to check other patterns
                         } else {
                             return true;

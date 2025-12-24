@@ -26,19 +26,17 @@ public static class TextSender
 
     #region Structures
 
-    [StructLayout(LayoutKind.Sequential)]
+    // INPUT struct for x64 Windows - must match native layout exactly
+    // type (4 bytes) + padding (4 bytes on x64) + union (40 bytes) = 48 bytes
+    [StructLayout(LayoutKind.Explicit, Size = 40)]
     private struct INPUT
     {
-        public uint type;
-        public INPUTUNION u;
+        [FieldOffset(0)] public uint type;
+        [FieldOffset(8)] public KEYBDINPUT ki;  // Offset 8 on x64 due to alignment
     }
 
-    [StructLayout(LayoutKind.Explicit)]
-    private struct INPUTUNION
-    {
-        [FieldOffset(0)] public KEYBDINPUT ki;
-    }
-
+    // KEYBDINPUT: wVk(2) + wScan(2) + dwFlags(4) + time(4) + dwExtraInfo(8 on x64) = 20 bytes
+    // But aligned to 8 bytes = 24 bytes with padding
     [StructLayout(LayoutKind.Sequential)]
     private struct KEYBDINPUT
     {
@@ -89,16 +87,13 @@ public static class TextSender
             _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = KeyCodes.VK_BACK,
-                        wScan = 0,
-                        dwFlags = 0,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = KeyCodes.VK_BACK,
+                    wScan = 0,
+                    dwFlags = 0,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
             };
 
@@ -106,16 +101,13 @@ public static class TextSender
             _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = KeyCodes.VK_BACK,
-                        wScan = 0,
-                        dwFlags = KEYEVENTF_KEYUP,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = KeyCodes.VK_BACK,
+                    wScan = 0,
+                    dwFlags = KEYEVENTF_KEYUP,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
             };
         }
@@ -130,16 +122,13 @@ public static class TextSender
             _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = 0,
-                        wScan = c,
-                        dwFlags = KEYEVENTF_UNICODE,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = 0,
+                    wScan = c,
+                    dwFlags = KEYEVENTF_UNICODE,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
             };
 
@@ -147,16 +136,13 @@ public static class TextSender
             _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = 0,
-                        wScan = c,
-                        dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = 0,
+                    wScan = c,
+                    dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
             };
         }
