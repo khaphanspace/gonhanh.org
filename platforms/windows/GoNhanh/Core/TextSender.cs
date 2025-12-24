@@ -165,28 +165,22 @@ public static class TextSender
         _inputBuffer[0] = new INPUT
         {
             type = INPUT_KEYBOARD,
-            u = new INPUTUNION
+            ki = new KEYBDINPUT
             {
-                ki = new KEYBDINPUT
-                {
-                    wVk = KeyCodes.VK_BACK,
-                    dwFlags = 0,
-                    dwExtraInfo = marker
-                }
+                wVk = KeyCodes.VK_BACK,
+                dwFlags = 0,
+                dwExtraInfo = marker
             }
         };
 
         _inputBuffer[1] = new INPUT
         {
             type = INPUT_KEYBOARD,
-            u = new INPUTUNION
+            ki = new KEYBDINPUT
             {
-                ki = new KEYBDINPUT
-                {
-                    wVk = KeyCodes.VK_BACK,
-                    dwFlags = KEYEVENTF_KEYUP,
-                    dwExtraInfo = marker
-                }
+                wVk = KeyCodes.VK_BACK,
+                dwFlags = KEYEVENTF_KEYUP,
+                dwExtraInfo = marker
             }
         };
 
