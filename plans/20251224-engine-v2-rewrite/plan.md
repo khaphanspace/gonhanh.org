@@ -38,8 +38,8 @@ Zero if-else in hot path. Every decision = matrix lookup.
 |----------|------|
 | Input Processing (U1-U7) | 141 bytes |
 | Vietnamese Validation (M1-M8) | ~950 bytes |
-| English Validation (E1-E5) | ~2KB |
-| **Total** | **~3.1KB** |
+| English Validation (E1-E5) | ~384 bytes |
+| **Total** | **~1.5KB** |
 
 ### State Machine (5 states)
 ```rust

@@ -1,8 +1,8 @@
 # Matrix-Based Validation System
 
 **Status**: REDESIGNED v2 - Pure Dynamic
-**Memory**: ~141 bytes input processing (was ~1KB), ~3.5KB total
-**Key Change**: Zero case-by-case logic, 87% memory reduction
+**Memory**: ~1.5KB total (was ~4.5KB)
+**Key Change**: Zero case-by-case logic, sparse encoding, 67% memory reduction
 
 ---
 
@@ -48,13 +48,17 @@ NEW: DISPATCH[state][KEY_CAT[key]] → action|next_state
 | M7: TONE_PLACEMENT | 43×4 | Which vowel gets tone (43 patterns) |
 | M8: MODIFIER_PLACEMENT | 43×1 | Which vowel(s) get modifier |
 
-### 3. English Validation (E1-E3)
+### 3. English Validation (E1-E5)
+
+*Sparse encoding - 384 bytes instead of 2KB*
 
 | Matrix | Size | Purpose |
 |--------|------|---------|
-| E1: ONSET_CC | 26×26 | Valid onset clusters |
-| E2: CODA_CC | 26×26 | Valid coda clusters |
-| E3: IMPOSSIBLE | 26×26 | Never-occurring bigrams |
+| E1: ONSET_PAIRS | 96 bytes | Valid onset clusters (48 pairs) |
+| E2: CODA_PAIRS | 104 bytes | Valid coda clusters (52 pairs) |
+| E3: IMPOSSIBLE_AFTER | 104 bytes | Bitmask of impossible followers |
+| E4: SUFFIXES | 48 bytes | Common English suffixes |
+| E5: PREFIXES | 32 bytes | Common English prefixes |
 
 ### 4. Input Processing (U1-U7) - REDESIGNED
 
@@ -161,12 +165,11 @@ t → r → a → w (defer breve, open syllable)
 
 | Category | v1 Size | v2 Size | Reduction |
 |----------|---------|---------|-----------|
-| Vietnamese validation | ~800B | ~800B | - |
-| Placement (43 patterns) | ~220B | ~220B | - |
-| Transform tables | ~400B | ~400B | - |
-| English validation | ~2KB | ~2KB | - |
+| Vietnamese validation | ~800B | ~700B | 12% |
+| Placement (43 patterns) | ~220B | ~250B | - |
+| English validation | ~2KB | ~384B | **81%** |
 | **Input processing** | **~1,050B** | **~141B** | **87%** |
-| **Total** | **~4.5KB** | **~3.5KB** | **22%** |
+| **Total** | **~4.5KB** | **~1.5KB** | **67%** |
 
 All lookups O(1), cache-friendly, zero if-else.
 
@@ -176,10 +179,8 @@ All lookups O(1), cache-friendly, zero if-else.
 
 | Location | Content |
 |----------|---------|
-| `plans/.../research/comprehensive-matrix-system.md` | Full v1 design |
-| `plans/.../research/matrix-data-UNIFIED.md` | **v2 unified design** |
-| `plans/.../research/matrix-data-input-processing-v2.md` | **v2 Rust constants** |
-| `plans/.../research/MATRIX_REVIEW_REPORT.md` | Review findings |
+| `plans/20251224-engine-v2-rewrite/research/matrix-system.md` | **Complete v2 design & Rust constants** |
+| `plans/20251224-engine-v2-rewrite/plan.md` | Implementation plan |
 
 ---
 
