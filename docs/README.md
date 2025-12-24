@@ -63,6 +63,12 @@ Start here for context and onboarding:
    - Phonotactic constraints
    - Invalid pattern detection
 
+9. **[Matrix Validation System](./matrix-validation-system.md)** (10 min read)
+   - Matrix-based validation (~5KB, all O(1))
+   - 43 vowel patterns, tone/modifier placement
+   - Input processing state machine (I1-I7)
+   - Random order typing support
+
 ## Documentation Map
 
 ```
@@ -106,6 +112,13 @@ engine-architecture-v2.md (Advanced)
   │   ├─ Zero-alloc hot path
   │   └─ raw_input Vec → fixed array fix
   └─ Implementation phases (1-4)
+
+matrix-validation-system.md (V2 Design)
+  ├─ Vietnamese matrices (M1-M8)
+  ├─ English matrices (E1-E8)
+  ├─ Input processing (I1-I7)
+  ├─ 43 vowel patterns
+  └─ Random order typing examples
 ```
 
 ## Common Tasks
@@ -134,7 +147,8 @@ engine-architecture-v2.md (Advanced)
 | vietnamese-language-system.md | 67 KB | 1,800 | 45 min |
 | core-engine-algorithm.md | 19 KB | 500 | 20 min |
 | validation-algorithm.md | 10 KB | 280 | 15 min |
-| **Total** | **~195 KB** | **~4,800** | **~3 hrs** |
+| matrix-validation-system.md | 4 KB | 150 | 10 min |
+| **Total** | **~200 KB** | **~5,000** | **~3 hrs** |
 
 ## Key Concepts
 
