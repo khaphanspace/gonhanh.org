@@ -49,5 +49,4 @@ obj/
 .claude/.env*
 .claude/skills/.env*
 .opencode/
-plans/
 CLAUDE.md
