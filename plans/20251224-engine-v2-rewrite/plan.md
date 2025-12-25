@@ -150,6 +150,36 @@ pub struct Processor {
 
 ---
 
+## Validation Summary
+
+**Validated:** 2025-12-24
+**Questions asked:** 7
+
+### Confirmed Decisions
+
+| Decision | Choice | Impact |
+|----------|--------|--------|
+| Edge case handling | Strict matrix-only | All decisions via matrix; undefined cases panic (debug) or reject (release) |
+| Test migration strategy | Fix impl to match tests | Existing 561+ tests are source of truth; adjust matrix behavior to pass |
+| English detection scope | Include Bloom filter | Ship with full detection (~19KB) for better accuracy from start |
+| Buffer overflow | Graceful truncation | Fixed array, commit overflow as raw; zero heap alloc, predictable latency |
+| State machine design | Needs analysis | Must ensure smooth typing + high accuracy; evaluate Foreign state vs validation flag |
+| Phase 4 priority | 100% complete | All phases must be complete before V2 release; no partial shipping |
+
+### Action Items
+
+- [ ] **Phase 4 update**: Plan includes Bloom filter dictionary (~12KB) in initial release, not opt-in
+- [ ] **State design**: Analyze if 'Foreign' state needed for detected English words during typing (affects smoothness/accuracy)
+- [ ] **Edge case coverage**: Ensure all matrices cover edge cases; undefined inputs should reject cleanly
+
+### Notes
+
+- User prioritizes **smooth typing experience** and **maximum performance**
+- **No partial release**: All 5 phases must complete before shipping V2
+- Tests are authoritative: Implementation adjusts to match existing test expectations
+
+---
+
 ## Archive
 
 Old v1 designs in `research/archived/`.

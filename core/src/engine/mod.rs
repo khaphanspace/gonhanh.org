@@ -11,6 +11,7 @@
 //! 4. **Longest-Match-First**: For diacritic placement
 
 pub mod buffer;
+pub mod matrix;
 pub mod shortcut;
 pub mod syllable;
 pub mod transform;
