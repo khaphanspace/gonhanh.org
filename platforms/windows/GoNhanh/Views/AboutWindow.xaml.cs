@@ -19,18 +19,19 @@ public partial class AboutWindow : Window
 
     private void LoadMetadata()
     {
-        // Version
-        VersionText.Text = $"Version {AppMetadata.Version}";
+        // App name
+        AppNameText.Text = AppMetadata.DisplayName;
 
-        // Author
+        // Version & Build
+        VersionText.Text = AppMetadata.Version;
+        BuildText.Text = AppMetadata.BuildNumber;
+
+        // Info section
         AuthorText.Text = AppMetadata.Author;
         EmailText.Text = AppMetadata.AuthorEmail;
         EmailLink.NavigateUri = new Uri($"mailto:{AppMetadata.AuthorEmail}");
-        LinkedInLink.NavigateUri = new Uri(AppMetadata.AuthorLinkedin);
-
-        // Links
-        WebsiteLink.NavigateUri = new Uri(AppMetadata.Website);
-        GitHubLink.NavigateUri = new Uri(AppMetadata.Repository);
+        TechStackText.Text = AppMetadata.TechStack;
+        LicenseText.Text = AppMetadata.License;
 
         // Copyright
         CopyrightText.Text = AppMetadata.Copyright;
@@ -38,11 +39,37 @@ public partial class AboutWindow : Window
 
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
+        OpenUrl(e.Uri.AbsoluteUri);
+        e.Handled = true;
+    }
+
+    private void Website_Click(object sender, RoutedEventArgs e)
+    {
+        OpenUrl(AppMetadata.Website);
+    }
+
+    private void GitHub_Click(object sender, RoutedEventArgs e)
+    {
+        OpenUrl(AppMetadata.Repository);
+    }
+
+    private void Issues_Click(object sender, RoutedEventArgs e)
+    {
+        OpenUrl(AppMetadata.IssuesUrl);
+    }
+
+    private void LinkedIn_Click(object sender, RoutedEventArgs e)
+    {
+        OpenUrl(AppMetadata.AuthorLinkedin);
+    }
+
+    private static void OpenUrl(string url)
+    {
         try
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = e.Uri.AbsoluteUri,
+                FileName = url,
                 UseShellExecute = true
             });
         }
@@ -50,6 +77,5 @@ public partial class AboutWindow : Window
         {
             // Ignore errors opening browser/email client
         }
-        e.Handled = true;
     }
 }

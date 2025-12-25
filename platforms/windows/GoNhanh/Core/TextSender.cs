@@ -3,8 +3,9 @@ using System.Runtime.InteropServices;
 namespace GoNhanh.Core;
 
 /// <summary>
-/// Sends text to the active window using Windows SendInput API
-/// Handles backspace deletion and Unicode character insertion
+/// High-performance text sender using Windows SendInput API
+/// Optimized for minimal latency and GC pressure
+/// Uses pre-allocated buffers and efficient Win32 calls
 /// </summary>
 public static class TextSender
 {
@@ -25,19 +26,17 @@ public static class TextSender
 
     #region Structures
 
-    [StructLayout(LayoutKind.Sequential)]
+    // INPUT struct for x64 Windows - must match native layout exactly
+    // type (4 bytes) + padding (4 bytes on x64) + union (40 bytes) = 48 bytes
+    [StructLayout(LayoutKind.Explicit, Size = 40)]
     private struct INPUT
     {
-        public uint type;
-        public INPUTUNION u;
+        [FieldOffset(0)] public uint type;
+        [FieldOffset(8)] public KEYBDINPUT ki;  // Offset 8 on x64 due to alignment
     }
 
-    [StructLayout(LayoutKind.Explicit)]
-    private struct INPUTUNION
-    {
-        [FieldOffset(0)] public KEYBDINPUT ki;
-    }
-
+    // KEYBDINPUT: wVk(2) + wScan(2) + dwFlags(4) + time(4) + dwExtraInfo(8 on x64) = 20 bytes
+    // But aligned to 8 bytes = 24 bytes with padding
     [StructLayout(LayoutKind.Sequential)]
     private struct KEYBDINPUT
     {
@@ -50,100 +49,141 @@ public static class TextSender
 
     #endregion
 
+    #region Pre-allocated Buffers
+
+    // Maximum: 32 chars * 2 (down+up) + 10 backspaces * 2 = 84 inputs
+    // Use 128 for safety margin
+    private const int MaxInputs = 128;
+
+    // Thread-local buffer to avoid allocation per call
+    [ThreadStatic]
+    private static INPUT[]? _inputBuffer;
+
+    private static readonly int InputSize = Marshal.SizeOf<INPUT>();
+
+    #endregion
+
     /// <summary>
-    /// Send text replacement: delete characters and insert new text
+    /// Send text replacement with optimized performance
+    /// Uses pre-allocated buffer, minimizes allocations
     /// </summary>
-    /// <param name="text">Text to insert</param>
-    /// <param name="backspaces">Number of backspaces to send first</param>
+    /// <param name="text">Text to insert (max 32 chars from Rust core)</param>
+    /// <param name="backspaces">Number of backspaces (max 10)</param>
     public static void SendText(string text, int backspaces)
     {
         if (string.IsNullOrEmpty(text) && backspaces == 0)
             return;
 
-        var inputs = new List<INPUT>();
+        // Get or create thread-local buffer
+        _inputBuffer ??= new INPUT[MaxInputs];
+
         var marker = KeyboardHook.GetInjectedKeyMarker();
+        int index = 0;
 
-        // Add backspaces
-        for (int i = 0; i < backspaces; i++)
+        // Add backspaces (key down + key up pairs)
+        for (int i = 0; i < backspaces && index < MaxInputs - 1; i++)
         {
-            // Key down
-            inputs.Add(new INPUT
+            // Backspace key down
+            _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = KeyCodes.VK_BACK,
-                        wScan = 0,
-                        dwFlags = 0,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = KeyCodes.VK_BACK,
+                    wScan = 0,
+                    dwFlags = 0,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
-            });
+            };
 
-            // Key up
-            inputs.Add(new INPUT
+            // Backspace key up
+            _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = KeyCodes.VK_BACK,
-                        wScan = 0,
-                        dwFlags = KEYEVENTF_KEYUP,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = KeyCodes.VK_BACK,
+                    wScan = 0,
+                    dwFlags = KEYEVENTF_KEYUP,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
-            });
+            };
         }
 
-        // Add text characters (Unicode)
+        // Add text characters using Unicode (KEYEVENTF_UNICODE)
+        // This works for all Vietnamese characters without keyboard layout issues
         foreach (char c in text)
         {
-            // For Unicode characters, use wScan with KEYEVENTF_UNICODE flag
-            // Key down
-            inputs.Add(new INPUT
-            {
-                type = INPUT_KEYBOARD,
-                u = new INPUTUNION
-                {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = 0,
-                        wScan = c,
-                        dwFlags = KEYEVENTF_UNICODE,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
-                }
-            });
+            if (index >= MaxInputs - 1) break;
 
-            // Key up
-            inputs.Add(new INPUT
+            // Unicode key down
+            _inputBuffer[index++] = new INPUT
             {
                 type = INPUT_KEYBOARD,
-                u = new INPUTUNION
+                ki = new KEYBDINPUT
                 {
-                    ki = new KEYBDINPUT
-                    {
-                        wVk = 0,
-                        wScan = c,
-                        dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
-                        time = 0,
-                        dwExtraInfo = marker
-                    }
+                    wVk = 0,
+                    wScan = c,
+                    dwFlags = KEYEVENTF_UNICODE,
+                    time = 0,
+                    dwExtraInfo = marker
                 }
-            });
+            };
+
+            // Unicode key up
+            _inputBuffer[index++] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                ki = new KEYBDINPUT
+                {
+                    wVk = 0,
+                    wScan = c,
+                    dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                    time = 0,
+                    dwExtraInfo = marker
+                }
+            };
         }
 
-        if (inputs.Count > 0)
+        // Send all inputs in one call for best performance
+        if (index > 0)
         {
-            var inputArray = inputs.ToArray();
-            SendInput((uint)inputArray.Length, inputArray, Marshal.SizeOf<INPUT>());
+            SendInput((uint)index, _inputBuffer, InputSize);
         }
+    }
+
+    /// <summary>
+    /// Send a single backspace (used for buffer corrections)
+    /// </summary>
+    public static void SendBackspace()
+    {
+        _inputBuffer ??= new INPUT[MaxInputs];
+        var marker = KeyboardHook.GetInjectedKeyMarker();
+
+        _inputBuffer[0] = new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            ki = new KEYBDINPUT
+            {
+                wVk = KeyCodes.VK_BACK,
+                dwFlags = 0,
+                dwExtraInfo = marker
+            }
+        };
+
+        _inputBuffer[1] = new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            ki = new KEYBDINPUT
+            {
+                wVk = KeyCodes.VK_BACK,
+                dwFlags = KEYEVENTF_KEYUP,
+                dwExtraInfo = marker
+            }
+        };
+
+        SendInput(2, _inputBuffer, InputSize);
     }
 }

@@ -4,8 +4,9 @@ using System.Text;
 namespace GoNhanh.Core;
 
 /// <summary>
-/// P/Invoke bridge to Rust core library (gonhanh_core.dll)
+/// High-performance P/Invoke bridge to Rust core library (gonhanh_core.dll)
 /// FFI contract matches core/src/lib.rs exports
+/// Optimized with cached StringBuilder for minimal allocations
 /// </summary>
 public static class RustBridge
 {
@@ -32,7 +33,42 @@ public static class RustBridge
     private static extern void ime_modern([MarshalAs(UnmanagedType.U1)] bool modern);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr ime_key(ushort keycode, [MarshalAs(UnmanagedType.U1)] bool shift, [MarshalAs(UnmanagedType.U1)] bool capslock);
+    private static extern void ime_skip_w_shortcut([MarshalAs(UnmanagedType.U1)] bool skip);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void ime_esc_restore([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void ime_english_auto_restore([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void ime_auto_capitalize([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    // Use ime_key_ext for full control: (keycode, caps, ctrl, shift)
+    // - caps: CapsLock state (for uppercase)
+    // - ctrl: Cmd/Ctrl/Alt pressed (bypasses IME)
+    // - shift: Shift key pressed (for VNI mode symbols)
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr ime_key_ext(
+        ushort keycode,
+        [MarshalAs(UnmanagedType.U1)] bool caps,
+        [MarshalAs(UnmanagedType.U1)] bool ctrl,
+        [MarshalAs(UnmanagedType.U1)] bool shift);
+
+    #endregion
+
+    #region Cached Objects
+
+    // Thread-local StringBuilder to avoid allocations on each GetText() call
+    [ThreadStatic]
+    private static StringBuilder? _cachedStringBuilder;
+
+    private static StringBuilder GetStringBuilder()
+    {
+        _cachedStringBuilder ??= new StringBuilder(64);
+        _cachedStringBuilder.Clear();
+        return _cachedStringBuilder;
+    }
 
     #endregion
 
@@ -79,11 +115,54 @@ public static class RustBridge
     }
 
     /// <summary>
+    /// Skip W shortcut at word start (W -> Ư)
+    /// When false: typing W at word start produces Ư
+    /// When true: typing W produces normal W
+    /// </summary>
+    public static void SetSkipWShortcut(bool skip)
+    {
+        try { ime_skip_w_shortcut(skip); } catch { }
+    }
+
+    /// <summary>
+    /// Enable ESC key to restore original text
+    /// </summary>
+    public static void SetEscRestore(bool enabled)
+    {
+        try { ime_esc_restore(enabled); } catch { }
+    }
+
+    /// <summary>
+    /// Enable automatic restoration of English words
+    /// </summary>
+    public static void SetEnglishAutoRestore(bool enabled)
+    {
+        try { ime_english_auto_restore(enabled); } catch { }
+    }
+
+    /// <summary>
+    /// Enable auto-capitalization after sentence-ending punctuation
+    /// </summary>
+    public static void SetAutoCapitalize(bool enabled)
+    {
+        try { ime_auto_capitalize(enabled); } catch { }
+    }
+
+    /// <summary>
     /// Process a keystroke and get the result
     /// </summary>
-    public static ImeResult ProcessKey(ushort keycode, bool shift, bool capslock)
+    /// <param name="keycode">macOS virtual keycode (converted from Windows VK)</param>
+    /// <param name="shift">Shift key pressed (for VNI symbols)</param>
+    /// <param name="capslock">CapsLock state (for uppercase)</param>
+    /// <param name="ctrl">Ctrl/Alt pressed (bypasses IME)</param>
+    public static ImeResult ProcessKey(ushort keycode, bool shift, bool capslock, bool ctrl = false)
     {
-        IntPtr ptr = ime_key(keycode, shift, capslock);
+        // Rust FFI: ime_key_ext(key, caps, ctrl, shift)
+        // - caps = shift OR capslock (for uppercase letters)
+        // - ctrl = bypasses IME processing
+        // - shift = for VNI mode Shift+number detection
+        bool caps = shift || capslock;
+        IntPtr ptr = ime_key_ext(keycode, caps, ctrl, shift);
         if (ptr == IntPtr.Zero)
         {
             return ImeResult.Empty;
@@ -92,7 +171,7 @@ public static class RustBridge
         try
         {
             var native = Marshal.PtrToStructure<NativeResult>(ptr);
-            return ImeResult.FromNative(native);
+            return ImeResult.FromNative(native, GetStringBuilder());
         }
         finally
         {
@@ -124,11 +203,13 @@ public enum ImeAction : byte
 
 /// <summary>
 /// Native result structure from Rust (must match core/src/lib.rs)
+/// Size: 64 UInt32 chars (256 bytes) + 4 bytes = 260 bytes total
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct NativeResult
 {
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    // 64 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
     public uint[] chars;
     public byte action;
     public byte backspace;
@@ -137,51 +218,50 @@ internal struct NativeResult
 }
 
 /// <summary>
-/// Managed IME result
+/// Managed IME result with optimized string conversion
 /// </summary>
 public readonly struct ImeResult
 {
     public readonly ImeAction Action;
     public readonly byte Backspace;
     public readonly byte Count;
-    private readonly uint[] _chars;
+    private readonly string _text;
 
-    public static readonly ImeResult Empty = new(ImeAction.None, 0, 0, Array.Empty<uint>());
+    public static readonly ImeResult Empty = new(ImeAction.None, 0, 0, string.Empty);
 
-    private ImeResult(ImeAction action, byte backspace, byte count, uint[] chars)
+    private ImeResult(ImeAction action, byte backspace, byte count, string text)
     {
         Action = action;
         Backspace = backspace;
         Count = count;
-        _chars = chars;
+        _text = text;
     }
 
-    internal static ImeResult FromNative(NativeResult native)
+    internal static ImeResult FromNative(NativeResult native, StringBuilder sb)
     {
+        string text = string.Empty;
+        if (native.count > 0 && native.chars != null)
+        {
+            for (int i = 0; i < native.count && i < native.chars.Length; i++)
+            {
+                if (native.chars[i] > 0)
+                {
+                    sb.Append(char.ConvertFromUtf32((int)native.chars[i]));
+                }
+            }
+            text = sb.ToString();
+        }
+
         return new ImeResult(
             (ImeAction)native.action,
             native.backspace,
             native.count,
-            native.chars ?? Array.Empty<uint>()
+            text
         );
     }
 
     /// <summary>
     /// Get the result text as a string
     /// </summary>
-    public string GetText()
-    {
-        if (Count == 0 || _chars == null)
-            return string.Empty;
-
-        var sb = new StringBuilder(Count);
-        for (int i = 0; i < Count && i < _chars.Length; i++)
-        {
-            if (_chars[i] > 0)
-            {
-                sb.Append(char.ConvertFromUtf32((int)_chars[i]));
-            }
-        }
-        return sb.ToString();
-    }
+    public string GetText() => _text;
 }

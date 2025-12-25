@@ -1,12 +1,70 @@
 namespace GoNhanh.Core;
 
 /// <summary>
-/// Windows Virtual Key Codes
-/// Maps to Rust core key codes for FFI compatibility
+/// Windows Virtual Key Codes and macOS keycode mapping
 /// Reference: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 /// </summary>
 public static class KeyCodes
 {
+    #region macOS Keycodes (for Rust core FFI)
+
+    // The Rust core uses macOS virtual keycodes, not Windows VK codes
+    // This mapping converts Windows VK → macOS keycode for FFI calls
+
+    private const ushort MAC_A = 0;
+    private const ushort MAC_S = 1;
+    private const ushort MAC_D = 2;
+    private const ushort MAC_F = 3;
+    private const ushort MAC_H = 4;
+    private const ushort MAC_G = 5;
+    private const ushort MAC_Z = 6;
+    private const ushort MAC_X = 7;
+    private const ushort MAC_C = 8;
+    private const ushort MAC_V = 9;
+    private const ushort MAC_B = 11;
+    private const ushort MAC_Q = 12;
+    private const ushort MAC_W = 13;
+    private const ushort MAC_E = 14;
+    private const ushort MAC_R = 15;
+    private const ushort MAC_Y = 16;
+    private const ushort MAC_T = 17;
+    private const ushort MAC_N1 = 18;
+    private const ushort MAC_N2 = 19;
+    private const ushort MAC_N3 = 20;
+    private const ushort MAC_N4 = 21;
+    private const ushort MAC_N6 = 22;
+    private const ushort MAC_N5 = 23;
+    private const ushort MAC_EQUAL = 24;
+    private const ushort MAC_N9 = 25;
+    private const ushort MAC_N7 = 26;
+    private const ushort MAC_MINUS = 27;
+    private const ushort MAC_N8 = 28;
+    private const ushort MAC_N0 = 29;
+    private const ushort MAC_RBRACKET = 30;
+    private const ushort MAC_O = 31;
+    private const ushort MAC_U = 32;
+    private const ushort MAC_LBRACKET = 33;
+    private const ushort MAC_I = 34;
+    private const ushort MAC_P = 35;
+    private const ushort MAC_RETURN = 36;
+    private const ushort MAC_L = 37;
+    private const ushort MAC_J = 38;
+    private const ushort MAC_QUOTE = 39;
+    private const ushort MAC_K = 40;
+    private const ushort MAC_SEMICOLON = 41;
+    private const ushort MAC_BACKSLASH = 42;
+    private const ushort MAC_COMMA = 43;
+    private const ushort MAC_SLASH = 44;
+    private const ushort MAC_N = 45;
+    private const ushort MAC_M = 46;
+    private const ushort MAC_DOT = 47;
+    private const ushort MAC_TAB = 48;
+    private const ushort MAC_SPACE = 49;
+    private const ushort MAC_BACKQUOTE = 50;
+    private const ushort MAC_DELETE = 51;
+    private const ushort MAC_ESC = 53;
+
+    #endregion
     // Letters A-Z (0x41 - 0x5A)
     public const ushort VK_A = 0x41;
     public const ushort VK_B = 0x42;
@@ -117,5 +175,77 @@ public static class KeyCodes
                keyCode == VK_RETURN ||
                keyCode == VK_TAB ||
                keyCode == VK_ESCAPE;
+    }
+
+    /// <summary>
+    /// Convert Windows VK code to macOS keycode for Rust core FFI
+    /// Returns 0xFFFF if no mapping exists
+    /// </summary>
+    public static ushort ToMacKeyCode(ushort vkCode)
+    {
+        return vkCode switch
+        {
+            // Letters
+            VK_A => MAC_A,
+            VK_B => MAC_B,
+            VK_C => MAC_C,
+            VK_D => MAC_D,
+            VK_E => MAC_E,
+            VK_F => MAC_F,
+            VK_G => MAC_G,
+            VK_H => MAC_H,
+            VK_I => MAC_I,
+            VK_J => MAC_J,
+            VK_K => MAC_K,
+            VK_L => MAC_L,
+            VK_M => MAC_M,
+            VK_N => MAC_N,
+            VK_O => MAC_O,
+            VK_P => MAC_P,
+            VK_Q => MAC_Q,
+            VK_R => MAC_R,
+            VK_S => MAC_S,
+            VK_T => MAC_T,
+            VK_U => MAC_U,
+            VK_V => MAC_V,
+            VK_W => MAC_W,
+            VK_X => MAC_X,
+            VK_Y => MAC_Y,
+            VK_Z => MAC_Z,
+
+            // Numbers
+            VK_0 => MAC_N0,
+            VK_1 => MAC_N1,
+            VK_2 => MAC_N2,
+            VK_3 => MAC_N3,
+            VK_4 => MAC_N4,
+            VK_5 => MAC_N5,
+            VK_6 => MAC_N6,
+            VK_7 => MAC_N7,
+            VK_8 => MAC_N8,
+            VK_9 => MAC_N9,
+
+            // Special keys
+            VK_SPACE => MAC_SPACE,
+            VK_RETURN => MAC_RETURN,
+            VK_BACK => MAC_DELETE,
+            VK_TAB => MAC_TAB,
+            VK_ESCAPE => MAC_ESC,
+
+            // Punctuation
+            VK_OEM_1 => MAC_SEMICOLON,      // ;:
+            VK_OEM_PLUS => MAC_EQUAL,       // =+
+            VK_OEM_COMMA => MAC_COMMA,      // ,<
+            VK_OEM_MINUS => MAC_MINUS,      // -_
+            VK_OEM_PERIOD => MAC_DOT,       // .>
+            VK_OEM_2 => MAC_SLASH,          // /?
+            VK_OEM_3 => MAC_BACKQUOTE,      // `~
+            VK_OEM_4 => MAC_LBRACKET,       // [{
+            VK_OEM_5 => MAC_BACKSLASH,      // \|
+            VK_OEM_6 => MAC_RBRACKET,       // ]}
+            VK_OEM_7 => MAC_QUOTE,          // '"
+
+            _ => 0xFFFF  // No mapping
+        };
     }
 }

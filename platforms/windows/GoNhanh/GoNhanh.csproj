@@ -16,18 +16,15 @@
     <Company>Kha Phan</Company>
     <Product>Gõ Nhanh - Vietnamese Input Method</Product>
     <Description>Gõ Nhanh - Vietnamese input method engine for Windows</Description>
-    <Copyright>Copyright (c) 2024 Kha Phan. GPL-3.0-or-later</Copyright>
+    <Copyright>Copyright (c) 2025 Kha Phan. GPL-3.0-or-later</Copyright>
 
-    <!-- Build Settings -->
+    <!-- Build Settings - x64 only -->
     <PlatformTarget>x64</PlatformTarget>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>false</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <Platforms>x64</Platforms>
   </PropertyGroup>
 
-  <!-- Native DLL -->
-  <ItemGroup>
+  <!-- Native DLL - only include if exists (CI will copy it) -->
+  <ItemGroup Condition="Exists('Native\gonhanh_core.dll')">
     <ContentWithTargetPath Include="Native\gonhanh_core.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>gonhanh_core.dll</TargetPath>
