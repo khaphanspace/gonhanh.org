@@ -23,9 +23,22 @@ use crate::data::keys;
 /// Vietnamese valid single initial consonants
 /// b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
 const VALID_INITIALS: &[u16] = &[
-    keys::B, keys::C, keys::D, keys::G, keys::H,
-    keys::K, keys::L, keys::M, keys::N, keys::P,
-    keys::Q, keys::R, keys::S, keys::T, keys::V, keys::X,
+    keys::B,
+    keys::C,
+    keys::D,
+    keys::G,
+    keys::H,
+    keys::K,
+    keys::L,
+    keys::M,
+    keys::N,
+    keys::P,
+    keys::Q,
+    keys::R,
+    keys::S,
+    keys::T,
+    keys::V,
+    keys::X,
 ];
 
 /// Check if single consonant is valid initial
@@ -56,7 +69,9 @@ const VALID_INITIAL_2: &[(u16, u16)] = &[
 /// Check if two-consonant cluster is valid initial
 #[inline]
 pub fn is_valid_initial_2(first: u16, second: u16) -> bool {
-    VALID_INITIAL_2.iter().any(|&(a, b)| a == first && b == second)
+    VALID_INITIAL_2
+        .iter()
+        .any(|&(a, b)| a == first && b == second)
 }
 
 /// Check if three-consonant cluster is valid initial (only "ngh")
@@ -71,9 +86,7 @@ pub fn is_valid_initial_3(first: u16, second: u16, third: u16) -> bool {
 
 /// Vietnamese valid single final consonants
 /// Valid: c, m, n, p, t (ch, ng, nh handled in M4)
-const VALID_FINALS: &[u16] = &[
-    keys::C, keys::M, keys::N, keys::P, keys::T,
-];
+const VALID_FINALS: &[u16] = &[keys::C, keys::M, keys::N, keys::P, keys::T];
 
 /// Check if single consonant is valid final
 #[inline]
@@ -96,7 +109,9 @@ const VALID_FINAL_2: &[(u16, u16)] = &[
 /// Check if two-consonant cluster is valid final
 #[inline]
 pub fn is_valid_final_2(first: u16, second: u16) -> bool {
-    VALID_FINAL_2.iter().any(|&(a, b)| a == first && b == second)
+    VALID_FINAL_2
+        .iter()
+        .any(|&(a, b)| a == first && b == second)
 }
 
 // =============================================================================
@@ -116,8 +131,8 @@ pub fn is_spelling_invalid(initial: &[u16], first_vowel: u16) -> bool {
     let front_vowel = matches!(first_vowel, k if k == keys::I || k == keys::E);
 
     match initial {
-        [c] if *c == keys::C && front_vowel => true,  // c + i/e invalid
-        [g] if *g == keys::G && front_vowel => true,  // g + i/e invalid
+        [c] if *c == keys::C && front_vowel => true, // c + i/e invalid
+        [g] if *g == keys::G && front_vowel => true, // g + i/e invalid
         [n, g] if *n == keys::N && *g == keys::G && front_vowel => true, // ng + i/e invalid
         _ => false,
     }
@@ -142,12 +157,26 @@ pub fn is_valid_vowel_pattern(vowels: &[u16]) -> bool {
 
 /// Valid Vietnamese diphthongs
 const VALID_DIPHTHONGS: &[(u16, u16)] = &[
-    (keys::A, keys::I), (keys::A, keys::O), (keys::A, keys::U), (keys::A, keys::Y),
-    (keys::E, keys::O), (keys::E, keys::U),
-    (keys::I, keys::A), (keys::I, keys::E), (keys::I, keys::U),
-    (keys::O, keys::A), (keys::O, keys::E), (keys::O, keys::I), (keys::O, keys::O),
-    (keys::U, keys::A), (keys::U, keys::E), (keys::U, keys::I), (keys::U, keys::O), (keys::U, keys::Y),
-    (keys::Y, keys::A), (keys::Y, keys::E),
+    (keys::A, keys::I),
+    (keys::A, keys::O),
+    (keys::A, keys::U),
+    (keys::A, keys::Y),
+    (keys::E, keys::O),
+    (keys::E, keys::U),
+    (keys::I, keys::A),
+    (keys::I, keys::E),
+    (keys::I, keys::U),
+    (keys::O, keys::A),
+    (keys::O, keys::E),
+    (keys::O, keys::I),
+    (keys::O, keys::O),
+    (keys::U, keys::A),
+    (keys::U, keys::E),
+    (keys::U, keys::I),
+    (keys::U, keys::O),
+    (keys::U, keys::Y),
+    (keys::Y, keys::A),
+    (keys::Y, keys::E),
 ];
 
 #[inline]
@@ -157,6 +186,8 @@ fn is_valid_diphthong(v1: u16, v2: u16) -> bool {
 
 /// Valid Vietnamese triphthongs
 const VALID_TRIPHTHONGS: &[(u16, u16, u16)] = &[
+    (keys::I, keys::A, keys::O), // iao (as in kíao)
+    (keys::I, keys::A, keys::U), // iau (as in giàu = rich)
     (keys::I, keys::E, keys::U), // iêu
     (keys::O, keys::A, keys::I), // oai
     (keys::O, keys::A, keys::Y), // oay
@@ -172,7 +203,9 @@ const VALID_TRIPHTHONGS: &[(u16, u16, u16)] = &[
 
 #[inline]
 fn is_valid_triphthong(v1: u16, v2: u16, v3: u16) -> bool {
-    VALID_TRIPHTHONGS.iter().any(|&(a, b, c)| a == v1 && b == v2 && c == v3)
+    VALID_TRIPHTHONGS
+        .iter()
+        .any(|&(a, b, c)| a == v1 && b == v2 && c == v3)
 }
 
 // =============================================================================
@@ -214,7 +247,11 @@ pub fn is_tone_final_compatible(tone: u8, final_c: &[u16]) -> bool {
 /// - Short vowels (ă, â) need closed syllables with certain finals
 /// - Some vowel+final combinations are phonotactically invalid
 #[inline]
-pub fn is_vowel_final_compatible(vowels: &[u16], has_breve_or_circumflex: bool, final_c: &[u16]) -> bool {
+pub fn is_vowel_final_compatible(
+    vowels: &[u16],
+    has_breve_or_circumflex: bool,
+    final_c: &[u16],
+) -> bool {
     // ă (a with breve) requires closed syllable with specific finals
     // Valid: ăm, ăn, ăp, ăt, ăc, ăng
     // Invalid: ă alone, ănh
@@ -443,24 +480,32 @@ mod tests {
         // ă (breve) needs specific finals
         assert!(is_vowel_final_compatible(&[keys::A], true, &[keys::N])); // ăn
         assert!(is_vowel_final_compatible(&[keys::A], true, &[keys::M])); // ăm
-        assert!(is_vowel_final_compatible(&[keys::A], true, &[keys::N, keys::G])); // ăng
+        assert!(is_vowel_final_compatible(
+            &[keys::A],
+            true,
+            &[keys::N, keys::G]
+        )); // ăng
 
         // ă alone is invalid
         assert!(!is_vowel_final_compatible(&[keys::A], true, &[]));
 
         // ănh is invalid
-        assert!(!is_vowel_final_compatible(&[keys::A], true, &[keys::N, keys::H]));
+        assert!(!is_vowel_final_compatible(
+            &[keys::A],
+            true,
+            &[keys::N, keys::H]
+        ));
     }
 
     #[test]
     fn test_validate_viet() {
         // "việt" = v + ie + t with sắc
         let result = validate(
-            &[keys::V],      // initial: v
+            &[keys::V],          // initial: v
             &[keys::I, keys::E], // vowels: ie
-            &[keys::T],      // final: t
-            1,               // tone: sắc
-            false,           // no breve
+            &[keys::T],          // final: t
+            1,                   // tone: sắc
+            false,               // no breve
         );
         assert_eq!(result, MatrixValidation::Valid);
     }
@@ -494,13 +539,7 @@ mod tests {
     #[test]
     fn test_validate_invalid_spelling() {
         // "ci" should be "ki"
-        let result = validate(
-            &[keys::C],
-            &[keys::I],
-            &[],
-            0,
-            false,
-        );
+        let result = validate(&[keys::C], &[keys::I], &[], 0, false);
         assert_eq!(result, MatrixValidation::InvalidSpelling);
     }
 }

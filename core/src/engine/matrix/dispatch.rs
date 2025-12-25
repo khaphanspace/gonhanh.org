@@ -31,58 +31,58 @@ use super::{act, pack, st, unpack};
 pub static DISPATCH: [[u8; 8]; 5] = [
     // State: EMPTY
     [
-        pack(act::PASS, st::VOW),      // VOWEL → append, go to VOW
-        pack(act::PASS, st::INIT),     // INIT_ONLY → append, go to INIT
-        pack(act::PASS, st::INIT),     // INIT_FINAL → append, go to INIT
-        pack(act::PASS, st::INIT),     // FINAL_PART → append, go to INIT
-        pack(act::PASS, st::VOW),      // SPECIAL_W → becomes ư, go to VOW
-        pack(act::PASS, st::INIT),     // TONE_KEY → treat as consonant
-        pack(act::PASS, st::INIT),     // D_KEY → append d, go to INIT
-        pack(act::REJECT, st::EMPTY),  // OTHER → reject
+        pack(act::PASS, st::VOW),     // VOWEL → append, go to VOW
+        pack(act::PASS, st::INIT),    // INIT_ONLY → append, go to INIT
+        pack(act::PASS, st::INIT),    // INIT_FINAL → append, go to INIT
+        pack(act::PASS, st::INIT),    // FINAL_PART → append, go to INIT
+        pack(act::PASS, st::VOW),     // SPECIAL_W → becomes ư, go to VOW
+        pack(act::PASS, st::INIT),    // TONE_KEY → treat as consonant
+        pack(act::PASS, st::INIT),    // D_KEY → append d, go to INIT
+        pack(act::REJECT, st::EMPTY), // OTHER → reject
     ],
     // State: INIT (has initial consonant)
     [
-        pack(act::PASS, st::VOW),      // VOWEL → append, go to VOW
-        pack(act::PASS, st::INIT),     // INIT_ONLY → append to cluster
-        pack(act::PASS, st::INIT),     // INIT_FINAL → append to cluster
-        pack(act::PASS, st::INIT),     // FINAL_PART → append (gh, ng, etc.)
-        pack(act::PASS, st::VOW),      // SPECIAL_W → becomes ư or part of qu
-        pack(act::PASS, st::INIT),     // TONE_KEY → treat as consonant (tr, etc.)
-        pack(act::STROKE, st::INIT),   // D_KEY → try stroke (dd → đ)
-        pack(act::REJECT, st::INIT),   // OTHER → reject
+        pack(act::PASS, st::VOW),    // VOWEL → append, go to VOW
+        pack(act::PASS, st::INIT),   // INIT_ONLY → append to cluster
+        pack(act::PASS, st::INIT),   // INIT_FINAL → append to cluster
+        pack(act::PASS, st::INIT),   // FINAL_PART → append (gh, ng, etc.)
+        pack(act::PASS, st::VOW),    // SPECIAL_W → becomes ư or part of qu
+        pack(act::PASS, st::INIT),   // TONE_KEY → treat as consonant (tr, etc.)
+        pack(act::STROKE, st::INIT), // D_KEY → try stroke (dd → đ)
+        pack(act::REJECT, st::INIT), // OTHER → reject
     ],
     // State: VOW (has vowel, ready for tone/mark/final)
     [
-        pack(act::PASS, st::VOW),      // VOWEL → append (compound vowel)
-        pack(act::PASS, st::FIN),      // INIT_ONLY → becomes final (rare)
-        pack(act::PASS, st::FIN),      // INIT_FINAL → becomes final
-        pack(act::PASS, st::FIN),      // FINAL_PART → becomes final (ng, ch)
-        pack(act::MARK, st::DIA),      // SPECIAL_W → apply mark (horn/breve)
-        pack(act::TONE, st::DIA),      // TONE_KEY → apply tone
-        pack(act::PASS, st::FIN),      // D_KEY → becomes final (rare)
-        pack(act::REJECT, st::VOW),    // OTHER → reject
+        pack(act::PASS, st::VOW),    // VOWEL → append (compound vowel)
+        pack(act::PASS, st::FIN),    // INIT_ONLY → becomes final (rare)
+        pack(act::PASS, st::FIN),    // INIT_FINAL → becomes final
+        pack(act::PASS, st::FIN),    // FINAL_PART → becomes final (ng, ch)
+        pack(act::MARK, st::DIA),    // SPECIAL_W → apply mark (horn/breve)
+        pack(act::TONE, st::DIA),    // TONE_KEY → apply tone
+        pack(act::STROKE, st::FIN),  // D_KEY → try stroke, else becomes final
+        pack(act::REJECT, st::VOW),  // OTHER → reject
     ],
     // State: DIA (has diacritic)
     [
-        pack(act::PASS, st::VOW),      // VOWEL → append (may shift diacritic)
-        pack(act::PASS, st::FIN),      // INIT_ONLY → becomes final
-        pack(act::PASS, st::FIN),      // INIT_FINAL → becomes final
-        pack(act::PASS, st::FIN),      // FINAL_PART → becomes final
-        pack(act::MARK, st::DIA),      // SPECIAL_W → apply/replace mark
-        pack(act::TONE, st::DIA),      // TONE_KEY → replace tone
-        pack(act::PASS, st::FIN),      // D_KEY → becomes final
-        pack(act::REJECT, st::DIA),    // OTHER → reject
+        pack(act::PASS, st::VOW),    // VOWEL → append (may shift diacritic)
+        pack(act::PASS, st::FIN),    // INIT_ONLY → becomes final
+        pack(act::PASS, st::FIN),    // INIT_FINAL → becomes final
+        pack(act::PASS, st::FIN),    // FINAL_PART → becomes final
+        pack(act::MARK, st::DIA),    // SPECIAL_W → apply/replace mark
+        pack(act::TONE, st::DIA),    // TONE_KEY → replace tone
+        pack(act::STROKE, st::FIN),  // D_KEY → try stroke, else becomes final
+        pack(act::REJECT, st::DIA),  // OTHER → reject
     ],
     // State: FIN (has final consonant)
     [
-        pack(act::PASS, st::VOW),      // VOWEL → start new syllable (rare in VN)
-        pack(act::PASS, st::INIT),     // INIT_ONLY → start new syllable
-        pack(act::PASS, st::FIN),      // INIT_FINAL → extend final (ng, ch)
-        pack(act::PASS, st::FIN),      // FINAL_PART → extend final (ng, nh)
-        pack(act::REJECT, st::FIN),    // SPECIAL_W → invalid after final
-        pack(act::PASS, st::FIN),      // TONE_KEY → treat as consonant
-        pack(act::PASS, st::INIT),     // D_KEY → start new syllable
-        pack(act::REJECT, st::FIN),    // OTHER → reject
+        pack(act::PASS, st::VOW),    // VOWEL → start new syllable (rare in VN)
+        pack(act::PASS, st::INIT),   // INIT_ONLY → start new syllable
+        pack(act::PASS, st::FIN),    // INIT_FINAL → extend final (ng, ch)
+        pack(act::PASS, st::FIN),    // FINAL_PART → extend final (ng, nh)
+        pack(act::MARK, st::FIN),    // SPECIAL_W → apply horn/breve (for ung→ưng)
+        pack(act::TONE, st::FIN),    // TONE_KEY → apply tone (toans → toán)
+        pack(act::STROKE, st::FIN),  // D_KEY → try stroke (dojcd → đọc)
+        pack(act::REJECT, st::FIN),  // OTHER → reject
     ],
 ];
 
@@ -113,9 +113,9 @@ mod tests {
 
     #[test]
     fn test_dispatch_table_size() {
-        assert_eq!(DISPATCH.len(), 5);  // 5 states
+        assert_eq!(DISPATCH.len(), 5); // 5 states
         for row in &DISPATCH {
-            assert_eq!(row.len(), 8);   // 8 categories
+            assert_eq!(row.len(), 8); // 8 categories
         }
     }
 
@@ -204,10 +204,9 @@ mod tests {
         state = next;
         assert_eq!(state, st::FIN);
 
-        // s (tone) - in FIN state, treated as consonant (starts new word)
+        // s (tone) - in FIN state, applies tone (viets → việt)
         let (action, next) = dispatch_key(state, keys::S);
-        assert_eq!(action, act::PASS);
-        // Note: In FIN state, tone key is treated as consonant
+        assert_eq!(action, act::TONE);
         assert_eq!(next, st::FIN);
     }
 

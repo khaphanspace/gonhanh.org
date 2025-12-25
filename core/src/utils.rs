@@ -300,10 +300,10 @@ mod test_utils {
             }
 
             if key == keys::SPACE {
-                // Space can trigger shortcuts - process result
+                // Space can trigger shortcuts or auto-restore - process result
                 let r = e.on_key_ext(key, false, false, false);
-                if r.action == Action::Send as u8 {
-                    // Shortcut triggered - apply backspaces and replacement
+                if r.action == Action::Send as u8 || r.action == Action::Restore as u8 {
+                    // Shortcut or auto-restore triggered - apply backspaces and replacement
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
@@ -312,15 +312,21 @@ mod test_utils {
                             screen.push(ch);
                         }
                     }
+                    // Add space ONLY for Restore action (auto-restore)
+                    // Shortcuts (Send action) already include the trailing space
+                    if r.action == Action::Restore as u8 {
+                        screen.push(' ');
+                    }
                 } else {
-                    // No shortcut - just add space
+                    // No shortcut or restore - just add space
                     screen.push(' ');
                 }
                 continue;
             }
 
             let r = e.on_key_ext(key, is_caps, false, shift);
-            if r.action == Action::Send as u8 {
+            // Check for Send OR Restore (auto-restore on punctuation returns Restore)
+            if r.action == Action::Send as u8 || r.action == Action::Restore as u8 {
                 for _ in 0..r.backspace {
                     screen.pop();
                 }

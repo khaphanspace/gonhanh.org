@@ -177,7 +177,7 @@ mod tests {
         // Same tone key triggers revert
         assert!(should_revert(xform::TONE, keys::S, keys::S)); // sắc
         assert!(should_revert(xform::TONE, keys::F, keys::F)); // huyền
-        // Different tone doesn't revert (replaces instead)
+                                                               // Different tone doesn't revert (replaces instead)
         assert!(!should_revert(xform::TONE, keys::S, keys::F));
     }
 

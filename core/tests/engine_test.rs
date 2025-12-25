@@ -667,16 +667,17 @@ fn delayed_circumflex_punctuation_restore() {
 #[test]
 fn delayed_circumflex_no_false_positives() {
     // Words that should NOT get circumflex
-    // - Words where target vowel already has a mark
+    // - Words where foreign word detection triggers
     // - Words with invalid diphthong patterns
     use gonhanh_core::utils::type_word;
 
-    // "expect" = e-x-p-e-c-t: 'x' applies ngã to 'e', second 'e' should NOT trigger circumflex
+    // "expect" = e-x-p-e-c-t: 'x' applies ngã to 'e', but 'p' (consonant) follows
+    // Foreign word detection triggers on "x + consonant" pattern → word becomes plain "expect"
     let mut e1 = Engine::new();
     let result1 = type_word(&mut e1, "expect");
-    assert!(
-        result1.contains('ẽ') && !result1.contains('ễ'),
-        "expect should have ẽ not ễ, got: '{}'",
+    assert_eq!(
+        result1, "expect",
+        "expect should be plain (foreign word detection), got: '{}'",
         result1
     );
 
@@ -688,4 +689,115 @@ fn delayed_circumflex_no_false_positives() {
         "teacher should stay unchanged, got: '{}'",
         result2
     );
+}
+
+#[test]
+fn debug_user_at() {
+    use gonhanh_core::utils::{type_word, char_to_key};
+    use gonhanh_core::data::keys;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    // Type "user" first
+    for c in "user".chars() {
+        e.on_key(char_to_key(c), false, false);
+    }
+
+    println!("After 'user':");
+    println!("  Buffer: '{}'", e.get_buffer_string());
+
+    // Now type '@' (Shift+2)
+    let result = e.on_key_ext(keys::N2, false, false, true);
+    println!("\nAfter '@':");
+    println!("  Action: {}", result.action);
+    println!("  Backspace: {}", result.backspace);
+    println!("  Count: {}", result.count);
+    if result.count > 0 {
+        let chars: String = result.chars[..result.count as usize]
+            .iter()
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
+        println!("  Chars: '{}'", chars);
+    }
+
+    // Compare with type_word
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result = type_word(&mut e2, "user@");
+    println!("\ntype_word result: '{}'", result);
+}
+
+#[test]
+fn debug_ddepj() {
+    use gonhanh_core::utils::{type_word, char_to_key};
+    use gonhanh_core::data::keys;
+
+    // Test 1: Simple ddepj without auto_restore
+    let mut e1 = Engine::new();
+    let r1 = type_word(&mut e1, "ddepj ");
+    println!("Simple (no auto_restore): '{}' (expected: 'đẹp ')", r1);
+
+    // Test 2: Step by step with auto_restore
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    for c in "ddepj".chars() {
+        let key = char_to_key(c);
+        let r = e2.on_key(key, false, false);
+        println!("After '{}': buffer='{}', action={}", c, e2.get_buffer_string(), r.action);
+    }
+    // Now type space
+    let r = e2.on_key(keys::SPACE, false, false);
+    println!("After SPACE: action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+
+    // Test 3: Full word with auto_restore via type_word
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let r3 = type_word(&mut e3, "ddepj ");
+    println!("With auto_restore via type_word: '{}' (expected: 'đẹp ')", r3);
+}
+
+#[test]
+fn debug_raast() {
+    use gonhanh_core::utils::{type_word, char_to_key};
+    use gonhanh_core::data::keys;
+
+    // Test 1: Fresh engine, type raast
+    println!("Test 1: Fresh engine, type raast ");
+    let mut e1 = Engine::new();
+    e1.set_method(0);
+    e1.set_english_auto_restore(true);
+    let r1 = type_word(&mut e1, "raast ");
+    println!("Result: '{}' (expected: 'rất ')", r1);
+
+    // Test 2: Step by step raast
+    println!("\nTest 2: Step by step raast");
+    let mut e2 = Engine::new();
+    e2.set_method(0);
+    e2.set_english_auto_restore(true);
+    for c in "raast".chars() {
+        let key = char_to_key(c);
+        let r = e2.on_key(key, false, false);
+        println!("After '{}': buffer='{}', action={}", c, e2.get_buffer_string(), r.action);
+    }
+    let r = e2.on_key(keys::SPACE, false, false);
+    println!("After SPACE: action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+    if r.action == 2 {
+        let chars: String = r.chars[..r.count as usize].iter().filter_map(|&c| char::from_u32(c)).collect();
+        println!("Restore chars: '{}'", chars);
+    }
+
+    // Test 3: After Tab, type raast
+    println!("\nTest 3: Engine after lawsm, Tab, then raast");
+    let mut e3 = Engine::new();
+    e3.set_method(0);
+    e3.set_english_auto_restore(true);
+    type_word(&mut e3, "lawsm");
+    println!("After lawsm: buffer = '{}'", e3.get_buffer_string());
+    e3.on_key(keys::TAB, false, false);
+    println!("After Tab: buffer = '{}'", e3.get_buffer_string());
+    let r3 = type_word(&mut e3, "raast ");
+    println!("Result: '{}' (expected: 'rất ')", r3);
+
+    assert_eq!(r1, "rất ");
 }

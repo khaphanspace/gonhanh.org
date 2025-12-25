@@ -8,11 +8,7 @@ description = "Gõ Nhanh - Vietnamese input method core engine"
 repository = "https://github.com/khaphanspace/gonhanh.org"
 
 [features]
-default = ["matrix-engine"]
-# Use the new matrix-based engine (default, zero if-else in hot path)
-matrix-engine = []
-# Use the legacy if-else based engine (for backward compatibility)
-legacy-engine = []
+default = []
 
 [lib]
 name = "gonhanh_core"

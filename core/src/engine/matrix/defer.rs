@@ -131,7 +131,10 @@ pub fn horn_u_valid_with_final(final_key: u16) -> bool {
     use crate::data::keys;
 
     // Finals that trigger horn on both vowels in ươ
-    matches!(final_key, keys::C | keys::M | keys::N | keys::P | keys::T | keys::G)
+    matches!(
+        final_key,
+        keys::C | keys::M | keys::N | keys::P | keys::T | keys::G
+    )
 }
 
 #[cfg(test)]

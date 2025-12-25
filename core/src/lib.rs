@@ -26,10 +26,6 @@ pub mod input;
 pub mod updater;
 pub mod utils;
 
-// Use MatrixEngine by default, legacy Engine when legacy-engine feature is enabled
-#[cfg(not(feature = "legacy-engine"))]
-use engine::matrix_engine::{MatrixEngine as Engine, Result};
-#[cfg(feature = "legacy-engine")]
 use engine::{Engine, Result};
 
 use std::sync::Mutex;
@@ -595,5 +591,90 @@ mod tests {
         unsafe { ime_free(r) };
 
         ime_clear();
+    }
+
+    #[test]
+    fn test_debug_raast_unit() {
+        use crate::engine::Engine;
+        use crate::engine::matrix::english::has_invalid_vietnamese_pattern;
+
+        let mut e = Engine::new();
+        e.set_method(0);
+        e.set_english_auto_restore(true);
+
+        // Type raast
+        for &key in &[keys::R, keys::A, keys::A, keys::S, keys::T] {
+            e.on_key(key, false, false);
+        }
+        eprintln!("Buffer after raast: '{}'", e.get_buffer_string());
+
+        // Get raw keys
+        let raw_keys: Vec<u16> = vec![keys::R, keys::A, keys::A, keys::S, keys::T];
+        eprintln!("Testing has_invalid_vietnamese_pattern on {:?}", raw_keys);
+        let result = has_invalid_vietnamese_pattern(&raw_keys);
+        eprintln!("has_invalid_vietnamese_pattern result: {}", result);
+
+        // Type space and check result
+        let r = e.on_key(keys::SPACE, false, false);
+        eprintln!("After SPACE: action={}", r.action);
+
+        // Expected: buffer should be rất, and no English restore
+        assert_eq!(r.action, 0, "raast should NOT trigger English restore");
+    }
+
+    #[test]
+    fn test_debug_history_with_numbers() {
+        use crate::engine::Engine;
+
+        let mut e = Engine::new();
+        e.set_method(0);
+
+        // Type w0 then space
+        eprintln!("Typing w0 then space:");
+        e.on_key(keys::W, false, false);
+        eprintln!("  After W: buffer='{}'", e.get_buffer_string());
+        e.on_key(keys::N0, false, false);
+        eprintln!("  After 0: buffer='{}'", e.get_buffer_string());
+        e.on_key(keys::SPACE, false, false);
+        eprintln!("  After SPACE: buffer='{}'", e.get_buffer_string());
+
+        // Try DELETE
+        let r = e.on_key(keys::DELETE, false, false);
+        eprintln!("  DELETE: action={}", r.action);
+    }
+
+    #[test]
+    fn test_debug_restore_then_type() {
+        use crate::engine::Engine;
+
+        let mut e = Engine::new();
+        e.set_method(0);
+
+        // Type "sắc " and commit
+        eprintln!("Step 1: Type 'sawsc '");
+        for &key in &[keys::S, keys::A, keys::W, keys::S, keys::C, keys::SPACE] {
+            e.on_key(key, false, false);
+        }
+        eprintln!("  After commit: buffer='{}'", e.get_buffer_string());
+
+        // DELETE to restore
+        eprintln!("\nStep 2: DELETE");
+        let del = e.on_key(keys::DELETE, false, false);
+        eprintln!("  DELETE action={}, buffer='{}'", del.action, e.get_buffer_string());
+
+        // Type "mauf"
+        eprintln!("\nStep 3: Type 'mauf '");
+        for &key in &[keys::M, keys::A, keys::U, keys::F] {
+            e.on_key(key, false, false);
+            eprintln!("  buffer='{}'", e.get_buffer_string());
+        }
+
+        // Type space
+        let r = e.on_key(keys::SPACE, false, false);
+        eprintln!("  SPACE action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        if r.action == 2 {
+            let chars: String = r.chars[..r.count as usize].iter().filter_map(|&c| char::from_u32(c)).collect();
+            eprintln!("  Restore chars: '{}'", chars);
+        }
     }
 }

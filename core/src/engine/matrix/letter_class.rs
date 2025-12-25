@@ -61,32 +61,32 @@ pub mod lc {
 /// Z: I       (not standard Vietnamese but handle as initial)
 /// ```
 pub static LETTER_CLASS: [u8; 26] = [
-    lc::V,                // A: vowel
-    lc::I,                // B: initial only
-    lc::I | lc::F,        // C: initial + final
-    lc::I | lc::S,        // D: initial + special (stroke)
-    lc::V,                // E: vowel
-    0,                    // F: not Vietnamese
-    lc::I | lc::F,        // G: initial + final (ng part)
-    lc::I | lc::F,        // H: initial + final (ch/nh part)
-    lc::V,                // I: vowel
-    0,                    // J: not Vietnamese
-    lc::I,                // K: initial only
-    lc::I,                // L: initial only
-    lc::I | lc::F,        // M: initial + final
-    lc::I | lc::F,        // N: initial + final
-    lc::V,                // O: vowel
-    lc::I | lc::F,        // P: initial + final
-    lc::I,                // Q: initial only
-    lc::I,                // R: initial only
-    lc::I,                // S: initial only
-    lc::I | lc::F,        // T: initial + final
-    lc::V,                // U: vowel
-    lc::I,                // V: initial only
-    lc::S,                // W: special (ư or modifier)
-    lc::I,                // X: initial only
-    lc::V,                // Y: vowel
-    lc::I,                // Z: initial (rare)
+    lc::V,         // A: vowel
+    lc::I,         // B: initial only
+    lc::I | lc::F, // C: initial + final
+    lc::I | lc::S, // D: initial + special (stroke)
+    lc::V,         // E: vowel
+    0,             // F: not Vietnamese
+    lc::I | lc::F, // G: initial + final (ng part)
+    lc::I | lc::F, // H: initial + final (ch/nh part)
+    lc::V,         // I: vowel
+    0,             // J: not Vietnamese
+    lc::I,         // K: initial only
+    lc::I,         // L: initial only
+    lc::I | lc::F, // M: initial + final
+    lc::I | lc::F, // N: initial + final
+    lc::V,         // O: vowel
+    lc::I | lc::F, // P: initial + final
+    lc::I,         // Q: initial only
+    lc::I,         // R: initial only
+    lc::I,         // S: initial only
+    lc::I | lc::F, // T: initial + final
+    lc::V,         // U: vowel
+    lc::I,         // V: initial only
+    lc::S,         // W: special (ư or modifier)
+    lc::I,         // X: initial only
+    lc::V,         // Y: vowel
+    lc::I,         // Z: initial (rare)
 ];
 
 /// Get letter class flags for a key code
@@ -175,9 +175,25 @@ mod tests {
     #[test]
     fn test_consonants_not_vowels() {
         // Consonants should not have V flag
-        for key in [keys::B, keys::C, keys::D, keys::G, keys::H, keys::K, keys::L,
-                    keys::M, keys::N, keys::P, keys::Q, keys::R, keys::S, keys::T,
-                    keys::V, keys::X, keys::Z] {
+        for key in [
+            keys::B,
+            keys::C,
+            keys::D,
+            keys::G,
+            keys::H,
+            keys::K,
+            keys::L,
+            keys::M,
+            keys::N,
+            keys::P,
+            keys::Q,
+            keys::R,
+            keys::S,
+            keys::T,
+            keys::V,
+            keys::X,
+            keys::Z,
+        ] {
             let class = get_letter_class(key);
             assert!(!is_vowel_class(class), "Key {:?} should not be vowel", key);
         }
@@ -193,14 +209,27 @@ mod tests {
         // g, h can be part of final (ng, ch, nh)
         for key in [keys::G, keys::H] {
             let class = get_letter_class(key);
-            assert!(is_final_class(class), "Key {:?} should be final (part)", key);
+            assert!(
+                is_final_class(class),
+                "Key {:?} should be final (part)",
+                key
+            );
         }
     }
 
     #[test]
     fn test_initial_only() {
         // These can only be initials, not finals
-        for key in [keys::B, keys::K, keys::L, keys::Q, keys::R, keys::S, keys::V, keys::X] {
+        for key in [
+            keys::B,
+            keys::K,
+            keys::L,
+            keys::Q,
+            keys::R,
+            keys::S,
+            keys::V,
+            keys::X,
+        ] {
             let class = get_letter_class(key);
             assert!(is_initial_class(class), "Key {:?} should be initial", key);
             assert!(!is_final_class(class), "Key {:?} should not be final", key);

@@ -16,23 +16,34 @@
 //! - **U4: DEFER** - Pending resolution rules
 //! - **U5: REVERT_KEY** - Transform → revert trigger
 
-pub mod letter_class;
-pub mod key_category;
-pub mod dispatch;
 pub mod defer;
-pub mod revert;
-pub mod processor;
-pub mod validation;
+pub mod dispatch;
 pub mod english;
+pub mod key_category;
+pub mod letter_class;
+pub mod processor;
+pub mod revert;
+pub mod validation;
 
-pub use letter_class::{lc, get_letter_class, is_vowel_class, is_initial_class, is_final_class, is_special_class, LETTER_CLASS};
-pub use key_category::{get_key_category, is_vowel_key, is_tone_key, is_initial_key, is_final_key, tone_key_to_value};
+pub use defer::{breve_valid_with_final, defertype, horn_u_valid_with_final, DeferState};
 pub use dispatch::{dispatch, dispatch_key, DISPATCH};
-pub use defer::{defertype, breve_valid_with_final, horn_u_valid_with_final, DeferState};
-pub use revert::{xform, get_revert_trigger, should_revert, RevertState};
-pub use processor::{Processor, ProcessResult, RawBuffer, RawKeystroke};
-pub use validation::{validate, MatrixValidation, is_valid_initial_1, is_valid_initial_2, is_valid_final_1, is_valid_final_2};
-pub use english::{EnglishLikelihood, english_likelihood, english_likelihood_keys, BloomFilter, is_valid_onset_keys, is_valid_coda_keys, is_impossible_bigram_keys};
+pub use english::{
+    english_likelihood, english_likelihood_keys, is_impossible_bigram_keys, is_valid_coda_keys,
+    is_valid_onset_keys, BloomFilter, EnglishLikelihood,
+};
+pub use key_category::{
+    get_key_category, is_final_key, is_initial_key, is_tone_key, is_vowel_key, tone_key_to_value,
+};
+pub use letter_class::{
+    get_letter_class, is_final_class, is_initial_class, is_special_class, is_vowel_class, lc,
+    LETTER_CLASS,
+};
+pub use processor::{ProcessResult, Processor, RawBuffer, RawKeystroke};
+pub use revert::{get_revert_trigger, should_revert, xform, RevertState};
+pub use validation::{
+    is_valid_final_1, is_valid_final_2, is_valid_initial_1, is_valid_initial_2,
+    is_valid_vowel_pattern, validate, MatrixValidation,
+};
 
 /// Engine states (5 total)
 ///

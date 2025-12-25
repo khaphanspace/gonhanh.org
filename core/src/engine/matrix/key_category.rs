@@ -44,8 +44,8 @@ static KEY_CAT: [u8; MAX_KEY] = {
 
     // Initial-only consonants (cannot be finals)
     table[keys::B as usize] = cat::INIT_ONLY;
-    table[keys::G as usize] = cat::INIT_ONLY;  // Note: g in ng is handled separately
-    table[keys::H as usize] = cat::INIT_ONLY;  // Note: h in ch/nh is handled separately
+    table[keys::G as usize] = cat::INIT_ONLY; // Note: g in ng is handled separately
+    table[keys::H as usize] = cat::INIT_ONLY; // Note: h in ch/nh is handled separately
     table[keys::K as usize] = cat::INIT_ONLY;
     table[keys::L as usize] = cat::INIT_ONLY;
     table[keys::Q as usize] = cat::INIT_ONLY;
@@ -141,7 +141,12 @@ mod tests {
     #[test]
     fn test_vowel_categories() {
         for key in [keys::A, keys::E, keys::I, keys::O, keys::U, keys::Y] {
-            assert_eq!(get_key_category(key), cat::VOWEL, "Key {:?} should be VOWEL", key);
+            assert_eq!(
+                get_key_category(key),
+                cat::VOWEL,
+                "Key {:?} should be VOWEL",
+                key
+            );
             assert!(is_vowel_key(key));
         }
     }
@@ -149,7 +154,12 @@ mod tests {
     #[test]
     fn test_tone_key_categories() {
         for key in [keys::S, keys::F, keys::R, keys::X, keys::J] {
-            assert_eq!(get_key_category(key), cat::TONE_KEY, "Key {:?} should be TONE_KEY", key);
+            assert_eq!(
+                get_key_category(key),
+                cat::TONE_KEY,
+                "Key {:?} should be TONE_KEY",
+                key
+            );
             assert!(is_tone_key(key));
         }
     }
@@ -162,15 +172,34 @@ mod tests {
 
     #[test]
     fn test_init_only_categories() {
-        for key in [keys::B, keys::G, keys::H, keys::K, keys::L, keys::Q, keys::V, keys::Z] {
-            assert_eq!(get_key_category(key), cat::INIT_ONLY, "Key {:?} should be INIT_ONLY", key);
+        for key in [
+            keys::B,
+            keys::G,
+            keys::H,
+            keys::K,
+            keys::L,
+            keys::Q,
+            keys::V,
+            keys::Z,
+        ] {
+            assert_eq!(
+                get_key_category(key),
+                cat::INIT_ONLY,
+                "Key {:?} should be INIT_ONLY",
+                key
+            );
         }
     }
 
     #[test]
     fn test_init_final_categories() {
         for key in [keys::C, keys::M, keys::N, keys::P, keys::T] {
-            assert_eq!(get_key_category(key), cat::INIT_FINAL, "Key {:?} should be INIT_FINAL", key);
+            assert_eq!(
+                get_key_category(key),
+                cat::INIT_FINAL,
+                "Key {:?} should be INIT_FINAL",
+                key
+            );
         }
     }
 
@@ -182,7 +211,7 @@ mod tests {
         assert_eq!(tone_key_to_value(keys::X), Some(4)); // ngã
         assert_eq!(tone_key_to_value(keys::J), Some(5)); // nặng
         assert_eq!(tone_key_to_value(keys::Z), Some(0)); // remove
-        assert_eq!(tone_key_to_value(keys::A), None);    // not a tone key
+        assert_eq!(tone_key_to_value(keys::A), None); // not a tone key
     }
 
     #[test]
