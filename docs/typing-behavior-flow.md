@@ -22,11 +22,13 @@
 | 1 | `d` | PASS | `[d]` | `[d]` | `d` | ✓ | | | | |
 | 2 | `u` | PASS | `[d,u]` | `[d,u]` | `du` | ✓ | | | | |
 | 3 | `o` | PASS | `[d,u,o]` | `[d,u,o]` | `duo` | ✓ | | | | |
-| 4 | `w` | HORN | `[d,u,o,w]` | `[d,ư,ơ]` | `dươ` | ✓ | | | | |
-| 5 | `c` | PASS | `[d,u,o,w,c]` | `[d,ư,ơ,c]` | `dươc` | ✓ | | | | |
-| 6 | `j` | TONE | `[d,u,o,w,c,j]` | `[d,ư,ợ,c]` | `dược` | ✓ | | | | |
-| 7 | `d` | STROKE | `[d,u,o,w,c,j,d]` | `[đ,ư,ợ,c]` | `được` | ✓ | | | | |
-| 8 | `space` | COMMIT | `[]` | `[]` | `được ` | ✓ | | | | |
+| 4 | `w` | HORN | `[d,u,o,w]` | `[d,ư,ơ]` | `dươ` | ✗ | ✓ | | | |
+| 5 | `c` | PASS | `[d,u,o,w,c]` | `[d,ư,ơ,c]` | `dươc` | ✗ | ✓ | | | |
+| 6 | `j` | TONE | `[d,u,o,w,c,j]` | `[d,ư,ợ,c]` | `dược` | ✗ | ✓ | | | |
+| 7 | `d` | STROKE | `[d,u,o,w,c,j,d]` | `[đ,ư,ợ,c]` | `được` | ✗ | ✓ | | | |
+| 8 | `space` | COMMIT | `[]` | `[]` | `được ` | | ✓ | | | |
+
+> **Note:** Raw contains 'w','j' (modifiers) → VN(R)=✗ → VN(B)=✓ (buffer valid) → VN mode.
 
 ---
 
@@ -36,13 +38,15 @@
 |---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
 | 1 | `d` | PASS | `[d]` | `[d]` | `d` | ✓ | | | | |
 | 2 | `u` | PASS | `[d,u]` | `[d,u]` | `du` | ✓ | | | | |
-| 3 | `w` | HORN | `[d,u,w]` | `[d,ư]` | `dư` | ✓ | | | | |
-| 4 | `o` | PASS | `[d,u,w,o]` | `[d,ư,o]` | `dưo` | ✓ | | | | |
-| 5 | `w` | HORN | `[d,u,w,o,w]` | `[d,ư,ơ]` | `dươ` | ✓ | | | | |
-| 6 | `c` | PASS | `[d,u,w,o,w,c]` | `[d,ư,ơ,c]` | `dươc` | ✓ | | | | |
-| 7 | `d` | STROKE | `[d,u,w,o,w,c,d]` | `[đ,ư,ơ,c]` | `đươc` | ✓ | | | | |
-| 8 | `j` | TONE | `[d,u,w,o,w,c,d,j]` | `[đ,ư,ợ,c]` | `được` | ✓ | | | | |
-| 9 | `space` | COMMIT | `[]` | `[]` | `được ` | ✓ | | | | |
+| 3 | `w` | HORN | `[d,u,w]` | `[d,ư]` | `dư` | ✗ | ✓ | | | |
+| 4 | `o` | PASS | `[d,u,w,o]` | `[d,ư,o]` | `dưo` | ✗ | ✓ | | | |
+| 5 | `w` | HORN | `[d,u,w,o,w]` | `[d,ư,ơ]` | `dươ` | ✗ | ✓ | | | |
+| 6 | `c` | PASS | `[d,u,w,o,w,c]` | `[d,ư,ơ,c]` | `dươc` | ✗ | ✓ | | | |
+| 7 | `d` | STROKE | `[d,u,w,o,w,c,d]` | `[đ,ư,ơ,c]` | `đươc` | ✗ | ✓ | | | |
+| 8 | `j` | TONE | `[d,u,w,o,w,c,d,j]` | `[đ,ư,ợ,c]` | `được` | ✗ | ✓ | | | |
+| 9 | `space` | COMMIT | `[]` | `[]` | `được ` | | ✓ | | | |
+
+> **Note:** Raw contains 'w','j' (modifiers) → VN(R)=✗ → VN(B)=✓ → VN mode.
 
 ---
 
@@ -66,11 +70,11 @@
 |---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
 | 1 | `t` | PASS | `[t]` | `[t]` | `t` | ✓ | | | | |
 | 2 | `e` | PASS | `[t,e]` | `[t,e]` | `te` | ✓ | | | | |
-| 3 | `x` | TONE | `[t,e,x]` | `[t,ẽ]` | `tẽ` | ✓ | | | | |
+| 3 | `x` | TONE | `[t,e,x]` | `[t,ẽ]` | `tẽ` | ✗ | ✓ | | | |
 | 4 | `t` | RESTORE | `[t,e,x,t]` | `[t,e,x,t]` | `text` | ✗ | ✗ | ✓ | | **Triggered** |
 | 5 | `space` | COMMIT | `[]` | `[]` | `text ` | | | ✓ | | |
 
-> **Note:** 'xt' impossible → VN(R)=✗ → VN(B)=✗ → RESTORE triggered (undo ẽ→e).
+> **Note:** Step 3: 'x' modifier → VN(R)=✗ → VN(B)=✓. Step 4: 'xt' impossible → VN(B)=✗ → EN(R)=✓ → RESTORE.
 
 ---
 
@@ -79,14 +83,14 @@
 | # | Key | Action | Raw | Buffer | Output | VN(R) | VN(B) | EN(R) | EN(B) | Restore? |
 |---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
 | 1 | `e` | PASS | `[e]` | `[e]` | `e` | ✓ | | | | |
-| 2 | `x` | TONE | `[e,x]` | `[ẽ]` | `ẽ` | ✓ | | | | |
+| 2 | `x` | TONE | `[e,x]` | `[ẽ]` | `ẽ` | ✗ | ✓ | | | |
 | 3 | `p` | RESTORE | `[e,x,p]` | `[e,x,p]` | `exp` | ✗ | ✗ | ✓ | | **Triggered** |
 | 4 | `e` | PASS | `[e,x,p,e]` | `[e,x,p,e]` | `expe` | | | ✓ | | |
 | 5 | `c` | PASS | `[e,x,p,e,c]` | `[e,x,p,e,c]` | `expec` | | | ✓ | | |
 | 6 | `t` | PASS | `[e,x,p,e,c,t]` | `[e,x,p,e,c,t]` | `expect` | | | ✓ | | |
 | 7 | `space` | COMMIT | `[]` | `[]` | `expect ` | | | ✓ | | |
 
-> **Note:** 'xp' impossible → VN(R)=✗ → VN(B)=✗ → RESTORE triggered (undo ẽ→e).
+> **Note:** Step 2: 'x' modifier → VN(R)=✗ → VN(B)=✓. Step 3: 'xp' → VN(B)=✗ → EN(R)=✓ → RESTORE.
 
 ---
 
@@ -96,10 +100,10 @@
 |---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
 | 1 | `v` | PASS | `[v]` | `[v]` | `v` | ✓ | | | | |
 | 2 | `a` | PASS | `[v,a]` | `[v,a]` | `va` | ✓ | | | | |
-| 3 | `r` | TONE | `[v,a,r]` | `[v,ả]` | `vả` | ✓ | | | | |
-| 4 | `space` | COMMIT | `[]` | `[]` | `vả ` | ✓ | | | | |
+| 3 | `r` | TONE | `[v,a,r]` | `[v,ả]` | `vả` | ✗ | ✓ | | | |
+| 4 | `space` | COMMIT | `[]` | `[]` | `vả ` | | ✓ | | | |
 
-> **Note:** "vả" is valid Vietnamese → VN(R)=✓ all steps → VN wins.
+> **Note:** 'r' modifier → VN(R)=✗ → VN(B)=✓ ("vả" valid) → VN wins.
 
 ---
 
@@ -109,11 +113,11 @@
 |---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
 | 1 | `v` | PASS | `[v]` | `[v]` | `v` | ✓ | | | | |
 | 2 | `a` | PASS | `[v,a]` | `[v,a]` | `va` | ✓ | | | | |
-| 3 | `r` | TONE | `[v,a,r]` | `[v,ả]` | `vả` | ✓ | | | | |
-| 4 | `r` | REVERT | `[v,a,r,r]` | `[v,a,r]` | `var` | ✗ | | ✓ | | |
+| 3 | `r` | TONE | `[v,a,r]` | `[v,ả]` | `vả` | ✗ | ✓ | | | |
+| 4 | `r` | REVERT | `[v,a,r,r]` | `[v,a,r]` | `var` | ✗ | ✗ | ✓ | | |
 | 5 | `space` | COMMIT | `[]` | `[]` | `var ` | | | ✓ | | |
 
-> **Note:** Double 'rr' detected → VN(R)=✗ → REVERT (undo hỏi) → EN mode.
+> **Note:** Step 3: 'r' modifier → VN(B)=✓. Step 4: 'rr' double-key → VN(B)=✗ → REVERT → EN mode.
 
 ---
 
@@ -188,22 +192,22 @@
 
 ## Example 12: `d u o w n g o d` + space → "đuông "
 
-| # | Key | Action | Raw | Buffer | Output | VN | EN | Restore? |
-|---|-----|--------|-----|--------|--------|----|----|----------|
-| 1 | `d` | PASS | `[d]` | `[d]` | `d` | ✓ | | |
-| 2 | `u` | PASS | `[d,u]` | `[d,u]` | `du` | ✓ | | |
-| 3 | `o` | PASS | `[d,u,o]` | `[d,u,o]` | `duo` | ✓ | | |
-| 4 | `w` | HORN | `[d,u,o,w]` | `[d,ư,ơ]` | `dươ` | ✓ | | |
-| 5 | `n` | PASS | `[d,u,o,w,n]` | `[d,ư,ơ,n]` | `dươn` | ✓ | | |
-| 6 | `g` | PASS | `[d,u,o,w,n,g]` | `[d,ư,ơ,n,g]` | `dương` | ✓ | | |
-| 7 | `o` | CIRCUM | `[d,u,o,w,n,g,o]` | `[d,u,ô,n,g]` | `duông` | ✓ | | |
-| 8 | `d` | STROKE | `[d,u,o,w,n,g,o,d]` | `[đ,u,ô,n,g]` | `đuông` | ✓ | | |
-| 9 | `space` | COMMIT | `[]` | `[]` | `đuông ` | ✓ | | |
+| # | Key | Action | Raw | Buffer | Output | VN(R) | VN(B) | EN(R) | EN(B) | Restore? |
+|---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
+| 1 | `d` | PASS | `[d]` | `[d]` | `d` | ✓ | | | | |
+| 2 | `u` | PASS | `[d,u]` | `[d,u]` | `du` | ✓ | | | | |
+| 3 | `o` | PASS | `[d,u,o]` | `[d,u,o]` | `duo` | ✓ | | | | |
+| 4 | `w` | HORN | `[d,u,o,w]` | `[d,ư,ơ]` | `dươ` | ✓ | | | | |
+| 5 | `n` | PASS | `[d,u,o,w,n]` | `[d,ư,ơ,n]` | `dươn` | ✓ | | | | |
+| 6 | `g` | PASS | `[d,u,o,w,n,g]` | `[d,ư,ơ,n,g]` | `dương` | ✓ | | | | |
+| 7 | `o` | CIRCUM | `[d,u,o,w,n,g,o]` | `[d,u,ô,n,g]` | `duông` | ✓ | | | | |
+| 8 | `d` | STROKE | `[d,u,o,w,n,g,o,d]` | `[đ,u,ô,n,g]` | `đuông` | ✓ | | | | |
+| 9 | `space` | COMMIT | `[]` | `[]` | `đuông ` | ✓ | | | | |
 
 > **Note:**
 > - 'w' applies horn to both u→ư and o→ơ
-> - Second 'o' (step 7): 'oo' circumflex overrides horn, ơ→ô and ư→u (horn removed from both)
-> - 'dd' stroke applies non-consecutively to first 'd'
+> - 'oo' circumflex overrides horn (ơ→ô, ư→u)
+> - 'dd' stroke applies non-consecutively
 
 ---
 
@@ -213,19 +217,30 @@
 |--------|-------------|
 | Raw | `RawBuffer` - keystroke gốc (chưa transform) |
 | Buffer | `Buffer` - ký tự đã transform (có dấu) |
-| VN | Validation result with source: ✓=valid, ✗=impossible, ~=invalid word but possible |
-| | `(R)`=validated via Raw, `(B)`=validated via Buffer, `(R+B)`=both |
-| EN | ✓=English/Foreign mode |
-| Restore? | (empty)=no, **Triggered**=executed immediately (once), **Foreign**=early foreign |
+| VN(R) | Raw cluster validation: ✓=valid, ✗=impossible (double-key, cluster) |
+| VN(B) | Buffer validation (only when VN(R)=✗): ✓=valid, ✗=invalid syllable |
+| EN(R) | English mode via Raw |
+| EN(B) | English mode via Buffer |
+| Restore? | (empty)=no, **Triggered**=executed immediately |
 
-### Validation Source per Check Type
+### Validation Flow
 
-| Check Type | Source | When |
-|------------|--------|------|
-| Cluster validation (cl, xp, xt) | **Raw** | After consonant added |
-| Invalid final (l, r in final) | **Buffer** | When consonant follows vowel |
-| Double-key revert (ss, rr, ff) | **Raw** | When same key repeated |
-| Syllable structure | **Buffer** | Ongoing pattern check |
+```
+VN(R) → if ✗ → VN(B) → if ✗ → RESTORE/FOREIGN → EN mode
+  ↓                        ↓
+  ✓                        ✓
+  ↓                        ↓
+  continue VN              continue VN
+```
+
+### Validation Checks
+
+| Check Type | Column | Examples |
+|------------|--------|----------|
+| Impossible cluster | VN(R) | `cl`, `xp`, `xt` |
+| Double-key revert | VN(R) | `ss`, `rr`, `ff` |
+| Invalid final consonant | VN(B) | `l`, `r` in final |
+| Invalid syllable structure | VN(B) | vowel-consonant patterns |
 
 ---
 
@@ -242,29 +257,30 @@
 
 ## Restore Logic
 
-| Condition | VN | Restore? |
-|-----------|-------|----------|
-| Valid Vietnamese word | ✓ | - |
-| Impossible cluster in Raw (`xt`, `xp`) | ✗ | **Triggered** immediately |
-| Foreign cluster early (`cl`) | ✗ | **Foreign** (stay raw) |
-| Invalid final in Buffer (`l`, `r`) | ✗ | **Triggered** immediately |
-| Double-key revert (`ss`, `rr`) | | → EN mode (no restore needed) |
-| Invalid word, possible pattern (`nnn`) | ~ | - (keep VN transform) |
+| Condition | VN(R) | VN(B) | Result |
+|-----------|-------|-------|--------|
+| Valid Vietnamese | ✓ | | VN mode |
+| Impossible cluster (`xt`, `xp`) | ✗ | ✗ | RESTORE |
+| Foreign cluster early (`cl`) | ✗ | ✗ | FOREIGN |
+| Invalid final (`l`, `r`) | ✓ | ✗ | RESTORE |
+| Double-key (`ss`, `rr`) | ✗ | | REVERT → EN |
+| Invalid word, valid pattern | ✓ | | VN mode (keep transform) |
 
 ---
 
 ## Comparison
 
-| Sequence | Keys | Result | Restore? |
-|----------|------|--------|----------|
-| `d u o w c j d` + space | 8 | `được ` | - |
-| `d u w o w c d j` + space | 9 | `được ` | - |
-| `c l a r` + space | 5 | `clar ` | Foreign (step 2) |
-| `t e x t` + space | 5 | `text ` | Triggered (step 4) |
-| `e x p e c t` + space | 7 | `expect ` | Triggered (step 3) |
-| `v a r` + space | 4 | `vả ` | - (VN wins) |
-| `v a r r` + space | 5 | `var ` | Revert → EN mode |
-| `d e n d e s n n n n` + space | 11 | `đếnnnnn ` | VN=~ (step 7+), no restore |
-| `t o t o s` + space | 6 | `tốt ` | - ('oo' → ô, valid VN) |
-| `c o n s o l e` + space | 8 | `console ` | Triggered (step 6, 'l' invalid final) |
-| `d i s s t` + space | 6 | `dist ` | Revert → EN mode |
+| Sequence | Keys | Result | VN(R) | VN(B) | EN |
+|----------|------|--------|-------|-------|-----|
+| `d u o w c j d` + space | 8 | `được ` | ✓ | | |
+| `d u w o w c d j` + space | 9 | `được ` | ✓ | | |
+| `c l a r` + space | 5 | `clar ` | ✗ | ✗ | ✓ |
+| `t e x t` + space | 5 | `text ` | ✗ | ✗ | ✓ |
+| `e x p e c t` + space | 7 | `expect ` | ✗ | ✗ | ✓ |
+| `v a r` + space | 4 | `vả ` | ✓ | | |
+| `v a r r` + space | 5 | `var ` | ✗ | | ✓ |
+| `d e n d e s n n n n` + space | 11 | `đếnnnnn ` | ✓ | | |
+| `t o t o s` + space | 6 | `tốt ` | ✓ | | |
+| `c o n s o l e` + space | 8 | `console ` | ✓ | ✗ | ✓ |
+| `d i s s t` + space | 6 | `dist ` | ✗ | | ✓ |
+| `d u o w n g o d` + space | 9 | `đuông ` | ✓ | | |
