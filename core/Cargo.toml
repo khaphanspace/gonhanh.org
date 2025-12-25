@@ -7,6 +7,13 @@ license = "GPL-3.0-or-later"
 description = "Gõ Nhanh - Vietnamese input method core engine"
 repository = "https://github.com/khaphanspace/gonhanh.org"
 
+[features]
+default = ["matrix-engine"]
+# Use the new matrix-based engine (default, zero if-else in hot path)
+matrix-engine = []
+# Use the legacy if-else based engine (for backward compatibility)
+legacy-engine = []
+
 [lib]
 name = "gonhanh_core"
 crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests

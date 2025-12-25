@@ -26,7 +26,12 @@ pub mod input;
 pub mod updater;
 pub mod utils;
 
+// Use MatrixEngine by default, legacy Engine when legacy-engine feature is enabled
+#[cfg(not(feature = "legacy-engine"))]
+use engine::matrix_engine::{MatrixEngine as Engine, Result};
+#[cfg(feature = "legacy-engine")]
 use engine::{Engine, Result};
+
 use std::sync::Mutex;
 
 // Global engine instance (thread-safe via Mutex)

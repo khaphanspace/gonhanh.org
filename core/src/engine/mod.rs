@@ -1,21 +1,36 @@
 //! Vietnamese IME Engine
 //!
 //! Core engine for Vietnamese input method processing.
-//! Uses pattern-based transformation with validation-first approach.
 //!
-//! ## Architecture
+//! ## Engine Versions
 //!
-//! 1. **Validation First**: Check if buffer is valid Vietnamese before transforming
-//! 2. **Pattern-Based**: Scan entire buffer for patterns instead of case-by-case
-//! 3. **Shortcut Support**: User-defined abbreviations with priority
-//! 4. **Longest-Match-First**: For diacritic placement
+//! - **`MatrixEngine`** (default): New matrix-based engine with zero if-else in hot path.
+//!   All decisions use lookup tables for predictable O(1) performance.
+//!
+//! - **`Engine`** (deprecated): Legacy if-else based engine.
+//!   Enable `legacy-engine` feature to use this. Will be removed in future versions.
+//!
+//! ## Architecture (Matrix Engine V2)
+//!
+//! ```text
+//! Input → Classify (matrix) → Dispatch (matrix) → Execute → Done
+//! ```
+//!
+//! 1. **5-State Machine**: EMPTY → INIT → VOW → DIA → FIN
+//! 2. **Matrix Dispatch**: State × Category → Action | NextState
+//! 3. **Zero If-Else**: All decisions via lookup tables
+//! 4. **Deferred Actions**: Handle context-dependent transformations
 
 pub mod buffer;
 pub mod matrix;
+pub mod matrix_engine;
 pub mod shortcut;
 pub mod syllable;
 pub mod transform;
 pub mod validation;
+
+// Re-export MatrixEngine as the preferred engine
+pub use matrix_engine::MatrixEngine;
 
 use crate::data::{
     chars::{self, mark, tone},
@@ -193,6 +208,13 @@ fn shifted_number_to_symbol(key: u16) -> Option<char> {
 }
 
 /// Main Vietnamese IME engine
+///
+/// **DEPRECATED**: Use `MatrixEngine` instead. This legacy engine will be removed
+/// in a future version. Enable the `legacy-engine` feature to continue using this.
+///
+/// The new `MatrixEngine` uses matrix-based dispatch for zero if-else in hot path,
+/// resulting in more predictable performance and easier maintenance.
+#[deprecated(since = "0.2.0", note = "Use MatrixEngine instead. Enable legacy-engine feature if needed.")]
 pub struct Engine {
     buf: Buffer,
     method: u8,
