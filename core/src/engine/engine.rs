@@ -10,9 +10,7 @@
 
 use crate::data::keys;
 use crate::engine::buffer::{Buffer, MAX};
-use crate::engine::matrix::english::{
-    english_likelihood_keys, has_invalid_vietnamese_pattern, EnglishLikelihood,
-};
+use crate::engine::matrix::english::has_invalid_vietnamese_pattern;
 use crate::engine::matrix::{ProcessResult, Processor};
 use crate::engine::shortcut::{InputMethod, ShortcutTable};
 
@@ -365,32 +363,6 @@ impl Engine {
             Result::none()
         } else {
             Result::restore(backspace, &raw_chars)
-        }
-    }
-
-    /// Check if current word should be restored as English
-    fn should_restore_as_english(&self) -> bool {
-        if !self.english_auto_restore {
-            return false;
-        }
-
-        // Need at least 2 characters for detection
-        if self.processor.raw().len() < 2 {
-            return false;
-        }
-
-        // Collect raw keys
-        let keys: Vec<u16> = self.processor.raw().iter().map(|(k, _)| k).collect();
-
-        // First check: patterns that are definitely NOT Vietnamese
-        if has_invalid_vietnamese_pattern(&keys) {
-            return true;
-        }
-
-        // Second check: English likelihood (for less obvious cases)
-        match english_likelihood_keys(&keys) {
-            EnglishLikelihood::Likely | EnglishLikelihood::VeryLikely => true,
-            _ => false,
         }
     }
 

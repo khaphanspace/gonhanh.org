@@ -628,6 +628,42 @@ fn foreign_word_supreme_no_mark() {
     assert_eq!(result, "supreme", "supreme should stay unchanged");
 }
 
+#[test]
+fn foreign_word_clar_no_mark() {
+    let mut e = Engine::new();
+    // c+l pattern - "cl" is not valid Vietnamese initial cluster
+    // 'r' is tone key, but should NOT apply tone because of invalid cluster
+    let result = type_word(&mut e, "clar");
+    assert_eq!(
+        result, "clar",
+        "clar should stay unchanged (cl is invalid Vietnamese cluster)"
+    );
+}
+
+#[test]
+fn foreign_word_class_no_mark() {
+    let mut e = Engine::new();
+    // c+l pattern
+    let result = type_word(&mut e, "class");
+    assert_eq!(result, "class", "class should stay unchanged");
+}
+
+#[test]
+fn foreign_word_block_no_mark() {
+    let mut e = Engine::new();
+    // b+l pattern - invalid Vietnamese cluster
+    let result = type_word(&mut e, "block");
+    assert_eq!(result, "block", "block should stay unchanged");
+}
+
+#[test]
+fn foreign_word_cloud_no_mark() {
+    let mut e = Engine::new();
+    // c+l pattern
+    let result = type_word(&mut e, "cloud");
+    assert_eq!(result, "cloud", "cloud should stay unchanged");
+}
+
 // Vietnamese words with diacritics should still work correctly
 #[test]
 fn vietnamese_duoc_with_mark() {
