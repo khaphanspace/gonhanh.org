@@ -1923,7 +1923,9 @@ fn backspace_after_space_history_capacity() {
     let mut e = Engine::new();
     // Type 12 simple words (more than capacity of 10)
     // Using letter-only words because numbers are break keys that clear buffer
-    let words = ["ca", "cb", "da", "db", "ga", "gb", "ha", "hb", "ka", "kb", "la", "lb"];
+    let words = [
+        "ca", "cb", "da", "db", "ga", "gb", "ha", "hb", "ka", "kb", "la", "lb",
+    ];
     for word in words {
         type_word(&mut e, &format!("{} ", word));
     }

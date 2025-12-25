@@ -595,8 +595,8 @@ mod tests {
 
     #[test]
     fn test_debug_raast_unit() {
-        use crate::engine::Engine;
         use crate::engine::matrix::english::has_invalid_vietnamese_pattern;
+        use crate::engine::Engine;
 
         let mut e = Engine::new();
         e.set_method(0);
@@ -660,7 +660,11 @@ mod tests {
         // DELETE to restore
         eprintln!("\nStep 2: DELETE");
         let del = e.on_key(keys::DELETE, false, false);
-        eprintln!("  DELETE action={}, buffer='{}'", del.action, e.get_buffer_string());
+        eprintln!(
+            "  DELETE action={}, buffer='{}'",
+            del.action,
+            e.get_buffer_string()
+        );
 
         // Type "mauf"
         eprintln!("\nStep 3: Type 'mauf '");
@@ -671,9 +675,15 @@ mod tests {
 
         // Type space
         let r = e.on_key(keys::SPACE, false, false);
-        eprintln!("  SPACE action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "  SPACE action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
         if r.action == 2 {
-            let chars: String = r.chars[..r.count as usize].iter().filter_map(|&c| char::from_u32(c)).collect();
+            let chars: String = r.chars[..r.count as usize]
+                .iter()
+                .filter_map(|&c| char::from_u32(c))
+                .collect();
             eprintln!("  Restore chars: '{}'", chars);
         }
     }

@@ -19,5 +19,6 @@ pub mod shortcut;
 pub mod syllable;
 pub mod transform;
 
+#[allow(clippy::module_inception)]
 mod engine;
 pub use engine::{Action, Engine, Result};

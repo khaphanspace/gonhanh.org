@@ -693,8 +693,8 @@ fn delayed_circumflex_no_false_positives() {
 
 #[test]
 fn debug_user_at() {
-    use gonhanh_core::utils::{type_word, char_to_key};
     use gonhanh_core::data::keys;
+    use gonhanh_core::utils::{char_to_key, type_word};
 
     let mut e = Engine::new();
     e.set_english_auto_restore(true);
@@ -730,8 +730,8 @@ fn debug_user_at() {
 
 #[test]
 fn debug_ddepj() {
-    use gonhanh_core::utils::{type_word, char_to_key};
     use gonhanh_core::data::keys;
+    use gonhanh_core::utils::{char_to_key, type_word};
 
     // Test 1: Simple ddepj without auto_restore
     let mut e1 = Engine::new();
@@ -744,23 +744,34 @@ fn debug_ddepj() {
     for c in "ddepj".chars() {
         let key = char_to_key(c);
         let r = e2.on_key(key, false, false);
-        println!("After '{}': buffer='{}', action={}", c, e2.get_buffer_string(), r.action);
+        println!(
+            "After '{}': buffer='{}', action={}",
+            c,
+            e2.get_buffer_string(),
+            r.action
+        );
     }
     // Now type space
     let r = e2.on_key(keys::SPACE, false, false);
-    println!("After SPACE: action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+    println!(
+        "After SPACE: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
 
     // Test 3: Full word with auto_restore via type_word
     let mut e3 = Engine::new();
     e3.set_english_auto_restore(true);
     let r3 = type_word(&mut e3, "ddepj ");
-    println!("With auto_restore via type_word: '{}' (expected: 'đẹp ')", r3);
+    println!(
+        "With auto_restore via type_word: '{}' (expected: 'đẹp ')",
+        r3
+    );
 }
 
 #[test]
 fn debug_raast() {
-    use gonhanh_core::utils::{type_word, char_to_key};
     use gonhanh_core::data::keys;
+    use gonhanh_core::utils::{char_to_key, type_word};
 
     // Test 1: Fresh engine, type raast
     println!("Test 1: Fresh engine, type raast ");
@@ -778,12 +789,23 @@ fn debug_raast() {
     for c in "raast".chars() {
         let key = char_to_key(c);
         let r = e2.on_key(key, false, false);
-        println!("After '{}': buffer='{}', action={}", c, e2.get_buffer_string(), r.action);
+        println!(
+            "After '{}': buffer='{}', action={}",
+            c,
+            e2.get_buffer_string(),
+            r.action
+        );
     }
     let r = e2.on_key(keys::SPACE, false, false);
-    println!("After SPACE: action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+    println!(
+        "After SPACE: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
     if r.action == 2 {
-        let chars: String = r.chars[..r.count as usize].iter().filter_map(|&c| char::from_u32(c)).collect();
+        let chars: String = r.chars[..r.count as usize]
+            .iter()
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
         println!("Restore chars: '{}'", chars);
     }
 

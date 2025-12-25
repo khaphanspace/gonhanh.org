@@ -53,36 +53,36 @@ pub static DISPATCH: [[u8; 8]; 5] = [
     ],
     // State: VOW (has vowel, ready for tone/mark/final)
     [
-        pack(act::PASS, st::VOW),    // VOWEL → append (compound vowel)
-        pack(act::PASS, st::FIN),    // INIT_ONLY → becomes final (rare)
-        pack(act::PASS, st::FIN),    // INIT_FINAL → becomes final
-        pack(act::PASS, st::FIN),    // FINAL_PART → becomes final (ng, ch)
-        pack(act::MARK, st::DIA),    // SPECIAL_W → apply mark (horn/breve)
-        pack(act::TONE, st::DIA),    // TONE_KEY → apply tone
-        pack(act::STROKE, st::FIN),  // D_KEY → try stroke, else becomes final
-        pack(act::REJECT, st::VOW),  // OTHER → reject
+        pack(act::PASS, st::VOW),   // VOWEL → append (compound vowel)
+        pack(act::PASS, st::FIN),   // INIT_ONLY → becomes final (rare)
+        pack(act::PASS, st::FIN),   // INIT_FINAL → becomes final
+        pack(act::PASS, st::FIN),   // FINAL_PART → becomes final (ng, ch)
+        pack(act::MARK, st::DIA),   // SPECIAL_W → apply mark (horn/breve)
+        pack(act::TONE, st::DIA),   // TONE_KEY → apply tone
+        pack(act::STROKE, st::FIN), // D_KEY → try stroke, else becomes final
+        pack(act::REJECT, st::VOW), // OTHER → reject
     ],
     // State: DIA (has diacritic)
     [
-        pack(act::PASS, st::VOW),    // VOWEL → append (may shift diacritic)
-        pack(act::PASS, st::FIN),    // INIT_ONLY → becomes final
-        pack(act::PASS, st::FIN),    // INIT_FINAL → becomes final
-        pack(act::PASS, st::FIN),    // FINAL_PART → becomes final
-        pack(act::MARK, st::DIA),    // SPECIAL_W → apply/replace mark
-        pack(act::TONE, st::DIA),    // TONE_KEY → replace tone
-        pack(act::STROKE, st::FIN),  // D_KEY → try stroke, else becomes final
-        pack(act::REJECT, st::DIA),  // OTHER → reject
+        pack(act::PASS, st::VOW),   // VOWEL → append (may shift diacritic)
+        pack(act::PASS, st::FIN),   // INIT_ONLY → becomes final
+        pack(act::PASS, st::FIN),   // INIT_FINAL → becomes final
+        pack(act::PASS, st::FIN),   // FINAL_PART → becomes final
+        pack(act::MARK, st::DIA),   // SPECIAL_W → apply/replace mark
+        pack(act::TONE, st::DIA),   // TONE_KEY → replace tone
+        pack(act::STROKE, st::FIN), // D_KEY → try stroke, else becomes final
+        pack(act::REJECT, st::DIA), // OTHER → reject
     ],
     // State: FIN (has final consonant)
     [
-        pack(act::PASS, st::VOW),    // VOWEL → start new syllable (rare in VN)
-        pack(act::PASS, st::INIT),   // INIT_ONLY → start new syllable
-        pack(act::PASS, st::FIN),    // INIT_FINAL → extend final (ng, ch)
-        pack(act::PASS, st::FIN),    // FINAL_PART → extend final (ng, nh)
-        pack(act::MARK, st::FIN),    // SPECIAL_W → apply horn/breve (for ung→ưng)
-        pack(act::TONE, st::FIN),    // TONE_KEY → apply tone (toans → toán)
-        pack(act::STROKE, st::FIN),  // D_KEY → try stroke (dojcd → đọc)
-        pack(act::REJECT, st::FIN),  // OTHER → reject
+        pack(act::PASS, st::VOW),   // VOWEL → start new syllable (rare in VN)
+        pack(act::PASS, st::INIT),  // INIT_ONLY → start new syllable
+        pack(act::PASS, st::FIN),   // INIT_FINAL → extend final (ng, ch)
+        pack(act::PASS, st::FIN),   // FINAL_PART → extend final (ng, nh)
+        pack(act::MARK, st::FIN),   // SPECIAL_W → apply horn/breve (for ung→ưng)
+        pack(act::TONE, st::FIN),   // TONE_KEY → apply tone (toans → toán)
+        pack(act::STROKE, st::FIN), // D_KEY → try stroke (dojcd → đọc)
+        pack(act::REJECT, st::FIN), // OTHER → reject
     ],
 ];
 

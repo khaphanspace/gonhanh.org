@@ -397,10 +397,9 @@ pub fn english_likelihood(indices: &[u8]) -> EnglishLikelihood {
     if indices.len() >= 2
         && !is_vowel_idx(indices[last_idx])
         && !is_vowel_idx(indices[last_idx - 1])
+        && is_valid_coda(indices[last_idx - 1], indices[last_idx])
     {
-        if is_valid_coda(indices[last_idx - 1], indices[last_idx]) {
-            score += 1;
-        }
+        score += 1;
     }
 
     // Check for common patterns
@@ -525,10 +524,7 @@ pub fn has_invalid_vietnamese_pattern(keys: &[u16]) -> bool {
             // Check for English-specific endings that can't be Vietnamese
             let len = keys.len();
             if len >= 3 {
-                let last_two: [u8; 2] = [
-                    key_to_index(keys[len - 2]),
-                    key_to_index(keys[len - 1]),
-                ];
+                let last_two: [u8; 2] = [key_to_index(keys[len - 2]), key_to_index(keys[len - 1])];
                 // "_ck", "_ng" at end are English for p-initial
                 if last_two == [2, 10] || (last_two == [13, 6] && len > 4) {
                     return true;
@@ -812,10 +808,7 @@ pub fn has_invalid_vietnamese_pattern(keys: &[u16]) -> bool {
             if is_vowel_idx(c1) && !is_vowel_idx(c2) && c1 == c3 {
                 // Count how many times this vowel appears in the word
                 // If 3+ occurrences, a Telex revert happened (aaa → aa + a)
-                let vowel_count = keys
-                    .iter()
-                    .filter(|&&k| key_to_index(k) == c1)
-                    .count();
+                let vowel_count = keys.iter().filter(|&&k| key_to_index(k) == c1).count();
                 if vowel_count >= 3 {
                     continue; // Skip - revert happened, not English pattern
                 }
@@ -950,7 +943,7 @@ fn is_w_word_english(keys: &[u16]) -> bool {
             let f1 = key_to_index(rest[0]);
             let f2 = key_to_index(rest[1]);
             // Valid final clusters: ng, nh, ch
-            if (f1 == 13 && f2 == 6) || (f1 == 13 && f2 == 7) || (f1 == 2 && f2 == 7) {
+            if (f1 == 13 && matches!(f2, 6 | 7)) || (f1 == 2 && f2 == 7) {
                 return false; // Valid Vietnamese (wng → ưng, wnh → ưnh, wch → ưch)
             }
         } else if rest.len() == 1 {
@@ -1043,7 +1036,7 @@ fn is_w_word_english(keys: &[u16]) -> bool {
                 let f1 = key_to_index(finals[0]);
                 let f2 = key_to_index(finals[1]);
                 // Valid final clusters: ng, nh, ch
-                if (f1 == 13 && f2 == 6) || (f1 == 13 && f2 == 7) || (f1 == 2 && f2 == 7) {
+                if (f1 == 13 && matches!(f2, 6 | 7)) || (f1 == 2 && f2 == 7) {
                     return false; // Valid Vietnamese
                 }
             }
@@ -1143,7 +1136,7 @@ pub struct BloomFilter {
 impl BloomFilter {
     /// Create new Bloom filter with given size in bits and number of hash functions
     pub fn new(size_bits: usize, num_hashes: u8) -> Self {
-        let num_words = (size_bits + 63) / 64;
+        let num_words = size_bits.div_ceil(64);
         Self {
             bits: vec![0u64; num_words],
             num_hashes,

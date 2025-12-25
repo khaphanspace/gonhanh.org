@@ -405,7 +405,10 @@ impl Engine {
         // Need at least 2 characters for detection
         if self.processor.raw().len() < 2 {
             #[cfg(test)]
-            eprintln!("[try_english_restore] raw len < 2: {}", self.processor.raw().len());
+            eprintln!(
+                "[try_english_restore] raw len < 2: {}",
+                self.processor.raw().len()
+            );
             return None;
         }
 
@@ -414,9 +417,13 @@ impl Engine {
         let vn_str = self.processor.buffer().to_full_string();
 
         #[cfg(test)]
-        eprintln!("[try_english_restore] raw='{}' ({} chars), buffer='{}' ({} chars)",
-            raw_chars.iter().collect::<String>(), raw_chars.len(),
-            vn_str, vn_str.chars().count());
+        eprintln!(
+            "[try_english_restore] raw='{}' ({} chars), buffer='{}' ({} chars)",
+            raw_chars.iter().collect::<String>(),
+            raw_chars.len(),
+            vn_str,
+            vn_str.chars().count()
+        );
 
         // Quick comparison - if raw equals buffer, no transformation happened
         let raw_str: String = raw_chars.iter().collect();
@@ -789,7 +796,9 @@ impl Engine {
                 }
                 // Simple addition, no transformation - let the key pass through naturally
                 // Update prev_chars to prefix + buffer for future diff calculations
-                self.prev_chars = self.shortcut_prefix.chars()
+                self.prev_chars = self
+                    .shortcut_prefix
+                    .chars()
                     .chain(self.processor.buffer().to_full_string().chars())
                     .collect();
                 Result::none()
@@ -940,35 +949,58 @@ mod tests {
     #[test]
     fn test_shortcut_prefix_debug() {
         let mut engine = Engine::new();
-        engine.shortcuts_mut().add(
-            crate::engine::shortcut::Shortcut::new("#fne", "for next episode")
-        );
+        engine
+            .shortcuts_mut()
+            .add(crate::engine::shortcut::Shortcut::new(
+                "#fne",
+                "for next episode",
+            ));
 
         // Type '#' (Shift+3) - should be rejected but tracked as prefix
         let r1 = engine.on_key_ext(keys::N3, false, false, true);
-        eprintln!("[#] action={}, prefix='{}', buffer='{}'",
-            r1.action, engine.shortcut_prefix, engine.get_buffer_string());
+        eprintln!(
+            "[#] action={}, prefix='{}', buffer='{}'",
+            r1.action,
+            engine.shortcut_prefix,
+            engine.get_buffer_string()
+        );
 
         // Type 'f'
         let r2 = engine.on_key_ext(keys::F, false, false, false);
-        eprintln!("[f] action={}, prefix='{}', buffer='{}'",
-            r2.action, engine.shortcut_prefix, engine.get_buffer_string());
+        eprintln!(
+            "[f] action={}, prefix='{}', buffer='{}'",
+            r2.action,
+            engine.shortcut_prefix,
+            engine.get_buffer_string()
+        );
 
         // Type 'n'
         let r3 = engine.on_key_ext(keys::N, false, false, false);
-        eprintln!("[n] action={}, prefix='{}', buffer='{}'",
-            r3.action, engine.shortcut_prefix, engine.get_buffer_string());
+        eprintln!(
+            "[n] action={}, prefix='{}', buffer='{}'",
+            r3.action,
+            engine.shortcut_prefix,
+            engine.get_buffer_string()
+        );
 
         // Type 'e'
         let r4 = engine.on_key_ext(keys::E, false, false, false);
-        eprintln!("[e] action={}, prefix='{}', buffer='{}'",
-            r4.action, engine.shortcut_prefix, engine.get_buffer_string());
+        eprintln!(
+            "[e] action={}, prefix='{}', buffer='{}'",
+            r4.action,
+            engine.shortcut_prefix,
+            engine.get_buffer_string()
+        );
 
         // Type SPACE - should trigger shortcut
         let r5 = engine.on_key_ext(keys::SPACE, false, false, false);
         eprintln!("[SPACE] action={}", r5.action);
 
-        assert_eq!(r5.action, Action::Send as u8, "shortcut '#fne' should trigger");
+        assert_eq!(
+            r5.action,
+            Action::Send as u8,
+            "shortcut '#fne' should trigger"
+        );
     }
 
     #[test]
@@ -979,7 +1011,12 @@ mod tests {
         // Type "water"
         for &key in &[keys::W, keys::A, keys::T, keys::E, keys::R] {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}'", key, r.action, engine.get_buffer_string());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}'",
+                key,
+                r.action,
+                engine.get_buffer_string()
+            );
         }
 
         // Check raw buffer contents
@@ -989,13 +1026,20 @@ mod tests {
 
         // Type SPACE - should trigger auto-restore
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
-        eprintln!("[SPACE] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
         for i in 0..r.count as usize {
             eprintln!("  char[{}] = {:?}", i, char::from_u32(r.chars[i]));
         }
 
         // Should restore to "water" not "ưater"
-        assert_eq!(r.action, Action::Restore as u8, "should trigger auto-restore");
+        assert_eq!(
+            r.action,
+            Action::Restore as u8,
+            "should trigger auto-restore"
+        );
     }
 
     #[test]
@@ -1007,8 +1051,13 @@ mod tests {
         let word_keys = [keys::I, keys::S, keys::S, keys::U, keys::E];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1021,7 +1070,10 @@ mod tests {
 
         // Type SPACE - should trigger auto-restore
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
-        eprintln!("[SPACE] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))
@@ -1042,8 +1094,13 @@ mod tests {
         let word_keys = [keys::A, keys::R, keys::O, keys::U, keys::N, keys::D];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1056,7 +1113,10 @@ mod tests {
 
         // Type SPACE - should trigger auto-restore
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
-        eprintln!("[SPACE] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))
@@ -1076,8 +1136,14 @@ mod tests {
         let word_keys = [keys::D, keys::A, keys::T, keys::A, keys::A];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.buffer().len(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.buffer().len(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1090,7 +1156,10 @@ mod tests {
 
         // Type SPACE - should trigger auto-restore
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
-        eprintln!("[SPACE] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))
@@ -1101,7 +1170,10 @@ mod tests {
         // action=0 means no restore, just add space normally
         // Buffer is already "data", so the visible output should be "data " after space
         // Note: buffer is cleared after SPACE, so we check before space was typed
-        assert!(result.is_empty() || result == "data", "buffer should be 'data' or empty after commit");
+        assert!(
+            result.is_empty() || result == "data",
+            "buffer should be 'data' or empty after commit"
+        );
     }
 
     #[test]
@@ -1113,8 +1185,14 @@ mod tests {
         let word_keys = [keys::T, keys::O, keys::T, keys::O];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.buffer().len(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.buffer().len(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1128,7 +1206,10 @@ mod tests {
 
         // Type SPACE
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
-        eprintln!("[SPACE] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))
@@ -1149,8 +1230,14 @@ mod tests {
         let word_keys = [keys::U, keys::S, keys::E, keys::R];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.buffer().len(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.buffer().len(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1164,7 +1251,10 @@ mod tests {
 
         // Type @ (Shift+2)
         let r = engine.on_key_ext(keys::N2, false, false, true);
-        eprintln!("[@] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[@] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))
@@ -1181,8 +1271,14 @@ mod tests {
         let word_keys = [keys::T, keys::O, keys::T, keys::O];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
-            eprintln!("[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
-                key, r.action, engine.get_buffer_string(), engine.processor.buffer().len(), engine.processor.raw().len());
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', buf_len={}, raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.buffer().len(),
+                engine.processor.raw().len()
+            );
         }
 
         // Check raw buffer contents
@@ -1192,7 +1288,10 @@ mod tests {
 
         // Type comma
         let r = engine.on_key_ext(keys::COMMA, false, false, false);
-        eprintln!("[COMMA] action={}, backspace={}, count={}", r.action, r.backspace, r.count);
+        eprintln!(
+            "[COMMA] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
 
         let result: String = (0..r.count as usize)
             .filter_map(|i| char::from_u32(r.chars[i]))

@@ -207,6 +207,7 @@ pub enum ProcessResult {
 /// - revert_state: 5 bytes
 /// - buffer: ~520 bytes (inherited)
 /// - raw: ~290 bytes
+///
 /// Total: ~820 bytes stack
 pub struct Processor {
     /// Current state in state machine
@@ -363,8 +364,12 @@ impl Processor {
                 });
                 // Check for final consonant after last vowel
                 let last_vowel_pos = vowels.last().copied().unwrap_or(0);
-                let has_final = (last_vowel_pos + 1..self.buffer.len())
-                    .any(|i| self.buffer.get(i).map(|c| keys::is_consonant(c.key)).unwrap_or(false));
+                let has_final = (last_vowel_pos + 1..self.buffer.len()).any(|i| {
+                    self.buffer
+                        .get(i)
+                        .map(|c| keys::is_consonant(c.key))
+                        .unwrap_or(false)
+                });
 
                 if has_final {
                     st::FIN
@@ -504,7 +509,7 @@ impl Processor {
                     // Only check for W_VOWEL transform (ư from 'w' at position 0)
                     // Do NOT check general vowel transforms - those are valid Vietnamese
                     if self.has_foreign_consonant_cluster() {
-                        let has_w_vowel_transform = self.buffer.get(0).map_or(false, |c| {
+                        let has_w_vowel_transform = self.buffer.get(0).is_some_and(|c| {
                             c.key == keys::U && c.tone == 2 // ư (from 'w')
                         });
                         if has_w_vowel_transform {
@@ -554,9 +559,11 @@ impl Processor {
         // IMPORTANT: Skip this check if raw buffer is shorter than composed buffer.
         // This happens when the buffer was restored via restore_word() and the raw
         // keystrokes weren't preserved. In that case, we trust the restored word is valid.
-        let has_vowel_with_mark = self.buffer.find_vowels().iter().any(|&pos| {
-            self.buffer.get(pos).map(|c| c.mark > 0).unwrap_or(false)
-        });
+        let has_vowel_with_mark = self
+            .buffer
+            .find_vowels()
+            .iter()
+            .any(|&pos| self.buffer.get(pos).map(|c| c.mark > 0).unwrap_or(false));
         let raw_has_enough_history = self.raw.len() >= self.buffer.len();
         if self.state == st::FIN
             && keys::is_vowel(key)
@@ -683,7 +690,7 @@ impl Processor {
         // Only rebuild if there's a W_VOWEL transform at position 0 (ư from 'w')
         if keys::is_consonant(key) && self.has_foreign_consonant_cluster() {
             // Check if first char is a W-derived vowel (U with horn = ư from 'w')
-            let has_w_vowel_transform = self.buffer.get(0).map_or(false, |c| {
+            let has_w_vowel_transform = self.buffer.get(0).is_some_and(|c| {
                 c.key == keys::U && c.tone == 2 // ư (from 'w')
             });
             if has_w_vowel_transform {
@@ -694,11 +701,12 @@ impl Processor {
 
         // When adding final consonant, relocate tone if needed
         // Example: "muas" → "múa", then "n" → tone should move to "a" (muán)
-        if next_state == st::FIN && (self.state == st::DIA || self.state == st::VOW) {
-            if self.relocate_tone_for_closed_syllable() {
-                // Tone was relocated, need to send transform to update screen
-                return ProcessResult::Transform;
-            }
+        if next_state == st::FIN
+            && (self.state == st::DIA || self.state == st::VOW)
+            && self.relocate_tone_for_closed_syllable()
+        {
+            // Tone was relocated, need to send transform to update screen
+            return ProcessResult::Transform;
         }
 
         ProcessResult::Update
@@ -725,8 +733,12 @@ impl Processor {
             } else {
                 // Check if there's a consonant between this vowel and the previous one
                 let prev_pos = *current_syllable_vowels.last().unwrap();
-                let has_consonant_between = (pos + 1..prev_pos)
-                    .any(|i| self.buffer.get(i).map(|c| keys::is_consonant(c.key)).unwrap_or(false));
+                let has_consonant_between = (pos + 1..prev_pos).any(|i| {
+                    self.buffer
+                        .get(i)
+                        .map(|c| keys::is_consonant(c.key))
+                        .unwrap_or(false)
+                });
 
                 if has_consonant_between {
                     // Syllable boundary - stop here
@@ -1211,16 +1223,16 @@ impl Processor {
         // Two consonants at start - check if valid Vietnamese cluster
         // Valid clusters: ch, gh, gi, kh, ng, nh, ph, qu, th, tr
         match (first, second) {
-            (keys::C, keys::H) => true,  // ch
-            (keys::G, keys::H) => true,  // gh
-            (keys::G, keys::I) => true,  // gi
-            (keys::K, keys::H) => true,  // kh
-            (keys::N, keys::G) => true,  // ng (also ngh with third char)
-            (keys::N, keys::H) => true,  // nh
-            (keys::P, keys::H) => true,  // ph
-            (keys::Q, keys::U) => true,  // qu
-            (keys::T, keys::H) => true,  // th
-            (keys::T, keys::R) => true,  // tr
+            (keys::C, keys::H) => true, // ch
+            (keys::G, keys::H) => true, // gh
+            (keys::G, keys::I) => true, // gi
+            (keys::K, keys::H) => true, // kh
+            (keys::N, keys::G) => true, // ng (also ngh with third char)
+            (keys::N, keys::H) => true, // nh
+            (keys::P, keys::H) => true, // ph
+            (keys::Q, keys::U) => true, // qu
+            (keys::T, keys::H) => true, // th
+            (keys::T, keys::R) => true, // tr
             // Invalid clusters: bl, br, cl, cr, dr, fl, fr, gl, gr, pl, pr, sc, sk, sl, sm, sn, sp, st, sw, tw, wr, etc.
             _ => false,
         }
@@ -1270,7 +1282,7 @@ impl Processor {
                             | (keys::P, keys::H)  // ph
                             | (keys::Q, keys::U)  // qu (u is vowel but qu is special)
                             | (keys::T, keys::H)  // th
-                            | (keys::T, keys::R)  // tr
+                            | (keys::T, keys::R) // tr
                         )
                     } else {
                         // FINAL position - only ch, ng, nh valid
@@ -1278,7 +1290,7 @@ impl Processor {
                             (prev, key),
                             (keys::C, keys::H)  // ch (final)
                             | (keys::N, keys::G)  // ng (final)
-                            | (keys::N, keys::H)  // nh (final)
+                            | (keys::N, keys::H) // nh (final)
                         )
                     };
 
@@ -1673,7 +1685,7 @@ impl Processor {
                 self.raw.pop();
             }
 
-            let caps = self.raw.last().map_or(false, |k| k.caps());
+            let caps = self.raw.last().is_some_and(|k| k.caps());
             self.buffer.push(Char::new(key, caps));
 
             // Update state based on what we're adding
@@ -1880,7 +1892,7 @@ impl Processor {
         }
 
         let next = self.buffer.get(defer_pos + 1);
-        let has_horn_o = next.map_or(false, |c| c.key == keys::O && c.tone == 2);
+        let has_horn_o = next.is_some_and(|c| c.key == keys::O && c.tone == 2);
 
         if !has_horn_o {
             return false;
@@ -1892,7 +1904,7 @@ impl Processor {
         }
 
         let glide = self.buffer.get(defer_pos + 2);
-        glide.map_or(false, |c| c.key == keys::I || c.key == keys::Y)
+        glide.is_some_and(|c| c.key == keys::I || c.key == keys::Y)
     }
 }
 
@@ -2383,5 +2395,4 @@ mod tests {
             "a should have tone in closed syllable"
         );
     }
-
 }

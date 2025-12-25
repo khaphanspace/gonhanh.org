@@ -341,10 +341,8 @@ pub fn validate(
     }
 
     // M5: Check spelling rules
-    if !initial.is_empty() && !vowels.is_empty() {
-        if is_spelling_invalid(initial, vowels[0]) {
-            return MatrixValidation::InvalidSpelling;
-        }
+    if !initial.is_empty() && !vowels.is_empty() && is_spelling_invalid(initial, vowels[0]) {
+        return MatrixValidation::InvalidSpelling;
     }
 
     // M6: Check vowel pattern
