@@ -279,11 +279,11 @@
 ### Validation Flow
 
 ```
-VN(R) → if ✗ → VN(B) → if ✗ → RESTORE/FOREIGN → EN mode
-  ↓                        ↓
-  ✓                        ✓
-  ↓                        ↓
-  continue VN              continue VN
+VN(R) → if ✗ → VN(B) → if ✗ → EN(R) → if ✓ → RESTORE/FOREIGN → EN mode
+  ↓                        ↓            ↓
+  ✓                        ✓            ✗
+  ↓                        ↓            ↓
+  continue VN              continue VN  continue VN (keep buffer)
 ```
 
 ### Validation Checks

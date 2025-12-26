@@ -10,7 +10,7 @@
 
 use crate::data::keys;
 use crate::engine::buffer::{Buffer, MAX};
-use crate::engine::matrix::english::has_invalid_vietnamese_pattern;
+use crate::engine::matrix::{is_buffer_invalid_vietnamese, is_foreign_pattern_keys};
 use crate::engine::matrix::{ProcessResult, Processor};
 use crate::engine::shortcut::{InputMethod, ShortcutTable};
 
@@ -230,8 +230,10 @@ impl Engine {
     }
 
     /// Set whether to enable English auto-restore (experimental)
+    /// Also enables typo correction for invalid strokes like "didd" → "did"
     pub fn set_english_auto_restore(&mut self, enabled: bool) {
         self.english_auto_restore = enabled;
+        self.processor.set_typo_correction(enabled);
     }
 
     pub fn shortcuts(&self) -> &ShortcutTable {
@@ -268,6 +270,26 @@ impl Engine {
     /// Get the full composed buffer as a string
     pub fn get_buffer_string(&self) -> String {
         self.processor.buffer().to_full_string()
+    }
+
+    /// Get the raw buffer as string (unmodified keystrokes)
+    pub fn get_raw_string(&self) -> String {
+        self.processor.raw().restore_all().iter().collect()
+    }
+
+    /// Check if engine is in English/foreign mode
+    pub fn is_english_mode(&self) -> bool {
+        self.processor.is_foreign_mode()
+    }
+
+    /// Check if buffer is empty
+    pub fn is_empty(&self) -> bool {
+        self.processor.buffer().is_empty()
+    }
+
+    /// Check if current buffer forms valid Vietnamese syllable
+    pub fn is_valid_vietnamese(&self) -> bool {
+        self.processor.is_valid_vietnamese()
     }
 
     /// Restore buffer from a Vietnamese word string
@@ -350,6 +372,33 @@ impl Engine {
         Result::send(backspace, &new_chars)
     }
 
+    /// Create result for foreign word restore (mid-word foreign detection)
+    /// Similar to create_result but returns Restore action instead of Send
+    fn create_restore_result(&mut self) -> Result {
+        self.curr_chars = self.render_buffer();
+
+        if self.curr_chars == self.prev_chars {
+            // No change - this shouldn't happen but handle gracefully
+            return Result::none();
+        }
+
+        // Calculate common prefix length
+        let common = self
+            .prev_chars
+            .iter()
+            .zip(self.curr_chars.iter())
+            .take_while(|(a, b)| a == b)
+            .count();
+
+        let backspace = (self.prev_chars.len() - common) as u8;
+        let new_chars: Vec<char> = self.curr_chars[common..].to_vec();
+
+        // Update prev for next call
+        self.prev_chars = self.curr_chars.clone();
+
+        Result::restore(backspace, &new_chars)
+    }
+
     /// Restore to raw ASCII
     fn restore_to_raw(&mut self) -> Result {
         let raw_chars = self.processor.raw().restore();
@@ -406,71 +455,50 @@ impl Engine {
             return None;
         }
 
-        // Collect raw keys for pattern detection
-        let keys: Vec<u16> = self.processor.raw().iter().map(|(k, _)| k).collect();
+        // =====================================================================
+        // VALIDATION FLOW per docs/typing-behavior-flow.md:
+        // VN(R) → if ✗ → VN(B) → if ✗ → RESTORE/FOREIGN → EN mode
+        // =====================================================================
 
-        // Check 1: Pattern is DEFINITELY invalid Vietnamese
-        let is_invalid_vn = has_invalid_vietnamese_pattern(&keys);
+        // Collect ALL raw keys for pattern detection
+        let all_keys: Vec<u16> = self.processor.raw().iter().map(|(k, _)| k).collect();
 
-        // Check 2: Multiple DIFFERENT tone modifiers present
-        // Vietnamese words can only have ONE tone mark, so if we see 2+ different tone
-        // modifier keys (s, f, r, x, j), it's definitely English
-        // "user" has 's' and 'r' → 2 tone modifiers → English
-        // "ddepj" has only 'j' → 1 tone modifier → could be Vietnamese
-        //
-        // IMPORTANT: Only count tone modifiers that come AFTER a vowel!
-        // 'r' in "raast" is an initial consonant, not a tone modifier
-        // 's' and 'r' in "user" are both after vowels, so they count
-        let is_tone_key = |k: u16| {
-            matches!(
-                k,
-                crate::data::keys::S
-                    | crate::data::keys::F
-                    | crate::data::keys::R
-                    | crate::data::keys::X
-                    | crate::data::keys::J
-            )
-        };
-        let is_vowel_key = |k: u16| {
-            matches!(
-                k,
-                crate::data::keys::A
-                    | crate::data::keys::E
-                    | crate::data::keys::I
-                    | crate::data::keys::O
-                    | crate::data::keys::U
-                    | crate::data::keys::Y
-            )
-        };
+        // VN(R): Raw validation - foreign patterns (impossible clusters, invalid finals)
+        let vn_r_invalid = is_foreign_pattern_keys(&all_keys);
 
-        // Find tone modifiers that come AFTER a vowel
+        // VN(B): Buffer validation - check transformed result is valid Vietnamese
+        let vn_b_invalid = is_buffer_invalid_vietnamese(&vn_str);
+
+        // Multiple tone modifiers check (Vietnamese can only have ONE tone)
+        let is_tone_key = |k: u16| matches!(k, keys::S | keys::F | keys::R | keys::X | keys::J);
+        let is_vowel_key =
+            |k: u16| matches!(k, keys::A | keys::E | keys::I | keys::O | keys::U | keys::Y);
         let mut tone_modifiers: Vec<u16> = Vec::new();
         let mut seen_vowel = false;
-        for &k in &keys {
+        for &k in &all_keys {
             if is_vowel_key(k) {
                 seen_vowel = true;
             } else if seen_vowel && is_tone_key(k) {
-                // This key is a tone modifier (after vowel)
                 tone_modifiers.push(k);
             }
         }
-
-        // Check if there are 2+ DIFFERENT tone modifiers (not just repeated same key)
         let unique_tone_mods: std::collections::HashSet<u16> =
             tone_modifiers.iter().copied().collect();
         let multiple_tone_modifiers = unique_tone_mods.len() >= 2;
 
         #[cfg(test)]
         eprintln!(
-            "[try_english_restore] is_invalid_vn={}, tone_mods={:?}, multiple_tone_modifiers={}",
-            is_invalid_vn, unique_tone_mods, multiple_tone_modifiers
+            "[try_english_restore] VN(R)={}, VN(B)={}, multi_tone={}",
+            if vn_r_invalid { "✗" } else { "✓" },
+            if vn_b_invalid { "✗" } else { "✓" },
+            multiple_tone_modifiers
         );
 
-        // Only restore if either check passes
-        if !is_invalid_vn && !multiple_tone_modifiers {
-            // Pattern could be valid Vietnamese - don't restore
+        // Restore if any validation fails
+        let should_restore = vn_r_invalid || vn_b_invalid || multiple_tone_modifiers;
+        if !should_restore {
             #[cfg(test)]
-            eprintln!("[try_english_restore] not restoring - could be valid VN");
+            eprintln!("[try_english_restore] VN valid - no restore");
             return None;
         }
 
@@ -520,6 +548,108 @@ impl Engine {
         }
 
         false
+    }
+
+    /// Validate buffer at commit time for circumflex closed syllable rule
+    ///
+    /// Rule: Circumflex vowel (â, ê, ô) + closed syllable (p/t/m) + NO tone = INVALID
+    /// ONLY for finals p, t, m. Finals n, ng, nh, ch, c are valid.
+    ///
+    /// Examples:
+    /// - "kêp" → INVALID (circumflex + p + no tone) → restore to "keep"
+    /// - "cân" → VALID (circumflex + n + no tone) - real Vietnamese word
+    /// - "kếp" → VALID (circumflex + p + sắc tone)
+    /// - "bếp" → VALID (circumflex + p + sắc tone)
+    ///
+    /// Returns Some(Result) if restore needed, None if valid.
+    fn try_circumflex_validation_restore(&mut self) -> Option<Result> {
+        // Skip if buffer is empty or in foreign mode
+        if self.processor.buffer().is_empty() || self.processor.is_foreign_mode() {
+            return None;
+        }
+
+        // Find vowels with circumflex mark
+        let vowel_positions = self.processor.buffer().find_vowels();
+        if vowel_positions.is_empty() {
+            return None;
+        }
+
+        // Check if any vowel has circumflex
+        // In Char struct: tone=1 means circumflex (^), tone=2 means horn/breve
+        // Note: "tone" field is for vowel modifiers (circumflex, horn, breve)
+        //       "mark" field is for tone marks (sắc, huyền, etc.)
+        let has_circumflex = vowel_positions.iter().any(|&pos| {
+            self.processor
+                .buffer()
+                .get(pos)
+                .map(|c| c.tone == 1) // tone=1 is circumflex
+                .unwrap_or(false)
+        });
+
+        if !has_circumflex {
+            return None;
+        }
+
+        // Get final consonant(s) after vowel
+        let last_vowel_pos = vowel_positions.last().copied().unwrap_or(0);
+        let final_consonants: Vec<u16> = (last_vowel_pos + 1..self.processor.buffer().len())
+            .filter_map(|i| {
+                self.processor.buffer().get(i).and_then(|c| {
+                    if keys::is_consonant(c.key) {
+                        Some(c.key)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        if final_consonants.is_empty() {
+            return None; // Open syllable - circumflex is valid
+        }
+
+        // Only invalid for specific finals: p, t
+        // Finals m, n, ng, nh, ch, c are valid:
+        // - m: hôm, tôm, nhôm, côm (common Vietnamese words with circumflex + m)
+        // - n: cân, sân, tên, bên, etc.
+        let is_problematic_final = match final_consonants.as_slice() {
+            [k] if *k == keys::P || *k == keys::T => true,
+            _ => false,
+        };
+
+        if !is_problematic_final {
+            return None; // Final is n, ng, nh, ch, c - valid
+        }
+
+        // Check if any vowel has tone mark (sắc, huyền, hỏi, ngã, nặng)
+        // In Char struct: mark > 0 means has tone mark
+        let has_tone_mark = vowel_positions.iter().any(|&pos| {
+            self.processor
+                .buffer()
+                .get(pos)
+                .map(|c| c.mark > 0)
+                .unwrap_or(false)
+        });
+
+        if has_tone_mark {
+            return None; // Has tone mark - valid (e.g., kếp, bếp)
+        }
+
+        // Circumflex + (p/t/m) + no tone = INVALID
+        // Restore to raw input
+        #[cfg(test)]
+        eprintln!(
+            "[try_circumflex_validation_restore] Invalid: circumflex + p/t/m + no tone, restoring to raw"
+        );
+
+        let raw_chars = self.processor.raw().restore_all();
+        let backspace = self.prev_chars.len() as u8;
+
+        self.processor.clear();
+        self.prev_chars.clear();
+        self.curr_chars.clear();
+
+        Some(Result::restore(backspace, &raw_chars))
     }
 
     /// Try word boundary shortcut
@@ -592,6 +722,15 @@ impl Engine {
 
             // Try English auto-restore
             if let Some(restore_result) = self.try_english_restore() {
+                self.prev_was_number = false;
+                self.word_history.clear();
+                self.spaces_after_commit = 0;
+                return restore_result;
+            }
+
+            // Try circumflex closed syllable validation
+            // Rule: circumflex + closed syllable + no tone = invalid (e.g., "kêp" → "keep")
+            if let Some(restore_result) = self.try_circumflex_validation_restore() {
                 self.prev_was_number = false;
                 self.word_history.clear();
                 self.spaces_after_commit = 0;
@@ -776,6 +915,7 @@ impl Engine {
                 Result::none()
             }
             ProcessResult::Transform | ProcessResult::Revert => self.create_result(),
+            ProcessResult::Restore => self.create_restore_result(),
             ProcessResult::Reject => {
                 // Check if this is a shortcut prefix character (e.g., # from Shift+3)
                 let prefix_char = if shift {
@@ -1020,6 +1160,9 @@ mod tests {
         engine.set_english_auto_restore(true);
 
         // Type "issue" - note: two 's' characters
+        // Behavior: first 's' applies sắc to 'i', second 's' triggers REVERT
+        // After REVERT, Raw syncs with Buffer (one 's' consumed by revert)
+        // So "issue" becomes "isue" (4 chars)
         let word_keys = [keys::I, keys::S, keys::S, keys::U, keys::E];
         for &key in &word_keys {
             let r = engine.on_key_ext(key, false, false, false);
@@ -1037,24 +1180,28 @@ mod tests {
         eprintln!("Raw chars (restore_all): {:?}", raw_chars);
         eprintln!("Raw len: {}", engine.processor.raw().len());
 
-        // Check buffer
-        eprintln!("Buffer: '{}'", engine.get_buffer_string());
+        // Check buffer - should be "isue" not "issue" after Raw sync
+        let buffer_str = engine.get_buffer_string();
+        eprintln!("Buffer: '{}'", buffer_str);
 
-        // Type SPACE - should trigger auto-restore
+        // After REVERT with Raw sync, Buffer == Raw == "isue"
+        // No transformation occurred (raw == buffer), so no restore happens
+        assert_eq!(buffer_str, "isue", "buffer should be 'isue' after revert");
+        assert_eq!(
+            raw_chars.iter().collect::<String>(),
+            "isue",
+            "raw should be 'isue' after sync"
+        );
+
+        // Type SPACE - since raw == buffer, no auto-restore triggers
         let r = engine.on_key_ext(keys::SPACE, false, false, false);
         eprintln!(
             "[SPACE] action={}, backspace={}, count={}",
             r.action, r.backspace, r.count
         );
 
-        let result: String = (0..r.count as usize)
-            .filter_map(|i| char::from_u32(r.chars[i]))
-            .collect();
-        eprintln!("Result: '{}'", result);
-
-        // Should restore to "issue" with both 's' characters
-        // Note: restore doesn't include the trailing space
-        assert_eq!(result, "issue", "should restore to 'issue'");
+        // No restore action since raw == buffer
+        assert_eq!(r.action, 0, "no restore needed when raw == buffer");
     }
 
     #[test]
@@ -1269,5 +1416,279 @@ mod tests {
             .filter_map(|i| char::from_u32(r.chars[i]))
             .collect();
         eprintln!("Result: '{}'", result);
+    }
+
+    #[test]
+    fn test_keep_circumflex_validation() {
+        let mut engine = Engine::new();
+
+        // Type "keep" - ee triggers circumflex, then reverts
+        // k-e-e-p → kêp (circumflex) → then validate at commit
+        // "kêp" is invalid (circumflex + closed + no tone), should restore to "keep"
+        let word_keys = [keys::K, keys::E, keys::E, keys::P];
+        for &key in &word_keys {
+            let r = engine.on_key_ext(key, false, false, false);
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}'",
+                key,
+                r.action,
+                engine.get_buffer_string()
+            );
+        }
+
+        let buffer_before = engine.get_buffer_string();
+        eprintln!("Buffer before SPACE: '{}'", buffer_before);
+
+        // Buffer should show "kêp" before validation
+        // (second 'e' triggers circumflex on first 'e')
+
+        // Type SPACE - should trigger circumflex validation restore
+        let r = engine.on_key_ext(keys::SPACE, false, false, false);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
+
+        let result: String = (0..r.count as usize)
+            .filter_map(|i| char::from_u32(r.chars[i]))
+            .collect();
+        eprintln!("Result: '{}'", result);
+
+        // Should restore to "keep" since "kêp" is invalid
+        assert_eq!(
+            r.action,
+            Action::Restore as u8,
+            "should trigger restore for invalid circumflex"
+        );
+        assert_eq!(result, "keep", "should restore to 'keep'");
+    }
+
+    #[test]
+    fn test_beep_circumflex_validation() {
+        let mut engine = Engine::new();
+
+        // Type "beep" - similar to "keep"
+        // b-e-e-p → bêp (circumflex) → then validate at commit
+        // "bêp" is invalid (circumflex + closed + no tone), should restore to "beep"
+        let word_keys = [keys::B, keys::E, keys::E, keys::P];
+        for &key in &word_keys {
+            engine.on_key_ext(key, false, false, false);
+        }
+
+        let buffer_before = engine.get_buffer_string();
+        eprintln!("Buffer before SPACE: '{}'", buffer_before);
+
+        // Type SPACE - should trigger circumflex validation restore
+        let r = engine.on_key_ext(keys::SPACE, false, false, false);
+
+        let result: String = (0..r.count as usize)
+            .filter_map(|i| char::from_u32(r.chars[i]))
+            .collect();
+        eprintln!("Result: '{}'", result);
+
+        // Should restore to "beep" since "bêp" is invalid
+        assert_eq!(
+            r.action,
+            Action::Restore as u8,
+            "should trigger restore for invalid circumflex"
+        );
+        assert_eq!(result, "beep", "should restore to 'beep'");
+    }
+
+    #[test]
+    fn test_bep_valid_vietnamese() {
+        let mut engine = Engine::new();
+
+        // Type "beps" - bếp with sắc tone
+        // b-e-p-s → bếp (valid Vietnamese for kitchen)
+        // This should NOT trigger restore since it has a tone
+        let word_keys = [keys::B, keys::E, keys::P, keys::S];
+        for &key in &word_keys {
+            engine.on_key_ext(key, false, false, false);
+        }
+
+        let buffer_before = engine.get_buffer_string();
+        eprintln!("Buffer before SPACE: '{}'", buffer_before);
+
+        // Buffer should show "bếp" (e with sắc tone)
+        // Note: This depends on how tone placement works
+
+        // Type SPACE - should NOT trigger restore
+        let r = engine.on_key_ext(keys::SPACE, false, false, false);
+
+        // Should NOT restore - valid Vietnamese word
+        assert_eq!(
+            r.action,
+            Action::None as u8,
+            "should NOT restore valid Vietnamese 'bếp'"
+        );
+    }
+
+    #[test]
+    fn test_miss_triple_key() {
+        let mut engine = Engine::new();
+
+        // Type "misss" to get "miss"
+        // m-i-s-s-s → mis (first s applies sắc) → miss (second s reverts) → miss (third s stays)
+        // After Raw sync: both raw and buffer should be "miss"
+        let word_keys = [keys::M, keys::I, keys::S, keys::S, keys::S];
+        for &key in &word_keys {
+            let r = engine.on_key_ext(key, false, false, false);
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}', raw_len={}",
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                engine.processor.raw().len()
+            );
+        }
+
+        let buffer_str = engine.get_buffer_string();
+        let raw_chars: Vec<char> = engine.processor.raw().restore_all();
+        let raw_str: String = raw_chars.iter().collect();
+
+        eprintln!("Buffer: '{}', Raw: '{}'", buffer_str, raw_str);
+
+        // After Raw sync, both should be "miss"
+        assert_eq!(buffer_str, "miss", "buffer should be 'miss'");
+        assert_eq!(raw_str, "miss", "raw should be 'miss' after sync");
+    }
+
+    #[test]
+    fn test_console_double_key_revert() {
+        let mut engine = Engine::new();
+
+        // Type "conssole" to get "console"
+        // c-o-n-s-s-o-l-e
+        // First 's' applies sắc to 'o', second 's' reverts
+        // After Raw sync, continue typing gives "console"
+        let word_keys = [
+            keys::C,
+            keys::O,
+            keys::N,
+            keys::S,
+            keys::S,
+            keys::O,
+            keys::L,
+            keys::E,
+        ];
+        for &key in &word_keys {
+            let r = engine.on_key_ext(key, false, false, false);
+            eprintln!(
+                "[key {:?}] action={}, buffer='{}'",
+                key,
+                r.action,
+                engine.get_buffer_string()
+            );
+        }
+
+        let buffer_str = engine.get_buffer_string();
+        let raw_chars: Vec<char> = engine.processor.raw().restore_all();
+        let raw_str: String = raw_chars.iter().collect();
+
+        eprintln!("Buffer: '{}', Raw: '{}'", buffer_str, raw_str);
+
+        // Both should be "console" (7 chars, not 8)
+        assert_eq!(buffer_str, "console", "buffer should be 'console'");
+        assert_eq!(raw_str, "console", "raw should be 'console' after sync");
+    }
+
+    #[test]
+    fn test_debug_class() {
+        // Test words with double modifiers to see which ones trigger revert
+        let test_words: &[(&[u16], &str)] = &[
+            (&[keys::C, keys::L, keys::A, keys::S, keys::S], "class"),
+            (&[keys::I, keys::S, keys::S, keys::U, keys::E], "issue"),
+            (&[keys::E, keys::R, keys::R, keys::O, keys::R], "error"),
+            (&[keys::S, keys::T, keys::A, keys::F, keys::F], "staff"),
+        ];
+
+        for (word_keys, name) in test_words {
+            let mut engine = Engine::new();
+            eprintln!("\n=== {} ===", name);
+            for &key in *word_keys {
+                let r = engine.on_key_ext(key, false, false, false);
+                eprintln!(
+                    "[{:?}] action={}, buffer='{}', raw_len={}",
+                    key,
+                    r.action,
+                    engine.get_buffer_string(),
+                    engine.processor.raw().len()
+                );
+            }
+            let raw_chars: Vec<char> = engine.processor.raw().restore_all();
+            let raw_str: String = raw_chars.iter().collect();
+            eprintln!(
+                "Final: buffer='{}', raw='{}'",
+                engine.get_buffer_string(),
+                raw_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_debug_dduowngf() {
+        let mut engine = Engine::new();
+        engine.set_english_auto_restore(true);
+
+        // Type "dduowngf " - should produce "đường " (Vietnamese)
+        let word_keys = [
+            keys::D,
+            keys::D,
+            keys::U,
+            keys::O,
+            keys::W,
+            keys::N,
+            keys::G,
+            keys::F,
+        ];
+        for (i, &key) in word_keys.iter().enumerate() {
+            let r = engine.on_key_ext(key, false, false, false);
+            let raw_chars: Vec<char> = engine.processor.raw().restore_all();
+            let raw_str: String = raw_chars.iter().collect();
+            eprintln!(
+                "[{}] key={:?}, action={}, buffer='{}', raw='{}'",
+                i,
+                key,
+                r.action,
+                engine.get_buffer_string(),
+                raw_str
+            );
+            if r.action == Action::Restore as u8 {
+                eprintln!("  >>> RESTORE triggered at step {}!", i);
+            }
+        }
+
+        // Check buffer before space
+        let buffer_before = engine.get_buffer_string();
+        eprintln!("Buffer before SPACE: '{}'", buffer_before);
+
+        // Type space
+        let r = engine.on_key_ext(keys::SPACE, false, false, false);
+        eprintln!(
+            "[SPACE] action={}, backspace={}, count={}",
+            r.action, r.backspace, r.count
+        );
+
+        let result: String = (0..r.count as usize)
+            .filter_map(|i| char::from_u32(r.chars[i]))
+            .collect();
+        eprintln!("Result: '{}'", result);
+
+        // Should NOT restore - "đường" is valid Vietnamese
+        assert_eq!(
+            buffer_before, "đường",
+            "buffer should be đường before space"
+        );
+    }
+
+    #[test]
+    fn test_engine_circumflex_debug() {
+        use crate::utils::type_word;
+
+        let mut e = Engine::new();
+        let result = type_word(&mut e, "caan ");
+        eprintln!("Result: '{}' (expected 'cân ')", result);
+        assert_eq!(result, "cân ", "caan should produce cân");
     }
 }

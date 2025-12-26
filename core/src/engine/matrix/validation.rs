@@ -52,12 +52,13 @@ pub fn is_valid_initial_1(key: u16) -> bool {
 // =============================================================================
 
 /// Valid Vietnamese initial clusters (packed as u16: first << 8 | second)
-/// ch, gh, gi, kh, ng, nh, ph, qu, th, tr, ngh (special case)
+/// ch, gh, gi, kh, kr, ng, nh, ph, qu, th, tr, ngh (special case)
 const VALID_INITIAL_2: &[(u16, u16)] = &[
     (keys::C, keys::H), // ch
     (keys::G, keys::H), // gh
     (keys::G, keys::I), // gi
     (keys::K, keys::H), // kh
+    (keys::K, keys::R), // kr (ethnic minority: Krông)
     (keys::N, keys::G), // ng
     (keys::N, keys::H), // nh
     (keys::P, keys::H), // ph
@@ -85,8 +86,9 @@ pub fn is_valid_initial_3(first: u16, second: u16, third: u16) -> bool {
 // =============================================================================
 
 /// Vietnamese valid single final consonants
-/// Valid: c, m, n, p, t (ch, ng, nh handled in M4)
-const VALID_FINALS: &[u16] = &[keys::C, keys::M, keys::N, keys::P, keys::T];
+/// Valid: c, k, m, n, p, t (ch, ng, nh handled in M4)
+/// Note: 'k' is used in place names like Đắk Lắk, phonetically same as 'c'
+const VALID_FINALS: &[u16] = &[keys::C, keys::K, keys::M, keys::N, keys::P, keys::T];
 
 /// Check if single consonant is valid final
 #[inline]
@@ -174,13 +176,14 @@ const VALID_DIPHTHONGS: &[(u16, u16)] = &[
     (keys::U, keys::E),
     (keys::U, keys::I),
     (keys::U, keys::O),
+    (keys::U, keys::U), // ưu (as in ưu tiên = priority, cứu = rescue)
     (keys::U, keys::Y),
     (keys::Y, keys::A),
     (keys::Y, keys::E),
 ];
 
 #[inline]
-fn is_valid_diphthong(v1: u16, v2: u16) -> bool {
+pub fn is_valid_diphthong(v1: u16, v2: u16) -> bool {
     VALID_DIPHTHONGS.iter().any(|&(a, b)| a == v1 && b == v2)
 }
 
@@ -195,6 +198,7 @@ const VALID_TRIPHTHONGS: &[(u16, u16, u16)] = &[
     (keys::U, keys::A, keys::I), // uai
     (keys::U, keys::A, keys::Y), // uay
     (keys::U, keys::O, keys::I), // uôi
+    (keys::U, keys::O, keys::U), // ươu (as in rượu = wine/alcohol)
     (keys::U, keys::Y, keys::A), // uya
     (keys::U, keys::Y, keys::E), // uyê
     (keys::U, keys::Y, keys::U), // uyu
@@ -271,6 +275,579 @@ pub fn is_vowel_final_compatible(
 }
 
 // =============================================================================
+// M9: Circumflex Closed Syllable Rule
+// =============================================================================
+
+/// Check if circumflex vowel is valid in closed syllable
+///
+/// Rule: Closed syllable + circumflex (â, ê, ô) + NO tone = INVALID
+/// ONLY for specific finals (p, t, m). Other finals (n, ng, nh, ch, c) are valid.
+///
+/// This is because Vietnamese has many valid words with circumflex + n/ng/nh/ch/c + no tone:
+/// - "cân" (scale), "sân" (courtyard), "tên" (name), "bên" (side) - all VALID
+///
+/// But circumflex + p/t/m + no tone are typically English loan words:
+/// - "kêp" → likely "keep", "bêp" → likely "beep"
+///
+/// Examples:
+/// - "kêp" → INVALID (circumflex + p + no tone)
+/// - "kếp" → VALID (circumflex + p + sắc tone)
+/// - "cân" → VALID (circumflex + n + no tone) - real Vietnamese word
+/// - "bếp" → VALID (circumflex + p + sắc) - "kitchen"
+/// - "bệp" → VALID (circumflex + p + nặng)
+///
+/// Parameters:
+/// - has_circumflex: Whether vowel has circumflex mark (â, ê, ô)
+/// - final_c: Final consonant(s)
+/// - tone: Tone mark (0=none, 1-5=tones)
+///
+/// Returns true if the combination is INVALID.
+#[inline]
+pub fn is_circumflex_invalid_in_closed_syllable(
+    has_circumflex: bool,
+    final_c: &[u16],
+    tone: u8,
+) -> bool {
+    // Only applies when circumflex is present
+    if !has_circumflex {
+        return false;
+    }
+
+    // Only applies to closed syllables (has final consonant)
+    if final_c.is_empty() {
+        return false;
+    }
+
+    // Only invalid when NO tone mark
+    // If tone > 0, it's valid (e.g., kếp, bếp, bệp)
+    if tone > 0 {
+        return false;
+    }
+
+    // Circumflex + closed + no tone is ONLY invalid for specific finals (p, t, m)
+    // Finals n, ng, nh, ch, c are valid (e.g., cân, sân, tên, bên are real words)
+    match final_c {
+        [k] if *k == keys::P || *k == keys::T || *k == keys::M => true,
+        _ => false,
+    }
+}
+
+// =============================================================================
+// M10: Foreign Pattern Detection
+// =============================================================================
+
+/// Invalid Vietnamese single initials (these letters NEVER start Vietnamese words)
+/// Valid Vietnamese initials: b, c, d, đ, g, h, k, l, m, n, p, q, r, s, t, v, x
+/// NOTE: 'w' is NOT included because in Telex it's a valid shortcut for 'ư'
+const INVALID_SINGLE_INITIALS: &[u16] = &[
+    keys::F, // English: fire, fast
+    keys::J, // English: job, just
+    keys::Z, // English: zero, zone
+];
+
+/// Check if single initial is foreign (invalid in Vietnamese)
+#[inline]
+pub fn is_invalid_single_initial(key: u16) -> bool {
+    INVALID_SINGLE_INITIALS.contains(&key)
+}
+
+/// Invalid Vietnamese initial clusters (common in English/foreign words)
+/// These are patterns that cannot start Vietnamese syllables
+const FOREIGN_INITIAL_2: &[(u16, u16)] = &[
+    (keys::B, keys::L), // bl
+    (keys::B, keys::R), // br
+    (keys::C, keys::L), // cl
+    (keys::C, keys::R), // cr
+    (keys::D, keys::R), // dr
+    (keys::D, keys::W), // dw
+    (keys::F, keys::L), // fl
+    (keys::F, keys::R), // fr
+    (keys::G, keys::L), // gl
+    (keys::G, keys::R), // gr
+    (keys::P, keys::L), // pl
+    (keys::P, keys::R), // pr
+    (keys::S, keys::C), // sc
+    (keys::S, keys::H), // sh
+    (keys::S, keys::K), // sk
+    (keys::S, keys::L), // sl
+    (keys::S, keys::M), // sm
+    (keys::S, keys::N), // sn
+    (keys::S, keys::P), // sp
+    (keys::S, keys::T), // st
+    (keys::S, keys::W), // sw
+    (keys::T, keys::W), // tw
+    (keys::W, keys::H), // wh
+    (keys::W, keys::R), // wr
+];
+
+/// Invalid Vietnamese single finals (these letters NEVER end Vietnamese words)
+/// Valid Vietnamese finals are: c, k, m, n, p, t (and clusters ch, ng, nh)
+/// NOTE: 'w' is NOT included because in Telex it's a valid modifier (horn/breve)
+const INVALID_SINGLE_FINALS: &[u16] = &[
+    keys::B, // English: job, tab
+    keys::D, // English: bad, red
+    keys::F, // English: half, chef
+    keys::G, // English: dog, big (but ng is valid)
+    keys::H, // English: yeah, ah (but nh, ch are valid)
+    keys::J, // English: Raj
+    keys::L, // English: all, bell
+    keys::Q, // (none)
+    keys::R, // English: car, water
+    keys::S, // English: yes, bus
+    keys::V, // English: love, of
+    keys::X, // English: box, six
+    keys::Z, // English: jazz, quiz
+];
+
+/// Check if single final is foreign (invalid in Vietnamese)
+#[inline]
+pub fn is_invalid_single_final(key: u16) -> bool {
+    INVALID_SINGLE_FINALS.contains(&key)
+}
+
+/// Invalid Vietnamese final clusters (common in English/foreign words)
+const FOREIGN_FINAL_2: &[(u16, u16)] = &[
+    (keys::C, keys::K), // ck
+    (keys::C, keys::T), // ct
+    (keys::F, keys::T), // ft
+    (keys::G, keys::S), // gs
+    (keys::G, keys::H), // gh (final)
+    (keys::L, keys::D), // ld
+    (keys::L, keys::F), // lf
+    (keys::L, keys::K), // lk
+    (keys::L, keys::L), // ll
+    (keys::L, keys::M), // lm
+    (keys::L, keys::P), // lp
+    (keys::L, keys::S), // ls
+    (keys::L, keys::T), // lt
+    (keys::M, keys::P), // mp
+    (keys::M, keys::S), // ms
+    (keys::N, keys::D), // nd
+    (keys::N, keys::K), // nk
+    (keys::N, keys::S), // ns
+    (keys::N, keys::T), // nt
+    (keys::P, keys::S), // ps
+    (keys::P, keys::T), // pt
+    (keys::R, keys::C), // rc
+    (keys::R, keys::D), // rd
+    (keys::R, keys::F), // rf
+    (keys::R, keys::G), // rg
+    (keys::R, keys::K), // rk
+    (keys::R, keys::L), // rl
+    (keys::R, keys::M), // rm
+    (keys::R, keys::N), // rn
+    (keys::R, keys::P), // rp
+    (keys::R, keys::S), // rs
+    (keys::R, keys::T), // rt
+    (keys::S, keys::K), // sk
+    (keys::S, keys::S), // ss
+    (keys::S, keys::T), // st
+    (keys::T, keys::H), // th (final)
+    (keys::T, keys::S), // ts
+    (keys::X, keys::T), // xt
+];
+
+/// Check if initial cluster is foreign (invalid Vietnamese)
+#[inline]
+pub fn is_foreign_initial_2(first: u16, second: u16) -> bool {
+    FOREIGN_INITIAL_2
+        .iter()
+        .any(|&(a, b)| a == first && b == second)
+}
+
+/// Check if final cluster is foreign (invalid Vietnamese)
+#[inline]
+pub fn is_foreign_final_2(first: u16, second: u16) -> bool {
+    FOREIGN_FINAL_2
+        .iter()
+        .any(|&(a, b)| a == first && b == second)
+}
+
+/// Check if key sequence contains foreign patterns
+///
+/// Analyzes key sequence for patterns that cannot be Vietnamese.
+/// Uses matrix-based validation instead of case-by-case detection.
+///
+/// NOTE: This function expects pre-filtered keys where consumed modifiers
+/// (tone/mark keys) have been removed. Use processor.raw().unconsumed_keys().
+#[inline]
+pub fn is_foreign_pattern_keys(keys: &[u16]) -> bool {
+    if keys.len() < 2 {
+        return false;
+    }
+
+    // Helper: check if key is a vowel
+    let is_vowel = |k: u16| {
+        k == keys::A || k == keys::E || k == keys::I || k == keys::O || k == keys::U || k == keys::Y
+    };
+
+    // Check first consonant - invalid single initials (f, j, w, z)
+    if !is_vowel(keys[0]) && is_invalid_single_initial(keys[0]) {
+        return true;
+    }
+
+    // Check consecutive consonant pairs at start (foreign onset clusters)
+    let mut i = 0;
+    while i < keys.len() - 1 {
+        let k1 = keys[i];
+        let k2 = keys[i + 1];
+
+        if !is_vowel(k1) && !is_vowel(k2) {
+            // Consecutive consonants at word start
+            if i == 0 && is_foreign_initial_2(k1, k2) {
+                return true;
+            }
+        } else {
+            break; // Hit a vowel, stop checking onset
+        }
+        i += 1;
+    }
+
+    // Check consecutive consonants at end (foreign coda)
+    // Find first and last vowel positions
+    let mut first_vowel_pos = None;
+    let mut last_vowel_pos = None;
+    for (pos, &k) in keys.iter().enumerate() {
+        if is_vowel(k) {
+            if first_vowel_pos.is_none() {
+                first_vowel_pos = Some(pos);
+            }
+            last_vowel_pos = Some(pos);
+        }
+    }
+
+    // Vietnamese rule: 'r' can ONLY be initial consonant
+    // If 'r' appears after a vowel, it's definitely foreign (care, rare, pure, etc.)
+    if let Some(fv) = first_vowel_pos {
+        for &k in &keys[fv + 1..] {
+            if k == keys::R {
+                return true;
+            }
+        }
+    }
+
+    // Check for multiple 'w' keys (redundant modifiers)
+    // In Vietnamese Telex, 'w' can:
+    // - Transform to 'ư' at start
+    // - Apply horn to o/u
+    // - Apply breve to a
+    // Having 2+ 'w's in one word is suspicious (like "wow", "window")
+    let w_count = keys.iter().filter(|&&k| k == keys::W).count();
+    if w_count >= 2 {
+        return true;
+    }
+
+    // Helper: check if key is a Telex tone key (could be modifier)
+    let is_tone_key =
+        |k: u16| k == keys::S || k == keys::F || k == keys::R || k == keys::X || k == keys::J;
+
+    if let Some(lv) = last_vowel_pos {
+        // Check consonant pairs after last vowel
+        // Skip if first key is a tone key directly after vowel (it's likely a modifier)
+        for i in lv + 1..keys.len().saturating_sub(1) {
+            let first = keys[i];
+            let second = keys[i + 1];
+
+            // Skip tone key clusters when tone key is directly after vowel
+            // (e.g., "test" has 's' after 'e' which is tone modifier, not part of "st" cluster)
+            if i == lv + 1 && is_tone_key(first) {
+                continue;
+            }
+
+            if is_foreign_final_2(first, second) {
+                return true;
+            }
+        }
+
+        // Check if word ends with invalid single final
+        // (only if there's exactly one consonant after the last vowel)
+        // Skip if that single consonant is a tone key (it's a modifier)
+        let finals_after_vowel = keys.len() - lv - 1;
+        if finals_after_vowel == 1 {
+            let last_key = keys[keys.len() - 1];
+            // Don't flag tone keys as invalid finals - they're modifiers
+            if !is_tone_key(last_key) && is_invalid_single_final(last_key) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if pattern is foreign (fails Vietnamese validation)
+///
+/// This is the GLOBAL approach: if it's invalid Vietnamese, it's foreign.
+/// No case-by-case detection needed.
+#[inline]
+pub fn is_foreign_pattern(initial: &[u16], vowels: &[u16], final_c: &[u16]) -> bool {
+    // Check foreign initial clusters
+    if initial.len() >= 2 {
+        if is_foreign_initial_2(initial[0], initial[1]) {
+            return true;
+        }
+    }
+
+    // Check foreign final clusters
+    if final_c.len() >= 2 {
+        if is_foreign_final_2(final_c[0], final_c[1]) {
+            return true;
+        }
+    }
+
+    // Use standard Vietnamese validation
+    if !initial.is_empty() {
+        let valid = match initial.len() {
+            1 => is_valid_initial_1(initial[0]),
+            2 => is_valid_initial_2(initial[0], initial[1]),
+            3 => is_valid_initial_3(initial[0], initial[1], initial[2]),
+            _ => false,
+        };
+        if !valid {
+            return true;
+        }
+    }
+
+    if !final_c.is_empty() {
+        let valid = match final_c.len() {
+            1 => is_valid_final_1(final_c[0]),
+            2 => is_valid_final_2(final_c[0], final_c[1]),
+            _ => false,
+        };
+        if !valid {
+            return true;
+        }
+    }
+
+    // Check vowel pattern
+    if !vowels.is_empty() && !is_valid_vowel_pattern(vowels) {
+        return true;
+    }
+
+    false
+}
+
+/// Validate transformed buffer string for valid Vietnamese structure
+///
+/// VN(B) validation per docs/typing-behavior-flow.md:
+/// Checks if the transformed buffer forms a valid Vietnamese syllable.
+///
+/// Returns true if the buffer is INVALID Vietnamese (should restore)
+#[inline]
+pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
+    let chars: Vec<char> = buffer.chars().collect();
+    if chars.is_empty() {
+        return false;
+    }
+
+    // Check 1: Breve (ă/Ă) in open syllable = invalid
+    // Vietnamese rule: ă can only appear in closed syllables (with final consonant)
+    // Valid: ăn, ăm, ăc, ăp, ăt, ăng | Invalid: ă, lă, să (no final)
+    let has_breve = chars.iter().any(|&c| c == 'ă' || c == 'Ă');
+    if has_breve {
+        // Check if there's a consonant after the breve vowel
+        let mut found_breve = false;
+        let mut has_final = false;
+        for &c in &chars {
+            if c == 'ă' || c == 'Ă' {
+                found_breve = true;
+            } else if found_breve && is_consonant_char(c) {
+                has_final = true;
+                break;
+            }
+        }
+        if found_breve && !has_final {
+            return true; // ă without final = invalid
+        }
+    }
+
+    // Check 2: Invalid Vietnamese diphthongs
+    // ưe, ưi are NOT valid Vietnamese diphthongs
+    // Valid: ưa, ươ, ưu | Invalid: ưe, ưi
+    let is_u_horn = |c: char| matches!(c, 'ư' | 'Ư' | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự');
+    let is_e_any = |c: char| {
+        matches!(
+            c,
+            'e' | 'E'
+                | 'é'
+                | 'è'
+                | 'ẻ'
+                | 'ẽ'
+                | 'ẹ'
+                | 'ê'
+                | 'Ê'
+                | 'ế'
+                | 'ề'
+                | 'ể'
+                | 'ễ'
+                | 'ệ'
+        )
+    };
+    let is_i_any = |c: char| matches!(c, 'i' | 'I' | 'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị');
+
+    for window in chars.windows(2) {
+        let (c1, c2) = (window[0], window[1]);
+        // ưe or ưi (any toned version) = invalid
+        if is_u_horn(c1) && (is_e_any(c2) || is_i_any(c2)) {
+            return true;
+        }
+    }
+
+    // Check 3: Invalid final consonants in buffer
+    // Vietnamese finals: c, ch, m, n, ng, nh, p, t (and vowels can end words)
+    // Invalid finals: b, d, f, g(alone), h(alone), j, l, q, r, s, v, w, x, z
+    let last_char = chars.last().copied().unwrap_or('\0');
+    if is_invalid_final_char(last_char) {
+        return true;
+    }
+
+    // Check 4: 'w' as consonant in buffer = foreign
+    // In Vietnamese, 'w' should transform to 'ư' or apply horn/breve
+    // If 'w' appears as-is in buffer, it wasn't transformed → foreign
+    // Exception: 'w' appearing as part of horn application is consumed, not visible
+    if chars.iter().any(|&c| c == 'w' || c == 'W') {
+        return true;
+    }
+
+    // Check 5: Invalid syllable structure (vowel + consonant + vowel)
+    // Vietnamese syllable: (Initial) + Vowel(s) + (Final) + (Tone)
+    // After vowels + consonant, can't have another vowel (like "ươman")
+    let mut state = 0u8; // 0=init, 1=seen vowel, 2=seen consonant after vowel
+    for &c in &chars {
+        let is_vowel_char = is_vn_vowel_char(c);
+        match state {
+            0 => {
+                if is_vowel_char {
+                    state = 1;
+                }
+            }
+            1 => {
+                if !is_vowel_char && is_consonant_char(c) {
+                    state = 2; // consonant after vowel
+                }
+            }
+            2 => {
+                if is_vowel_char {
+                    return true; // vowel after consonant after vowel = invalid
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Check if character is a Vietnamese vowel (including toned versions)
+#[inline]
+fn is_vn_vowel_char(c: char) -> bool {
+    matches!(
+        c.to_ascii_lowercase(),
+        'a' | 'ă' | 'â' | 'e' | 'ê' | 'i' | 'o' | 'ô' | 'ơ' | 'u' | 'ư' | 'y'
+    ) || is_toned_vowel(c)
+}
+
+/// Check if character is a toned vowel
+#[inline]
+fn is_toned_vowel(c: char) -> bool {
+    matches!(
+        c,
+        'á' | 'à'
+            | 'ả'
+            | 'ã'
+            | 'ạ'
+            | 'ắ'
+            | 'ằ'
+            | 'ẳ'
+            | 'ẵ'
+            | 'ặ'
+            | 'ấ'
+            | 'ầ'
+            | 'ẩ'
+            | 'ẫ'
+            | 'ậ'
+            | 'é'
+            | 'è'
+            | 'ẻ'
+            | 'ẽ'
+            | 'ẹ'
+            | 'ế'
+            | 'ề'
+            | 'ể'
+            | 'ễ'
+            | 'ệ'
+            | 'í'
+            | 'ì'
+            | 'ỉ'
+            | 'ĩ'
+            | 'ị'
+            | 'ó'
+            | 'ò'
+            | 'ỏ'
+            | 'õ'
+            | 'ọ'
+            | 'ố'
+            | 'ồ'
+            | 'ổ'
+            | 'ỗ'
+            | 'ộ'
+            | 'ớ'
+            | 'ờ'
+            | 'ở'
+            | 'ỡ'
+            | 'ợ'
+            | 'ú'
+            | 'ù'
+            | 'ủ'
+            | 'ũ'
+            | 'ụ'
+            | 'ứ'
+            | 'ừ'
+            | 'ử'
+            | 'ữ'
+            | 'ự'
+            | 'ý'
+            | 'ỳ'
+            | 'ỷ'
+            | 'ỹ'
+            | 'ỵ'
+    )
+}
+
+/// Check if character is an invalid Vietnamese final consonant
+#[inline]
+fn is_invalid_final_char(c: char) -> bool {
+    matches!(
+        c.to_ascii_lowercase(),
+        'b' | 'd' | 'f' | 'j' | 'l' | 'q' | 'r' | 's' | 'v' | 'w' | 'x' | 'z'
+    )
+}
+
+/// Helper: check if character is a Vietnamese consonant
+#[inline]
+fn is_consonant_char(c: char) -> bool {
+    matches!(
+        c.to_ascii_lowercase(),
+        'b' | 'c'
+            | 'd'
+            | 'đ'
+            | 'g'
+            | 'h'
+            | 'k'
+            | 'l'
+            | 'm'
+            | 'n'
+            | 'p'
+            | 'q'
+            | 'r'
+            | 's'
+            | 't'
+            | 'v'
+            | 'x'
+    )
+}
+
+// =============================================================================
 // Validation Result
 // =============================================================================
 
@@ -284,6 +861,7 @@ pub enum MatrixValidation {
     InvalidVowelPattern,
     InvalidToneFinal,
     InvalidVowelFinal,
+    InvalidCircumflexClosed,
     NoVowel,
 }
 
@@ -360,6 +938,12 @@ pub fn validate(
         return MatrixValidation::InvalidVowelFinal;
     }
 
+    // M9: Check circumflex closed syllable rule
+    // Circumflex vowel + closed syllable + no tone = invalid
+    if is_circumflex_invalid_in_closed_syllable(has_breve_or_circumflex, final_c, tone) {
+        return MatrixValidation::InvalidCircumflexClosed;
+    }
+
     MatrixValidation::Valid
 }
 
@@ -401,6 +985,7 @@ mod tests {
     fn test_valid_final_single() {
         // Valid finals
         assert!(is_valid_final_1(keys::C));
+        assert!(is_valid_final_1(keys::K)); // K is valid for place names like Đắk Lắk
         assert!(is_valid_final_1(keys::M));
         assert!(is_valid_final_1(keys::N));
         assert!(is_valid_final_1(keys::P));
@@ -409,7 +994,6 @@ mod tests {
         // Invalid finals
         assert!(!is_valid_final_1(keys::B));
         assert!(!is_valid_final_1(keys::D));
-        assert!(!is_valid_final_1(keys::K));
     }
 
     #[test]
@@ -539,5 +1123,85 @@ mod tests {
         // "ci" should be "ki"
         let result = validate(&[keys::C], &[keys::I], &[], 0, false);
         assert_eq!(result, MatrixValidation::InvalidSpelling);
+    }
+
+    #[test]
+    fn test_circumflex_closed_syllable_invalid() {
+        // "kêp" = k + ê + p, no tone → INVALID
+        let result = validate(
+            &[keys::K], // initial: k
+            &[keys::E], // vowels: ê (circumflex)
+            &[keys::P], // final: p
+            0,          // tone: none
+            true,       // has_circumflex = true
+        );
+        assert_eq!(result, MatrixValidation::InvalidCircumflexClosed);
+
+        // "bêt" = b + ê + t, no tone → INVALID
+        let result = validate(&[keys::B], &[keys::E], &[keys::T], 0, true);
+        assert_eq!(result, MatrixValidation::InvalidCircumflexClosed);
+
+        // "lêm" = l + ê + m, no tone → INVALID
+        let result = validate(&[keys::L], &[keys::E], &[keys::M], 0, true);
+        assert_eq!(result, MatrixValidation::InvalidCircumflexClosed);
+    }
+
+    #[test]
+    fn test_circumflex_closed_syllable_valid_with_tone() {
+        // "kếp" = k + ê + p + sắc → VALID
+        let result = validate(
+            &[keys::K],
+            &[keys::E],
+            &[keys::P],
+            1, // sắc
+            true,
+        );
+        assert_eq!(result, MatrixValidation::Valid);
+
+        // "bếp" = b + ê + p + sắc → VALID
+        let result = validate(
+            &[keys::B],
+            &[keys::E],
+            &[keys::P],
+            1, // sắc
+            true,
+        );
+        assert_eq!(result, MatrixValidation::Valid);
+
+        // "bệp" = b + ê + p + nặng → VALID
+        let result = validate(
+            &[keys::B],
+            &[keys::E],
+            &[keys::P],
+            5, // nặng
+            true,
+        );
+        assert_eq!(result, MatrixValidation::Valid);
+    }
+
+    #[test]
+    fn test_circumflex_open_syllable_valid() {
+        // "bê" = b + ê, no final, no tone → VALID (open syllable)
+        let result = validate(
+            &[keys::B],
+            &[keys::E],
+            &[], // no final
+            0,
+            true,
+        );
+        assert_eq!(result, MatrixValidation::Valid);
+    }
+
+    #[test]
+    fn test_no_circumflex_closed_syllable_valid() {
+        // "kep" = k + e + p, no circumflex → VALID
+        let result = validate(
+            &[keys::K],
+            &[keys::E],
+            &[keys::P],
+            0,
+            false, // no circumflex
+        );
+        assert_eq!(result, MatrixValidation::Valid);
     }
 }

@@ -595,7 +595,7 @@ mod tests {
 
     #[test]
     fn test_debug_raast_unit() {
-        use crate::engine::matrix::english::has_invalid_vietnamese_pattern;
+        use crate::engine::matrix::is_foreign_pattern_keys;
         use crate::engine::Engine;
 
         let mut e = Engine::new();
@@ -610,9 +610,9 @@ mod tests {
 
         // Get raw keys
         let raw_keys: Vec<u16> = vec![keys::R, keys::A, keys::A, keys::S, keys::T];
-        eprintln!("Testing has_invalid_vietnamese_pattern on {:?}", raw_keys);
-        let result = has_invalid_vietnamese_pattern(&raw_keys);
-        eprintln!("has_invalid_vietnamese_pattern result: {}", result);
+        eprintln!("Testing is_foreign_pattern_keys on {:?}", raw_keys);
+        let result = is_foreign_pattern_keys(&raw_keys);
+        eprintln!("is_foreign_pattern_keys result: {}", result);
 
         // Type space and check result
         let r = e.on_key(keys::SPACE, false, false);

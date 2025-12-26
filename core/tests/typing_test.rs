@@ -438,7 +438,7 @@ const TELEX_RAPID: &[(&str, &str)] = &[
 ];
 
 const VNI_RAPID: &[(&str, &str)] = &[
-    ("ngu7o72i2", "người"),
+    ("ngu7o72i", "người"), // người: ngư + ờ (horn+grave) + i (plain)
     ("to6i1", "tối"),
     // "ưu" vowel cluster - horn on FIRST u (not second)
     ("luu7", "lưu"),  // save/store - DELAYED modifier

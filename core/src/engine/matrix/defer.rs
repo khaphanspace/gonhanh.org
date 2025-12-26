@@ -27,6 +27,13 @@ pub mod defertype {
     pub const HORN_U: u8 = 2;
     /// Pending tone placement (waiting for syllable completion)
     pub const TONE_PLACE: u8 = 3;
+    /// Pending horn on 'o' in "ưo" pattern (from vowel+W)
+    /// Example: "đuwoc" → defer horn on 'o', resolve to "đươc" when 'c' added
+    pub const HORN_O: u8 = 4;
+    /// Pending stroke on 'd' (waiting for mark/circumflex key)
+    /// Example: "ded" → defer stroke, "dede" applies stroke+circumflex → "đê"
+    /// But "dedicated" → no mark key, stroke discarded → stays "dedicated"
+    pub const STROKE_D: u8 = 5;
 }
 
 /// Defer context for pending actions
@@ -66,6 +73,26 @@ impl DeferState {
     pub const fn horn_u(position: u8) -> Self {
         Self {
             kind: defertype::HORN_U,
+            position,
+            data: 0,
+        }
+    }
+
+    /// Create horn defer on 'o' at position (for "ưo" pattern from vowel+W)
+    #[inline]
+    pub const fn horn_o(position: u8) -> Self {
+        Self {
+            kind: defertype::HORN_O,
+            position,
+            data: 0,
+        }
+    }
+
+    /// Create stroke defer on 'd' at position (for non-adjacent d+vowel+d pattern)
+    #[inline]
+    pub const fn stroke_d(position: u8) -> Self {
+        Self {
+            kind: defertype::STROKE_D,
             position,
             data: 0,
         }

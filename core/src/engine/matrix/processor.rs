@@ -13,7 +13,7 @@
 use super::{
     act, breve_valid_with_final, cat, defertype, dispatch, get_key_category,
     horn_u_valid_with_final, is_valid_final_1, is_valid_final_2, is_valid_vowel_pattern, st,
-    tone_key_to_value, xform, DeferState, RevertState,
+    tone_key_to_value, validation, xform, DeferState, RevertState,
 };
 use crate::data::keys;
 use crate::data::vowel::{Modifier, Phonology, Vowel};
@@ -179,6 +179,21 @@ impl RawBuffer {
             .iter()
             .map(|k| (k.key, k.caps()))
     }
+
+    /// Get iterator over keystrokes with consumed flag (key, consumed)
+    pub fn iter_with_consumed(&self) -> impl Iterator<Item = (u16, bool)> + '_ {
+        self.data[..self.len as usize]
+            .iter()
+            .map(|k| (k.key, k.consumed()))
+    }
+
+    /// Get keys that were NOT consumed (actual letters in the output)
+    pub fn unconsumed_keys(&self) -> impl Iterator<Item = u16> + '_ {
+        self.data[..self.len as usize]
+            .iter()
+            .filter(|k| !k.consumed())
+            .map(|k| k.key)
+    }
 }
 
 /// Matrix-based processor result
@@ -194,6 +209,8 @@ pub enum ProcessResult {
     Revert,
     /// Invalid sequence rejected
     Reject,
+    /// Foreign word detected, restore to raw ASCII
+    Restore,
 }
 
 /// Matrix-based Vietnamese IME Processor
@@ -228,6 +245,11 @@ pub struct Processor {
     pending_literal: Option<char>,
     /// Foreign word mode - skip Vietnamese transforms
     foreign_word_mode: bool,
+    /// Pending tone for deferred application (when tone typed before vowel)
+    /// Stores (tone_value, tone_key) for application when next vowel is typed
+    pending_tone: Option<(u8, u16)>,
+    /// Typo correction mode - consume invalid strokes like "didd" → "did"
+    typo_correction: bool,
 }
 
 impl Default for Processor {
@@ -249,6 +271,8 @@ impl Processor {
             modern_tone: true,
             pending_literal: None,
             foreign_word_mode: false,
+            pending_tone: None,
+            typo_correction: false,
         }
     }
 
@@ -260,6 +284,11 @@ impl Processor {
     /// Set modern tone placement
     pub fn set_modern_tone(&mut self, modern: bool) {
         self.modern_tone = modern;
+    }
+
+    /// Set typo correction mode (consume invalid strokes like "didd" → "did")
+    pub fn set_typo_correction(&mut self, enabled: bool) {
+        self.typo_correction = enabled;
     }
 
     /// Get current state
@@ -280,6 +309,42 @@ impl Processor {
         &self.raw
     }
 
+    /// Check if processor is in foreign word mode
+    #[inline]
+    pub fn is_foreign_mode(&self) -> bool {
+        self.foreign_word_mode
+    }
+
+    /// Check if current buffer forms valid Vietnamese syllable
+    ///
+    /// Returns true if:
+    /// 1. Buffer has valid initial consonant cluster
+    /// 2. Buffer has valid vowel pattern
+    /// 3. Buffer has valid final consonant pattern
+    pub fn is_valid_vietnamese(&self) -> bool {
+        if self.buffer.is_empty() {
+            return true;
+        }
+
+        // Check for foreign word mode
+        if self.foreign_word_mode {
+            return false;
+        }
+
+        // Check valid initial
+        if !self.has_valid_vietnamese_initial() {
+            return false;
+        }
+
+        // Check for foreign consonant clusters
+        if self.has_foreign_consonant_cluster() {
+            return false;
+        }
+
+        // Check valid syllable structure (finals)
+        self.has_valid_vietnamese_structure()
+    }
+
     /// Clear all state
     pub fn clear(&mut self) {
         self.state = st::EMPTY;
@@ -289,6 +354,7 @@ impl Processor {
         self.revert.clear();
         self.pending_literal = None;
         self.foreign_word_mode = false;
+        self.pending_tone = None;
     }
 
     /// Handle backspace - remove last character
@@ -345,6 +411,7 @@ impl Processor {
         self.defer.clear();
         self.revert.clear();
         self.pending_literal = None;
+        self.pending_tone = None;
 
         // Determine state from buffer content
         self.state = if self.buffer.is_empty() {
@@ -481,6 +548,24 @@ impl Processor {
             act::TONE => {
                 let tone_result = self.handle_tone(key);
                 if tone_result == ProcessResult::Reject {
+                    // Check if this is a "qu"/"gi" pattern where tone should be deferred
+                    // for the next vowel (e.g., "qus" + "y" → "quý")
+                    let has_qu_or_gi_initial = self.buffer.len() == 2
+                        && ((self.buffer.get(0).map(|c| c.key) == Some(keys::Q)
+                            && self.buffer.get(1).map(|c| c.key) == Some(keys::U))
+                            || (self.buffer.get(0).map(|c| c.key) == Some(keys::G)
+                                && self.buffer.get(1).map(|c| c.key) == Some(keys::I)));
+
+                    if has_qu_or_gi_initial {
+                        // Defer the tone for the next vowel
+                        if let Some(tone_value) = tone_key_to_value(key) {
+                            self.pending_tone = Some((tone_value, key));
+                            self.raw.mark_consumed(self.raw.len() - 1);
+                            // Stay in current state, waiting for vowel
+                            return ProcessResult::Transform;
+                        }
+                    }
+
                     // Tone rejected (invalid vowel pattern or structure)
                     // Treat key as regular consonant for foreign word support
                     self.buffer.push(Char::new(key, caps));
@@ -495,11 +580,26 @@ impl Processor {
                 }
                 tone_result
             }
-            act::MARK => self.handle_mark(key),
+            act::MARK => self.handle_mark(key, caps),
             act::STROKE => {
                 let stroke_result = self.handle_stroke();
                 if stroke_result == ProcessResult::Reject {
-                    // No 'd' found to stroke - treat as regular consonant
+                    // Check if this is adjacent dd in FIN state (đ not valid as final)
+                    // With typo_correction enabled, consume the key silently
+                    // e.g., "didd" should stay as "did" (extra 'd' is consumed)
+                    // Without typo_correction, add 'd' normally: "deadd" → "deadd"
+                    let last_is_d = self
+                        .buffer
+                        .last()
+                        .is_some_and(|c| c.key == keys::D && !c.stroke);
+                    if self.typo_correction && self.state == st::FIN && last_is_d {
+                        // Remove the 'd' from raw buffer (it was added at start of process)
+                        self.raw.pop();
+                        // Return Transform so create_result() is called
+                        // Since buffer is unchanged, it returns Send(0) to consume key
+                        return ProcessResult::Transform;
+                    }
+                    // Stroke was rejected - add 'd' as regular consonant
                     self.buffer.push(Char::new(key, caps));
                     self.revert.clear();
                     self.state = next_state;
@@ -514,7 +614,7 @@ impl Processor {
                         });
                         if has_w_vowel_transform {
                             self.rebuild_as_foreign_word();
-                            return ProcessResult::Transform;
+                            return ProcessResult::Restore;
                         }
                     }
 
@@ -552,9 +652,44 @@ impl Processor {
             return self.handle_w(caps, next_state);
         }
 
+        // Check for impossible initial consonant clusters
+        // This triggers FOREIGN mode immediately for patterns like 'cl', 'br', 'st', etc.
+        if self.state == st::INIT && keys::is_consonant(key) {
+            if let Some(prev) = self.buffer.last() {
+                if keys::is_consonant(prev.key) {
+                    // Two consecutive consonants at start - check if valid Vietnamese cluster
+                    let is_valid_initial = matches!(
+                        (prev.key, key),
+                        (keys::C, keys::H)   // ch
+                        | (keys::G, keys::H) // gh
+                        | (keys::G, keys::I) // gi (i is vowel but gi is special)
+                        | (keys::K, keys::H) // kh
+                        | (keys::K, keys::R) // kr (ethnic minority: Krông)
+                        | (keys::N, keys::G) // ng
+                        | (keys::N, keys::H) // nh
+                        | (keys::P, keys::H) // ph
+                        | (keys::Q, keys::U) // qu (u is vowel but qu is special)
+                        | (keys::T, keys::H) // th
+                        | (keys::T, keys::R) // tr
+                    );
+
+                    if !is_valid_initial {
+                        // Invalid initial cluster - switch to FOREIGN mode
+                        self.buffer.push(Char::new(key, caps));
+                        self.foreign_word_mode = true;
+                        self.revert.clear();
+                        return ProcessResult::Update;
+                    }
+                }
+            }
+        }
+
         // Foreign word detection: If we're starting a new syllable (vowel after FIN state)
-        // and any vowel has a mark applied, this suggests English (e.g., "expect", "metric").
-        // Rebuild entire buffer from raw input without transforms.
+        // and any vowel has a mark applied, check if adding this vowel creates an invalid structure.
+        //
+        // Examples:
+        // - "mẻt" + "r" + "i" → "metric" (RESTORE because consonant before vowel after FIN)
+        // - "cón" + "o" → "cóno" (NO RESTORE, 'oo' is valid diphthong, wait for invalid consonant)
         //
         // IMPORTANT: Skip this check if raw buffer is shorter than composed buffer.
         // This happens when the buffer was restored via restore_word() and the raw
@@ -565,18 +700,79 @@ impl Processor {
             .iter()
             .any(|&pos| self.buffer.get(pos).map(|c| c.mark > 0).unwrap_or(false));
         let raw_has_enough_history = self.raw.len() >= self.buffer.len();
+
+        // Check if there are EXTRA consonants after a valid final (indicating multi-syllable foreign word)
+        // This detects patterns like "mẻt" + "r" + "i" where 'r' comes AFTER valid final 't'
+        // But NOT "cón" + "o" where 'n' IS the valid final (no extra consonants)
+        let has_extra_consonants_after_final = if self.state == st::FIN {
+            // Get position of last vowel
+            let vowels = self.buffer.find_vowels();
+            if let Some(&last_vowel_pos) = vowels.last() {
+                // Get consonants after last vowel
+                let consonants_after_vowel: Vec<u16> = (last_vowel_pos + 1..self.buffer.len())
+                    .filter_map(|i| self.buffer.get(i).map(|c| c.key))
+                    .filter(|&k| keys::is_consonant(k))
+                    .collect();
+
+                // If more than 2 consonants after vowel, definitely foreign (Vietnamese max is 2: ng, nh, ch)
+                // If 2 consonants that don't form valid final cluster, also foreign
+                // If 1 consonant but not valid final, also foreign
+                match consonants_after_vowel.len() {
+                    0 | 1 => false, // 0-1 consonant is normal Vietnamese pattern
+                    2 => {
+                        // Check if it's a valid final cluster (ng, nh, ch)
+                        !is_valid_final_2(consonants_after_vowel[0], consonants_after_vowel[1])
+                    }
+                    _ => true, // 3+ consonants after vowel = definitely foreign
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Only trigger RESTORE if there are EXTRA consonants beyond valid finals
+        // This catches "metric" (mẻt + r + i → 'tr' after 'e' is 2 consonants, 't' + 'r' not valid final pair)
+        // But NOT "cóno" (just 'n' after 'o' is valid single final)
+        if self.state == st::FIN
+            && keys::is_vowel(key)
+            && has_vowel_with_mark
+            && raw_has_enough_history
+            && has_extra_consonants_after_final
+        {
+            // Foreign word detected (e.g., "metric", "describe")
+            // Rebuild the buffer from raw input without any Vietnamese transforms
+            // The current key is already in the raw buffer, so rebuild includes it
+            self.rebuild_as_foreign_word();
+            // Return Restore to signal foreign word detection
+            // Don't fall through to regular append (key already in rebuilt buffer)
+            return ProcessResult::Restore;
+        }
+
+        // Also check for "mismatched vowel after FIN" pattern
+        // This catches "mẻt" + "i" (e and i don't match for circumflex, multi-syllable foreign word)
+        // Condition: FIN state, adding vowel that won't trigger circumflex, has tone mark on existing vowel
         if self.state == st::FIN
             && keys::is_vowel(key)
             && has_vowel_with_mark
             && raw_has_enough_history
         {
-            // Foreign word detected (e.g., "metric", "describe", "houses")
-            // Rebuild the buffer from raw input without any Vietnamese transforms
-            // The current key is already in the raw buffer, so rebuild includes it
-            self.rebuild_as_foreign_word();
-            // Return Transform to update display with the rebuilt buffer
-            // Don't fall through to regular append (key already in rebuilt buffer)
-            return ProcessResult::Transform;
+            // Check if this vowel would NOT trigger circumflex (different vowel key)
+            let vowel_positions = self.buffer.find_vowels();
+            let can_circumflex = matches!(key, keys::A | keys::E | keys::O)
+                && vowel_positions.iter().any(|&pos| {
+                    self.buffer
+                        .get(pos)
+                        .map(|c| c.key == key && (c.tone == 0 || c.tone == 2))
+                        .unwrap_or(false)
+                });
+
+            // If vowel doesn't match for circumflex, it's likely starting a new syllable (foreign word)
+            if !can_circumflex {
+                self.rebuild_as_foreign_word();
+                return ProcessResult::Restore;
+            }
         }
 
         // Check for double-vowel circumflex (aa→â, ee→ê, oo→ô)
@@ -623,46 +819,122 @@ impl Processor {
             };
 
             if allow_circumflex {
-                // Check if matches any previous vowel (same key, no modifier) for circumflex
-                // Only A, E, O can take circumflex in Vietnamese → Â, Ê, Ô
-                // I, U, Y cannot take circumflex - "ii", "uu", "yy" are NOT valid
-                // For split patterns like "ieneg" → "iêng", non-adjacent vowels CAN match
-                // English words like "receive" are handled by English detection + auto-restore
+                // UNIFIED RULE: Apply circumflex only if result is valid Vietnamese
+                // Only A, E, O can take circumflex → Â, Ê, Ô
                 let can_take_circumflex = matches!(key, keys::A | keys::E | keys::O);
                 if can_take_circumflex {
                     let vowels = self.buffer.find_vowels();
                     for &pos in vowels.iter().rev() {
                         if let Some(c) = self.buffer.get(pos) {
-                            if c.key == key && c.tone == 0 {
-                                // Same vowel without diacritic (no circumflex) - apply circumflex
-                                // Note: tone marks (sắc, huyền) are OK - "dausa" → "dấu"
-                                if let Some(c) = self.buffer.get_mut(pos) {
-                                    c.tone = 1; // circumflex
-                                    self.revert.record(xform::CIRCUMFLEX, key, pos as u8);
-                                    self.raw.mark_consumed(self.raw.len() - 1);
-                                    return ProcessResult::Transform;
-                                }
+                            // Basic check: same key, can receive circumflex
+                            if c.key != key || (c.tone != 0 && c.tone != 2) {
+                                continue;
                             }
+
+                            // Save original state for potential revert
+                            let old_tone = c.tone;
+
+                            // Tentatively apply circumflex
+                            if let Some(c) = self.buffer.get_mut(pos) {
+                                c.tone = 1; // circumflex
+                            }
+
+                            // Validate: is the resulting buffer valid Vietnamese?
+                            let buffer_str = self.buffer.to_full_string();
+                            let is_valid = !validation::is_buffer_invalid_vietnamese(&buffer_str);
+
+                            if !is_valid {
+                                // Revert and try next position
+                                if let Some(c) = self.buffer.get_mut(pos) {
+                                    c.tone = old_tone;
+                                }
+                                continue;
+                            }
+
+                            // Valid! Record for revert and return
+                            self.revert.record(xform::CIRCUMFLEX, key, pos as u8);
+                            self.raw.mark_consumed(self.raw.len() - 1);
+
+                            // Apply deferred stroke if pending (dede → đê)
+                            if self.defer.kind == defertype::STROKE_D {
+                                let d_pos = self.defer.position as usize;
+                                if let Some(d_char) = self.buffer.get_mut(d_pos) {
+                                    if d_char.key == keys::D && !d_char.stroke {
+                                        d_char.stroke = true;
+                                    }
+                                }
+                                // Remove the second 'd' that triggered defer
+                                for i in (d_pos + 1..self.buffer.len()).rev() {
+                                    if self.buffer.get(i).is_some_and(|c| c.key == keys::D) {
+                                        self.buffer.remove(i);
+                                        break;
+                                    }
+                                }
+                                self.defer.clear();
+                            }
+
+                            return ProcessResult::Transform;
                         }
                     }
                 }
             }
 
-            // Auto-apply horn to 'o' after 'ư' for W-INITIAL words only
-            // When buffer is just "ư" (from typing 'w' at start), adding 'o' should
+            // Auto-apply horn to 'o' after 'ư' for W-shorthand patterns
+            // When the previous char is 'ư' (from typing 'w'), adding 'o' should
             // auto-apply horn to form valid "ươ" compound (since "ưo" is invalid)
-            // For longer words like "đuwow", user explicitly types 'w' after 'o'
-            if key == keys::O && self.buffer.len() == 1 {
-                if let Some(prev) = self.buffer.get(0) {
-                    if prev.key == keys::U && prev.tone == 2 {
-                        // Buffer is just 'ư' (W-initial word)
-                        // Add 'o' with horn to form 'ơ', creating "ươ" compound
-                        let mut c = Char::new(keys::O, caps);
-                        c.tone = 2; // horn
-                        self.buffer.push(c);
-                        // Don't record revert for auto-applied horn
-                        self.state = st::VOW;
-                        return ProcessResult::Transform;
+            // Works for:
+            // - W-initial: "w" + "o" = "ươ"
+            // - C+W shorthand: "tw" + "o" = "tươ" (tương)
+            // For longer words like "nguwow", user explicitly types 'w' after 'o'
+            //
+            // For vowel+W patterns (HORN transform), we use deferred horn:
+            // - "đuwoc" → defer horn on 'o', resolve to "đươc" when 'c' added
+            // - "nguwow" → no defer, second 'w' applies horn to 'o'
+            //
+            // NOTE: This is Telex-specific. In VNI, horn is applied via '7' key only.
+            // Skip this block in VNI mode to prevent auto-horn on 'o' after 'ư'.
+            if key == keys::O && !self.buffer.is_empty() && self.method != 1 {
+                // Check if last vowel is 'ư' (from W transform)
+                // Only applies when buffer ends with a single ư vowel
+                let vowels = self.buffer.find_vowels();
+                if vowels.len() == 1 {
+                    let pos = vowels[0];
+                    if let Some(prev) = self.buffer.get(pos) {
+                        if prev.key == keys::U && prev.tone == 2 {
+                            if self.revert.transform == xform::HORN {
+                                // Vowel+W pattern: defer horn on 'o'
+                                // Add 'o' without horn, set up defer
+                                self.buffer.push(Char::new(keys::O, caps));
+                                // Set up deferred horn on 'o' (will resolve when final added)
+                                self.defer = DeferState::horn_o((self.buffer.len() - 1) as u8);
+                                // Clear revert state - horn on 'u' is committed as part of "ưo"
+                                // This prevents second 'w' from reverting horn on 'u'
+                                self.revert.clear();
+                                self.state = st::VOW;
+                                return ProcessResult::Update;
+                            } else {
+                                // W-shorthand or vowel+W+tone pattern: apply horn immediately
+                                // Add 'o' with horn to form 'ơ', creating "ươ" compound
+                                // If 'ư' has a tone mark, move it to 'ơ' (e.g., "ứo" → "ướ")
+                                let existing_mark = prev.mark;
+                                let mut c = Char::new(keys::O, caps);
+                                c.tone = 2; // horn
+                                if existing_mark > 0 {
+                                    // Move tone from 'ư' to 'ơ'
+                                    c.mark = existing_mark;
+                                    if let Some(u_char) = self.buffer.get_mut(pos) {
+                                        u_char.mark = 0;
+                                    }
+                                    self.state = st::DIA;
+                                } else {
+                                    self.state = st::VOW;
+                                }
+                                self.buffer.push(c);
+                                // Clear revert state - the 'ư' horn is now committed
+                                self.revert.clear();
+                                return ProcessResult::Transform;
+                            }
+                        }
                     }
                 }
             }
@@ -678,24 +950,100 @@ impl Processor {
         {
             self.buffer.push(Char::new(key, caps));
             self.rebuild_as_foreign_word();
-            return ProcessResult::Transform;
+            return ProcessResult::Restore;
         }
 
         // Regular character append
         self.buffer.push(Char::new(key, caps));
         self.revert.clear(); // Regular char clears revert state
 
-        // After adding consonant, check for foreign patterns
-        // This catches cases like "would" where 'w' → 'ư' was applied but 'ld' is invalid
-        // Only rebuild if there's a W_VOWEL transform at position 0 (ư from 'w')
-        if keys::is_consonant(key) && self.has_foreign_consonant_cluster() {
-            // Check if first char is a W-derived vowel (U with horn = ư from 'w')
-            let has_w_vowel_transform = self.buffer.get(0).is_some_and(|c| {
-                c.key == keys::U && c.tone == 2 // ư (from 'w')
-            });
-            if has_w_vowel_transform {
-                self.rebuild_as_foreign_word();
+        // Apply pending tone to newly added vowel (e.g., "qus" + "y" → "quý")
+        if keys::is_vowel(key) {
+            if let Some((tone_value, tone_key)) = self.pending_tone.take() {
+                let last_pos = self.buffer.len() - 1;
+                if let Some(c) = self.buffer.get_mut(last_pos) {
+                    c.mark = tone_value;
+                    self.revert.record(xform::TONE, tone_key, last_pos as u8);
+                    self.state = st::DIA;
+                    return ProcessResult::Transform;
+                }
+            }
+
+            // Relocate tone when adding vowel after vowel with tone (e.g., "ós" + "a" → "oá")
+            // This handles "typo" patterns where user types tone then vowel
+            if self.state == st::DIA && self.relocate_tone_for_added_vowel() {
                 return ProcessResult::Transform;
+            }
+        }
+
+        // After adding consonant, check for invalid Vietnamese structure
+        // This catches cases like "cóno" + "l" where 'l' is not a valid Vietnamese final
+        if keys::is_consonant(key) {
+            // Check if any vowel has a tone/mark applied
+            let has_transformed_vowel = self.buffer.find_vowels().iter().any(|&pos| {
+                self.buffer
+                    .get(pos)
+                    .map(|c| c.mark > 0 || c.tone > 0)
+                    .unwrap_or(false)
+            });
+
+            // Check if there's a "vowel after final consonant" pattern (foreign structure)
+            // This pattern exists in words like "cóno" where there's vowel after completed syllable
+            // But NOT in words like "đếnn" where it's just extra final consonants
+            let has_vowel_after_final = {
+                let vowel_positions = self.buffer.find_vowels();
+                let consonant_positions: Vec<usize> = (0..self.buffer.len())
+                    .filter(|&i| {
+                        self.buffer
+                            .get(i)
+                            .map(|c| keys::is_consonant(c.key))
+                            .unwrap_or(false)
+                    })
+                    .collect();
+
+                // Check if any vowel comes after a consonant that itself comes after another vowel
+                // Pattern: V...C...V (vowel, then consonant, then vowel = foreign structure)
+                vowel_positions.iter().any(|&v_pos| {
+                    consonant_positions.iter().any(|&c_pos| {
+                        c_pos < v_pos && vowel_positions.iter().any(|&v2_pos| v2_pos < c_pos)
+                    })
+                })
+            };
+
+            // Only trigger RESTORE if:
+            // 1. We have transformed vowels (diacritics applied)
+            // 2. Structure is invalid
+            // 3. AND there's already a foreign structure (vowel after final)
+            // This prevents "đến" + "n" from triggering RESTORE (just extra finals)
+            // But allows "cóno" + "l" to trigger RESTORE (vowel after final detected)
+            if has_transformed_vowel
+                && !self.has_valid_vietnamese_structure()
+                && self.raw.len() >= self.buffer.len()
+                && has_vowel_after_final
+            {
+                // Invalid final consonant with transformed vowel → foreign word
+                // Example: "cóno" + "l" → "consol"
+                self.rebuild_as_foreign_word();
+                return ProcessResult::Restore;
+            }
+
+            // For extra consonants without foreign structure (like "đếnn"),
+            // just mark as foreign mode but keep the diacritics
+            if !self.has_valid_vietnamese_structure() && has_transformed_vowel {
+                self.foreign_word_mode = true;
+            }
+
+            // Also check for foreign consonant clusters
+            // This catches cases like "would" where 'w' → 'ư' was applied but 'ld' is invalid
+            if self.has_foreign_consonant_cluster() {
+                // Check if first char is a W-derived vowel (U with horn = ư from 'w')
+                let has_w_vowel_transform = self.buffer.get(0).is_some_and(|c| {
+                    c.key == keys::U && c.tone == 2 // ư (from 'w')
+                });
+                if has_w_vowel_transform {
+                    self.rebuild_as_foreign_word();
+                    return ProcessResult::Restore;
+                }
             }
         }
 
@@ -707,6 +1055,15 @@ impl Processor {
         {
             // Tone was relocated, need to send transform to update screen
             return ProcessResult::Transform;
+        }
+
+        // Clear deferred stroke when:
+        // 1. A different vowel is added (doesn't trigger circumflex) - foreign word like "dedicated"
+        // 2. This catches: "ded" + 'i' → clear defer, keep as "dedi"
+        if self.defer.kind == defertype::STROKE_D && keys::is_vowel(key) {
+            // Vowel was added but circumflex didn't trigger (otherwise we would have returned Transform)
+            // This means it's a different vowel → clear deferred stroke
+            self.defer.clear();
         }
 
         ProcessResult::Update
@@ -724,10 +1081,31 @@ impl Processor {
             return false;
         }
 
+        // Detect gi-initial: 'i' at position 1 is part of initial, not vowel nucleus
+        // For words like "giống", the 'i' in 'gi' shouldn't be treated as a vowel
+        let has_gi_initial = self.buffer.len() >= 2
+            && self.buffer.get(0).map(|c| c.key) == Some(keys::G)
+            && self.buffer.get(1).map(|c| c.key) == Some(keys::I);
+
+        // Filter out 'i' from gi-initial for vowel pattern checking
+        let effective_vowels: Vec<usize> = if has_gi_initial {
+            vowel_positions
+                .iter()
+                .copied()
+                .filter(|&pos| pos != 1)
+                .collect()
+        } else {
+            vowel_positions.clone()
+        };
+
+        if effective_vowels.len() < 2 {
+            return false;
+        }
+
         // Find the current syllable's vowels (consecutive, no consonants between)
         // This handles compound words like "việtnam" = [việt] + [nam]
         let mut current_syllable_vowels: Vec<usize> = Vec::new();
-        for &pos in vowel_positions.iter().rev() {
+        for &pos in effective_vowels.iter().rev() {
             if current_syllable_vowels.is_empty() {
                 current_syllable_vowels.push(pos);
             } else {
@@ -863,6 +1241,87 @@ impl Processor {
         }
     }
 
+    /// Relocate tone when adding a vowel after a vowel with tone
+    ///
+    /// Handles "typo" patterns like "ós" + "a" → "oá" (tone moves to 2nd vowel)
+    /// Uses Phonology to determine correct tone position for the diphthong.
+    ///
+    /// Returns true if tone was relocated.
+    fn relocate_tone_for_added_vowel(&mut self) -> bool {
+        let vowel_positions = self.buffer.find_vowels();
+        if vowel_positions.len() < 2 {
+            return false;
+        }
+
+        // Find the vowel with tone mark
+        let mut tone_pos = None;
+        let mut tone_value = 0u8;
+        for &pos in &vowel_positions {
+            if let Some(c) = self.buffer.get(pos) {
+                if c.mark > 0 {
+                    tone_pos = Some(pos);
+                    tone_value = c.mark;
+                    break;
+                }
+            }
+        }
+
+        let Some(old_pos) = tone_pos else {
+            return false;
+        };
+
+        // Build Vowel structs for Phonology lookup
+        let vowels: Vec<Vowel> = vowel_positions
+            .iter()
+            .filter_map(|&pos| {
+                self.buffer.get(pos).map(|c| {
+                    let modifier = match c.tone {
+                        0 => Modifier::None,
+                        1 => Modifier::Circumflex,
+                        2 => Modifier::Horn,
+                        _ => Modifier::None,
+                    };
+                    Vowel::new(c.key, modifier, pos)
+                })
+            })
+            .collect();
+
+        if vowels.is_empty() {
+            return false;
+        }
+
+        // Detect qu-initial and gi-initial
+        let has_qu_initial = self.buffer.len() >= 2
+            && self.buffer.get(0).map(|c| c.key) == Some(keys::Q)
+            && self.buffer.get(1).map(|c| c.key) == Some(keys::U);
+
+        let has_gi_initial = self.buffer.len() >= 2
+            && self.buffer.get(0).map(|c| c.key) == Some(keys::G)
+            && self.buffer.get(1).map(|c| c.key) == Some(keys::I);
+
+        // Calculate new position for open syllable (no final consonant yet)
+        let new_pos = Phonology::find_tone_position(
+            &vowels,
+            false, // has_final_consonant = false (we're adding a vowel, not final)
+            self.modern_tone,
+            has_qu_initial,
+            has_gi_initial,
+        );
+
+        // Move tone if position changed
+        if new_pos != old_pos {
+            if let Some(c) = self.buffer.get_mut(old_pos) {
+                c.mark = 0;
+            }
+            if let Some(c) = self.buffer.get_mut(new_pos) {
+                c.mark = tone_value;
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     /// Handle W key - can be vowel ư or modifier
     fn handle_w(&mut self, caps: bool, _next_state: u8) -> ProcessResult {
         // In VNI mode, W always passes through as regular character
@@ -931,7 +1390,42 @@ impl Processor {
                 match c.key {
                     keys::A => {
                         // a + w → ă (breve)
+                        // But for "ua" pattern, prefer horn on 'u' (continue to next vowel)
+                        // "chuaw" → "chưa" (horn on u), not "chuă" (breve on a)
                         if c.tone == 0 {
+                            // Check if previous char is 'u' without mark - prefer horn on 'u'
+                            if pos > 0 {
+                                if let Some(prev) = self.buffer.get(pos - 1) {
+                                    if prev.key == keys::U && prev.tone == 0 {
+                                        // Skip 'a', let loop continue to find 'u'
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            // Check adjacency: 'w' should be right after 'a', not after another vowel
+                            // "taiw" → 'w' is after 'i', so breve on 'a' should NOT apply
+                            let is_adjacent = pos == self.buffer.len() - 1
+                                || (pos + 1 < self.buffer.len()
+                                    && self
+                                        .buffer
+                                        .get(pos + 1)
+                                        .map(|c| !keys::is_vowel(c.key))
+                                        .unwrap_or(true));
+                            if !is_adjacent {
+                                continue; // Not adjacent - skip this vowel
+                            }
+
+                            // Check for valid Vietnamese spelling
+                            // 'k' only appears before front vowels (i, e, y), not 'a'
+                            if pos > 0 {
+                                if let Some(prev) = self.buffer.get(pos - 1) {
+                                    if prev.key == keys::K {
+                                        continue; // Invalid: ka is not Vietnamese
+                                    }
+                                }
+                            }
+
                             if let Some(c) = self.buffer.get_mut(pos) {
                                 c.tone = 2; // breve
                             }
@@ -942,19 +1436,36 @@ impl Processor {
                     }
                     keys::O => {
                         // o + w → ơ (horn)
-                        if c.tone == 0 {
+                        // Also handles ô + w → ơ (switch from circumflex to horn)
+                        if c.tone == 0 || c.tone == 1 {
+                            let was_circumflex = c.tone == 1;
                             if let Some(c) = self.buffer.get_mut(pos) {
                                 c.tone = 2;
                             }
                             self.revert.record(xform::HORN, keys::O, pos as u8);
                             self.raw.mark_consumed(self.raw.len() - 1);
 
-                            // Check for uo pattern - may need to defer horn on u
+                            // Clear HORN_O defer if present (user explicitly typed 'w')
+                            if self.defer.kind == defertype::HORN_O {
+                                self.defer.clear();
+                            }
+
+                            // Check for uo pattern
                             if pos > 0 {
                                 if let Some(prev) = self.buffer.get(pos - 1) {
                                     if prev.key == keys::U && prev.tone == 0 {
-                                        // u + ơ pattern - defer horn on u until final
-                                        self.defer = DeferState::horn_u((pos - 1) as u8);
+                                        if was_circumflex {
+                                            // Switching from uô to ươ - apply horn to 'u' immediately
+                                            // User is consciously changing mark type
+                                            if let Some(u) = self.buffer.get_mut(pos - 1) {
+                                                u.tone = 2;
+                                            }
+                                        } else {
+                                            // Fresh horn on 'o' - set up deferred horn on 'u'
+                                            // Horn on 'u' only applied when final consonant added
+                                            // "uow" → "uơ" but "muown" → "mươn"
+                                            self.defer = DeferState::horn_u((pos - 1) as u8);
+                                        }
                                     }
                                 }
                             }
@@ -964,6 +1475,46 @@ impl Processor {
                     keys::U => {
                         // u + w → ư (horn)
                         if c.tone == 0 {
+                            // For "uu" pattern, horn goes on FIRST u, not second
+                            // "uuw" → "ưu" (like "ưu tiên" = priority)
+                            // Check if there's another 'u' before this one
+                            if pos > 0 {
+                                if let Some(prev) = self.buffer.get(pos - 1) {
+                                    if prev.key == keys::U && prev.tone == 0 {
+                                        // Apply horn to previous 'u' instead
+                                        if let Some(u) = self.buffer.get_mut(pos - 1) {
+                                            u.tone = 2;
+                                        }
+                                        self.revert.record(xform::HORN, keys::U, (pos - 1) as u8);
+                                        self.raw.mark_consumed(self.raw.len() - 1);
+                                        return ProcessResult::Transform;
+                                    }
+                                    // For "uou" pattern (hươu = deer), horn goes on first u and o
+                                    // "huouw" → "hươu"
+                                    // Skip this u and let loop continue to find 'o' then 'u'
+                                    if prev.key == keys::O && prev.tone == 0 && pos >= 2 {
+                                        if let Some(first_u) = self.buffer.get(pos - 2) {
+                                            if first_u.key == keys::U && first_u.tone == 0 {
+                                                // Found u-o-u pattern, apply horn to first u and o
+                                                if let Some(u) = self.buffer.get_mut(pos - 2) {
+                                                    u.tone = 2; // horn on first u
+                                                }
+                                                if let Some(o) = self.buffer.get_mut(pos - 1) {
+                                                    o.tone = 2; // horn on o
+                                                }
+                                                self.revert.record(
+                                                    xform::HORN,
+                                                    keys::U,
+                                                    (pos - 2) as u8,
+                                                );
+                                                self.raw.mark_consumed(self.raw.len() - 1);
+                                                return ProcessResult::Transform;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             if let Some(c) = self.buffer.get_mut(pos) {
                                 c.tone = 2;
                             }
@@ -1015,6 +1566,11 @@ impl Processor {
 
     /// Handle TONE action - apply tone mark
     fn handle_tone(&mut self, key: u16) -> ProcessResult {
+        // Skip in foreign word mode (after double-key revert like ss, rr, ff)
+        if self.foreign_word_mode {
+            return ProcessResult::Reject;
+        }
+
         let tone_value = match tone_key_to_value(key) {
             Some(v) => v,
             None => return ProcessResult::Reject,
@@ -1028,8 +1584,28 @@ impl Processor {
 
         // Validate vowel pattern before applying tone
         // This prevents tone application on foreign words like "about" → "ábout"
+        //
+        // IMPORTANT: For "gi" and "qu" initials, exclude the initial's vowel from validation
+        // - "giường" has vowels [i, u, o] but 'i' is part of "gi" initial → validate [u, o] = "ươ"
+        // - "quốc" has vowels [u, o] but 'u' is part of "qu" initial → validate [o] = single vowel
+        let has_gi_initial = self.buffer.len() >= 2
+            && self.buffer.get(0).map(|c| c.key) == Some(keys::G)
+            && self.buffer.get(1).map(|c| c.key) == Some(keys::I);
+
+        let has_qu_initial = self.buffer.len() >= 2
+            && self.buffer.get(0).map(|c| c.key) == Some(keys::Q)
+            && self.buffer.get(1).map(|c| c.key) == Some(keys::U);
+
+        // Exclude position 1 if it's part of gi/qu initial
+        let skip_pos = if has_gi_initial || has_qu_initial {
+            Some(1)
+        } else {
+            None
+        };
+
         let vowel_keys: Vec<u16> = vowel_positions
             .iter()
+            .filter(|&&pos| skip_pos != Some(pos))
             .filter_map(|&pos| self.buffer.get(pos).map(|c| c.key))
             .collect();
 
@@ -1153,10 +1729,34 @@ impl Processor {
     }
 
     /// Handle MARK action - apply vowel mark (circumflex, horn, breve)
-    fn handle_mark(&mut self, key: u16) -> ProcessResult {
-        // W is handled separately in handle_w
+    fn handle_mark(&mut self, key: u16, caps: bool) -> ProcessResult {
+        // W is handled separately for horn/breve
         if key == keys::W {
-            return self.apply_horn_or_breve();
+            let result = self.apply_horn_or_breve();
+            if result == ProcessResult::Reject {
+                // Can't apply horn/breve - check if we should consume or pass through
+                // For "ươ" pattern with horn on both, consume 'w' silently (redundant)
+                // For other cases, add 'w' as literal
+                let vowels = self.buffer.find_vowels();
+                if vowels.len() >= 2 {
+                    let len = vowels.len();
+                    let first = vowels[len - 2];
+                    let second = vowels[len - 1];
+                    if let (Some(v1), Some(v2)) = (self.buffer.get(first), self.buffer.get(second))
+                    {
+                        // Check for ươ pattern with horn on both
+                        if v1.key == keys::U && v1.tone == 2 && v2.key == keys::O && v2.tone == 2 {
+                            // Consume 'w' silently - horn already applied to both
+                            self.raw.mark_consumed(self.raw.len() - 1);
+                            return ProcessResult::Transform;
+                        }
+                    }
+                }
+                // Not a redundant 'w' - add as literal
+                self.buffer.push(Char::new(keys::W, caps));
+                return ProcessResult::Update;
+            }
+            return result;
         }
 
         // Check for foreign consonant clusters - don't apply marks to foreign words
@@ -1174,11 +1774,56 @@ impl Processor {
         let last_pos = *vowels.last().unwrap();
         if let Some(c) = self.buffer.get(last_pos) {
             if c.key == key && c.tone == 0 {
+                // Verify it's a true double-vowel pattern (consecutive same vowels)
+                // "aa" → "â" but "chưa" + "a" → "chưaa" (not circumflex)
+                // The char immediately before the last vowel must be the same vowel
+                let is_double_vowel = if last_pos > 0 {
+                    if let Some(prev) = self.buffer.get(last_pos - 1) {
+                        prev.key == key && prev.tone == 0
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                // Post-tone circumflex pattern: e + consonant + tone + e → ế
+                // Examples: "xepse" = x + e + p + s(tone) + e(circumflex) → xếp
+                // Detect by checking: vowel has mark applied (mark > 0)
+                let is_post_tone_circumflex = c.mark > 0;
+
+                if !is_double_vowel && !is_post_tone_circumflex {
+                    // Not a double-vowel pattern - add the char as literal
+                    // "chưa" + "a" → "chưaa" (not circumflex)
+                    self.buffer.push(Char::new(key, caps));
+                    return ProcessResult::Update;
+                }
+
                 // Same vowel without existing mark - apply circumflex
                 if let Some(c) = self.buffer.get_mut(last_pos) {
                     c.tone = 1; // circumflex
                     self.revert.record(xform::CIRCUMFLEX, key, last_pos as u8);
                     self.raw.mark_consumed(self.raw.len() - 1);
+
+                    // Apply deferred stroke if pending (dede → đê)
+                    // Also remove the 'd' that triggered the defer
+                    if self.defer.kind == defertype::STROKE_D {
+                        let d_pos = self.defer.position as usize;
+                        if let Some(d_char) = self.buffer.get_mut(d_pos) {
+                            if d_char.key == keys::D && !d_char.stroke {
+                                d_char.stroke = true;
+                            }
+                        }
+                        // Remove the second 'd' that triggered defer
+                        for i in (d_pos + 1..self.buffer.len()).rev() {
+                            if self.buffer.get(i).is_some_and(|c| c.key == keys::D) {
+                                self.buffer.remove(i);
+                                break;
+                            }
+                        }
+                        self.defer.clear();
+                    }
+
                     return ProcessResult::Transform;
                 }
             }
@@ -1277,6 +1922,7 @@ impl Processor {
                             | (keys::G, keys::H)  // gh
                             | (keys::G, keys::I)  // gi (i is vowel but gi is special)
                             | (keys::K, keys::H)  // kh
+                            | (keys::K, keys::R)  // kr (ethnic minority: Krông)
                             | (keys::N, keys::G)  // ng
                             | (keys::N, keys::H)  // nh
                             | (keys::P, keys::H)  // ph
@@ -1312,17 +1958,61 @@ impl Processor {
             return ProcessResult::Reject;
         }
 
-        // Find the d to stroke (should be the last one in INIT state)
-        for i in (0..self.buffer.len()).rev() {
-            if let Some(c) = self.buffer.get_mut(i) {
-                if c.key == keys::D && !c.stroke {
+        // Check for invalid vowel patterns (foreign words like "deadline")
+        // "deadline" has vowels [e, a] which is NOT a valid Vietnamese diphthong
+        // "dede" has single vowel [e] which is valid for quick typing
+        let vowel_keys: Vec<u16> = self
+            .buffer
+            .iter()
+            .filter(|c| keys::is_vowel(c.key))
+            .map(|c| c.key)
+            .collect();
+        if vowel_keys.len() >= 2 && !is_valid_vowel_pattern(&vowel_keys) {
+            return ProcessResult::Reject;
+        }
+
+        // Check if last char is 'd' (adjacent dd → immediate stroke)
+        let last_is_d = self
+            .buffer
+            .last()
+            .is_some_and(|c| c.key == keys::D && !c.stroke);
+        if last_is_d {
+            // Adjacent dd → apply stroke immediately
+            // BUT only if 'd' is not in final position (đ not valid as final)
+            // e.g., "didd" should NOT become "diđ", should stay as "did" + extra 'd'
+            if self.state == st::FIN {
+                return ProcessResult::Reject; // Can't stroke final 'd' → đ not valid final
+            }
+            let last_idx = self.buffer.len() - 1;
+            if let Some(c) = self.buffer.get_mut(last_idx) {
+                c.stroke = true;
+                self.revert.record(xform::STROKE, keys::D, last_idx as u8);
+                self.raw.mark_consumed(self.raw.len() - 1);
+                return ProcessResult::Transform;
+            }
+        }
+
+        // Non-adjacent d (d + vowel + d) → apply stroke immediately
+        // "dod" → "đo", "dad" → "đa", etc.
+        // Find the first 'd' to potentially stroke
+        let first_d_pos = self
+            .buffer
+            .iter()
+            .position(|c| c.key == keys::D && !c.stroke);
+        if let Some(pos) = first_d_pos {
+            let has_vowel = self.buffer.iter().any(|c| keys::is_vowel(c.key));
+            if has_vowel {
+                // Apply stroke immediately for d+vowel+d pattern
+                // The second 'd' triggers stroke on first 'd' and is consumed
+                if let Some(c) = self.buffer.get_mut(pos) {
                     c.stroke = true;
-                    self.revert.record(xform::STROKE, keys::D, i as u8);
+                    self.revert.record(xform::STROKE, keys::D, pos as u8);
                     self.raw.mark_consumed(self.raw.len() - 1);
                     return ProcessResult::Transform;
                 }
             }
         }
+
         ProcessResult::Reject
     }
 
@@ -1408,6 +2098,25 @@ impl Processor {
                             self.pending_literal = Some('6');
                             return Some(ProcessResult::Update);
                         }
+                        // Switch from horn to circumflex (o7 + 6 → ô)
+                        if tone == 2 && matches!(vkey, keys::O) {
+                            if let Some(c) = self.buffer.get_mut(pos) {
+                                c.tone = 1; // circumflex replaces horn
+                            }
+                            // For 'uo' pattern, remove horn from 'u' as well
+                            if pos > 0 {
+                                if let Some(prev) = self.buffer.get(pos - 1) {
+                                    if prev.key == keys::U && prev.tone == 2 {
+                                        if let Some(u) = self.buffer.get_mut(pos - 1) {
+                                            u.tone = 0;
+                                        }
+                                    }
+                                }
+                            }
+                            self.raw.mark_consumed(self.raw.len() - 1);
+                            self.state = st::DIA;
+                            return Some(ProcessResult::Transform);
+                        }
                         if tone == 0 {
                             if let Some(c) = self.buffer.get_mut(pos) {
                                 c.tone = 1; // circumflex
@@ -1431,25 +2140,30 @@ impl Processor {
                 }
 
                 // Check for 'uo' pattern → apply horn to both for 'ươ' compound
+                // Check for 'uu' pattern → apply horn to FIRST u for 'ưu' cluster
                 if vowels.len() >= 2 {
                     let len = vowels.len();
-                    // Look for 'uo' pattern (u followed by o)
+                    // Look for 'uo' or 'uu' patterns
                     for i in 0..len - 1 {
-                        let u_pos = vowels[i];
-                        let o_pos = vowels[i + 1];
-                        let (u_key, u_tone) =
-                            self.buffer.get(u_pos).map_or((0, 0), |c| (c.key, c.tone));
-                        let (o_key, o_tone) =
-                            self.buffer.get(o_pos).map_or((0, 0), |c| (c.key, c.tone));
+                        let first_pos = vowels[i];
+                        let second_pos = vowels[i + 1];
+                        let (first_key, first_tone) = self
+                            .buffer
+                            .get(first_pos)
+                            .map_or((0, 0), |c| (c.key, c.tone));
+                        let (second_key, second_tone) = self
+                            .buffer
+                            .get(second_pos)
+                            .map_or((0, 0), |c| (c.key, c.tone));
 
-                        if u_key == keys::U && o_key == keys::O {
+                        if first_key == keys::U && second_key == keys::O {
                             // Found 'uo' pattern
-                            if u_tone == 2 && o_tone == 2 {
+                            if first_tone == 2 && second_tone == 2 {
                                 // Both have horn - revert both
-                                if let Some(c) = self.buffer.get_mut(u_pos) {
+                                if let Some(c) = self.buffer.get_mut(first_pos) {
                                     c.tone = 0;
                                 }
-                                if let Some(c) = self.buffer.get_mut(o_pos) {
+                                if let Some(c) = self.buffer.get_mut(second_pos) {
                                     c.tone = 0;
                                 }
                                 self.state = if self.state == st::DIA {
@@ -1460,12 +2174,88 @@ impl Processor {
                                 self.pending_literal = Some('7');
                                 return Some(ProcessResult::Update);
                             }
-                            if u_tone == 0 && o_tone == 0 {
-                                // Neither has horn - apply to both for 'ươ'
-                                if let Some(c) = self.buffer.get_mut(u_pos) {
+                            if first_tone == 2 && second_tone == 0 {
+                                // 'u' already has horn (from "u7"), apply horn to 'o'
+                                // Example: "u7o7" → "ươ", "hu7o71" → "huớ"
+                                if let Some(c) = self.buffer.get_mut(second_pos) {
                                     c.tone = 2;
                                 }
-                                if let Some(c) = self.buffer.get_mut(o_pos) {
+                                self.raw.mark_consumed(self.raw.len() - 1);
+                                self.state = st::DIA;
+                                return Some(ProcessResult::Transform);
+                            }
+                            // Check if there's any character after the 'uo' vowels
+                            // (indicates final like "buong", "hươu", "người" vs standalone "uo")
+                            // Includes both consonant finals (c, ng, t) and semivowel finals (u, i)
+                            let has_final = second_pos + 1 < self.buffer.len();
+
+                            // Switch from circumflex to horn
+                            // 'uô' pattern: u has no mark, o has circumflex
+                            if first_tone == 0 && second_tone == 1 {
+                                // For syllables with finals, only switch 'o'
+                                // For standalone 'uô', switch both to 'ươ'
+                                if has_final {
+                                    // Only switch 'o' to horn
+                                    if let Some(c) = self.buffer.get_mut(second_pos) {
+                                        c.tone = 2;
+                                    }
+                                } else {
+                                    // Switch both for 'ươ' compound
+                                    if let Some(c) = self.buffer.get_mut(first_pos) {
+                                        c.tone = 2;
+                                    }
+                                    if let Some(c) = self.buffer.get_mut(second_pos) {
+                                        c.tone = 2;
+                                    }
+                                }
+                                self.raw.mark_consumed(self.raw.len() - 1);
+                                self.state = st::DIA;
+                                return Some(ProcessResult::Transform);
+                            }
+                            if first_tone == 0 && second_tone == 0 {
+                                // Neither has mark - fresh horn application
+                                // Per Issue #133: horn placement depends on final
+                                if has_final {
+                                    // With final: both get horn → "ương", "hươu", "người"
+                                    // Examples: "duong7" → "dương", "huou7" → "hươu"
+                                    if let Some(c) = self.buffer.get_mut(first_pos) {
+                                        c.tone = 2;
+                                    }
+                                    if let Some(c) = self.buffer.get_mut(second_pos) {
+                                        c.tone = 2;
+                                    }
+                                } else {
+                                    // Without final: only 'o' gets horn initially → "uơ"
+                                    // Defer horn on 'u' for when final is typed later
+                                    // Examples: "uo7" → "uơ", "ruo7u" → defer → "rươu"
+                                    if let Some(c) = self.buffer.get_mut(second_pos) {
+                                        c.tone = 2;
+                                    }
+                                    self.defer = DeferState::horn_u(first_pos as u8);
+                                }
+                                self.raw.mark_consumed(self.raw.len() - 1);
+                                self.state = st::DIA;
+                                return Some(ProcessResult::Transform);
+                            }
+                        } else if first_key == keys::U && second_key == keys::U {
+                            // Found 'uu' pattern - horn on FIRST u for 'ưu' cluster
+                            // Examples: "luu7" → "lưu", "huu7" → "hưu", "cuu7" → "cưu"
+                            if first_tone == 2 {
+                                // First u has horn - revert
+                                if let Some(c) = self.buffer.get_mut(first_pos) {
+                                    c.tone = 0;
+                                }
+                                self.state = if self.state == st::DIA {
+                                    st::VOW
+                                } else {
+                                    self.state
+                                };
+                                self.pending_literal = Some('7');
+                                return Some(ProcessResult::Update);
+                            }
+                            if first_tone == 0 {
+                                // Apply horn to FIRST u
+                                if let Some(c) = self.buffer.get_mut(first_pos) {
                                     c.tone = 2;
                                 }
                                 self.raw.mark_consumed(self.raw.len() - 1);
@@ -1498,6 +2288,16 @@ impl Processor {
                             };
                             self.pending_literal = Some('7');
                             return Some(ProcessResult::Update);
+                        }
+                        // Switch from circumflex to horn (o6 + 7 → ơ)
+                        // Only 'o' can switch (u doesn't have circumflex in Vietnamese)
+                        if vtone == 1 && vkey == keys::O {
+                            if let Some(c) = self.buffer.get_mut(pos) {
+                                c.tone = 2; // horn replaces circumflex
+                            }
+                            self.raw.mark_consumed(self.raw.len() - 1);
+                            self.state = st::DIA;
+                            return Some(ProcessResult::Transform);
                         }
                         if vtone == 0 {
                             if let Some(c) = self.buffer.get_mut(pos) {
@@ -1637,6 +2437,7 @@ impl Processor {
 
     /// Handle REVERT action - undo last transform
     /// For Telex, also adds the triggering key to buffer after reverting
+    /// Double-key revert triggers FOREIGN mode (buffer becomes raw ASCII)
     fn handle_revert(&mut self, key: u16) -> ProcessResult {
         let pos = self.revert.position as usize;
 
@@ -1658,6 +2459,9 @@ impl Processor {
                 if let Some(c) = self.buffer.get_mut(pos) {
                     c.mark = 0;
                 }
+                // Double-key tone revert (ss, ff, rr, xx, jj) triggers FOREIGN mode
+                // The buffer is now raw ASCII which is valid English
+                self.foreign_word_mode = true;
             }
             xform::W_VOWEL => {
                 // Revert ư → w
@@ -1677,10 +2481,11 @@ impl Processor {
         // Exception: CIRCUMFLEX revert (aa→a) - triggering key undoes transform
         // For VNI, this is handled in handle_vni_number with pending_literal
         if self.method == 0 && transform != xform::W_VOWEL {
-            // For CIRCUMFLEX revert (aa→â→a via third 'a'), the triggering key
-            // should NOT remain in raw buffer - it undoes the transform
+            // For REVERT (circumflex or tone), the triggering key is consumed by the revert
+            // and should NOT remain in raw buffer - raw syncs with buffer
+            // Example: "conss" → raw should be [c,o,n,s] not [c,o,n,s,s]
             // Example: "dataa" → raw should be [d,a,t,a] not [d,a,t,a,a]
-            if transform == xform::CIRCUMFLEX {
+            if transform == xform::CIRCUMFLEX || transform == xform::TONE {
                 // Pop the triggering key from raw - it's consumed by the revert
                 self.raw.pop();
             }
@@ -1797,6 +2602,33 @@ impl Processor {
                 }
                 false
             }
+            defertype::HORN_O => {
+                // Deferred horn on 'o' in "ưo" pattern (from vowel+W like "đuwoc")
+                // Apply horn when final consonant is added
+                if self.state == st::FIN {
+                    let pos = self.defer.position as usize;
+                    if let Some(c) = self.buffer.get_mut(pos) {
+                        if c.key == keys::O && c.tone == 0 {
+                            c.tone = 2; // horn
+                            self.defer.clear();
+                            return true;
+                        }
+                    }
+                    self.defer.clear();
+                } else if self.state == st::DIA {
+                    // Also apply when tone mark is added to the vowel cluster
+                    // This handles cases like "đưof" where 'f' is tone key
+                    let pos = self.defer.position as usize;
+                    if let Some(c) = self.buffer.get_mut(pos) {
+                        if c.key == keys::O && c.tone == 0 {
+                            c.tone = 2; // horn
+                            self.defer.clear();
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
             _ => false,
         }
     }
@@ -1883,7 +2715,8 @@ impl Processor {
 
     /// Check if horn on u should apply due to ươi/ươy glide pattern
     fn check_horn_u_with_glide(&self) -> bool {
-        // Pattern: u + ơ + i/y where u is at defer position
+        // Pattern: u + ơ + glide where u is at defer position
+        // Valid glides: i, y, u (for words like người, rượu)
         let defer_pos = self.defer.position as usize;
 
         // Check if there's ơ after u
@@ -1898,13 +2731,13 @@ impl Processor {
             return false;
         }
 
-        // Check if there's i or y after ơ
+        // Check if there's i, y, or u (glide) after ơ
         if defer_pos + 2 >= self.buffer.len() {
             return false;
         }
 
         let glide = self.buffer.get(defer_pos + 2);
-        glide.is_some_and(|c| c.key == keys::I || c.key == keys::Y)
+        glide.is_some_and(|c| c.key == keys::I || c.key == keys::Y || c.key == keys::U)
     }
 }
 
@@ -2393,6 +3226,68 @@ mod tests {
             p.buffer().get(2).map(|c| c.mark),
             Some(1),
             "a should have tone in closed syllable"
+        );
+    }
+
+    #[test]
+    fn test_circumflex_debug() {
+        let mut p = Processor::new();
+
+        // Type "caan " (with space)
+        println!("\n=== Typing 'c' ===");
+        let r1 = p.process(keys::C, false, false);
+        println!(
+            "  state={}, buffer={}, result={:?}",
+            p.state(),
+            p.buffer().to_full_string(),
+            r1
+        );
+        println!("  foreign_mode={}", p.is_foreign_mode());
+        assert_eq!(p.state(), st::INIT);
+
+        println!("\n=== Typing 'a' ===");
+        let r2 = p.process(keys::A, false, false);
+        println!(
+            "  state={}, buffer={}, result={:?}",
+            p.state(),
+            p.buffer().to_full_string(),
+            r2
+        );
+        println!("  foreign_mode={}", p.is_foreign_mode());
+        assert_eq!(p.state(), st::VOW);
+
+        println!("\n=== Typing second 'a' ===");
+        let r3 = p.process(keys::A, false, false);
+        println!(
+            "  state={}, buffer={}, result={:?}",
+            p.state(),
+            p.buffer().to_full_string(),
+            r3
+        );
+        println!("  foreign_mode={}", p.is_foreign_mode());
+
+        // After 'aa', buffer should be "câ" (circumflex applied)
+        assert_eq!(
+            p.buffer().to_full_string(),
+            "câ",
+            "Circumflex should be applied: caa → câ"
+        );
+
+        println!("\n=== Typing 'n' ===");
+        let r4 = p.process(keys::N, false, false);
+        println!(
+            "  state={}, buffer={}, result={:?}",
+            p.state(),
+            p.buffer().to_full_string(),
+            r4
+        );
+        println!("  foreign_mode={}", p.is_foreign_mode());
+
+        // After 'n', buffer should be "cân"
+        assert_eq!(
+            p.buffer().to_full_string(),
+            "cân",
+            "Buffer should be cân after typing caan"
         );
     }
 }
