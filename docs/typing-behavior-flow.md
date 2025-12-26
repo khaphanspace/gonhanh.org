@@ -114,7 +114,7 @@
 | 1 | `v` | PASS | `[v]` | `[v]` | `v` | ✓ | | | | |
 | 2 | `a` | PASS | `[v,a]` | `[v,a]` | `va` | ✓ | | | | |
 | 3 | `r` | TONE | `[v,a,r]` | `[v,ả]` | `vả` | ✗ | ✓ | | | |
-| 4 | `r` | REVERT | `[v,a,r,r]` | `[v,a,r]` | `var` | ✗ | ✗ | ✓ | | |
+| 4 | `r` | REVERT | `[v,a,r]` | `[v,a,r]` | `var` | ✗ | ✗ | ✓ | | |
 | 5 | `space` | COMMIT | `[]` | `[]` | `var ` | | | ✓ | | |
 
 > **Note:** Step 3: 'r' modifier → VN(B)=✓. Step 4: 'rr' double-key → VN(B)=✗ → REVERT → EN mode.
@@ -173,6 +173,22 @@
 
 > **Note:** Step 4+: 's' modifier → VN(R)=✗. Step 6: 'l' invalid final → VN(B)=✗ → RESTORE.
 
+### Example 10a: `c o n s s o l e` + space → "console " (double-key revert)
+
+| # | Key | Action | Raw | Buffer | Output | VN(R) | VN(B) | EN(R) | EN(B) | Restore? |
+|---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
+| 1 | `c` | PASS | `[c]` | `[c]` | `c` | ✓ | | | | |
+| 2 | `o` | PASS | `[c,o]` | `[c,o]` | `co` | ✓ | | | | |
+| 3 | `n` | PASS | `[c,o,n]` | `[c,o,n]` | `con` | ✓ | | | | |
+| 4 | `s` | TONE | `[c,o,n,s]` | `[c,ó,n]` | `cón` | ✗ | ✓ | | | |
+| 5 | `s` | REVERT | `[c,o,n,s]` | `[c,o,n,s]` | `cons` | ✗ | ✗ | ✓ | | |
+| 6 | `o` | PASS | `[c,o,n,s,o]` | `[c,o,n,s,o]` | `conso` | | | ✓ | | |
+| 7 | `l` | PASS | `[c,o,n,s,o,l]` | `[c,o,n,s,o,l]` | `consol` | | | ✓ | | |
+| 8 | `e` | PASS | `[c,o,n,s,o,l,e]` | `[c,o,n,s,o,l,e]` | `console` | | | ✓ | | |
+| 9 | `space` | COMMIT | `[]` | `[]` | `console ` | | | ✓ | | |
+
+> **Note:** Step 4: 's' modifier → VN(R)=✗ → VN(B)=✓ ("cón" valid). Step 5: 'ss' double-key → REVERT → EN mode. Steps 6-8 continue in EN mode.
+
 ---
 
 ## Example 11: `d i s s t` + space → "dist "
@@ -182,11 +198,47 @@
 | 1 | `d` | PASS | `[d]` | `[d]` | `d` | ✓ | | | | |
 | 2 | `i` | PASS | `[d,i]` | `[d,i]` | `di` | ✓ | | | | |
 | 3 | `s` | TONE | `[d,i,s]` | `[d,í]` | `dí` | ✗ | ✓ | | | |
-| 4 | `s` | REVERT | `[d,i,s,s]` | `[d,i,s]` | `dis` | ✗ | ✗ | ✓ | | |
-| 5 | `t` | PASS | `[d,i,s,s,t]` | `[d,i,s,t]` | `dist` | | | ✓ | | |
+| 4 | `s` | REVERT | `[d,i,s]` | `[d,i,s]` | `dis` | ✗ | ✗ | ✓ | | |
+| 5 | `t` | PASS | `[d,i,s,t]` | `[d,i,s,t]` | `dist` | | | ✓ | | |
 | 6 | `space` | COMMIT | `[]` | `[]` | `dist ` | | | ✓ | | |
 
 > **Note:** Step 3: 's' modifier → VN(R)=✗ → VN(B)=✓. Step 4: 'ss' double-key → REVERT → EN mode.
+
+---
+
+## Example 11a: `m i s s s` + space → "miss " (triple-key for double letter)
+
+| # | Key | Action | Raw | Buffer | Output | VN(R) | VN(B) | EN(R) | EN(B) | Restore? |
+|---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
+| 1 | `m` | PASS | `[m]` | `[m]` | `m` | ✓ | | | | |
+| 2 | `i` | PASS | `[m,i]` | `[m,i]` | `mi` | ✓ | | | | |
+| 3 | `s` | TONE | `[m,i,s]` | `[m,í]` | `mí` | ✗ | ✓ | | | |
+| 4 | `s` | REVERT | `[m,i,s]` | `[m,i,s]` | `mis` | ✗ | ✗ | ✓ | | |
+| 5 | `s` | PASS | `[m,i,s,s]` | `[m,i,s,s]` | `miss` | | | ✓ | | |
+| 6 | `space` | COMMIT | `[]` | `[]` | `miss ` | | | ✓ | | |
+
+> **Note:**
+> - Step 4: 'ss' REVERT → Raw synced với Buffer (bỏ trigger key)
+> - Step 5: Third 's' = literal trong EN mode
+> - Pattern: `ss` = revert + 1 literal, `sss` = revert + 2 literal
+
+---
+
+## Example 11b: `k e e p` + space → "keep " (commit-time validation)
+
+| # | Key | Action | Raw | Buffer | Output | VN(R) | VN(B) | EN(R) | EN(B) | Restore? |
+|---|-----|--------|-----|--------|--------|-------|-------|-------|-------|----------|
+| 1 | `k` | PASS | `[k]` | `[k]` | `k` | ✓ | | | | |
+| 2 | `e` | PASS | `[k,e]` | `[k,e]` | `ke` | ✓ | | | | |
+| 3 | `e` | CIRCUM | `[k,e,e]` | `[k,ê]` | `kê` | ✓ | | | | |
+| 4 | `p` | PASS | `[k,e,e,p]` | `[k,ê,p]` | `kêp` | ✓ | | | | |
+| 5 | `space` | VALIDATE | | | | | ✗ | | | "kêp" invalid |
+| 5 | `space` | RESTORE+COMMIT | `[]` | `[]` | `keep ` | | | ✓ | | **Triggered** |
+
+> **Note:**
+> - Step 5: VALIDATE tại commit time → "kêp" không valid trong Vietnamese
+> - Buffer fallback về Raw → "keep"
+> - Commit "keep " (EN mode)
 
 ---
 
@@ -270,6 +322,39 @@ VN(R) → if ✗ → VN(B) → if ✗ → RESTORE/FOREIGN → EN mode
 
 ---
 
+## Commit-time Validation
+
+Khi user nhấn SPACE (commit), engine thực hiện final validation:
+
+```
+COMMIT Flow:
+1. Kiểm tra Buffer có phải Vietnamese word valid không
+2. Nếu invalid → RESTORE về Raw → commit Raw
+3. Nếu valid → commit Buffer
+```
+
+### Circumflex Syllable Rules
+
+| Pattern | Example | Valid? | Reason |
+|---------|---------|--------|--------|
+| Open syllable (no final) | `kê`, `bê` | ✓ | Circumflex alone OK |
+| Closed + tone | `kép`, `bếp`, `kếp` | ✓ | Has tone mark |
+| Closed + no tone | `kêp`, `bêp` | ✗ | Missing tone → invalid |
+
+### Commit-time Restore Examples
+
+| Input | Buffer | Valid? | Output |
+|-------|--------|--------|--------|
+| `k e e p` | `kêp` | ✗ | `keep` (restore) |
+| `k e e s p` | `kếp` | ✓ | `kếp` (commit buffer) |
+| `b e e p` | `bêp` | ✗ | `beep` (restore) |
+| `b e e s p` | `bếp` | ✓ | `bếp` (commit buffer) |
+
+> **Note:** Commit-time validation chỉ apply khi VN(R)=✓ (no modifier keys).
+> Nếu VN(R)=✗, validation đã xảy ra real-time qua VN(B) check.
+
+---
+
 ## Comparison
 
 | Sequence | Keys | Result | VN(R) | VN(B) | EN |
@@ -284,5 +369,8 @@ VN(R) → if ✗ → VN(B) → if ✗ → RESTORE/FOREIGN → EN mode
 | `d e n d e s n n n n` + space | 11 | `đếnnnnn ` | ✗ | ✓ | |
 | `t o t o s` + space | 6 | `tốt ` | ✗ | ✓ | |
 | `c o n s o l e` + space | 8 | `console ` | ✗ | ✗ | ✓ |
+| `c o n s s o l e` + space | 9 | `console ` | ✗ | ✗ | ✓ |
 | `d i s s t` + space | 6 | `dist ` | ✗ | ✗ | ✓ |
+| `m i s s s` + space | 6 | `miss ` | ✗ | ✗ | ✓ |
+| `k e e p` + space | 5 | `keep ` | ✓ | ✗ | ✓ |
 | `d u o w n g o d` + space | 9 | `đuông ` | ✗ | ✓ | |
