@@ -28,6 +28,9 @@
 
 ## 📥 Tải về & Cài đặt
 
+[![Run in Smithery](https://smithery.ai/badge/skills/khaphanspace)](https://smithery.ai/skills?ns=khaphanspace&utm_source=github&utm_medium=badge)
+
+
 ### 🍺 Homebrew (macOS - Khuyến nghị)
 
 ```bash
