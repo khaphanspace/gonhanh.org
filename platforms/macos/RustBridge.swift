@@ -108,6 +108,7 @@ private enum InjectionMethod {
     case autocomplete   // Spotlight fallback: Forward Delete + backspace + text via proxy
     case selectAll      // Select All + Replace: Cmd+A + type full buffer (for autocomplete apps)
     case axDirect       // Spotlight primary: AX API direct text manipulation (macOS 13+)
+    case passthrough    // iPhone Mirroring: pass through all keys (remote device handles input)
 }
 
 // MARK: - Text Injector
@@ -178,6 +179,9 @@ private class TextInjector {
             injectViaSelectAll(proxy: proxy)
         case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
+        case .passthrough:
+            // Should not reach here - passthrough is handled in keyboard callback
+            break
         }
 
         // Settle time: 20ms for slow apps, 5ms for others
@@ -963,6 +967,13 @@ private func keyboardCallback(
     // Detect injection method once per keystroke (expensive AX query)
     let (method, delays) = detectMethod()
 
+    // iPhone Mirroring and other passthrough apps: pass all keys directly
+    // These apps handle text input remotely and cannot receive macOS text injection
+    if method == .passthrough {
+        Log.key(keyCode, "pass")
+        return Unmanaged.passUnretained(event)
+    }
+
     // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
     // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+: select
     // All of these invalidate the current composition context
@@ -1190,6 +1201,13 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     // Debug: log bundle and role for investigation
     Log.info("detect: \(bundleId) role=\(role ?? "nil")")
+
+    // iPhone Mirroring (ScreenContinuity) - pass through all keys
+    // The remote iOS device handles its own text input, macOS cannot inject text
+    if bundleId == "com.apple.ScreenContinuity" {
+        Log.method("pass:iphone")
+        return (.passthrough, (0, 0, 0))
+    }
 
     // Selection method for autocomplete UI elements (ComboBox, SearchField)
     if role == "AXComboBox" { Log.method("sel:combo"); return (.selection, (0, 0, 0)) }
