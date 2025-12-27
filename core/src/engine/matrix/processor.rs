@@ -840,8 +840,11 @@ impl Processor {
                             }
 
                             // Validate: is the resulting buffer valid Vietnamese?
+                            // Use REAL-TIME validation (no circumflex+closed+no_tone check)
+                            // Full validation happens at commit-time (space/punctuation)
                             let buffer_str = self.buffer.to_full_string();
-                            let is_valid = !validation::is_buffer_invalid_vietnamese(&buffer_str);
+                            let is_valid =
+                                !validation::is_buffer_invalid_vietnamese_realtime(&buffer_str);
 
                             if !is_valid {
                                 // Revert and try next position

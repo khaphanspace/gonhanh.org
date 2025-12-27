@@ -627,10 +627,14 @@ pub fn is_foreign_pattern(initial: &[u16], vowels: &[u16], final_c: &[u16]) -> b
     false
 }
 
-/// Validate transformed buffer string for valid Vietnamese structure
+/// Validate transformed buffer string for valid Vietnamese structure (COMMIT-TIME)
 ///
 /// VN(B) validation per docs/typing-behavior-flow.md:
 /// Checks if the transformed buffer forms a valid Vietnamese syllable.
+/// This is the FULL validation including circumflex+closed+no_tone check.
+///
+/// Use at COMMIT-TIME only (when space/punctuation is typed).
+/// For real-time typing validation, use is_buffer_invalid_vietnamese_realtime.
 ///
 /// Returns true if the buffer is INVALID Vietnamese (should restore)
 #[inline]
@@ -735,7 +739,170 @@ pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
         }
     }
 
+    // Check 6: Circumflex + closed syllable + no tone = INVALID
+    // Per docs/typing-behavior-flow.md - Commit-time Validation:
+    // "kêp", "bêp", "tôt" without tone → should restore to raw
+    // This catches foreign words typed with delayed circumflex: "keep" → "kêp" → invalid
+    if has_circumflex_closed_no_tone(&chars) {
+        return true;
+    }
+
     false
+}
+
+/// Validate transformed buffer string for valid Vietnamese structure (REAL-TIME)
+///
+/// This is a lighter version of is_buffer_invalid_vietnamese that skips
+/// the circumflex+closed+no_tone check. Use during REAL-TIME typing to allow
+/// circumflex application tentatively. The full check happens at commit-time.
+///
+/// Returns true if the buffer is INVALID Vietnamese
+#[inline]
+pub fn is_buffer_invalid_vietnamese_realtime(buffer: &str) -> bool {
+    let chars: Vec<char> = buffer.chars().collect();
+    if chars.is_empty() {
+        return false;
+    }
+
+    // Check 1: Breve (ă/Ă) in open syllable = invalid
+    let has_breve = chars.iter().any(|&c| c == 'ă' || c == 'Ă');
+    if has_breve {
+        let mut found_breve = false;
+        let mut has_final = false;
+        for &c in &chars {
+            if c == 'ă' || c == 'Ă' {
+                found_breve = true;
+            } else if found_breve && is_consonant_char(c) {
+                has_final = true;
+                break;
+            }
+        }
+        if found_breve && !has_final {
+            return true;
+        }
+    }
+
+    // Check 2: Invalid Vietnamese diphthongs (ưe, ưi)
+    let is_u_horn = |c: char| matches!(c, 'ư' | 'Ư' | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự');
+    let is_e_any = |c: char| {
+        matches!(
+            c,
+            'e' | 'E'
+                | 'é'
+                | 'è'
+                | 'ẻ'
+                | 'ẽ'
+                | 'ẹ'
+                | 'ê'
+                | 'Ê'
+                | 'ế'
+                | 'ề'
+                | 'ể'
+                | 'ễ'
+                | 'ệ'
+        )
+    };
+    let is_i_any = |c: char| matches!(c, 'i' | 'I' | 'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị');
+
+    for window in chars.windows(2) {
+        let (c1, c2) = (window[0], window[1]);
+        if is_u_horn(c1) && (is_e_any(c2) || is_i_any(c2)) {
+            return true;
+        }
+    }
+
+    // Check 3: Invalid final consonants
+    let last_char = chars.last().copied().unwrap_or('\0');
+    if is_invalid_final_char(last_char) {
+        return true;
+    }
+
+    // Check 4: 'w' as consonant in buffer = foreign
+    if chars.iter().any(|&c| c == 'w' || c == 'W') {
+        return true;
+    }
+
+    // Check 5: Invalid syllable structure (vowel + consonant + vowel)
+    let mut state = 0u8;
+    for &c in &chars {
+        let is_vowel_char = is_vn_vowel_char(c);
+        match state {
+            0 => {
+                if is_vowel_char {
+                    state = 1;
+                }
+            }
+            1 => {
+                if !is_vowel_char && is_consonant_char(c) {
+                    state = 2;
+                }
+            }
+            2 => {
+                if is_vowel_char {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // NOTE: Check 6 (circumflex+closed+no_tone) is SKIPPED for real-time validation
+    // This allows "tôt" during typing, but will be checked at commit-time
+
+    false
+}
+
+/// Check if buffer has circumflex vowel + stop consonant final + no tone mark
+/// This is INVALID Vietnamese per commit-time validation rules
+/// Examples: kêp, bêp, tôt (without tone) = invalid → restore to keep, beep, toto
+///
+/// Only applies to STOP consonant finals: p, t, c
+/// Nasal finals (m, n, ng, nh) are valid without tone: tiêng, bên, têm
+#[inline]
+fn has_circumflex_closed_no_tone(chars: &[char]) -> bool {
+    // Circumflex vowels WITHOUT tone: â, ê, ô (base forms only)
+    let has_untoned_circumflex = chars
+        .iter()
+        .any(|&c| matches!(c, 'â' | 'Â' | 'ê' | 'Ê' | 'ô' | 'Ô'));
+
+    if !has_untoned_circumflex {
+        return false;
+    }
+
+    // Check if syllable ends with STOP consonant (p, t, c)
+    // These are the only finals where circumflex + no tone = likely foreign
+    // Nasal finals (m, n, ng, nh) are valid without tone: tiêng, bên, têm
+    let last = chars.last().copied().unwrap_or('\0');
+    let ends_with_stop = matches!(last.to_ascii_lowercase(), 'p' | 't' | 'c');
+
+    if !ends_with_stop {
+        return false; // Nasal finals or open syllable = OK
+    }
+
+    // Check if there's a tone mark anywhere (toned circumflex variants)
+    // If we have toned circumflex, it's valid: ấ, ầ, ẩ, ẫ, ậ, ế, ề, ể, ễ, ệ, ố, ồ, ổ, ỗ, ộ
+    let has_toned_circumflex = chars.iter().any(|&c| {
+        matches!(
+            c,
+            'ấ' | 'ầ'
+                | 'ẩ'
+                | 'ẫ'
+                | 'ậ'
+                | 'ế'
+                | 'ề'
+                | 'ể'
+                | 'ễ'
+                | 'ệ'
+                | 'ố'
+                | 'ồ'
+                | 'ổ'
+                | 'ỗ'
+                | 'ộ'
+        )
+    });
+
+    // If has toned circumflex, it's valid
+    !has_toned_circumflex
 }
 
 /// Check if character is a Vietnamese vowel (including toned versions)
