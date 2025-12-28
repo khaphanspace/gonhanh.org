@@ -773,13 +773,16 @@ fn issue142_sims_extra_s() {
 
 /// Test: Vowel-triggered circumflex stays Vietnamese when buffer is valid
 /// Unified logic: only restore when buffer is INVALID Vietnamese
-/// All these produce structurally valid Vietnamese syllables
+/// Words with circumflex + non-stop consonant (m, n, ng, nh) are real Vietnamese
+/// Words with circumflex + stop consonant (t, c, p) WITHOUT mark are not real Vietnamese
 #[test]
 fn vowel_triggered_circumflex_stays_vietnamese() {
     telex_auto_restore(&[
+        // Non-stop consonant finals (m, n, ng, nh) → real Vietnamese words
         ("homo ", "hôm "), // h+o+m+o → hôm (valid VI: yesterday)
-        ("toto ", "tôt "), // t+o+t+o → tôt (valid VI: good)
         ("mama ", "mâm "), // m+a+m+a → mâm (valid VI: tray)
-        ("papa ", "pâp "), // p+a+p+a → pâp (structurally valid VI)
+        // Stop consonant finals (t, c, p) without mark → NOT real Vietnamese
+        ("toto ", "toto "), // t+o+t+o → tôt (no mark, restore to English)
+        ("papa ", "papa "), // p+a+p+a → pâp (no mark, restore to English)
     ]);
 }

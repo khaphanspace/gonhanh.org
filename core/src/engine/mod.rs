@@ -2827,6 +2827,21 @@ impl Engine {
         self.buf.to_full_string()
     }
 
+    /// Debug: Check if vowel-triggered circumflex flag is set
+    pub fn had_vowel_circumflex(&self) -> bool {
+        self.had_vowel_triggered_circumflex
+    }
+
+    /// Debug: Get raw_input length
+    pub fn raw_input_len(&self) -> usize {
+        self.raw_input.len()
+    }
+
+    /// Debug: Check if raw_input is valid English
+    pub fn is_raw_english(&self) -> bool {
+        self.is_raw_input_valid_english()
+    }
+
     /// Restore buffer from a Vietnamese word string
     ///
     /// Used when native app detects cursor at word boundary and wants to edit.
@@ -2934,6 +2949,38 @@ impl Engine {
             let has_marks = self.buf.iter().any(|c| c.mark > 0);
             if has_circumflex && !has_marks {
                 return self.build_raw_chars();
+            }
+        }
+
+        // Check 4: V+C+V circumflex with stop consonant final
+        // Pattern: "data" → "dât", "tata" → "tât", "papa" → "pâp"
+        // V+C+V triggers circumflex, consuming 1 char (raw_input.len = buf.len + 1)
+        // If buffer ends with circumflex + stop consonant (t/c/p) without mark,
+        // these are rarely valid Vietnamese words → restore to English
+        // Compare: "hôm" (circumflex + m) and "sân" (circumflex + n) are valid Vietnamese
+        // NOTE: Use `had_vowel_triggered_circumflex` flag for accurate detection
+        if is_word_complete
+            && self.had_vowel_triggered_circumflex
+            && !has_stroke
+            && raw_input_valid_en
+        {
+            let has_marks = self.buf.iter().any(|c| c.mark > 0);
+            if !has_marks {
+                let buf_str = self.buf.to_full_string().to_lowercase();
+                // Stop consonants after circumflex without mark → likely English
+                // Examples: dât, tât, pât, sêt, bôc, etc.
+                if buf_str.ends_with("ât")
+                    || buf_str.ends_with("êt")
+                    || buf_str.ends_with("ôt")
+                    || buf_str.ends_with("âc")
+                    || buf_str.ends_with("êc")
+                    || buf_str.ends_with("ôc")
+                    || buf_str.ends_with("âp")
+                    || buf_str.ends_with("êp")
+                    || buf_str.ends_with("ôp")
+                {
+                    return self.build_raw_chars();
+                }
             }
         }
 

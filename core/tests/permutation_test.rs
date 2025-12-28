@@ -351,7 +351,7 @@ fn english_words_restored() {
         ("raw ", "raw "),   // should restore
         ("law ", "law "),   // should restore
         ("saw ", "saw "),   // should restore
-        // "data" removed - produces "dât" which is valid VI structure
+        ("data ", "data "), // should restore (dât = circumflex + stop consonant, not real VI)
         ("half ", "half "), // should restore
         ("wolf ", "wolf "), // should restore
     ]);
