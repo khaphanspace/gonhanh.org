@@ -233,6 +233,16 @@ fn rule_valid_vowel_pattern(
                 if triple == [keys::U, keys::Y, keys::E] && vowel_tones[2] == tone::HORN {
                     return Some(ValidationResult::InvalidVowelPattern);
                 }
+
+                // iêu/yêu requires circumflex on E (middle vowel), U must NOT have horn
+                // Issue #145: "view" → "vieư" is invalid (E has no circumflex, U has horn)
+                // Valid: "iêu" (E has circumflex, U plain)
+                // Invalid: "ieư" (E plain, U has horn)
+                if (triple == [keys::I, keys::E, keys::U] || triple == [keys::Y, keys::E, keys::U])
+                    && (vowel_tones[1] != tone::CIRCUMFLEX || vowel_tones[2] == tone::HORN)
+                {
+                    return Some(ValidationResult::InvalidVowelPattern);
+                }
             }
         }
         _ => {

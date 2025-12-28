@@ -563,3 +563,117 @@ fn issue130_shortcut_after_word_with_space() {
     println!("After '→abc ': '->' -> '{}' (expected: '→')", result3);
     assert_eq!(result3, "→", "'->' after 'abc ' should produce '→'");
 }
+
+// =============================================================================
+// BUG 145: "view" → "vieư", expected "view"
+// The triphthong iêu requires circumflex on E. When typing "view":
+// - "iew" has no circumflex on E and horn on U → invalid Vietnamese
+// - Should NOT transform w→ư when result is invalid
+// =============================================================================
+
+#[test]
+fn bug145_view_should_not_transform() {
+    // Without auto_restore: "view" should stay as "view" (w not transformed)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "view");
+    println!("'view' -> '{}' (expected: 'view')", result);
+    assert_eq!(result, "view", "'view' should stay as 'view', not 'vieư'");
+
+    // With auto_restore and space: should also be "view "
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "view ");
+    println!(
+        "[auto_restore] 'view ' -> '{}' (expected: 'view ')",
+        result2
+    );
+    assert_eq!(
+        result2, "view ",
+        "'view ' with auto_restore should be 'view '"
+    );
+}
+
+// =============================================================================
+// BUG: "derde " → "để " (circumflex + hỏi combined)
+// In Telex: d=initial, e=vowel, r=hỏi, d=stroke, e=circumflex
+// The second 'e' should add circumflex to existing ẻ → ể
+// =============================================================================
+
+#[test]
+fn bug_derde_to_de_hoi() {
+    // Debug: step by step
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    let mut screen = String::new();
+    let inputs = ['d', 'e', 'r', 'd', 'e', ' '];
+
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("\nFinal: 'derde ' -> '{}' (expected: 'để ')", screen);
+    assert_eq!(
+        screen, "để ",
+        "'derde ' with auto_restore should produce 'để '"
+    );
+}
+
+// =============================================================================
+// ISSUE #146: "tóm" → "toms" (tone mark not applied)
+// In Telex: "toms" should produce "tóm" (s = sắc tone on 'o')
+// =============================================================================
+
+#[test]
+fn issue146_tom_s_should_produce_tom_sac() {
+    // "toms" in Telex should produce "tóm" (sắc tone on 'o')
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "toms");
+    println!("'toms' -> '{}' (expected: 'tóm')", result);
+    assert_eq!(result, "tóm", "'toms' should produce 'tóm', not 'toms'");
+
+    // Also test with space
+    let mut e2 = Engine::new();
+    let result2 = type_word(&mut e2, "toms ");
+    println!("'toms ' -> '{}' (expected: 'tóm ')", result2);
+    assert_eq!(
+        result2, "tóm ",
+        "'toms ' should produce 'tóm ', not 'toms '"
+    );
+
+    // Test similar patterns
+    telex(&[
+        ("toms", "tóm"), // Issue #146
+        ("moms", "móm"), // Similar pattern
+        ("boms", "bóm"), // Similar pattern
+        ("coms", "cóm"), // Similar pattern
+        ("doms", "dóm"), // Similar pattern
+        ("noms", "nóm"), // Similar pattern
+    ]);
+}

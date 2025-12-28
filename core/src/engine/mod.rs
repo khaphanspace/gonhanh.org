@@ -2943,9 +2943,15 @@ impl Engine {
         }
 
         // Additional check: English patterns in raw_input even when buffer appears valid
-        // This catches patterns like "text", "their", etc.
+        // This catches patterns like "text", "their", "law", "saw", etc.
+        // EXCEPTION: If buffer has stroke (đ), this is intentional Vietnamese
+        // Example: "derde" → "để" has stroke, keep it (valid VN word)
+        // Example: "law" → "lă" has no stroke, restore to "law" (English)
         if is_word_complete && self.has_english_modifier_pattern(true) && raw_input_valid_en {
-            return self.build_raw_chars();
+            // Skip restore if buffer has stroke - user intentionally typed Vietnamese đ
+            if !has_stroke {
+                return self.build_raw_chars();
+            }
         }
 
         // Check 3: Significant character consumption with circumflex
