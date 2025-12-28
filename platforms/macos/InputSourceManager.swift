@@ -81,10 +81,10 @@ final class InputSourceObserver {
         if isAllowedInputSource {
             // Restore user preference
             let userEnabled = UserDefaults.standard.bool(forKey: SettingsKey.enabled)
-            RustBridge.setEnabled(userEnabled)
+            IMEClient.shared.setEnabled(userEnabled)
         } else {
             // Force disable
-            RustBridge.setEnabled(false)
+            IMEClient.shared.setEnabled(false)
         }
 
         // Update menu bar icon

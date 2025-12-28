@@ -216,6 +216,23 @@ final class IMEClient: NSObject, ObservableObject {
     func savePerAppMode(bundleId: String, enabled: Bool) {
         daemonProxy?.savePerAppMode(bundleId: bundleId, enabled: enabled)
     }
+
+    // MARK: - Sync All Settings
+
+    /// Sync all settings from AppState to daemon
+    func syncAllSettings(appState: AppState) {
+        setEnabled(appState.isEnabled)
+        setMethod(appState.currentMethod.rawValue)
+        setModernTone(appState.modernTone)
+        setSkipWShortcut(!appState.autoWShortcut)
+        setEscRestore(appState.escRestore)
+        setEnglishAutoRestore(appState.englishAutoRestore)
+        setAutoCapitalize(appState.autoCapitalize)
+        setPerAppModeEnabled(appState.perAppModeEnabled)
+
+        // Sync shortcuts
+        appState.syncShortcutsToEngine()
+    }
 }
 
 // MARK: - IMEAppProtocol (Daemon → UI)

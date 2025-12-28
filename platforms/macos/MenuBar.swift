@@ -263,21 +263,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
     }
 
     private func startEngine() {
-        RustBridge.initialize()
-        KeyboardHookManager.shared.start()
-        RustBridge.setEnabled(appState.isEnabled)
-        RustBridge.setMethod(appState.currentMethod.rawValue)
-
-        // Sync all engine settings (these were loaded before engine was ready)
-        RustBridge.setModernTone(appState.modernTone)
-        RustBridge.setSkipWShortcut(!appState.autoWShortcut)
-        RustBridge.setEscRestore(appState.escRestore)
-        RustBridge.setEnglishAutoRestore(appState.englishAutoRestore)
-        RustBridge.setAutoCapitalize(appState.autoCapitalize)
-
-        // Sync shortcuts and start per-app mode manager
-        appState.syncShortcutsToEngine()
-        PerAppModeManager.shared.start()
+        // Daemon handles engine initialization via XPC
+        // Just sync settings to daemon
+        IMEClient.shared.syncAllSettings(appState: appState)
 
         // Reopen settings if coming from update
         if UserDefaults.standard.bool(forKey: SettingsKey.reopenSettingsAfterUpdate) {

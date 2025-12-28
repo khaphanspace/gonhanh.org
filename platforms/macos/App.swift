@@ -21,13 +21,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         menuBar = MenuBarController()
 
-        // Start observing input source changes
-        InputSourceObserver.shared.start()
+        // Connect to XPC daemon (handles keyboard, input source, etc.)
+        IMEClient.shared.connect()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        KeyboardHookManager.shared.stop()
-        InputSourceObserver.shared.stop()
+        // Daemon handles cleanup - nothing needed here
     }
 
     private func registerDefaultSettings() {

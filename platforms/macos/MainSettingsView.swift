@@ -53,7 +53,7 @@ class AppState: ObservableObject {
 
     @Published var isEnabled: Bool {
         didSet {
-            RustBridge.setEnabled(isEnabled)
+            IMEClient.shared.setEnabled(isEnabled)
             guard !isSilentUpdate else { return }
             UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
             if perAppModeEnabled {
@@ -70,7 +70,7 @@ class AppState: ObservableObject {
     @Published var currentMethod: InputMode {
         didSet {
             UserDefaults.standard.set(currentMethod.rawValue, forKey: SettingsKey.method)
-            RustBridge.setMethod(currentMethod.rawValue)
+            IMEClient.shared.setMethod(currentMethod.rawValue)
         }
     }
 
@@ -81,35 +81,35 @@ class AppState: ObservableObject {
     @Published var autoWShortcut: Bool = true {
         didSet {
             UserDefaults.standard.set(autoWShortcut, forKey: SettingsKey.autoWShortcut)
-            RustBridge.setSkipWShortcut(!autoWShortcut)
+            IMEClient.shared.setSkipWShortcut(!autoWShortcut)
         }
     }
 
     @Published var escRestore: Bool = false {
         didSet {
             UserDefaults.standard.set(escRestore, forKey: SettingsKey.escRestore)
-            RustBridge.setEscRestore(escRestore)
+            IMEClient.shared.setEscRestore(escRestore)
         }
     }
 
     @Published var modernTone: Bool = true {
         didSet {
             UserDefaults.standard.set(modernTone, forKey: SettingsKey.modernTone)
-            RustBridge.setModernTone(modernTone)
+            IMEClient.shared.setModernTone(modernTone)
         }
     }
 
     @Published var englishAutoRestore: Bool = false {
         didSet {
             UserDefaults.standard.set(englishAutoRestore, forKey: SettingsKey.englishAutoRestore)
-            RustBridge.setEnglishAutoRestore(englishAutoRestore)
+            IMEClient.shared.setEnglishAutoRestore(englishAutoRestore)
         }
     }
 
     @Published var autoCapitalize: Bool = false {
         didSet {
             UserDefaults.standard.set(autoCapitalize, forKey: SettingsKey.autoCapitalize)
-            RustBridge.setAutoCapitalize(autoCapitalize)
+            IMEClient.shared.setAutoCapitalize(autoCapitalize)
         }
     }
 
@@ -163,13 +163,13 @@ class AppState: ObservableObject {
     }
 
     private func syncAllToEngine() {
-        RustBridge.setEnabled(isEnabled)
-        RustBridge.setMethod(currentMethod.rawValue)
-        RustBridge.setSkipWShortcut(!autoWShortcut)
-        RustBridge.setEscRestore(escRestore)
-        RustBridge.setModernTone(modernTone)
-        RustBridge.setEnglishAutoRestore(englishAutoRestore)
-        RustBridge.setAutoCapitalize(autoCapitalize)
+        IMEClient.shared.setEnabled(isEnabled)
+        IMEClient.shared.setMethod(currentMethod.rawValue)
+        IMEClient.shared.setSkipWShortcut(!autoWShortcut)
+        IMEClient.shared.setEscRestore(escRestore)
+        IMEClient.shared.setModernTone(modernTone)
+        IMEClient.shared.setEnglishAutoRestore(englishAutoRestore)
+        IMEClient.shared.setAutoCapitalize(autoCapitalize)
     }
 
     private func loadShortcuts() {
@@ -301,7 +301,8 @@ class AppState: ObservableObject {
 
     func syncShortcutsToEngine(_ validShortcuts: [ShortcutItem]? = nil) {
         let toSync = validShortcuts ?? shortcuts.filter { !$0.key.isEmpty && !$0.value.isEmpty }
-        RustBridge.syncShortcuts(toSync.map { ($0.key, $0.value, $0.isEnabled) })
+        let xpcShortcuts = toSync.map { XPCShortcutItem(key: $0.key, value: $0.value, enabled: $0.isEnabled) }
+        IMEClient.shared.syncShortcuts(xpcShortcuts)
     }
 
     func exportShortcuts() -> String {
