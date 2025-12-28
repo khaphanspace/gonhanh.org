@@ -292,6 +292,12 @@ impl Engine {
         self.processor.is_valid_vietnamese()
     }
 
+    /// Finalize the current word - resolve any pending defers
+    /// Call this at end of input to get final result
+    pub fn finalize_word(&mut self) {
+        self.processor.finalize_word();
+    }
+
     /// Restore buffer from a Vietnamese word string
     pub fn restore_word(&mut self, word: &str) {
         use crate::data::chars;

@@ -1,19 +1,19 @@
-//! Debug test for "uwsow" → "ướ" modern tone issue
+//! Debug test for "datdas" → "đất"
 
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::Engine;
 
 #[test]
-fn debug_uwsow_modern_tone() {
+fn debug_datdas_step_by_step() {
     let mut engine = Engine::new();
 
-    // Type "uwsow"
     let keys_sequence = [
-        (keys::U, "U"),
-        (keys::W, "W"),
+        (keys::D, "D1"),
+        (keys::A, "A1"),
+        (keys::T, "T"),
+        (keys::D, "D2"),
+        (keys::A, "A2"),
         (keys::S, "S"),
-        (keys::O, "O"),
-        (keys::W, "W2"),
     ];
 
     for (i, &(key, name)) in keys_sequence.iter().enumerate() {
@@ -29,12 +29,8 @@ fn debug_uwsow_modern_tone() {
     }
 
     let final_buf = engine.get_buffer_string();
-    eprintln!("Final buffer: '{}'", final_buf);
+    eprintln!("Final: '{}'", final_buf);
 
-    // Expected: "ướ" (modern tone on second vowel 'ơ')
-    assert_eq!(
-        final_buf, "ướ",
-        "Modern tone: 'uwsow' should produce 'ướ', got '{}'",
-        final_buf
-    );
+    // Expected: "đất" (d+a+t+d → stroke+circumflex, then s adds tone)
+    assert_eq!(final_buf, "đất", "Expected 'đất', got '{}'", final_buf);
 }

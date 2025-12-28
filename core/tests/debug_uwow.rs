@@ -1,17 +1,15 @@
-//! Debug test for "uwsow" → "ướ" modern tone issue
+//! Debug test for "uwow" pattern regression
 
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::Engine;
 
 #[test]
-fn debug_uwsow_modern_tone() {
+fn debug_uwow_step_by_step() {
     let mut engine = Engine::new();
 
-    // Type "uwsow"
     let keys_sequence = [
         (keys::U, "U"),
-        (keys::W, "W"),
-        (keys::S, "S"),
+        (keys::W, "W1"),
         (keys::O, "O"),
         (keys::W, "W2"),
     ];
@@ -31,10 +29,10 @@ fn debug_uwsow_modern_tone() {
     let final_buf = engine.get_buffer_string();
     eprintln!("Final buffer: '{}'", final_buf);
 
-    // Expected: "ướ" (modern tone on second vowel 'ơ')
+    // Expected: "ươ" (u+w→ư, o+w→ơ, compound ươ)
     assert_eq!(
-        final_buf, "ướ",
-        "Modern tone: 'uwsow' should produce 'ướ', got '{}'",
+        final_buf, "ươ",
+        "'uwow' should produce 'ươ', got '{}'",
         final_buf
     );
 }

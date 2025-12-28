@@ -312,11 +312,7 @@ mod test_utils {
                             screen.push(ch);
                         }
                     }
-                    // Add space ONLY for Restore action (auto-restore)
-                    // Shortcuts (Send action) already include the trailing space
-                    if r.action == Action::Restore as u8 {
-                        screen.push(' ');
-                    }
+                    // Restore result now includes the trailing space
                 } else {
                     // No shortcut or restore - just add space
                     screen.push(' ');
@@ -346,6 +342,20 @@ mod test_utils {
                 screen.push(c);
             }
         }
+
+        // Finalize word to resolve any pending defers (e.g., STROKE_D)
+        // This simulates what happens when user presses space/punctuation
+        e.finalize_word();
+
+        // If there were pending defers that modified the buffer, update screen
+        // Get the final buffer state after finalization
+        let final_buffer = e.get_buffer_string();
+        if !final_buffer.is_empty() && final_buffer != screen {
+            // Buffer changed after finalization - use final buffer as screen
+            // This handles cases like "dod" → "đo" where defer is resolved at finalize
+            screen = final_buffer;
+        }
+
         screen
     }
 

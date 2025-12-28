@@ -117,6 +117,30 @@ pub fn is_valid_final_2(first: u16, second: u16) -> bool {
 }
 
 // =============================================================================
+// M4b: Special Initial Detection (gi, qu)
+// =============================================================================
+
+/// Check if buffer starts with "gi" initial (G + I at positions 0-1)
+/// Used for: tone placement, vowel pattern validation
+#[inline]
+pub fn is_gi_initial(first: u16, second: u16) -> bool {
+    first == keys::G && second == keys::I
+}
+
+/// Check if buffer starts with "qu" initial (Q + U at positions 0-1)
+/// Used for: tone placement, vowel pattern validation
+#[inline]
+pub fn is_qu_initial(first: u16, second: u16) -> bool {
+    first == keys::Q && second == keys::U
+}
+
+/// Check if buffer has gi or qu initial from first two keys
+#[inline]
+pub fn has_special_initial(first: u16, second: u16) -> bool {
+    is_gi_initial(first, second) || is_qu_initial(first, second)
+}
+
+// =============================================================================
 // M5: Spelling Rules Matrix
 // =============================================================================
 
@@ -486,11 +510,233 @@ pub fn is_foreign_pattern_keys(keys: &[u16]) -> bool {
         return true;
     }
 
+    // Check for double vowels followed by INVALID Vietnamese patterns
+    // Valid Vietnamese after circumflex vowel: n, m, ng, nh, c, ch, p, t, or just tone
+    // Examples:
+    // - "saas" → aa + s → s is not valid final → FOREIGN
+    // - "noong" → oo + ng → ng is valid final → NOT foreign
+    // - "looks" → oo + ks → ks is not valid final → FOREIGN
+    for i in 0..keys.len().saturating_sub(1) {
+        let k1 = keys[i];
+        let k2 = keys[i + 1];
+
+        // Found double vowel
+        if is_vowel(k1) && k1 == k2 {
+            // Check what follows the double vowel
+            let after_double = &keys[i + 2..];
+
+            // If nothing follows, it's just the circumflex vowel - OK for Vietnamese
+            if after_double.is_empty() {
+                continue;
+            }
+
+            // Check if what follows is a valid Vietnamese pattern
+            let is_valid_vn_after = match after_double.len() {
+                1 => {
+                    // Single letter after double vowel
+                    let k = after_double[0];
+                    let is_tone =
+                        |k: u16| matches!(k, keys::S | keys::F | keys::R | keys::X | keys::J);
+                    // Valid patterns:
+                    // 1. Consonant finals (n, m, c, p, t) - "noong" → "nông"
+                    // 2. Vowels for diphthongs - "tooi" → "tôi", "sooi" → "sôi"
+                    // 3. Tone modifiers - "leex" → "lễ" (ê + ngã)
+                    matches!(k, keys::N | keys::M | keys::C | keys::P | keys::T)
+                        || is_vowel(k) // Allow vowels for diphthongs (tôi, sôi, ôi)
+                        || is_tone(k) // Allow tone modifiers (lễ, bê, etc.)
+                }
+                2 => {
+                    // Two letters: valid final clusters or final + tone or vowel + tone
+                    let (k3, k4) = (after_double[0], after_double[1]);
+                    let is_tone =
+                        |k: u16| matches!(k, keys::S | keys::F | keys::R | keys::X | keys::J);
+                    // ng, nh, ch are valid finals
+                    let is_valid_cluster = (k3 == keys::N && k4 == keys::G)
+                        || (k3 == keys::N && k4 == keys::H)
+                        || (k3 == keys::C && k4 == keys::H);
+                    // Single final consonant + tone
+                    let is_final_tone =
+                        matches!(k3, keys::N | keys::M | keys::C | keys::P | keys::T)
+                            && is_tone(k4);
+                    // Vowel diphthong + tone (e.g., laauj → lậu, ooif → ối)
+                    let is_vowel_tone = is_vowel(k3) && is_tone(k4);
+                    is_valid_cluster || is_final_tone || is_vowel_tone
+                }
+                3 => {
+                    // Three letters: cluster final + tone (e.g., ng + s)
+                    let (k3, k4, k5) = (after_double[0], after_double[1], after_double[2]);
+                    let is_tone =
+                        |k: u16| matches!(k, keys::S | keys::F | keys::R | keys::X | keys::J);
+                    let is_cluster = (k3 == keys::N && k4 == keys::G)
+                        || (k3 == keys::N && k4 == keys::H)
+                        || (k3 == keys::C && k4 == keys::H);
+                    is_cluster && is_tone(k5)
+                }
+                _ => false, // 4+ letters after double vowel is suspicious
+            };
+
+            if !is_valid_vn_after {
+                return true;
+            }
+        }
+    }
+
+    // Define tone modifiers for checks below
+    let is_tone_modifier =
+        |k: u16| k == keys::S || k == keys::F || k == keys::R || k == keys::X || k == keys::J;
+
+    // Check for short words (3-4 chars) ending with a tone modifier
+    // Pattern: C + V + modifier or C + V + V + modifier
+    // Examples: "per" = p+e+r, "sax" = s+a+x, "sex" = s+e+x
+    // These are often English words/prefixes, not Vietnamese
+    // Exception: Don't flag if it looks like a valid Vietnamese pattern
+    if keys.len() >= 3 && keys.len() <= 4 {
+        let last_key = keys[keys.len() - 1];
+        if is_tone_modifier(last_key) {
+            // Check if the pattern before the modifier is just C + V (single vowel)
+            let has_single_vowel = keys
+                .iter()
+                .take(keys.len() - 1)
+                .filter(|k| is_vowel(**k))
+                .count()
+                == 1;
+            if has_single_vowel {
+                // Short word with single vowel + tone modifier at end
+                // Check if it's a common Vietnamese pattern
+                // Common VN: má, mẹ, bé, cô, etc. - but these have common initials
+                // Less common: pẻ, zẻ, etc. - these are more likely English
+                let first = keys[0];
+                // P, Z are rare as single initials in Vietnamese (P usually PH, Z not native)
+                let is_rare_initial = first == keys::P || first == keys::Z;
+                if is_rare_initial {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Pattern: P-initial + AI diphthong + tone modifier (pair, pain, paid, etc.)
+    // P alone (not PH) is rare in native Vietnamese
+    // "pair" = p + a + i + r → "pải" → should restore to "pair"
+    if keys.len() >= 4 {
+        let first = keys[0];
+        let second = keys[1];
+        if first == keys::P && second != keys::H {
+            // P-initial (not PH)
+            // Check for AI pattern anywhere in the word
+            for w in keys.windows(3) {
+                if w[0] == keys::A && w[1] == keys::I && is_tone_modifier(w[2]) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Check for "vowel + modifier + vowel" pattern
+    // Vietnamese words rarely have: V + tone_modifier + V (where modifier is between vowels)
+    // Examples:
+    // - "use" = u + s + e → "ué" - s is tone modifier between vowels (vowel-initial)
+    // - "core" = c + o + r + e → "coẻ" - r is tone modifier between vowels (consonant-initial)
+    // This pattern is common in English (core, more, care, use, user) but rare in Vietnamese
+
+    // Find all vowel positions
+    let vowel_positions: Vec<usize> = keys
+        .iter()
+        .enumerate()
+        .filter(|(_, k)| is_vowel(**k))
+        .map(|(i, _)| i)
+        .collect();
+
+    // Check for pattern: V + modifier + V (different vowels separated by modifier)
+    // BUT allow valid Vietnamese diphthong patterns where tone is on first vowel
+    for i in 0..vowel_positions.len().saturating_sub(1) {
+        let v1_pos = vowel_positions[i];
+        let v2_pos = vowel_positions[i + 1];
+
+        // Check if there's exactly one consonant between them and it's a tone modifier
+        if v2_pos == v1_pos + 2 {
+            let between = keys[v1_pos + 1];
+            // If the letter between two vowels is a tone modifier, check if valid Vietnamese
+            if is_tone_modifier(between) {
+                let v1 = keys[v1_pos];
+                let v2 = keys[v2_pos];
+
+                // Valid Vietnamese diphthongs where tone can be on FIRST vowel:
+                // The pattern is V1 + tone + V2, which produces "V1[tone]V2" diphthong
+                // NOTE: Only include patterns that are CLEARLY Vietnamese and won't
+                // conflict with common English words. Be conservative here.
+                //
+                // Excluded patterns that conflict with English:
+                // - (O, E) with R: more, core, sore vs khỏe - too ambiguous
+                // - (A, E) with R: care, rare, are - clearly English
+                let is_valid_vn_diphthong = matches!(
+                    (v1, v2),
+                    // u- family: ua/ưa, uo/ươ, ui, uy
+                    (keys::U, keys::A) | // của, mưa, cửa
+                    (keys::U, keys::O) | // muốn, được, buồn
+                    (keys::U, keys::I) | // túi, núi, xúi
+                    (keys::U, keys::Y) | // quý, thúy
+                    // i- family: ia, ie, iu
+                    (keys::I, keys::A) | // kìa, tía, mía
+                    (keys::I, keys::E) | // tiền, miền
+                    (keys::I, keys::U) | // kíu
+                    // a- family: ai, ao, au, ay (VERY common in Vietnamese)
+                    (keys::A, keys::I) | // gái, mái, hái
+                    (keys::A, keys::O) | // cáo, báo, táo
+                    (keys::A, keys::U) | // cấu, đấu, gấu
+                    (keys::A, keys::Y) | // máy, bay, hay
+                    // o- family: oi, oa (NOT oe - conflicts with English)
+                    (keys::O, keys::I) | // nói, mói, gói
+                    (keys::O, keys::A) | // thỏa, khỏa
+                    // e- family: eo, eu
+                    (keys::E, keys::O) | // béo, đéo, méo
+                    (keys::E, keys::U) // chếu
+                );
+
+                if !is_valid_vn_diphthong {
+                    // Special case: V + modifier + SAME_V is circumflex+tone pattern
+                    // e.g., "loxo" → "lỗ" (o + ngã + o = ô with ngã)
+                    // This is NOT a foreign V-modifier-V pattern
+                    if v1 == v2 && matches!(v1, keys::A | keys::E | keys::O) {
+                        continue; // Skip - it's circumflex pattern, not foreign
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Check for double consonants that can't exist in Vietnamese
+    // Examples: ff, ss (when not modifier), bb, dd (when not stroke trigger), etc.
+    // NOTE: In Telex, some double letters trigger revert (ss, ff, etc.)
+    // We only flag patterns where the double consonant appears BETWEEN vowels
+    // or at end of word, which is foreign to Vietnamese
+    for i in 0..keys.len().saturating_sub(1) {
+        let k1 = keys[i];
+        let k2 = keys[i + 1];
+
+        // Double consonants at end of word (foreign coda)
+        if k1 == k2 && !is_vowel(k1) && i + 2 == keys.len() {
+            // Check for "vowel + double consonant" pattern at end
+            if i > 0 && is_vowel(keys[i - 1]) {
+                return true;
+            }
+        }
+    }
+
     // Check consecutive consonant pairs at start (foreign onset clusters)
+    // NOTE: W is skipped because in Telex it's a modifier (horn/breve for ư, ơ, ă)
+    // Examples: "twong" = t + w(modifier) + ong → "tương", not "tw" + "ong"
     let mut i = 0;
     while i < keys.len() - 1 {
         let k1 = keys[i];
         let k2 = keys[i + 1];
+
+        // Skip W - it's a Telex modifier, not a consonant
+        if k2 == keys::W {
+            i += 1;
+            continue;
+        }
 
         if !is_vowel(k1) && !is_vowel(k2) {
             // Consecutive consonants at word start
@@ -516,24 +762,14 @@ pub fn is_foreign_pattern_keys(keys: &[u16]) -> bool {
         }
     }
 
-    // Vietnamese rule: 'r' can ONLY be initial consonant
-    // If 'r' appears after a vowel, it's definitely foreign (care, rare, pure, etc.)
-    if let Some(fv) = first_vowel_pos {
-        for &k in &keys[fv + 1..] {
-            if k == keys::R {
-                return true;
-            }
-        }
-    }
+    // NOTE: 'r' after vowel is NOT flagged as foreign here because 'r' is a Telex
+    // modifier (hỏi tone). The VN(B) check will validate the buffer result instead.
+    // Example: "var" → "vả" is valid Vietnamese.
 
-    // Check for multiple 'w' keys (redundant modifiers)
-    // In Vietnamese Telex, 'w' can:
-    // - Transform to 'ư' at start
-    // - Apply horn to o/u
-    // - Apply breve to a
-    // Having 2+ 'w's in one word is suspicious (like "wow", "window")
+    // NOTE: 2 'w' keys are allowed because ươ pattern needs them: "duwowc" → "dươc"
+    // Only flag 3+ 'w's as suspicious (very rare in any language)
     let w_count = keys.iter().filter(|&&k| k == keys::W).count();
-    if w_count >= 2 {
+    if w_count >= 3 {
         return true;
     }
 
@@ -551,6 +787,13 @@ pub fn is_foreign_pattern_keys(keys: &[u16]) -> bool {
             // Skip tone key clusters when tone key is directly after vowel
             // (e.g., "test" has 's' after 'e' which is tone modifier, not part of "st" cluster)
             if i == lv + 1 && is_tone_key(first) {
+                continue;
+            }
+
+            // Skip if second is a tone key at end of word (it's a modifier, not coda)
+            // e.g., "caaps" = c + aa + p + s → "cấp", ps should not be flagged
+            // because 's' is the sắc tone modifier, not a consonant
+            if i + 2 == keys.len() && is_tone_key(second) {
                 continue;
             }
 
@@ -705,11 +948,14 @@ pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
         return true;
     }
 
-    // Check 4: 'w' as consonant in buffer = foreign
+    // Check 4: 'w' or 'z' as consonant in buffer = foreign
     // In Vietnamese, 'w' should transform to 'ư' or apply horn/breve
-    // If 'w' appears as-is in buffer, it wasn't transformed → foreign
-    // Exception: 'w' appearing as part of horn application is consumed, not visible
-    if chars.iter().any(|&c| c == 'w' || c == 'W') {
+    // 'z' is not a native Vietnamese consonant (only used in loan words or as Telex modifier)
+    // If 'w' or 'z' appears as-is in buffer, it indicates a foreign word
+    if chars
+        .iter()
+        .any(|&c| c == 'w' || c == 'W' || c == 'z' || c == 'Z')
+    {
         return true;
     }
 
@@ -717,6 +963,7 @@ pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
     // Vietnamese syllable: (Initial) + Vowel(s) + (Final) + (Tone)
     // After vowels + consonant, can't have another vowel (like "ươman")
     let mut state = 0u8; // 0=init, 1=seen vowel, 2=seen consonant after vowel
+    let mut consonants_after_vowel = 0u8;
     for &c in &chars {
         let is_vowel_char = is_vn_vowel_char(c);
         match state {
@@ -728,14 +975,37 @@ pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
             1 => {
                 if !is_vowel_char && is_consonant_char(c) {
                     state = 2; // consonant after vowel
+                    consonants_after_vowel = 1;
                 }
             }
             2 => {
                 if is_vowel_char {
                     return true; // vowel after consonant after vowel = invalid
+                } else if is_consonant_char(c) {
+                    consonants_after_vowel += 1;
+                    // Vietnamese allows max 2 consonants after vowel (ng, nh, ch)
+                    if consonants_after_vowel > 2 {
+                        return true; // 3+ consonants after vowel = invalid
+                    }
                 }
             }
             _ => {}
+        }
+    }
+
+    // Check 5b: If exactly 2 consonants after vowel, they must be valid clusters
+    // Valid clusters: ng, nh, ch
+    if consonants_after_vowel == 2 {
+        // Find the last two characters
+        let len = chars.len();
+        if len >= 2 {
+            let c1 = chars[len - 2].to_ascii_lowercase();
+            let c2 = chars[len - 1].to_ascii_lowercase();
+            let is_valid_cluster =
+                (c1 == 'n' && c2 == 'g') || (c1 == 'n' && c2 == 'h') || (c1 == 'c' && c2 == 'h');
+            if !is_valid_cluster {
+                return true; // Invalid consonant cluster
+            }
         }
     }
 
@@ -745,6 +1015,24 @@ pub fn is_buffer_invalid_vietnamese(buffer: &str) -> bool {
     // This catches foreign words typed with delayed circumflex: "keep" → "kêp" → invalid
     if has_circumflex_closed_no_tone(&chars) {
         return true;
+    }
+
+    // Check 7: Circumflex 'â' in open syllable (no final) = INVALID
+    // In Vietnamese, 'â' almost always requires a final consonant or glide
+    // Valid: sâm, sấy, câu, cấp, bấy | Invalid: sấ, bấ, tấ (no final)
+    // Note: 'ê' and 'ô' can be open (bể, lễ, cô, bố) so we only check 'â'
+    let is_a_circumflex = |c: char| {
+        matches!(
+            c,
+            'â' | 'Â' | 'ấ' | 'Ấ' | 'ầ' | 'Ầ' | 'ẩ' | 'Ẩ' | 'ẫ' | 'Ẫ' | 'ậ' | 'Ậ'
+        )
+    };
+    if let Some(&last) = chars.last() {
+        // If the last character is circumflex 'â' (any tone), check for invalid open syllable
+        if is_a_circumflex(last) {
+            // Open syllable with â = invalid (no final consonant or glide)
+            return true;
+        }
     }
 
     false
@@ -984,6 +1272,9 @@ fn is_toned_vowel(c: char) -> bool {
 /// Check if character is an invalid Vietnamese final consonant
 #[inline]
 fn is_invalid_final_char(c: char) -> bool {
+    // Vietnamese valid finals: c, ch, m, n, ng, nh, p, t (and vowels can end words)
+    // Invalid finals: b, d, f, g(alone), h(alone), j, l, q, r, s, v, w, x, z
+    // Note: 'k' is allowed for ethnic minority names (Đắk Lắk, Đắk Nông)
     matches!(
         c.to_ascii_lowercase(),
         'b' | 'd' | 'f' | 'j' | 'l' | 'q' | 'r' | 's' | 'v' | 'w' | 'x' | 'z'

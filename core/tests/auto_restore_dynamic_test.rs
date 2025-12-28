@@ -217,7 +217,7 @@ const W_WORDS: &[(&str, &str)] = &[
     ("work ", "work "),
     ("worker ", "worker "),
     ("world ", "world "),
-    ("worry ", "wory "), // After r-r revert, raw syncs with buffer
+    ("worry ", "worry "), // English word with double 'r' - detected and restored
     ("worth ", "worth "),
     ("would ", "would "),
     ("wow ", "wow "),
@@ -993,12 +993,14 @@ fn double_mark_english_words() {
         ("stuff ", "stuff "),   // st impossible
         ("cliff ", "cliff "),   // cl impossible
         ("stiff ", "stiff "),   // st impossible
-        // === Words without impossible clusters → tone→revert → one letter consumed ===
-        ("issue ", "isue "),   // i-s(tone)-s(revert)-u-e
-        ("error ", "eror "),   // e-r(tone)-r(revert)-o-r
-        ("mirror ", "miror "), // m-i-r(tone)-r(revert)-o-r
-        ("horror ", "horor "), // h-o-r(tone)-r(revert)-o-r
-        ("terror ", "teror "), // t-e-r(tone)-r(revert)-o-r
+        // === Words without impossible clusters → detect English → restore double letter ===
+        // These words have double modifiers (ss, rr, ff) and are detected as English
+        // via restore_all() which preserves consumed keys for English detection
+        ("issue ", "issue "),   // English word with double 's'
+        ("error ", "error "),   // English word with double 'r'
+        ("mirror ", "mirror "), // English word with double 'r'
+        ("horror ", "horror "), // English word with double 'r'
+        ("terror ", "terror "), // English word with double 'r'
     ]);
 }
 

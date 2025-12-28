@@ -1,19 +1,17 @@
-//! Debug test for "uwsow" → "ướ" modern tone issue
+//! Debug test for "dede" → "đê" non-adjacent stroke
 
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::Engine;
 
 #[test]
-fn debug_uwsow_modern_tone() {
+fn debug_dede_step_by_step() {
     let mut engine = Engine::new();
 
-    // Type "uwsow"
     let keys_sequence = [
-        (keys::U, "U"),
-        (keys::W, "W"),
-        (keys::S, "S"),
-        (keys::O, "O"),
-        (keys::W, "W2"),
+        (keys::D, "D1"),
+        (keys::E, "E1"),
+        (keys::D, "D2"),
+        (keys::E, "E2"),
     ];
 
     for (i, &(key, name)) in keys_sequence.iter().enumerate() {
@@ -31,10 +29,10 @@ fn debug_uwsow_modern_tone() {
     let final_buf = engine.get_buffer_string();
     eprintln!("Final buffer: '{}'", final_buf);
 
-    // Expected: "ướ" (modern tone on second vowel 'ơ')
+    // Expected: "đê" (d+e+d → stroke+circumflex)
     assert_eq!(
-        final_buf, "ướ",
-        "Modern tone: 'uwsow' should produce 'ướ', got '{}'",
+        final_buf, "đê",
+        "'dede' should produce 'đê', got '{}'",
         final_buf
     );
 }

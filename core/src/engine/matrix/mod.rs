@@ -41,10 +41,10 @@ pub use letter_class::{
 pub use processor::{ProcessResult, Processor, RawBuffer, RawKeystroke};
 pub use revert::{get_revert_trigger, should_revert, xform, RevertState};
 pub use validation::{
-    is_buffer_invalid_vietnamese, is_buffer_invalid_vietnamese_realtime, is_foreign_final_2,
-    is_foreign_initial_2, is_foreign_pattern, is_foreign_pattern_keys, is_valid_diphthong,
-    is_valid_final_1, is_valid_final_2, is_valid_initial_1, is_valid_initial_2,
-    is_valid_vowel_pattern, validate, MatrixValidation,
+    has_special_initial, is_buffer_invalid_vietnamese, is_buffer_invalid_vietnamese_realtime,
+    is_foreign_final_2, is_foreign_initial_2, is_foreign_pattern, is_foreign_pattern_keys,
+    is_gi_initial, is_qu_initial, is_valid_diphthong, is_valid_final_1, is_valid_final_2,
+    is_valid_initial_1, is_valid_initial_2, is_valid_vowel_pattern, validate, MatrixValidation,
 };
 
 /// Engine states (5 total)
