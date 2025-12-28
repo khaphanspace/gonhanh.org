@@ -848,33 +848,41 @@ fn shortcut_multiple_shortcuts() {
 }
 
 #[test]
-fn shortcut_case_sensitive_no_match() {
+fn shortcut_smart_case_uppercase_to_uppercase() {
+    // Issue #86: Smart case-aware shortcuts
     let mut e = Engine::new();
 
-    // Add lowercase shortcut "vn"
+    // Add shortcut "vn" (stored as lowercase)
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Typing uppercase "VN" does NOT match lowercase "vn" (case-sensitive)
+    // Typing uppercase "VN" → "VIỆT NAM" (smart case: all uppercase)
     let result = type_word(&mut e, "VN ");
-    assert_eq!(result, "VN ", "VN should NOT match lowercase 'vn' shortcut");
+    assert_eq!(result, "VIỆT NAM ", "VN should match and output uppercase");
 }
 
 #[test]
-fn shortcut_case_sensitive_exact_match() {
+fn shortcut_smart_case_all_variants() {
+    // Issue #86: Smart case-aware shortcuts
     let mut e = Engine::new();
 
-    // Add uppercase shortcut "VN"
+    // Add shortcut "vn" (trigger is stored lowercase regardless of input)
     e.shortcuts_mut().add(Shortcut::new("VN", "Việt Nam"));
 
-    // Typing "VN" matches exactly
+    // Typing "VN" → "VIỆT NAM" (all uppercase)
     let result = type_word(&mut e, "VN ");
-    assert_eq!(result, "Việt Nam ", "VN should match 'VN' shortcut exactly");
+    assert_eq!(result, "VIỆT NAM ", "VN should output uppercase");
 
     e.clear();
 
-    // Typing "vn" does NOT match uppercase "VN"
+    // Typing "vn" → "Việt Nam" (lowercase → as-is)
     let result = type_word(&mut e, "vn ");
-    assert_eq!(result, "vn ", "vn should NOT match uppercase 'VN' shortcut");
+    assert_eq!(result, "Việt Nam ", "vn should output as-is");
+
+    e.clear();
+
+    // Typing "Vn" → "Việt Nam" (title case → capitalize first)
+    let result = type_word(&mut e, "Vn ");
+    assert_eq!(result, "Việt Nam ", "Vn should output title case");
 }
 
 #[test]

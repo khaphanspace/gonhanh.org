@@ -72,53 +72,56 @@ impl Shortcut {
     }
 
     /// Create a new shortcut with word boundary trigger (applies to all input methods)
-    /// Trigger must match exactly (case-sensitive), output is exactly as defined.
+    /// Issue #86: Case-insensitive matching, smart case output (ko→không, KO→KHÔNG, Ko→Không)
     /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn new(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_string(), // Keep original case
+            trigger: trigger.to_lowercase(), // Store lowercase for case-insensitive matching
             replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::OnWordBoundary,
-            case_mode: CaseMode::Exact, // Exact match, no case transformation
+            case_mode: CaseMode::MatchCase, // Smart case transformation
             enabled: true,
             input_method: InputMethod::All,
         }
     }
 
     /// Create an immediate trigger shortcut (applies to all input methods).
+    /// Issue #86: Case-insensitive matching, smart case output
     /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn immediate(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_string(), // Keep original case
+            trigger: trigger.to_lowercase(), // Store lowercase for case-insensitive matching
             replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
-            case_mode: CaseMode::Exact,
+            case_mode: CaseMode::MatchCase, // Smart case transformation
             enabled: true,
             input_method: InputMethod::All,
         }
     }
 
     /// Create a Telex-specific shortcut with immediate trigger.
+    /// Issue #86: Case-insensitive matching, smart case output
     /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn telex(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_string(), // Keep original case
+            trigger: trigger.to_lowercase(), // Store lowercase for case-insensitive matching
             replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
-            case_mode: CaseMode::Exact,
+            case_mode: CaseMode::MatchCase, // Smart case transformation
             enabled: true,
             input_method: InputMethod::Telex,
         }
     }
 
     /// Create a VNI-specific shortcut with immediate trigger.
+    /// Issue #86: Case-insensitive matching, smart case output
     /// Replacement is truncated to MAX_REPLACEMENT_LEN (63) codepoints if too long.
     pub fn vni(trigger: &str, replacement: &str) -> Self {
         Self {
-            trigger: trigger.to_string(), // Keep original case
+            trigger: trigger.to_lowercase(), // Store lowercase for case-insensitive matching
             replacement: Self::validate_replacement(replacement),
             condition: TriggerCondition::Immediate,
-            case_mode: CaseMode::Exact,
+            case_mode: CaseMode::MatchCase, // Smart case transformation
             enabled: true,
             input_method: InputMethod::Vni,
         }
@@ -249,15 +252,17 @@ impl ShortcutTable {
 
     /// Check if buffer matches any shortcut for specific input method
     ///
-    /// Returns (trigger, shortcut) if match found
+    /// Issue #86: Case-insensitive matching - "ko", "Ko", "KO" all match trigger "ko"
+    /// Returns (original_buffer, shortcut) if match found
     pub fn lookup_for_method(
         &self,
         buffer: &str,
         method: InputMethod,
     ) -> Option<(&str, &Shortcut)> {
-        // Longest-match-first, exact case-sensitive match
+        let buffer_lower = buffer.to_lowercase();
+        // Longest-match-first, case-insensitive match
         for trigger in &self.sorted_triggers {
-            if buffer == *trigger {
+            if buffer_lower == *trigger {
                 if let Some(shortcut) = self.shortcuts.get(trigger) {
                     if shortcut.enabled && shortcut.applies_to(method) {
                         return Some((trigger, shortcut));
@@ -475,7 +480,7 @@ mod tests {
     fn test_case_matching() {
         let table = table_with_shortcut("vn", "Việt Nam");
 
-        // Exact match (lowercase "vn" matches "vn")
+        // Lowercase "vn" → "Việt Nam" (as-is)
         assert_shortcut_match(
             &table,
             "vn",
@@ -486,11 +491,27 @@ mod tests {
             InputMethod::All,
         );
 
-        // Uppercase "VN" does NOT match lowercase "vn" (case-sensitive)
-        assert_no_match(&table, "VN", Some(' '), true, InputMethod::All);
+        // Issue #86: Uppercase "VN" → "VIỆT NAM" (smart case)
+        assert_shortcut_match(
+            &table,
+            "VN",
+            Some(' '),
+            true,
+            "VIỆT NAM ",
+            2,
+            InputMethod::All,
+        );
 
-        // Title case "Vn" does NOT match lowercase "vn" (case-sensitive)
-        assert_no_match(&table, "Vn", Some(' '), true, InputMethod::All);
+        // Issue #86: Title case "Vn" → "Việt Nam" (smart case)
+        assert_shortcut_match(
+            &table,
+            "Vn",
+            Some(' '),
+            true,
+            "Việt Nam ",
+            2,
+            InputMethod::All,
+        );
     }
 
     #[test]
@@ -686,5 +707,134 @@ mod tests {
         let shortcut = Shortcut::new("viet", vietnamese);
         assert_eq!(shortcut.replacement.chars().count(), 22);
         assert_eq!(shortcut.replacement, vietnamese);
+    }
+
+    // =========================================================================
+    // Issue #86: Smart Case-Aware Shortcuts
+    // https://github.com/khaphanspace/gonhanh.org/issues/86
+    // =========================================================================
+
+    #[test]
+    fn issue86_smart_case_lowercase() {
+        let table = table_with_shortcut("ko", "không");
+        assert_shortcut_match(&table, "ko", Some(' '), true, "không ", 2, InputMethod::All);
+    }
+
+    #[test]
+    fn issue86_smart_case_uppercase() {
+        let table = table_with_shortcut("ko", "không");
+        assert_shortcut_match(&table, "KO", Some(' '), true, "KHÔNG ", 2, InputMethod::All);
+    }
+
+    #[test]
+    fn issue86_smart_case_titlecase() {
+        let table = table_with_shortcut("ko", "không");
+        assert_shortcut_match(&table, "Ko", Some(' '), true, "Không ", 2, InputMethod::All);
+    }
+
+    #[test]
+    fn issue86_smart_case_vn_lowercase() {
+        let table = table_with_shortcut("vn", "Việt Nam");
+        assert_shortcut_match(
+            &table,
+            "vn",
+            Some(' '),
+            true,
+            "Việt Nam ",
+            2,
+            InputMethod::All,
+        );
+    }
+
+    #[test]
+    fn issue86_smart_case_vn_uppercase() {
+        let table = table_with_shortcut("vn", "Việt Nam");
+        assert_shortcut_match(
+            &table,
+            "VN",
+            Some(' '),
+            true,
+            "VIỆT NAM ",
+            2,
+            InputMethod::All,
+        );
+    }
+
+    #[test]
+    fn issue86_smart_case_vn_titlecase() {
+        let table = table_with_shortcut("vn", "Việt Nam");
+        assert_shortcut_match(
+            &table,
+            "Vn",
+            Some(' '),
+            true,
+            "Việt Nam ",
+            2,
+            InputMethod::All,
+        );
+    }
+
+    #[test]
+    fn issue86_smart_case_immediate_shortcut() {
+        let table = table_with_immediate("dc", "được");
+
+        let result = table.try_match("dc", None, false);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().output, "được");
+
+        let result = table.try_match("DC", None, false);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().output, "ĐƯỢC");
+
+        let result = table.try_match("Dc", None, false);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().output, "Được");
+    }
+
+    #[test]
+    fn issue86_smart_case_lookup_case_insensitive() {
+        let table = table_with_shortcut("ko", "không");
+        assert!(table.lookup("ko").is_some());
+        assert!(table.lookup("Ko").is_some());
+        assert!(table.lookup("KO").is_some());
+        assert!(table.lookup("kO").is_some());
+    }
+
+    #[test]
+    fn issue86_smart_case_mixed_case_fallback() {
+        let table = table_with_shortcut("ko", "không");
+        assert_shortcut_match(&table, "kO", Some(' '), true, "không ", 2, InputMethod::All);
+    }
+
+    #[test]
+    fn issue86_smart_case_hcm() {
+        let table = table_with_shortcut("hcm", "Hồ Chí Minh");
+        assert_shortcut_match(
+            &table,
+            "hcm",
+            Some(' '),
+            true,
+            "Hồ Chí Minh ",
+            3,
+            InputMethod::All,
+        );
+        assert_shortcut_match(
+            &table,
+            "HCM",
+            Some(' '),
+            true,
+            "HỒ CHÍ MINH ",
+            3,
+            InputMethod::All,
+        );
+        assert_shortcut_match(
+            &table,
+            "Hcm",
+            Some(' '),
+            true,
+            "Hồ Chí Minh ",
+            3,
+            InputMethod::All,
+        );
     }
 }
