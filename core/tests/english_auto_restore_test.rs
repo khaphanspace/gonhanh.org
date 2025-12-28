@@ -28,7 +28,7 @@
 //! Users should use raw mode (\word) or Esc to restore these manually.
 
 mod common;
-use common::{telex, telex_auto_restore};
+use common::telex_auto_restore;
 
 // =============================================================================
 // PATTERN 1: MODIFIER FOLLOWED BY CONSONANT
@@ -771,14 +771,15 @@ fn issue142_sims_extra_s() {
     ]);
 }
 
-/// Test: "homo" becomes "hôm" (second 'o' consumed for circumflex)
-/// "hôm" IS valid Vietnamese (yesterday) but user may intend English "homo"
-/// This is an edge case - "hôm" is a real word, so debatable whether to restore
+/// Test: Vowel-triggered circumflex stays Vietnamese when buffer is valid
+/// Unified logic: only restore when buffer is INVALID Vietnamese
+/// All these produce structurally valid Vietnamese syllables
 #[test]
-fn edge_case_homo() {
-    // For now, don't restore since "hôm" is valid Vietnamese
-    // User can use ESC or \homo to force English
+fn vowel_triggered_circumflex_stays_vietnamese() {
     telex_auto_restore(&[
-        ("homo ", "hôm "), // keeps as Vietnamese "hôm" (yesterday)
+        ("homo ", "hôm "), // h+o+m+o → hôm (valid VI: yesterday)
+        ("toto ", "tôt "), // t+o+t+o → tôt (valid VI: good)
+        ("mama ", "mâm "), // m+a+m+a → mâm (valid VI: tray)
+        ("papa ", "pâp "), // p+a+p+a → pâp (structurally valid VI)
     ]);
 }

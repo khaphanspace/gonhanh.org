@@ -1389,8 +1389,8 @@ const TELEX_ENGLISH_AW_WORDS: &[(&str, &str)] = &[
     ("DRAW ", "DRAW "),
     // Mixed with Vietnamese - space separates words
     // Note: "data" gets circumflex from vowel trigger (d-a-t-a → dât)
-    // but space triggers restore, so "raw data " → "raw data "
-    ("raw data ", "raw data "),
+    // "dât" is valid Vietnamese structure, so NOT restored
+    ("raw data ", "raw dât "),
     ("raw vieetj", "raw việt"), // "raw" stays, "việt" transforms
     // Vietnamese words with similar patterns - should NOT be restored
     ("loxoi ", "lỗi "), // lỗi - Vietnamese, NOT restored

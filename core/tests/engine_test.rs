@@ -589,18 +589,18 @@ fn delayed_circumflex_diphthong_pattern() {
 
 #[test]
 fn delayed_circumflex_auto_restore_space() {
-    // Auto-restore on space: if no mark was typed, restore to raw input
-    // This handles English words like "data" that look like Vietnamese patterns
+    // Unified logic: only restore when buffer is INVALID Vietnamese
+    // V+C+V patterns like "toto" → "tôt" produce VALID Vietnamese, so they stay
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),  // No mark → restore
-        ("data ", "data "),  // No mark → restore
-        ("dataa ", "data "), // Revert: dataa → data (no restore needed, already plain)
-        ("noto ", "noto "),  // No mark → restore
-        ("hete ", "hete "),  // No mark → restore
-        ("tetee ", "tete "), // Revert: tetee → tete (no restore needed)
-        ("cocoo ", "coco "), // Revert: cocoo → coco (no restore needed)
+        ("toto ", "tôt "),   // tôt is valid VI (good) → stays
+        ("data ", "dât "),   // dât is valid VI structure → stays
+        ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
+        ("noto ", "nôt "),   // nôt is valid VI (note) → stays
+        ("hete ", "hêt "),   // hêt is valid VI structure → stays
+        ("tetee ", "tete "), // Revert: tetee → tete (circumflex reverted)
+        ("cocoo ", "coco "), // Revert: cocoo → coco (circumflex reverted)
     ];
 
     for (input, expected) in cases {
@@ -637,15 +637,16 @@ fn delayed_circumflex_valid_vietnamese_stays() {
 
 #[test]
 fn delayed_circumflex_punctuation_restore() {
-    // Punctuation marks (comma, dot, semicolon, colon, @) also trigger auto-restore
+    // Punctuation marks trigger auto-restore for INVALID Vietnamese only
+    // Unified logic: only restore when buffer is INVALID Vietnamese
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto,", "toto,"), // Comma triggers restore
-        ("data.", "data."), // Dot triggers restore
-        ("data;", "data;"), // Semicolon triggers restore
+        ("toto,", "tôt,"),  // tôt is valid VI → stays with punctuation
+        ("data.", "dât."),  // dât is valid VI → stays with punctuation
+        ("data;", "dât;"),  // dât is valid VI → stays with punctuation
         ("dausa,", "dấu,"), // Valid Vietnamese stays (with punctuation)
-        ("user.", "user."), // English word + dot
+        ("user.", "user."), // English word + dot (usẻ invalid VI → restore)
         ("user,", "user,"), // English word + comma
         ("user;", "user;"), // English word + semicolon
         ("user:", "user:"), // English word + colon

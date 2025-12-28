@@ -1017,3 +1017,14 @@ fn double_mark_4char_keeps_reverted() {
         ("puff ", "puf "),
     ]);
 }
+
+/// Double modifier in MIDDLE of word: user reverted, buffer is valid word
+/// When buffer ends with common suffix (-er, -or) and is valid, keep it
+#[test]
+fn double_mark_middle_keeps_valid_word() {
+    telex_auto_restore(&[
+        // "usser" → first 's' adds sắc to 'u', second 's' reverts
+        // Buffer = "user" (valid 4-char word ending in -er), keep it
+        ("usser ", "user "),
+    ]);
+}
