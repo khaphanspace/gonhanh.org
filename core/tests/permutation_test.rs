@@ -347,13 +347,15 @@ fn valid_vietnamese_not_restored() {
 #[test]
 fn english_words_restored() {
     telex_auto_restore(&[
-        ("view ", "view "), // should restore (vieư invalid VI)
-        ("raw ", "raw "),   // should restore
-        ("law ", "law "),   // should restore
-        ("saw ", "saw "),   // should restore
-        ("data ", "data "), // should restore (dât = circumflex + stop consonant, not real VI)
-        ("half ", "half "), // should restore
-        ("wolf ", "wolf "), // should restore
+        ("view ", "view "),  // should restore (vieư invalid VI)
+        ("raw ", "raw "),    // should restore
+        ("law ", "law "),    // should restore
+        ("saw ", "saw "),    // should restore
+        ("data ", "data "),  // should restore (dât = circumflex + stop consonant, not real VI)
+        ("half ", "half "),  // should restore
+        ("wolf ", "wolf "),  // should restore
+        ("sims ", "sims "),  // sím (invalid VI) → restore to sims
+        ("simss ", "sims "), // double s reverts mark → sims (not simss)
     ]);
 }
 

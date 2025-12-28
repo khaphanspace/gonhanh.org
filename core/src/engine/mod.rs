@@ -511,6 +511,22 @@ impl Engine {
         // Check for word boundary shortcuts ONLY on SPACE
         // Also auto-restore invalid Vietnamese to raw English
         if key == keys::SPACE {
+            // Handle pending mark revert pop on space (end of word)
+            // When user types "simss" → mark reverted → raw should be "sims" not "simss"
+            // This is deferred from the revert action to support "issue" pattern
+            if self.pending_mark_revert_pop {
+                self.pending_mark_revert_pop = false;
+                // Pop the consumed mark key from raw_input
+                // raw_input: [..., mark_key, revert_key] → [..., revert_key]
+                if self.raw_input.len() >= 2 {
+                    let revert_key = self.raw_input.pop();
+                    self.raw_input.pop(); // mark_key (consumed)
+                    if let Some(k) = revert_key {
+                        self.raw_input.push(k);
+                    }
+                }
+            }
+
             // First check for shortcut
             let shortcut_result = self.try_word_boundary_shortcut();
             if shortcut_result.action != 0 {
