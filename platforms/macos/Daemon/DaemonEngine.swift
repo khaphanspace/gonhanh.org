@@ -127,7 +127,7 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 
 // MARK: - Injection Method
 
-private enum InjectionMethod {
+enum InjectionMethod {
     case fast, slow, selection, autocomplete, selectAll, axDirect, passthrough
 }
 
@@ -918,4 +918,5 @@ extension Notification.Name {
     static let shortcutChanged = Notification.Name("shortcutChanged")
     static let shortcutRecorded = Notification.Name("shortcutRecorded")
     static let shortcutRecordingCancelled = Notification.Name("shortcutRecordingCancelled")
+    static let inputSourceChanged = Notification.Name("inputSourceChanged")
 }

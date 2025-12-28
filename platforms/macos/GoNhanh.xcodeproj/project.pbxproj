@@ -25,6 +25,23 @@
 		A1000001000000000000010 /* InputSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000010 /* InputSourceManager.swift */; };
 		B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000001 /* KeyboardShortcutTests.swift */; };
 		B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000002 /* LaunchAtLoginTests.swift */; };
+		/* App - Shared files */
+		SHARED001APP /* IMEProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARED002PROTO /* IMEProtocols.swift */; };
+		SHARED001SETT /* IMESettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARED002SETT /* IMESettings.swift */; };
+		/* App - IMEClient */
+		CLIENT001 /* IMEClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLIENT002 /* IMEClient.swift */; };
+		/* Daemon - Sources */
+		DAEMON001MAIN /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAEMON002MAIN /* main.swift */; };
+		DAEMON001DMON /* IMEDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAEMON002DMON /* IMEDaemon.swift */; };
+		DAEMON001ENGN /* DaemonEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAEMON002ENGN /* DaemonEngine.swift */; };
+		DAEMON001HLPR /* DaemonHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAEMON002HLPR /* DaemonHelpers.swift */; };
+		/* Daemon - Shared files */
+		DAEMON001PROT /* IMEProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARED002PROTO /* IMEProtocols.swift */; };
+		DAEMON001SETT /* IMESettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARED002SETT /* IMESettings.swift */; };
+		/* Daemon - Framework */
+		DAEMON001LIB /* libgonhanh_core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1000002000000000000005 /* libgonhanh_core.a */; };
+		/* App - Embed XPC Service */
+		EMBED001XPC /* GoNhanhDaemon.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = DAEMON003PROD /* GoNhanhDaemon.xpc */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,7 +52,28 @@
 			remoteGlobalIDString = A1000006000000000000001;
 			remoteInfo = GoNhanh;
 		};
+		DAEMON003PROXY /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1000010000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DAEMON006TARG;
+			remoteInfo = GoNhanhDaemon;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EMBED004PHASE /* Embed XPC Services */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/XPCServices";
+			dstSubfolderSpec = 16;
+			files = (
+				EMBED001XPC /* GoNhanhDaemon.xpc in Embed XPC Services */,
+			);
+			name = "Embed XPC Services";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A1000002000000000000001 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
@@ -59,6 +97,19 @@
 		B1000002000000000000001 /* KeyboardShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutTests.swift; sourceTree = "<group>"; };
 		B1000002000000000000002 /* LaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginTests.swift; sourceTree = "<group>"; };
 		B1000003000000000000002 /* GoNhanhTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GoNhanhTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		/* Shared files */
+		SHARED002PROTO /* IMEProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMEProtocols.swift; sourceTree = "<group>"; };
+		SHARED002SETT /* IMESettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMESettings.swift; sourceTree = "<group>"; };
+		/* IMEClient */
+		CLIENT002 /* IMEClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMEClient.swift; sourceTree = "<group>"; };
+		/* Daemon files */
+		DAEMON002MAIN /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		DAEMON002DMON /* IMEDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMEDaemon.swift; sourceTree = "<group>"; };
+		DAEMON002ENGN /* DaemonEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonEngine.swift; sourceTree = "<group>"; };
+		DAEMON002HLPR /* DaemonHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonHelpers.swift; sourceTree = "<group>"; };
+		DAEMON002INFO /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DAEMON002ENTL /* GoNhanhDaemon.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoNhanhDaemon.entitlements; sourceTree = "<group>"; };
+		DAEMON003PROD /* GoNhanhDaemon.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = GoNhanhDaemon.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +125,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DAEMON004FRMW /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DAEMON001LIB /* libgonhanh_core.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,9 +156,12 @@
 				A100000200000000000000F /* MainSettingsView.swift */,
 				SPECIALPANEL002 /* SpecialPanelAppDetector.swift */,
 				A1000002000000000000010 /* InputSourceManager.swift */,
+				CLIENT002 /* IMEClient.swift */,
 				A1000002000000000000005 /* libgonhanh_core.a */,
 				A1000002000000000000006 /* Info.plist */,
 				A100000200000000000000A /* Assets.xcassets */,
+				SHARED005GRP /* Shared */,
+				DAEMON005GRP /* Daemon */,
 				B1000005000000000000001 /* Tests */,
 				A1000005000000000000002 /* Products */,
 			);
@@ -110,6 +172,7 @@
 			children = (
 				A1000003000000000000001 /* GoNhanh.app */,
 				B1000003000000000000002 /* GoNhanhTests.xctest */,
+				DAEMON003PROD /* GoNhanhDaemon.xpc */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -123,6 +186,28 @@
 			path = Tests;
 			sourceTree = "<group>";
 		};
+		SHARED005GRP /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				SHARED002PROTO /* IMEProtocols.swift */,
+				SHARED002SETT /* IMESettings.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		DAEMON005GRP /* Daemon */ = {
+			isa = PBXGroup;
+			children = (
+				DAEMON002MAIN /* main.swift */,
+				DAEMON002DMON /* IMEDaemon.swift */,
+				DAEMON002ENGN /* DaemonEngine.swift */,
+				DAEMON002HLPR /* DaemonHelpers.swift */,
+				DAEMON002INFO /* Info.plist */,
+				DAEMON002ENTL /* GoNhanhDaemon.entitlements */,
+			);
+			path = Daemon;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -133,10 +218,12 @@
 				A1000008000000000000001 /* Sources */,
 				A1000004000000000000001 /* Frameworks */,
 				A1000009000000000000001 /* Resources */,
+				EMBED004PHASE /* Embed XPC Services */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				DAEMON003DEP /* PBXTargetDependency */,
 			);
 			name = GoNhanh;
 			productName = GoNhanh;
@@ -161,6 +248,23 @@
 			productReference = B1000003000000000000002 /* GoNhanhTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		DAEMON006TARG /* GoNhanhDaemon */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DAEMON007CFGL /* Build configuration list for PBXNativeTarget "GoNhanhDaemon" */;
+			buildPhases = (
+				DAEMON008SRCS /* Sources */,
+				DAEMON004FRMW /* Frameworks */,
+				DAEMON009RSRC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GoNhanhDaemon;
+			productName = GoNhanhDaemon;
+			productReference = DAEMON003PROD /* GoNhanhDaemon.xpc */;
+			productType = "com.apple.product-type.xpc-service";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -177,6 +281,9 @@
 					B1000006000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
 						TestTargetID = A1000006000000000000001;
+					};
+					DAEMON006TARG = {
+						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
@@ -195,6 +302,7 @@
 			targets = (
 				A1000006000000000000001 /* GoNhanh */,
 				B1000006000000000000001 /* GoNhanhTests */,
+				DAEMON006TARG /* GoNhanhDaemon */,
 			);
 		};
 /* End PBXProject section */
@@ -209,6 +317,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B1000009000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DAEMON009RSRC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -236,6 +351,9 @@
 				A100000100000000000000F /* MainSettingsView.swift in Sources */,
 				SPECIALPANEL001 /* SpecialPanelAppDetector.swift in Sources */,
 				A1000001000000000000010 /* InputSourceManager.swift in Sources */,
+				SHARED001APP /* IMEProtocols.swift in Sources */,
+				SHARED001SETT /* IMESettings.swift in Sources */,
+				CLIENT001 /* IMEClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -248,6 +366,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DAEMON008SRCS /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DAEMON001MAIN /* main.swift in Sources */,
+				DAEMON001DMON /* IMEDaemon.swift in Sources */,
+				DAEMON001ENGN /* DaemonEngine.swift in Sources */,
+				DAEMON001HLPR /* DaemonHelpers.swift in Sources */,
+				DAEMON001PROT /* IMEProtocols.swift in Sources */,
+				DAEMON001SETT /* IMESettings.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -255,6 +386,11 @@
 			isa = PBXTargetDependency;
 			target = A1000006000000000000001 /* GoNhanh */;
 			targetProxy = B1000003000000000000001 /* PBXContainerItemProxy */;
+		};
+		DAEMON003DEP /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DAEMON006TARG /* GoNhanhDaemon */;
+			targetProxy = DAEMON003PROXY /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -493,6 +629,70 @@
 			};
 			name = Release;
 		};
+		/* Daemon Debug */
+		DAEMON013DBG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Daemon/GoNhanhDaemon.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Daemon/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Foundation,
+					"-framework",
+					AppKit,
+					"-framework",
+					Carbon,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.gonhanh.GoNhanh.Daemon;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		/* Daemon Release */
+		DAEMON013REL /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Daemon/GoNhanhDaemon.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Daemon/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Foundation,
+					"-framework",
+					AppKit,
+					"-framework",
+					Carbon,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.gonhanh.GoNhanh.Daemon;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -519,6 +719,15 @@
 			buildConfigurations = (
 				B1000013000000000000001 /* Debug */,
 				B1000013000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DAEMON007CFGL /* Build configuration list for PBXNativeTarget "GoNhanhDaemon" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DAEMON013DBG /* Debug */,
+				DAEMON013REL /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -340,12 +340,12 @@ extension IMEDaemon: IMEDaemonProtocol {
     // MARK: Per-App Mode
 
     func setPerAppModeEnabled(_ enabled: Bool) {
-        AppState.shared.perAppModeEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: "perAppModeEnabled")
+        DaemonState.shared.setPerAppModeEnabled(enabled)
+        UserDefaults.standard.set(enabled, forKey: IMESettingsKey.perAppMode)
     }
 
     func savePerAppMode(bundleId: String, enabled: Bool) {
-        AppState.shared.savePerAppMode(bundleId: bundleId, enabled: enabled)
+        DaemonState.shared.savePerAppMode(bundleId: bundleId, enabled: enabled)
     }
 
     // MARK: Status Query
