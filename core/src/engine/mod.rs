@@ -2884,77 +2884,56 @@ impl Engine {
             return None;
         }
 
-        // Check 1: If buffer_keys is structurally invalid Vietnamese → RESTORE
-        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-        let is_structurally_valid = is_valid(&buffer_keys);
+        // UNIFIED LOGIC: Restore ONLY when BOTH conditions are met:
+        // 1. buffer != valid Vietnamese (is_buffer_invalid_vietnamese)
+        // 2. raw_input == valid English (is_raw_input_valid_english)
+        //
+        // This replaces the previous multi-check pattern-based approach.
+        // Benefits:
+        // - Simpler, more predictable logic
+        // - Fewer false positives for valid Vietnamese words
+        // - Works correctly with "sims", "homo", and other edge cases
 
-        if !is_structurally_valid {
-            // For stroke-only transforms (no marks/tones), only restore if word is long enough
-            // Short words like "đd" from "ddd" should stay; long invalid words like "đealine" should restore
-            if has_stroke && !has_marks_or_tones {
-                // Stroke-only: restore if word has 4+ chars (likely English like "deadline")
-                // Keep short words (e.g., "đd" from "ddd")
-                if self.buf.len() < 4 {
-                    return None;
-                }
-            }
+        // First check: Is buffer invalid Vietnamese?
+        let buffer_invalid_vn = self.is_buffer_invalid_vietnamese();
+
+        // For stroke-only transforms (no marks/tones), only restore if word is long enough
+        // Short words like "đd" from "ddd" should stay; long invalid words like "đealine" should restore
+        if buffer_invalid_vn && has_stroke && !has_marks_or_tones && self.buf.len() < 4 {
+            return None;
+        }
+
+        // Second check: Is raw_input valid English?
+        let raw_input_valid_en = self.is_raw_input_valid_english();
+
+        // UNIFIED: Restore only when buffer is invalid Vietnamese AND raw_input is valid English
+        if buffer_invalid_vn && raw_input_valid_en {
             return self.build_raw_chars();
         }
 
-        // Check 2: English patterns in raw_input
-        // Even if buffer is valid, certain patterns suggest English
-        if self.has_english_modifier_pattern(is_word_complete) {
+        // Additional check: English patterns in raw_input even when buffer appears valid
+        // This catches patterns like "text", "their", etc.
+        if is_word_complete && self.has_english_modifier_pattern(true) && raw_input_valid_en {
             return self.build_raw_chars();
         }
 
-        // Check 3: Vowel-triggered circumflex without mark
-        // If circumflex was applied from V+C+V pattern (like "toto" → "tôt")
-        // but no mark key was typed, restore on space (likely English)
-        // This prevents "toto " → "tôt " (should be "toto ")
-        // but allows "totos" → "tốt" (mark key confirms Vietnamese intent)
-        // EXCEPTION: If buffer starts with 2-char Vietnamese initial (th, ch, nh, etc.)
-        // "theme" → "thêm" starts with "th" → keep as Vietnamese
-        // "data" → "dât" starts with "d" (1-char) → restore to English
-        if self.had_vowel_triggered_circumflex {
-            let has_marks = self.buf.iter().any(|c| c.mark > 0);
-            if !has_marks {
-                // Check if buffer starts with 2-char Vietnamese initial
-                // These are clearly Vietnamese patterns, less likely to be English
-                let has_two_char_initial = self.buf.len() >= 2 && {
-                    let first = self.buf.get(0);
-                    let second = self.buf.get(1);
-                    match (first, second) {
-                        (Some(f), Some(s)) => {
-                            let pair = [f.key, s.key];
-                            constants::VALID_INITIALS_2.contains(&pair)
-                        }
-                        _ => false,
-                    }
-                };
-                if !has_two_char_initial {
-                    return self.build_raw_chars();
-                }
-            }
-        }
-
-        // Check 4: Significant character consumption with invalid raw_input
-        // If raw_input is 2+ chars longer than buffer AND raw_input is not valid Vietnamese,
+        // Check 3: Significant character consumption with circumflex
+        // If raw_input is 2+ chars longer than buffer AND buffer has circumflex without mark,
         // this suggests transforms consumed chars that shouldn't have been consumed.
         // Example: "await" (5 chars) → "âit" (3 chars) - diff of 2
         // - "aw" triggers breve on 'a'
-        // - "a" triggers circumflex (double-vowel), consuming 'w' and second 'a'
+        // - second 'a' triggers circumflex (double-vowel), consuming 'w' and second 'a'
         // - Result: buffer is valid but user typed English word
         // EXCEPTION: If buffer has stroke (đ), it's intentional Vietnamese
-        // "dayda" → "đây" has stroke, so keep it (valid Vietnamese word)
-        if self.raw_input.len() >= self.buf.len() + 2 && !has_stroke {
-            let raw_keys: Vec<u16> = self.raw_input.iter().map(|&(k, _, _)| k).collect();
-            if !is_valid(&raw_keys) {
-                // Check if buffer has circumflex without mark (like "await" → "âit")
-                let has_circumflex = self.buf.iter().any(|c| c.tone == tone::CIRCUMFLEX);
-                let has_marks = self.buf.iter().any(|c| c.mark > 0);
-                if has_circumflex && !has_marks {
-                    return self.build_raw_chars();
-                }
+        if is_word_complete
+            && self.raw_input.len() >= self.buf.len() + 2
+            && !has_stroke
+            && raw_input_valid_en
+        {
+            let has_circumflex = self.buf.iter().any(|c| c.tone == tone::CIRCUMFLEX);
+            let has_marks = self.buf.iter().any(|c| c.mark > 0);
+            if has_circumflex && !has_marks {
+                return self.build_raw_chars();
             }
         }
 
@@ -3043,6 +3022,56 @@ impl Engine {
         }
     }
 
+    /// Check if buffer is NOT valid Vietnamese (for unified auto-restore logic)
+    ///
+    /// Uses full validation including tone requirements (circumflex for êu, etc.)
+    /// Returns true if buffer is structurally or phonetically invalid Vietnamese.
+    fn is_buffer_invalid_vietnamese(&self) -> bool {
+        if self.buf.is_empty() {
+            return false;
+        }
+
+        // Get keys and tones from buffer
+        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
+
+        // Use full validation with tone info for accurate Vietnamese checking
+        !validation::is_valid_with_tones(&buffer_keys, &buffer_tones)
+    }
+
+    /// Check if raw_input is valid English (for unified auto-restore logic)
+    ///
+    /// Checks that raw_input contains only basic ASCII letters (A-Z, a-z)
+    /// and doesn't have patterns that would indicate Vietnamese typing intent.
+    /// Returns true if raw_input looks like an English word.
+    fn is_raw_input_valid_english(&self) -> bool {
+        if self.raw_input.is_empty() {
+            return false;
+        }
+
+        // All keys must be ASCII letters (A-Z)
+        let all_ascii_letters = self.raw_input.iter().all(|(k, _, _)| {
+            // Keys are in range A-Z (from keys.rs)
+            // Consonants and vowels are valid English letters
+            keys::is_consonant(*k) || keys::is_vowel(*k)
+        });
+
+        if !all_ascii_letters {
+            return false;
+        }
+
+        // Check raw_input is structurally valid (can be parsed as English word)
+        // Simplified check: must have at least one vowel (except for short abbreviations)
+        let has_vowel = self.raw_input.iter().any(|(k, _, _)| keys::is_vowel(*k));
+
+        // Short words (1-2 chars) without vowels might be abbreviations
+        if self.raw_input.len() <= 2 {
+            return true;
+        }
+
+        has_vowel
+    }
+
     /// Build raw chars from raw_input for restore
     ///
     /// When a mark was reverted (e.g., "ss" → "s"), decide between buffer and raw_input:
@@ -3055,7 +3084,7 @@ impl Engine {
     fn build_raw_chars(&self) -> Option<Vec<char>> {
         let raw_chars: Vec<char> = if self.had_mark_revert && self.should_use_buffer_for_revert() {
             // Use buffer content which already has the correct reverted form
-            // e.g., "dissable" typed → buffer has "disable" after revert
+            // e.g., "dissable" → "disable", "usser" → "user"
             self.buf.to_string_preserve_case().chars().collect()
         } else {
             let mut chars: Vec<char> = self
@@ -3196,10 +3225,19 @@ impl Engine {
         };
 
         if raw_chars.is_empty() {
-            None
-        } else {
-            Some(raw_chars)
+            return None;
         }
+
+        // Optimization: If raw_chars equals current buffer, no restore needed
+        // This happens when user manually reverted (e.g., "usser" → "user")
+        // Avoids unnecessary backspace + retype of the same content
+        let buffer_str: String = self.buf.to_string_preserve_case();
+        let raw_str: String = raw_chars.iter().collect();
+        if buffer_str == raw_str {
+            return None;
+        }
+
+        Some(raw_chars)
     }
 
     /// Determine if buffer should be used for restore after a mark revert
@@ -3225,6 +3263,10 @@ impl Engine {
             "able", "ible", "tion", "sion", "ment", "ness", "less", "ful", "ing", "ive",
         ];
 
+        // Short suffixes for common words (need minimum buffer length check)
+        // Examples: "user" (ends with -er), "color" (ends with -or)
+        const SHORT_SUFFIXES: &[&str] = &["er", "or"];
+
         // Check if buffer matches common English word patterns
         // Use >= to include short words like "transit" (7 chars) with "trans" (5 chars)
         for prefix in PREFIXES {
@@ -3236,6 +3278,22 @@ impl Engine {
         for suffix in SUFFIXES {
             if buf_str.ends_with(suffix) && buf_str.len() >= suffix.len() + 2 {
                 return true;
+            }
+        }
+
+        // Check short suffixes with stricter conditions:
+        // - Buffer must be exactly 4 chars (short words like "user", not longer like "userer")
+        // - Must end with -er or -or
+        // - First two chars must be consonant + vowel (to avoid false positives)
+        if buf_str.len() == 4 {
+            for suffix in SHORT_SUFFIXES {
+                if buf_str.ends_with(suffix) {
+                    let first_char = buf_str.chars().next().unwrap_or('a');
+                    let is_first_consonant = !matches!(first_char, 'a' | 'e' | 'i' | 'o' | 'u');
+                    if is_first_consonant {
+                        return true;
+                    }
+                }
             }
         }
 

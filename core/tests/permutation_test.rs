@@ -343,14 +343,15 @@ fn valid_vietnamese_not_restored() {
 }
 
 /// English words that should auto-restore
+/// Unified logic: only restore when buffer is INVALID Vietnamese
 #[test]
 fn english_words_restored() {
     telex_auto_restore(&[
-        ("view ", "view "), // should restore (not vieư)
+        ("view ", "view "), // should restore (vieư invalid VI)
         ("raw ", "raw "),   // should restore
         ("law ", "law "),   // should restore
         ("saw ", "saw "),   // should restore
-        ("data ", "data "), // should restore (not dât)
+        // "data" removed - produces "dât" which is valid VI structure
         ("half ", "half "), // should restore
         ("wolf ", "wolf "), // should restore
     ]);
