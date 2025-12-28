@@ -28,7 +28,7 @@
 //! Users should use raw mode (\word) or Esc to restore these manually.
 
 mod common;
-use common::telex_auto_restore;
+use common::{telex, telex_auto_restore};
 
 // =============================================================================
 // PATTERN 1: MODIFIER FOLLOWED BY CONSONANT
@@ -768,5 +768,17 @@ fn issue142_sims_extra_s() {
         ("dims ", "dims "), // dims - similar pattern
         ("gems ", "gems "), // gems - similar pattern
         ("hems ", "hems "), // hems - similar pattern
+    ]);
+}
+
+/// Test: "homo" becomes "hôm" (second 'o' consumed for circumflex)
+/// "hôm" IS valid Vietnamese (yesterday) but user may intend English "homo"
+/// This is an edge case - "hôm" is a real word, so debatable whether to restore
+#[test]
+fn edge_case_homo() {
+    // For now, don't restore since "hôm" is valid Vietnamese
+    // User can use ESC or \homo to force English
+    telex_auto_restore(&[
+        ("homo ", "hôm "), // keeps as Vietnamese "hôm" (yesterday)
     ]);
 }
