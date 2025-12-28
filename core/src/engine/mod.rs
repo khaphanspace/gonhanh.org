@@ -3699,8 +3699,15 @@ impl Engine {
                     let has_initial_consonant = first_vowel_pos > 0
                         && keys::is_consonant(self.raw_input[first_vowel_pos - 1].0);
                     // Only restore if NO initial consonant (pure vowel-start like "use")
+                    // EXCEPT: Vietnamese diphthongs without initial consonant
+                    // U + modifier + A: ủa, ùa, úa, ũa, ụa (interjections)
                     if !has_initial_consonant {
-                        return true;
+                        let first_vowel = self.raw_input[first_vowel_pos].0;
+                        let is_vietnamese_no_initial =
+                            first_vowel == keys::U && next_key == keys::A;
+                        if !is_vietnamese_no_initial {
+                            return true;
+                        }
                     }
 
                     // Pattern 4: vowel + modifier + DIFFERENT vowel → English
@@ -3727,7 +3734,10 @@ impl Engine {
                         }
                         // Vietnamese exceptions: diphthongs with tone modifier in middle
                         let is_vietnamese_pattern = match prev_vowel {
-                            k if k == keys::U => next_key == keys::A || next_key == keys::O,
+                            k if k == keys::U => {
+                                // ua: của, mủa; uo: được; uy: thuỷ, quỷ
+                                next_key == keys::A || next_key == keys::O || next_key == keys::Y
+                            }
                             k if k == keys::A => {
                                 // au: màu, náu, cau, lau, etc.
                                 next_key == keys::I
@@ -3737,6 +3747,7 @@ impl Engine {
                             }
                             k if k == keys::O => next_key == keys::I || next_key == keys::A,
                             k if k == keys::E => next_key == keys::O, // eo: đeo, kẹo, mèo
+                            k if k == keys::I => next_key == keys::U, // iu: chịu, nịu, lịu
                             _ => false,
                         };
                         if !is_vietnamese_pattern {
@@ -3952,6 +3963,42 @@ impl Engine {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Pattern 9: C + V + M + S at end → English plural pattern (-ms)
+        // Example: "sims" = s + i + m + s → English (The Sims, rims, dims)
+        // Example: "gems" = g + e + m + s → English plural
+        // Counter-example: "làm" = l + a + m + s → "làm" is common Vietnamese
+        // Key insight: short syllables ending in -ms with uncommon vowel patterns
+        // are likely English. Check if the vowel is 'i' which is rare before 'm' in Vietnamese.
+        // Vietnamese words with -im: kim (needle), lim (ironwood), chim (bird), tìm (find)
+        // But "sim" alone is a loanword (SIM card), adding tone makes no sense
+        if self.raw_input.len() == 4 {
+            let (c0, _, _) = self.raw_input[0];
+            let (c1, _, _) = self.raw_input[1];
+            let (c2, _, _) = self.raw_input[2];
+            let (c3, _, _) = self.raw_input[3];
+
+            // Pattern: single consonant + i/e + m + s (tone modifier)
+            // This catches: sims, gems, rims, dims, hems
+            // But not: làms, tìms (which have different vowels or are actual Vietnamese)
+            if keys::is_consonant(c0)
+                && (c1 == keys::I || c1 == keys::E)
+                && c2 == keys::M
+                && c3 == keys::S
+            {
+                // Extra check: initial consonant should be common in English but
+                // not commonly combined with -im/-em in Vietnamese
+                // s, r, d, g, h before -im are more likely English: sims, rims, dims, gems, hems
+                let english_initial = c0 == keys::S
+                    || c0 == keys::R
+                    || c0 == keys::D
+                    || c0 == keys::G
+                    || c0 == keys::H;
+                if english_initial {
+                    return true;
                 }
             }
         }

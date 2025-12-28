@@ -717,3 +717,56 @@ fn ethnic_minority_place_names_not_restored() {
         ("nawngs ", "nắng "), // nắng - sunny
     ]);
 }
+
+// =============================================================================
+// ISSUE #26 / #142 - UNFIXED BUGS (TEST CASES FOR PENDING FIXES)
+// =============================================================================
+
+/// Issue #26 - @jackblk: "ủa" with pattern "ura" becomes "ura" instead of "ủa"
+/// Vietnamese word without initial consonant - valid interjection
+#[test]
+fn issue26_ua_with_hook_tone_before_vowel() {
+    telex_auto_restore(&[
+        ("ura ", "ủa "), // u + r(hỏi) + a → ủa (tone before second vowel)
+        ("uar ", "ủa "), // u + a + r → ủa (standard order)
+        ("uxa ", "ũa "), // u + x(ngã) + a → ũa
+        ("uax ", "ũa "), // u + a + x → ũa (standard order)
+    ]);
+}
+
+/// Issue #26 - @npkhang99: "chịu" with pattern "chiuj" becomes "chiju"
+/// Vietnamese diphthong I+U with tone modifier
+#[test]
+fn issue26_chiu_with_tone_before_final_vowel() {
+    telex_auto_restore(&[
+        ("chiuj ", "chịu "), // standard order: ch + i + u + j(nặng)
+        ("chiju ", "chịu "), // alternative: ch + i + j + u (tone before u)
+        ("liuj ", "lịu "),   // l + i + u + j → lịu
+        ("niuj ", "nịu "),   // n + i + u + j → nịu
+    ]);
+}
+
+/// Issue #26 - @jackblk: "thuỷ" with pattern "thury" gets restored incorrectly
+/// Vietnamese diphthong U+Y with tone modifier
+#[test]
+fn issue26_thuy_with_hook_before_y() {
+    telex_auto_restore(&[
+        ("thuyr ", "thuỷ "), // standard: th + u + y + r(hỏi)
+        ("thury ", "thuỷ "), // alternative: th + u + r + y (tone before y)
+        ("quyr ", "quỷ "),   // qu + y + r → quỷ
+        ("qury ", "quỷ "),   // qu + r + y → quỷ (alternative)
+    ]);
+}
+
+/// Issue #142: "sims" becomes "simss" (extra 's' added)
+/// English word should be restored as-is on space
+#[test]
+fn issue142_sims_extra_s() {
+    telex_auto_restore(&[
+        ("sims ", "sims "), // should stay "sims", not "simss" or "sím"
+        ("rims ", "rims "), // rims - similar pattern
+        ("dims ", "dims "), // dims - similar pattern
+        ("gems ", "gems "), // gems - similar pattern
+        ("hems ", "hems "), // hems - similar pattern
+    ]);
+}
