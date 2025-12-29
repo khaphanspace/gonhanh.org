@@ -828,3 +828,35 @@ fn vowel_triggered_circumflex_stays_vietnamese() {
         ("papa ", "papa "), // p+a+p+a → pâp (no mark, restore to English)
     ]);
 }
+
+// =============================================================================
+// ISSUE #151 - "mưa" (rain) should NOT be auto-restored
+// Vietnamese word with horn on 'u' pattern
+// =============================================================================
+
+#[test]
+fn issue151_mua_horn_not_restored() {
+    // "mưa" (rain) is a common Vietnamese word - should NOT be auto-restored
+    // Pattern: m + u + w(horn on u) + a → mưa
+    // Or: m + u + a + w(horn on u) → mưa
+    telex_auto_restore(&[
+        ("muwa ", "mưa "), // m + u + w + a → mưa (NOT "mwa")
+        ("muaw ", "mưa "), // m + u + a + w → mưa (NOT "mwa")
+        ("mwa ", "mưa "),  // Issue #151: shorthand m + w + a → mưa (NOT "mwa")
+        // Similar patterns with other initials
+        ("chuwa ", "chưa "), // chưa (not yet)
+        ("chuaw ", "chưa "), // chưa (alternative typing)
+        ("cwa ", "cưa "),    // Issue #151: shorthand c + w + a → cưa
+        ("thuwa ", "thưa "), // thưa (dear/sparse)
+        ("thuaw ", "thưa "), // thưa (alternative)
+        ("luwa ", "lưa "),   // lưa (somewhat valid pattern)
+        ("luaw ", "lưa "),   // lưa (alternative)
+        ("lwa ", "lưa "),    // Issue #151: shorthand l + w + a → lưa
+        // With marks (tones)
+        ("muwas ", "mứa "), // mứa (sắc)
+        ("muwaf ", "mừa "), // mừa (huyền)
+        ("muwar ", "mửa "), // mửa (hỏi) - vomit
+        ("muwax ", "mữa "), // mữa (ngã)
+        ("muwaj ", "mựa "), // mựa (nặng)
+    ]);
+}

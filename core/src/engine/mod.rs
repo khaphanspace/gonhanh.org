@@ -3816,6 +3816,14 @@ impl Engine {
                                 }
                             }
 
+                            // Issue #151: C+W+A pattern is Vietnamese "ưa" (mưa, cưa, lưa, etc.)
+                            // Pattern: consonant + W + A → valid Vietnamese diphthong
+                            // When raw_input is exactly 3 chars (C+W+A), this is Vietnamese
+                            // Examples: mwa → mưa, cwa → cưa, lwa → lưa, twa → tưa
+                            if third == keys::A && self.raw_input.len() == 3 {
+                                return false;
+                            }
+
                             // Check if there's ANY tone modifier (j/s/f/r/x) in the rest of the word
                             let tone_modifiers = [keys::S, keys::F, keys::R, keys::X, keys::J];
                             let has_tone_modifier = self.raw_input[2..]
