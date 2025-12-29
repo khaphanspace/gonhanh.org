@@ -949,7 +949,7 @@ private func keyboardCallback(
     let caps = shift || flags.contains(.maskAlphaShift)
     let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
 
-    // Enter/Escape: submit or cancel
+    // Enter: submit and trigger auto-capitalize pending state
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
     // then clear buffer. Engine sets pending_capitalize when it sees Enter key.
     if keyCode == 0x24 || keyCode == 0x4C {  // Return (0x24) or Enter/Numpad (0x4C)
@@ -958,7 +958,18 @@ private func keyboardCallback(
         TextInjector.shared.clearSessionBuffer()
         return Unmanaged.passUnretained(event)
     }
+    // Issue #149: ESC key - restore raw ASCII if enabled, then clear buffer
+    // Must call engine FIRST to get restore result before clearing
     if keyCode == 0x35 {  // Escape
+        // Detect injection method once per keystroke (expensive AX query)
+        let (method, delays) = detectMethod()
+
+        // Try to get restore result from engine
+        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+            Log.info("ESC restore: backspace \(bs), chars '\(String(chars))'")
+            sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+        }
+
         TextInjector.shared.clearSessionBuffer()
         RustBridge.clearBuffer()
         return Unmanaged.passUnretained(event)
