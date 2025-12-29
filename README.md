@@ -31,7 +31,6 @@
 ### 🍺 Homebrew (macOS - Khuyến nghị)
 
 ```bash
-brew tap khaphanspace/gonhanh
 brew install --cask gonhanh
 ```
 
