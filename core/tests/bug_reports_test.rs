@@ -769,3 +769,33 @@ fn test_neus_tone_position() {
     println!("\nFinal: 'neus' -> '{}' (expected: 'néu')", screen);
     assert_eq!(screen, "néu", "'neus' should produce 'néu' (tone on e)");
 }
+
+// =============================================================================
+// ISSUE #162: "o2o" → "oô", expected "o2o"
+// In Telex mode, numbers should NOT trigger VNI modifiers.
+// VNI mode: 2 = huyền mark, 6 = circumflex
+// Telex mode: 2 should be just a regular character
+// =============================================================================
+
+#[test]
+fn issue162_o2o_should_not_transform_in_telex() {
+    // Telex mode is default (method = 0)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "o2o");
+    println!("'o2o' -> '{}' (expected: 'o2o')", result);
+    assert_eq!(
+        result, "o2o",
+        "'o2o' in Telex mode should stay as 'o2o', not 'oô'"
+    );
+
+    // Additional test cases with numbers in Telex mode
+    telex(&[
+        ("o2o", "o2o"),       // Issue #162
+        ("a2a", "a2a"),       // Similar pattern
+        ("e2e", "e2e"),       // Similar pattern
+        ("o6o", "o6o"),       // '6' should also not trigger circumflex in Telex
+        ("a1a", "a1a"),       // '1' should not trigger sắc in Telex
+        ("123", "123"),       // Pure numbers should pass through
+        ("a1b2c3", "a1b2c3"), // Mixed alphanumeric
+    ]);
+}

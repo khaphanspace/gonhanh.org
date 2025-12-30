@@ -2084,6 +2084,8 @@ fn backspace_after_space_restore_apply_vowel_mark() {
 
 /// EDGE CASE: Type number after space, delete, restore
 /// "một" + " " + "123" + 3 backspaces + 1 backspace → restore
+/// Issue #162 fix: Numbers are now added to buffer in Telex mode for proper tracking.
+/// This means after deleting all numbers and the space, restore DOES work correctly.
 #[test]
 fn backspace_after_space_type_numbers_delete() {
     let mut e = Engine::new();
@@ -2091,17 +2093,17 @@ fn backspace_after_space_type_numbers_delete() {
     e.on_key(keys::N1, false, false);
     e.on_key(keys::N2, false, false);
     e.on_key(keys::N3, false, false);
-    // Delete numbers (numbers don't go to buffer, but we track them)
+    // Delete numbers (Issue #162: numbers are now tracked in buffer)
     e.on_key(keys::DELETE, false, false);
     e.on_key(keys::DELETE, false, false);
     e.on_key(keys::DELETE, false, false);
-    // Delete space
+    // Delete space - now triggers restore because buffer is empty and spaces_after_commit > 0
     let r = e.on_key(keys::DELETE, false, false);
-    // Note: numbers after space clear spaces_after_commit, so restore won't work
+    // Issue #162 fix: With numbers in buffer, restore works correctly after deleting all
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "Numbers break the restore chain"
+        Action::Send as u8,
+        "After deleting numbers and space, restore should trigger"
     );
 }
 

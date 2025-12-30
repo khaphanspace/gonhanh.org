@@ -2530,9 +2530,12 @@ impl Engine {
         }
 
         self.last_transform = None;
-        // Add letters to buffer, and numbers in VNI mode (for pass-through after revert)
+        // Add letters to buffer, and numbers in both Telex and VNI modes
         // This ensures buffer.len() stays in sync with screen chars for correct backspace count
-        if keys::is_letter(key) || (self.method == 1 && keys::is_number(key)) {
+        // Issue #162: Numbers must be added to buffer in Telex mode too, otherwise patterns
+        // like "o2o" have buffer = [O] (missing '2') causing the second 'o' to incorrectly
+        // trigger circumflex (thinking it's "oo" → "ô")
+        if keys::is_letter(key) || keys::is_number(key) {
             // Add the letter/number to buffer
             self.buf.push(Char::new(key, caps));
 
