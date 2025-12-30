@@ -5,7 +5,6 @@
 ### Cách 1: Homebrew (Khuyến nghị)
 
 ```bash
-brew tap khaphanspace/gonhanh
 brew install --cask gonhanh
 ```
 
@@ -73,7 +72,6 @@ brew upgrade --cask gonhanh
 **Homebrew:**
 ```bash
 brew uninstall --cask gonhanh
-brew untap khaphanspace/gonhanh  # Tùy chọn
 ```
 
 **Thủ công:**
