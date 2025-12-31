@@ -17,8 +17,11 @@ public partial class App : System.Windows.Application
 {
     private TrayIcon? _trayIcon;
     private KeyboardHook? _keyboardHook;
+    private HotKeyService? _hotKeyService;
     private readonly SettingsService _settings = new();
+    private readonly ShortcutsService _shortcuts = new();
     private System.Threading.Mutex? _mutex;
+    private Window? _hiddenWindow; // For hotkey registration
 
     // Per-app mode monitoring
     private System.Threading.Timer? _appMonitorTimer;
@@ -52,10 +55,16 @@ public partial class App : System.Windows.Application
         _settings.Load();
         _settings.ApplyToEngine();
 
+        // Load shortcuts
+        _shortcuts.Load();
+
         // Initialize keyboard hook
         _keyboardHook = new KeyboardHook();
         _keyboardHook.KeyPressed += OnKeyPressed;
         _keyboardHook.Start();
+
+        // Initialize global hotkey service
+        InitializeHotKeyService();
 
         // Initialize system tray
         _trayIcon = new TrayIcon();
@@ -110,6 +119,46 @@ public partial class App : System.Windows.Application
             TextSender.SendText(result.GetText(), result.Backspace);
         }
     }
+
+    #region Global Hotkey
+
+    private void InitializeHotKeyService()
+    {
+        try
+        {
+            // Create hidden window for hotkey registration
+            _hiddenWindow = new Window
+            {
+                Width = 0,
+                Height = 0,
+                WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false,
+                ShowActivated = false
+            };
+            _hiddenWindow.Show();
+            _hiddenWindow.Hide();
+
+            _hotKeyService = new HotKeyService();
+            _hotKeyService.HotKeyPressed += OnHotKeyPressed;
+            _hotKeyService.Initialize(_hiddenWindow);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to initialize hotkey service: {ex.Message}");
+        }
+    }
+
+    private void OnHotKeyPressed()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var newState = !_settings.IsEnabled;
+            ToggleEnabled(newState);
+            _trayIcon?.UpdateState(_settings.CurrentMethod, newState);
+        });
+    }
+
+    #endregion
 
     #region Per-App Mode
 
@@ -221,7 +270,7 @@ public partial class App : System.Windows.Application
 
     private void ShowSettings()
     {
-        var settings = new SettingsWindow(_settings);
+        var settings = new SettingsWindow(_settings, _shortcuts, _hotKeyService);
         settings.SettingsChanged += () =>
         {
             _settings.ApplyToEngine();
@@ -269,6 +318,8 @@ public partial class App : System.Windows.Application
         StopAppMonitoring();
         _keyboardHook?.Stop();
         _keyboardHook?.Dispose();
+        _hotKeyService?.Dispose();
+        _hiddenWindow?.Close();
         _trayIcon?.Dispose();
         RustBridge.Clear();
         _mutex?.Dispose();
@@ -279,6 +330,8 @@ public partial class App : System.Windows.Application
     {
         StopAppMonitoring();
         _keyboardHook?.Dispose();
+        _hotKeyService?.Dispose();
+        _hiddenWindow?.Close();
         _trayIcon?.Dispose();
         _mutex?.Dispose();
         base.OnExit(e);
