@@ -356,6 +356,174 @@ fn english_words_restored() {
         ("wolf ", "wolf "),  // should restore
         ("sims ", "sims "),  // sím (invalid VI) → restore to sims
         ("simss ", "sims "), // double 's' at END but 's' in middle (sim+ss) → collapse
+        // Multi-syllable foreign patterns: tone modifiers should NOT apply
+        ("makef ", "makef "), // "make" is C-V-C-V (multi-syllable), 'f' should not apply
+        ("makefile ", "makefile "), // same pattern, longer word
+    ]);
+}
+
+/// Single vowel + tone modifier → tone SHOULD apply (valid Vietnamese)
+/// All vowels: a, e, i, o, u, y
+/// All Telex tone modifiers: s (sắc), f (huyền), r (hỏi), x (ngã), j (nặng)
+#[test]
+fn single_vowel_tone_applies() {
+    telex(&[
+        // a + tones
+        ("as ", "á "),
+        ("af ", "à "),
+        ("ar ", "ả "),
+        ("ax ", "ã "),
+        ("aj ", "ạ "),
+        // e + tones
+        ("es ", "é "),
+        ("ef ", "è "),
+        ("er ", "ẻ "),
+        ("ex ", "ẽ "),
+        ("ej ", "ẹ "),
+        // i + tones
+        ("is ", "í "),
+        ("if ", "ì "),
+        ("ir ", "ỉ "),
+        ("ix ", "ĩ "),
+        ("ij ", "ị "),
+        // o + tones
+        ("os ", "ó "),
+        ("of ", "ò "),
+        ("or ", "ỏ "),
+        ("ox ", "õ "),
+        ("oj ", "ọ "),
+        // u + tones
+        ("us ", "ú "),
+        ("uf ", "ù "),
+        ("ur ", "ủ "),
+        ("ux ", "ũ "),
+        ("uj ", "ụ "),
+        // y + tones
+        ("ys ", "ý "),
+        ("yf ", "ỳ "),
+        ("yr ", "ỷ "),
+        ("yx ", "ỹ "),
+        ("yj ", "ỵ "),
+    ]);
+}
+
+/// Consonant + vowel + tone modifier → tone SHOULD apply (valid Vietnamese syllable)
+#[test]
+fn cv_tone_applies() {
+    telex(&[
+        // b + vowels + tones
+        ("bas ", "bá "),
+        ("baf ", "bà "),
+        ("bes ", "bé "),
+        ("bef ", "bè "),
+        ("bis ", "bí "),
+        ("bif ", "bì "),
+        ("bos ", "bó "),
+        ("bof ", "bò "),
+        ("bus ", "bú "),
+        ("buf ", "bù "),
+        // m + vowels + tones
+        ("mas ", "má "),
+        ("maf ", "mà "),
+        ("mes ", "mé "),
+        ("mef ", "mè "),
+        ("mos ", "mó "),
+        ("mof ", "mò "),
+        // n + vowels + tones
+        ("nas ", "ná "),
+        ("naf ", "nà "),
+        ("nes ", "né "),
+        ("nef ", "nè "),
+        ("nos ", "nó "),
+        ("nof ", "nò "),
+        // t + vowels + tones
+        ("tas ", "tá "),
+        ("taf ", "tà "),
+        ("tes ", "té "),
+        ("tef ", "tè "),
+        ("tos ", "tó "),
+        ("tof ", "tò "),
+    ]);
+}
+
+/// Multi-syllable foreign pattern + tone → tone should NOT apply
+/// Pattern: C-V-C-V (make, file, note, etc.) + tone modifier
+/// Requires english_auto_restore to detect foreign patterns
+#[test]
+fn multisyllable_foreign_tone_rejected() {
+    telex_auto_restore(&[
+        // "make" + all tone modifiers → should NOT apply
+        ("makes ", "makes "),
+        ("makef ", "makef "),
+        ("maker ", "maker "),
+        ("makex ", "makex "),
+        ("makej ", "makej "),
+        // "file" + all tone modifiers
+        ("files ", "files "),
+        ("filef ", "filef "),
+        ("filer ", "filer "),
+        ("filex ", "filex "),
+        ("filej ", "filej "),
+        // "note" + all tone modifiers
+        ("notes ", "notes "),
+        ("notef ", "notef "),
+        ("noter ", "noter "),
+        ("notex ", "notex "),
+        ("notej ", "notej "),
+        // "code" + all tone modifiers
+        ("codes ", "codes "),
+        ("codef ", "codef "),
+        ("coder ", "coder "),
+        ("codex ", "codex "),
+        ("codej ", "codej "),
+        // "time" + all tone modifiers
+        ("times ", "times "),
+        ("timef ", "timef "),
+        ("timer ", "timer "),
+        ("timex ", "timex "),
+        ("timej ", "timej "),
+        // "safe" + all tone modifiers
+        ("safes ", "safes "),
+        ("safef ", "safef "),
+        ("safer ", "safer "),
+        ("safex ", "safex "),
+        ("safej ", "safej "),
+    ]);
+}
+
+/// More multi-syllable patterns with different vowels
+/// Requires english_auto_restore to detect foreign patterns
+#[test]
+fn multisyllable_all_vowel_combinations() {
+    telex_auto_restore(&[
+        // Patterns ending with 'a' + tone
+        ("datas ", "datas "),
+        ("dataf ", "dataf "),
+        // Patterns ending with 'e' + tone
+        ("makes ", "makes "),
+        ("makef ", "makef "),
+        // Patterns ending with 'i' + tone
+        ("wikis ", "wikis "),
+        ("wikif ", "wikif "),
+        // Patterns ending with 'o' + tone
+        ("demos ", "demos "),
+        ("demof ", "demof "),
+        // Patterns ending with 'u' + tone
+        ("menus ", "menus "),
+        ("menuf ", "menuf "),
+    ]);
+}
+
+/// Longer foreign words - tone should NOT apply
+/// Requires english_auto_restore to detect foreign patterns
+#[test]
+fn long_foreign_words_tone_rejected() {
+    telex_auto_restore(&[
+        ("makefile ", "makefile "),
+        ("database ", "database "),
+        ("interface ", "interface "),
+        ("configure ", "configure "),
+        ("dockerfile ", "dockerfile "),
     ]);
 }
 

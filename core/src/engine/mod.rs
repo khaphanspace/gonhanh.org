@@ -1366,6 +1366,20 @@ impl Engine {
             }
         }
 
+        // Check for foreign word patterns (multi-syllable, invalid diphthongs, etc.)
+        // Skip if free_tone mode OR if buffer has existing transforms (intentional Vietnamese)
+        if !self.free_tone_enabled && self.english_auto_restore {
+            let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
+            let has_horn_transforms = self.buf.iter().any(|c| c.tone == tone::HORN);
+            let has_stroke_transforms = self.buf.iter().any(|c| c.stroke);
+            if !has_horn_transforms
+                && !has_stroke_transforms
+                && is_foreign_word_pattern(&buffer_keys, &buffer_tones, key)
+            {
+                return None;
+            }
+        }
+
         let tone_val = tone_type.value();
 
         // Check if we're switching from one tone to another (e.g., ô → ơ)
@@ -1683,16 +1697,32 @@ impl Engine {
                                     // Same-vowel trigger: typing the same vowel after consonant
                                     // Example: "nanag" → second 'a' triggers circumflex on first 'a'
                                     // Pattern: initial + vowel + consonant + SAME_VOWEL
-                                    // Only allow immediate circumflex for middle consonants that
-                                    // can form double finals (n→ng/nh, c→ch). These are clearly
-                                    // Vietnamese patterns.
-                                    // For other single finals (t,m,p), delay circumflex until
-                                    // a mark key is typed to avoid false positives like "data"→"dât"
+                                    // The consonant must be IMMEDIATELY after the target vowel.
+                                    // Example: "boemo" has O-E-M-O, so E is between two O's → NOT same-vowel trigger
+                                    // Only allow immediate circumflex for middle consonants that:
+                                    // 1. Can form double finals (n→ng/nh, c→ch)
+                                    // 2. Are non-stop consonants (m) that form valid Vietnamese finals
+                                    // For stop consonants (t, p), delay circumflex until mark key
+                                    // to avoid false positives like "data"→"dât", "toto"→"tôt"
                                     let is_same_vowel_trigger =
                                         self.buf.get(i).is_some_and(|c| c.key == key);
-                                    // Consonants that can form double finals: n→ng/nh, c→ch
+                                    // Check that the character immediately after target is a consonant
+                                    // This prevents "boemo" from triggering (E is vowel between O's)
+                                    let has_consonant_immediately_after = (i + 1 < self.buf.len())
+                                        && self
+                                            .buf
+                                            .get(i + 1)
+                                            .is_some_and(|c| !keys::is_vowel(c.key));
+                                    // Consonants that allow immediate circumflex:
+                                    // - n: can extend to ng/nh, forms valid finals (hân)
+                                    // - c: can extend to ch (but blocked if multi-syllable stop pattern)
+                                    // - m: non-stop consonant, forms valid finals (hôm, mâm)
                                     let middle_can_extend = consonants_after.len() == 1
-                                        && matches!(consonants_after[0], keys::N | keys::C);
+                                        && has_consonant_immediately_after
+                                        && matches!(
+                                            consonants_after[0],
+                                            keys::N | keys::C | keys::M
+                                        );
 
                                     // Check if initial consonant already has stroke (đ/Đ)
                                     // If so, it's clearly Vietnamese (from delayed stroke pattern)
@@ -1701,25 +1731,85 @@ impl Engine {
                                         .take_while(|c| !keys::is_vowel(c.key))
                                         .any(|c| c.stroke);
 
-                                    // Check for non-extending middle consonant (t, m, p)
-                                    // These require special handling for delayed circumflex
-                                    let is_non_extending_final = consonants_after.len() == 1
-                                        && matches!(
-                                            consonants_after[0],
-                                            keys::T | keys::M | keys::P
-                                        );
+                                    // Check for stop consonant middle (t, p)
+                                    // These require delayed circumflex (no immediate on same-vowel trigger)
+                                    // Note: 'm' is non-stop, handled in middle_can_extend above
+                                    let is_stop_consonant_final = consonants_after.len() == 1
+                                        && matches!(consonants_after[0], keys::T | keys::P);
+
+                                    // Check for multi-syllable foreign pattern early
+                                    // We need this check for both extending and non-extending finals
+                                    // BUT: only block if the middle consonant is a STOP consonant (t, c, p, k)
+                                    // Non-stop consonants (m, n) form valid Vietnamese words like "hôm", "mâm"
+                                    let buffer_keys_early: Vec<u16> =
+                                        self.buf.iter().map(|c| c.key).collect();
+                                    let would_be_multisyllable_early = if self.english_auto_restore
+                                    {
+                                        let mut temp_keys = buffer_keys_early.clone();
+                                        temp_keys.push(key);
+                                        if temp_keys.len() >= 4 {
+                                            let temp_syllable = syllable::parse(&temp_keys);
+                                            if !temp_syllable.final_c.is_empty() {
+                                                let last_pos =
+                                                    *temp_syllable.final_c.last().unwrap();
+                                                let has_vowel_after = temp_keys
+                                                    .iter()
+                                                    .skip(last_pos + 1)
+                                                    .any(|k| keys::is_vowel(*k));
+                                                // Only block if middle consonant is a stop consonant
+                                                // Stop consonants: t, c, p, k (cannot extend, rarely valid VN)
+                                                // Non-stop: m, n (form valid VN words like hôm, mâm)
+                                                let first_final_pos =
+                                                    *temp_syllable.final_c.first().unwrap();
+                                                let middle_is_stop = temp_keys
+                                                    .get(first_final_pos)
+                                                    .is_some_and(|&k| {
+                                                        matches!(
+                                                            k,
+                                                            keys::T | keys::C | keys::P | keys::K
+                                                        )
+                                                    });
+                                                has_vowel_after && middle_is_stop
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    };
+
+                                    // Check for foreign word patterns (TR, PR, CR clusters)
+                                    // Skip circumflex if buffer contains these patterns
+                                    // Example: "suprem" has PR cluster → don't apply circumflex
+                                    let buffer_keys_for_cluster: Vec<u16> =
+                                        self.buf.iter().map(|c| c.key).collect();
+                                    let has_foreign_cluster =
+                                        buffer_keys_for_cluster.windows(2).any(|w| {
+                                            w[1] == keys::R
+                                                && matches!(w[0], keys::T | keys::P | keys::C)
+                                        });
 
                                     // Allow circumflex if any of these conditions are true:
                                     // 1. Has adjacent vowel forming VALID diphthong (au, oi, etc.)
-                                    //    BUT NOT if final is non-extending (t,m,p) - diphthong+t/m/p rarely valid
+                                    //    BUT NOT if final is stop consonant (t,p) - diphthong+t/p rarely valid
+                                    //    AND must have consonant immediately after target (no vowel between)
+                                    //    This prevents "boemo" from triggering (E is between O and M)
                                     // 2. Has Vietnamese double initial (nh, th, ph, etc.)
-                                    // 3. Same-vowel trigger with middle consonant that can extend (n,c)
+                                    // 3. Same-vowel trigger with middle consonant that can extend (n,c,m)
+                                    //    BUT NOT if multi-syllable foreign pattern OR foreign cluster
                                     // 4. Initial has stroke (đ) - clearly Vietnamese
-                                    let diphthong_allows =
-                                        has_valid_adjacent_diphthong && !is_non_extending_final;
+                                    let diphthong_allows = has_valid_adjacent_diphthong
+                                        && !is_stop_consonant_final
+                                        && has_consonant_immediately_after;
+                                    let extending_allows = is_same_vowel_trigger
+                                        && middle_can_extend
+                                        && !would_be_multisyllable_early
+                                        && !has_foreign_cluster;
                                     let allow_circumflex = diphthong_allows
                                         || has_vietnamese_double_initial
-                                        || (is_same_vowel_trigger && middle_can_extend)
+                                        || extending_allows
                                         || initial_has_stroke;
 
                                     // Special case: same-vowel trigger with non-extending middle consonant
@@ -1748,19 +1838,15 @@ impl Engine {
                                     let has_any_adjacent_vowel =
                                         has_adjacent_vowel_before || has_adjacent_vowel_after;
 
-                                    // Check for foreign word patterns (TR, PR, CR clusters)
-                                    // Skip circumflex if buffer contains these patterns
-                                    // Example: "suprem" has PR cluster → don't apply circumflex
-                                    let buffer_keys: Vec<u16> =
-                                        self.buf.iter().map(|c| c.key).collect();
-                                    let has_foreign_cluster = buffer_keys.windows(2).any(|w| {
-                                        w[1] == keys::R
-                                            && matches!(w[0], keys::T | keys::P | keys::C)
-                                    });
-
-                                    // Block if: has adjacent vowel (diphthong pattern) with non-extending final
+                                    // Delayed circumflex for stop consonant finals (t, p)
+                                    // Same-vowel trigger: V-C-V where both V's are the same
+                                    // Apply circumflex immediately and consume the trigger vowel
+                                    // Example: "xepe" → "xêp" (second 'e' triggers, gets consumed)
+                                    // Note: we DON'T check would_be_multisyllable here because the
+                                    // trailing vowel IS the same-vowel trigger, not a separate syllable
+                                    // Auto-restore on space will revert if result is invalid Vietnamese
                                     if is_same_vowel_trigger
-                                        && is_non_extending_final
+                                        && is_stop_consonant_final
                                         && target_has_no_mark
                                         && !has_any_adjacent_vowel
                                         && !has_foreign_cluster
@@ -2151,15 +2237,45 @@ impl Engine {
                     let has_vietnamese_double_initial =
                         initial_keys.len() >= 2 && has_valid_vietnamese_initial;
 
+                    // Check for multi-syllable foreign pattern (C-V-C-V like "data")
+                    // Skip delayed circumflex if buffer forms a multi-syllable pattern
+                    // BUT: only block if the middle consonant is a STOP consonant (t, c, p, k)
+                    // Non-stop consonants (m, n) form valid Vietnamese words like "hôm", "mâm"
+                    let buffer_keys_delayed: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+                    let is_multisyllable_foreign =
+                        if self.english_auto_restore && buffer_keys_delayed.len() >= 4 {
+                            let temp_syllable = syllable::parse(&buffer_keys_delayed);
+                            if !temp_syllable.final_c.is_empty() {
+                                let last_pos = *temp_syllable.final_c.last().unwrap();
+                                let has_vowel_after = buffer_keys_delayed
+                                    .iter()
+                                    .skip(last_pos + 1)
+                                    .any(|k| keys::is_vowel(*k));
+                                // Only block if middle consonant is a stop consonant
+                                let first_final_pos = *temp_syllable.final_c.first().unwrap();
+                                let middle_is_stop =
+                                    buffer_keys_delayed.get(first_final_pos).is_some_and(|&k| {
+                                        matches!(k, keys::T | keys::C | keys::P | keys::K)
+                                    });
+                                has_vowel_after && middle_is_stop
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
                     // Only apply delayed circumflex if:
                     // - Has non-extending middle consonant (t, m, p)
                     // - Second vowel is at end (trigger position)
                     // - Has valid Vietnamese initial (skip English like "proposal")
                     // - No double initial (those work immediately without delay)
+                    // - Not a multi-syllable foreign pattern (skip "data", "toto", etc.)
                     if is_non_extending_final
                         && second_vowel_at_end
                         && has_valid_vietnamese_initial
                         && !has_vietnamese_double_initial
+                        && !is_multisyllable_foreign
                     {
                         had_delayed_circumflex = true;
                         // Apply circumflex to first vowel
@@ -3358,6 +3474,74 @@ impl Engine {
             }
         }
 
+        // Check 4b: Multi-syllable foreign pattern with delayed circumflex + mark
+        // When delayed circumflex is triggered by same-vowel pattern (V-C-V) AND
+        // the raw_input looks like a multi-syllable foreign word, restore even if
+        // the buffer has a mark (sắc, etc.).
+        // Example: "datas" → d-a-t-a-s → "dất" (has sắc) → NOT valid Vietnamese → restore
+        // But: "xepes" → x-e-p-e-s → "xếp" (has sắc) → VALID Vietnamese word → keep
+        // The heuristic: if raw_input has C-V-C-V-C pattern where the middle C is a
+        // stop consonant (T, P, C, K) and the vowels are the same, it's likely foreign.
+        // Skip if buffer is a KNOWN valid Vietnamese word pattern.
+        if is_word_complete
+            && self.had_vowel_triggered_circumflex
+            && !has_stroke
+            && raw_input_valid_en
+            && has_marks_or_tones
+        {
+            // Check for multi-syllable pattern in raw_input: C-V-C-V-C
+            // where middle consonant is a stop consonant
+            if self.raw_input.len() >= 5 {
+                let raw_keys: Vec<u16> = self.raw_input.iter().map(|(k, _, _)| *k).collect();
+                let syllable = syllable::parse(&raw_keys);
+
+                // Check for C-V-C-V pattern where the stop consonant is in the middle
+                if !syllable.final_c.is_empty() {
+                    let first_final_pos = *syllable.final_c.first().unwrap();
+                    let last_final_pos = *syllable.final_c.last().unwrap();
+
+                    // Check if there's a vowel after the final consonant
+                    let has_vowel_after = raw_keys
+                        .iter()
+                        .skip(last_final_pos + 1)
+                        .any(|k| keys::is_vowel(*k));
+
+                    // Check if middle consonant is a stop consonant
+                    let middle_is_stop = raw_keys
+                        .get(first_final_pos)
+                        .is_some_and(|&k| matches!(k, keys::T | keys::C | keys::P | keys::K));
+
+                    // Only restore if it's a multi-syllable pattern with stop consonant
+                    // AND the buffer is NOT a known valid Vietnamese word
+                    if has_vowel_after && middle_is_stop {
+                        // Check if the resulting word is a common Vietnamese pattern
+                        // Known valid: xếp, đếm, tết, etc.
+                        // These typically have distinctive initials (x, đ, etc.)
+                        // or are in common word lists
+                        let buf_str = self.buf.to_full_string().to_lowercase();
+
+                        // List of known valid Vietnamese words that match this pattern
+                        let known_valid = [
+                            "xếp", "xép", "xệp", "xẹp", // arrange
+                            "tết", "tét", "tẹt", // lunar new year
+                            "đếm", "đém", // count
+                            "nếp", "nép", "nẹp", // sticky rice
+                            "bếp", "bép", "bẹp", // kitchen
+                            "kẹp", "kép", "kếp", // clip
+                            "lếp", "lép", "lẹp", // flat
+                            "mếp", "mép", "mẹp", // edge
+                            "tốt", "tót", "tọt", // good
+                            "nốt", "nót", "nọt", // dot/note
+                        ];
+
+                        if !known_valid.iter().any(|&w| buf_str == w) {
+                            return self.build_raw_chars();
+                        }
+                    }
+                }
+            }
+        }
+
         // Check 5: Same modifier doubled + vowel = Telex revert pattern
         // When user typed double modifier to revert unwanted Vietnamese transform,
         // the resulting buffer might be valid VN but user intended English.
@@ -3835,11 +4019,15 @@ impl Engine {
             }
 
             // 3. Double vowel at VERY END → collapse when circumflex was applied then reverted
-            // Example: "dataa" → "data" (aa at end, circumflex was applied then reverted)
+            // Example: "saaas" → "saas" (triple collapsed to double first, then no further collapse)
             // This happens when user types a-a-a and third 'a' reverts the circumflex
             // IMPORTANT: Use had_circumflex_revert, NOT had_mark_revert
             // had_mark_revert is set for tone marks (ff in coffee), which should NOT collapse
-            if self.had_circumflex_revert && chars.len() >= 2 {
+            // EXCEPTION: Don't collapse when buffer is INVALID Vietnamese - we're doing auto-restore
+            // for a foreign word and should preserve ALL typed characters
+            // Example: "dataa" should stay "dataa" (not collapse to "data")
+            let buffer_is_valid_vn = !self.is_buffer_invalid_vietnamese();
+            if self.had_circumflex_revert && buffer_is_valid_vn && chars.len() >= 2 {
                 let last = chars[chars.len() - 1].to_ascii_lowercase();
                 let second_last = chars[chars.len() - 2].to_ascii_lowercase();
                 // Double vowel at very end (a/e/o)
@@ -3993,109 +4181,21 @@ impl Engine {
                 found
             };
 
-            // Check for common English prefixes where double modifier appears
-            // Two cases:
-            // 1. Prefix ends with tone modifier (dis, mis, trans): double at prefix_len - 1
-            //    e.g., "disscuss" → "dis" (len 3), double 'ss' at pos 2-3
-            // 2. Prefix ends with vowel (re, con): double at prefix_len
-            //    e.g., "ressponse" → "re" (len 2), double 'ss' at pos 2-3
-            //
-            // IMPORTANT: Only match if word is LONGER than prefix + double + 1
-            // - "dissable" (8 chars) = "dis" (3) + "s" (1) + "able" (4) → collapse to "disable"
-            // - "miss" (4 chars) = "mis" (3) + "s" (1) → DON'T collapse (standalone English word)
-            let raw_str_lower: String = chars.iter().map(|c| c.to_ascii_lowercase()).collect();
-            let has_prefix_with_double = {
-                const PREFIXES: &[&str] = &["dis", "mis", "re", "trans", "con"];
-                let mut found = false;
-                for prefix in PREFIXES {
-                    let prefix_len = prefix.len();
-                    // Check if prefix ends with a tone modifier
-                    let prefix_ends_with_mod = prefix
-                        .chars()
-                        .last()
-                        .map(|c| tone_modifiers_char.contains(&c))
-                        .unwrap_or(false);
-
-                    // Double position depends on whether prefix ends with modifier
-                    let double_pos = if prefix_ends_with_mod {
-                        prefix_len - 1 // "dis" → double at pos 2
-                    } else {
-                        prefix_len // "re" → double at pos 2
-                    };
-
-                    // Require at least 2 chars after the double
-                    // "dissable" has "able" after "ss", "miss" only has one 's' after
-                    if prefix_len >= 1
-                        && raw_str_lower.starts_with(prefix)
-                        && chars.len() > double_pos + 3
-                    {
-                        let c1 = chars.get(double_pos).map(|c| c.to_ascii_lowercase());
-                        let c2 = chars.get(double_pos + 1).map(|c| c.to_ascii_lowercase());
-                        if let (Some(c1), Some(c2)) = (c1, c2) {
-                            if tone_modifiers_char.contains(&c1) && c1 == c2 {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                found
-            };
-
             // The buf_ends_with_invalid_final exception only applies when double is near END
-            // For suffix/prefix patterns (double in middle), ignore this exception
+            // For suffix/middle patterns (double in middle), ignore this exception
             // Also don't skip for u+doubled patterns (ussers → users) since those are revert artifacts
             // And don't skip for double-at-end revert pattern (simss → sims)
             let skip_for_invalid_final = buf_ends_with_invalid_final
                 && !has_suffix_after_double
-                && !has_prefix_with_double
                 && !starts_with_u_doubled_modifier
-                && !double_at_end_is_revert;
-            // Find the position of prefix boundary for position-aware collapse
-            let prefix_double_position: Option<usize> = if has_prefix_with_double {
-                const PREFIXES: &[&str] = &["dis", "mis", "re", "trans", "con"];
-                let mut pos = None;
-                for prefix in PREFIXES {
-                    let prefix_len = prefix.len();
-                    // Check if prefix ends with a tone modifier
-                    let prefix_ends_with_mod = prefix
-                        .chars()
-                        .last()
-                        .map(|c| tone_modifiers_char.contains(&c))
-                        .unwrap_or(false);
-
-                    // Double position depends on whether prefix ends with modifier
-                    let double_pos = if prefix_ends_with_mod {
-                        prefix_len - 1
-                    } else {
-                        prefix_len
-                    };
-
-                    if prefix_len >= 1
-                        && raw_str_lower.starts_with(prefix)
-                        && chars.len() > double_pos + 1
-                    {
-                        let c1 = chars.get(double_pos).map(|c| c.to_ascii_lowercase());
-                        let c2 = chars.get(double_pos + 1).map(|c| c.to_ascii_lowercase());
-                        if let (Some(c1), Some(c2)) = (c1, c2) {
-                            if tone_modifiers_char.contains(&c1) && c1 == c2 {
-                                pos = Some(double_pos);
-                                break;
-                            }
-                        }
-                    }
-                }
-                pos
-            } else {
-                None
-            };
+                && !double_at_end_is_revert
+                && !has_middle_double_followed_by_consonant;
 
             if self.had_mark_revert
                 && !skip_for_invalid_final
                 && (short_word
                     || starts_with_u_doubled_modifier
                     || has_suffix_after_double
-                    || has_prefix_with_double
                     || double_at_end_is_revert
                     || has_middle_double_followed_by_consonant)
             {
@@ -4107,18 +4207,41 @@ impl Engine {
                     let next = chars[i + 1].to_ascii_lowercase();
                     // Same tone modifier doubled → collapse to single (except 'ff')
                     if tone_modifiers.contains(&c) && c == next {
-                        // For prefix patterns, only collapse at the prefix boundary position
-                        // This prevents "disscuss" → "discus" (collapsing both 'ss')
-                        // Instead: collapse at pos 3 only → "discuss"
-                        if has_prefix_with_double
-                            && !short_word
-                            && !starts_with_u_doubled_modifier
-                            && !has_suffix_after_double
-                            && prefix_double_position != Some(i)
-                        {
+                        // Validation-based collapse: only collapse if followed by consonant
+                        // This is the "artifact" pattern: double modifier + consonant
+                        // Example: "disscuss" → 'ss' followed by 'c' → collapse
+                        // Example: "assess" → 'ss' followed by 'e' (vowel) → don't collapse
+                        // Example: "discuss" → 'ss' at end (valid English) → don't collapse
+                        // Example: "simss" → double at end is revert artifact → collapse
+                        let followed_by_consonant = chars
+                            .get(i + 2)
+                            .map(|ch| {
+                                !matches!(
+                                    ch.to_ascii_lowercase(),
+                                    'a' | 'e' | 'i' | 'o' | 'u' | 'y'
+                                )
+                            })
+                            .unwrap_or(false);
+
+                        // Check if this specific double is at the very end
+                        // (for double_at_end_is_revert case like "simss")
+                        let is_this_double_at_end = i + 2 == chars.len();
+
+                        // Only collapse for short words, when followed by consonant,
+                        // or when double_at_end_is_revert is true and this is the end double
+                        // Short words (tesst, erros) always collapse
+                        // Long words only collapse at artifact positions (double + consonant)
+                        // End doubles only collapse if detected as revert artifact
+                        let should_collapse = short_word
+                            || starts_with_u_doubled_modifier
+                            || followed_by_consonant
+                            || (double_at_end_is_revert && is_this_double_at_end);
+
+                        if !should_collapse {
                             i += 1;
-                            continue; // Skip this double, not at prefix boundary
+                            continue; // Skip - not an artifact pattern
                         }
+
                         // For long words with suffix pattern, only collapse if 4+ chars follow
                         if has_suffix_after_double && !short_word && !starts_with_u_doubled_modifier
                         {

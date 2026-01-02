@@ -431,9 +431,11 @@ pub fn is_foreign_word_pattern(
     // - "teaches" → T + EA(vowel) + CH(final) + E(vowel after) → foreign
     // Vietnamese "tiếng" → T + IE(vowel) + NG(final) → no vowel after → OK
     //
-    // IMPORTANT: Require minimum 5 chars to avoid false positives on short intermediate states
-    // Example: "ase" (from typing "assess") is only 3 chars → don't flag as foreign
-    if buffer_keys.len() >= 5 && !syllable.final_c.is_empty() {
+    // IMPORTANT: Require minimum 4 chars to detect multi-syllable patterns like "make"
+    // while avoiding false positives on 3-char intermediates like "ase"
+    // Example: "make" (4 chars) = m-a-k-e = C-V-C-V = 2 syllables → foreign
+    // Example: "ase" (3 chars) = intermediate state → don't flag
+    if buffer_keys.len() >= 4 && !syllable.final_c.is_empty() {
         let last_parsed_pos = *syllable.final_c.last().unwrap();
         // Check if there are more vowels after the last final consonant
         for key in buffer_keys.iter().skip(last_parsed_pos + 1) {

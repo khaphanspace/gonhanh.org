@@ -595,13 +595,13 @@ fn delayed_circumflex_auto_restore_space() {
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),  // tôt (no mark) is NOT real VI → restore to English
-        ("data ", "data "),  // dât (no mark) is NOT real VI → restore to English
-        ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
-        ("noto ", "noto "),  // nôt (no mark) is NOT real VI → restore to English
-        ("hete ", "hete "),  // hêt (no mark) is NOT real VI → restore to English
-        ("tetee ", "tete "), // Revert: tetee → tete (circumflex reverted)
-        ("cocoo ", "coco "), // Revert: cocoo → coco (circumflex reverted)
+        ("toto ", "toto "),   // Multi-syllable foreign pattern → no transforms
+        ("data ", "data "),   // Multi-syllable foreign pattern → no transforms
+        ("dataa ", "dataa "), // Multi-syllable foreign pattern → no transforms
+        ("noto ", "noto "),   // Multi-syllable foreign pattern → no transforms
+        ("hete ", "hete "),   // Multi-syllable foreign pattern → no transforms
+        ("tetee ", "tetee "), // Multi-syllable foreign pattern → no transforms
+        ("cocoo ", "cocoo "), // Multi-syllable foreign pattern → no transforms
     ];
 
     for (input, expected) in cases {
@@ -615,13 +615,15 @@ fn delayed_circumflex_auto_restore_space() {
 #[test]
 fn delayed_circumflex_valid_vietnamese_stays() {
     // Valid Vietnamese with marks should NOT be restored
+    // Same-vowel trigger patterns like "totos" produce valid VN words (tốt = good)
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("dausa ", "dấu "), // Valid: dấu (mark typed)
-        ("totos ", "tốt "), // Valid: tốt (mark typed)
-        ("soos ", "số "),   // Valid: số (mark typed, immediate circumflex)
-        ("notos ", "nốt "), // Valid: nốt (mark typed)
+        ("dausa ", "dấu "), // Valid: dấu (mark typed, "dau" is single syllable)
+        ("soos ", "số "),   // Valid: số (mark typed, immediate circumflex, single syllable)
+        // Same-vowel trigger patterns produce valid Vietnamese:
+        ("totos ", "tốt "), // tốt = "good" (delayed circumflex: o→t→o→s)
+        ("notos ", "nốt "), // nốt = "note/dot" (delayed circumflex: o→t→o→s)
     ];
 
     for (input, expected) in cases {
