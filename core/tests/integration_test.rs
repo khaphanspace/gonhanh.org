@@ -2110,7 +2110,7 @@ fn backspace_after_space_type_numbers_delete() {
 }
 
 /// EDGE CASE: Very long sequence - type, partial delete, more type, delete all
-/// "mình" + " " + "abc" + delete 1 + "def" + delete 5 + restore
+/// "mình" + " " + "abc" + delete 1 + "def" → "abdè" (4 chars, 'f' applies to "de") + delete 4 + restore
 #[test]
 fn backspace_after_space_complex_edit_sequence() {
     let mut e = Engine::new();
@@ -2119,10 +2119,10 @@ fn backspace_after_space_complex_edit_sequence() {
     type_word(&mut e, "abc");
     // Delete 1 char (now "ab")
     e.on_key(keys::DELETE, false, false);
-    // Type "def" (now "abdef")
+    // Type "def" → "dè" ('f' tone applies to "de"), so buffer = "ab" + "dè" = "abdè" (4 chars)
     type_word(&mut e, "def");
-    // Delete all 5 chars
-    for _ in 0..5 {
+    // Delete all 4 chars to empty buffer
+    for _ in 0..4 {
         e.on_key(keys::DELETE, false, false);
     }
     // Buffer empty, delete space to restore

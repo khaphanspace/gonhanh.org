@@ -218,6 +218,17 @@ fn rule_valid_vowel_pattern(
                 // (V2 in diphthong is always a vowel, so this is always invalid)
                 return Some(ValidationResult::InvalidVowelPattern);
             }
+
+            // Circumflex A (â) restrictions: 'â' can only be followed by U (âu) or Y (ây)
+            // Invalid: âi, âo, âa, âe (circumflex A + these vowels)
+            // This catches English words like "await" → "âit" where buffer has "âi"
+            if snap.has_tone_info && vowel_keys[0] == keys::A && vowel_tones[0] == tone::CIRCUMFLEX
+            {
+                // â can only be followed by U or Y
+                if vowel_keys[1] != keys::U && vowel_keys[1] != keys::Y {
+                    return Some(ValidationResult::InvalidVowelPattern);
+                }
+            }
         }
         3 => {
             let triple = [vowel_keys[0], vowel_keys[1], vowel_keys[2]];
@@ -295,16 +306,18 @@ pub fn is_valid(buffer_keys: &[u16]) -> bool {
     validate(&snap).is_valid()
 }
 
-/// Rules for pre-transformation validation (excludes vowel pattern check)
+/// Rules for pre-transformation validation (lenient)
 /// Used to validate buffer structure before applying tone/mark transformations.
-/// Allows intermediate states like "aa" that become valid after transformation.
+/// Allows intermediate states like "aa", "as", "ase" that may have:
+/// - Invalid finals (S is not valid VN final, but we need to allow mark on "as")
+/// - Unparsed trailing chars (E in "ase" after consonant S)
 const RULES_FOR_TRANSFORM: &[Rule] = &[
     rule_has_vowel,
     rule_valid_initial,
-    rule_all_chars_parsed,
     rule_spelling,
-    rule_valid_final,
-    // NOTE: rule_valid_vowel_pattern is excluded - applied only to final results
+    // NOTE: rule_all_chars_parsed excluded - intermediate states may have unparsed chars
+    // NOTE: rule_valid_final excluded - intermediate states may have invalid finals
+    // NOTE: rule_valid_vowel_pattern excluded - applied only to final results
 ];
 
 /// Pre-transformation validation (allows intermediate vowel patterns)
@@ -347,19 +360,25 @@ pub fn is_foreign_word_pattern(
 ) -> bool {
     let syllable = parse(buffer_keys);
 
-    // Check 1: Invalid vowel patterns (not in whitelist)
-    if syllable.vowel.len() >= 2 {
-        let vowels: Vec<u16> = syllable.vowel.iter().map(|&i| buffer_keys[i]).collect();
-
-        // Check consecutive pairs for common foreign patterns
-        // This catches "ou" within longer sequences like "ưou" (from "would")
-        for window in vowels.windows(2) {
-            let pair = [window[0], window[1]];
+    // Check 1: Invalid vowel patterns in the ENTIRE buffer (not just parsed syllable)
+    // The syllable parser only parses one syllable, but multi-syllable words like
+    // "about" have "ou" pattern that needs detection.
+    // Scan buffer for consecutive vowel pairs.
+    for window in buffer_keys.windows(2) {
+        let k1 = window[0];
+        let k2 = window[1];
+        // Only check if BOTH are vowels
+        if keys::is_vowel(k1) && keys::is_vowel(k2) {
             // "ou" and "yo" are common in English but never valid in Vietnamese
-            if pair == [keys::O, keys::U] || pair == [keys::Y, keys::O] {
+            if (k1 == keys::O && k2 == keys::U) || (k1 == keys::Y && k2 == keys::O) {
                 return true;
             }
         }
+    }
+
+    // Check 1b: Invalid vowel patterns in parsed syllable (for diphthongs/triphthongs)
+    if syllable.vowel.len() >= 2 {
+        let vowels: Vec<u16> = syllable.vowel.iter().map(|&i| buffer_keys[i]).collect();
 
         let is_valid_pattern = match vowels.len() {
             2 => {
@@ -379,17 +398,50 @@ pub fn is_foreign_word_pattern(
     }
 
     // Check 2: Consonant clusters common in foreign words (T+R, P+R, C+R)
-    if modifier_key == keys::R && syllable.final_c.len() == 1 && !syllable.initial.is_empty() {
-        let final_key = buffer_keys[syllable.final_c[0]];
-        if matches!(final_key, keys::T | keys::P | keys::C) {
+    // Changed: check LAST consonant in final, not require exactly 1 final
+    // This handles "cont" + R → "contr" (control), "exp" + R → "expr" (express)
+    // Note: Removed initial requirement to handle vowel-initial words like "express"
+    if modifier_key == keys::R && !syllable.final_c.is_empty() {
+        let last_final_key = buffer_keys[*syllable.final_c.last().unwrap()];
+        if matches!(last_final_key, keys::T | keys::P | keys::C) {
             return true;
         }
     }
 
-    // Check 3: REMOVED - Was too aggressive
-    // Previously blocked "de" + 's' treating it as English prefix (describe, design).
-    // But "dép" (Vietnamese for slippers) is valid Vietnamese.
-    // Now we allow "de" + 's' → "dé" and rely on auto-restore for English words.
+    // Check 2b: Detect TR, PR, CR clusters in final when ANY modifier is typed
+    // Example: "matri" has final [T, R], typing 'x' → "mãtri" should be blocked
+    // Example: "expre" has final [P, R], typing 's' → "ẽxpre" should be blocked
+    if syllable.final_c.len() >= 2 {
+        let finals: Vec<u16> = syllable.final_c.iter().map(|&i| buffer_keys[i]).collect();
+        for window in finals.windows(2) {
+            // T+R, P+R, C+R clusters are common in English but not Vietnamese
+            if window[1] == keys::R && matches!(window[0], keys::T | keys::P | keys::C) {
+                return true;
+            }
+        }
+    }
+
+    // Check 3: Multi-syllable detection (foreign pattern)
+    // Vietnamese words are single syllables; multi-syllable words are written with spaces.
+    // If there are vowels AFTER the first syllable's final consonants, it's a foreign word.
+    // Examples:
+    // - "abde" → A(vowel) + BD(final) + E(another vowel!) → foreign
+    // - "expect" → E(vowel) + P(final) + E(another vowel!) → foreign
+    // - "about" → A(vowel) + B(final) + O,U(vowels after) → foreign
+    // - "teaches" → T + EA(vowel) + CH(final) + E(vowel after) → foreign
+    // Vietnamese "tiếng" → T + IE(vowel) + NG(final) → no vowel after → OK
+    //
+    // IMPORTANT: Require minimum 5 chars to avoid false positives on short intermediate states
+    // Example: "ase" (from typing "assess") is only 3 chars → don't flag as foreign
+    if buffer_keys.len() >= 5 && !syllable.final_c.is_empty() {
+        let last_parsed_pos = *syllable.final_c.last().unwrap();
+        // Check if there are more vowels after the last final consonant
+        for key in buffer_keys.iter().skip(last_parsed_pos + 1) {
+            if keys::is_vowel(*key) {
+                return true; // Foreign multi-syllable pattern
+            }
+        }
+    }
 
     // Check 4: REMOVED - Was too aggressive
     // Previously blocked "tex" → "tẽ" treating it as English "-ex-" pattern.
@@ -399,42 +451,11 @@ pub fn is_foreign_word_pattern(
     // The auto-restore logic in handle_normal_letter will detect invalid
     // Vietnamese patterns like "tẽt" and restore to "text".
 
-    // Check 5: Invalid final consonant + mark modifier → likely English
-    // When buffer has vowel + INVALID final consonant pattern
-    // Example: "exp" + 'r' = [E, X, P] + R → likely English "express"
-    //          "ex" + 'p' = [E, X] + P → likely English (X is invalid final)
-    //
-    // Valid Vietnamese finals: C, M, N, P, T (single) + CH, NG, NH (double)
-    // Invalid: X, B, D, G, H, K, L, Q, R, S, V, or any consonant cluster not listed above
-    //
-    // Note: "an" + 's' → "án" should NOT trigger this (N is valid final)
-    if syllable.initial.is_empty() && syllable.vowel.len() == 1 && !syllable.final_c.is_empty() {
-        // Check if the final consonant pattern is invalid for Vietnamese
-        let finals: Vec<u16> = syllable.final_c.iter().map(|&i| buffer_keys[i]).collect();
-        let is_invalid_final = match finals.len() {
-            1 => {
-                // Invalid single finals: X, B, D, G, H, K, L, Q, R, S, V
-                let f = finals[0];
-                !matches!(f, keys::C | keys::M | keys::N | keys::P | keys::T)
-            }
-            2 => {
-                // Valid double finals: CH, NG, NH
-                let pair = [finals[0], finals[1]];
-                !constants::VALID_FINALS_2.contains(&pair)
-            }
-            _ => true, // 3+ consonants after vowel is always invalid Vietnamese
-        };
-
-        if is_invalid_final {
-            let is_mark_modifier = matches!(
-                modifier_key,
-                keys::S | keys::F | keys::R | keys::X | keys::J
-            );
-            if is_mark_modifier {
-                return true;
-            }
-        }
-    }
+    // Check 5: REMOVED - Was too aggressive
+    // Previously blocked patterns like "as" + 's' and "ase" + 's' which are needed
+    // for double-ss handling in words like "assess". The mark needs to be applied
+    // so it can be reverted when the next 's' is typed.
+    // Now we allow the mark and rely on auto-restore for English words.
 
     false
 }
@@ -573,4 +594,62 @@ mod tests {
             "'ăi' should be invalid"
         );
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_ase_debug() {
+    use crate::utils::keys_from_str;
+    // Test intermediate patterns
+    let keys_as = keys_from_str("as");
+    let keys_ase = keys_from_str("ase");
+
+    // Check if valid for transform
+    println!(
+        "'as' valid_for_transform: {}",
+        is_valid_for_transform(&keys_as)
+    );
+    println!(
+        "'ase' valid_for_transform: {}",
+        is_valid_for_transform(&keys_ase)
+    );
+
+    // Check full validation
+    let snap_as = BufferSnapshot::from_keys(keys_as.clone());
+    let snap_ase = BufferSnapshot::from_keys(keys_ase.clone());
+    println!("'as' validation: {:?}", validate(&snap_as));
+    println!("'ase' validation: {:?}", validate(&snap_ase));
+
+    // Check syllable parsing
+    let syl_as = parse(&keys_as);
+    let syl_ase = parse(&keys_ase);
+    println!(
+        "'as' syllable: initial={:?}, vowel={:?}, final={:?}",
+        syl_as.initial, syl_as.vowel, syl_as.final_c
+    );
+    println!(
+        "'ase' syllable: initial={:?}, vowel={:?}, final={:?}",
+        syl_ase.initial, syl_ase.vowel, syl_ase.final_c
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn test_ero_debug() {
+    use crate::utils::keys_from_str;
+    // Test intermediate patterns for "error"
+    let keys_ero = keys_from_str("ero");
+
+    // Check if valid for transform
+    println!(
+        "'ero' valid_for_transform: {}",
+        is_valid_for_transform(&keys_ero)
+    );
+
+    // Check syllable parsing
+    let syl_ero = parse(&keys_ero);
+    println!(
+        "'ero' syllable: initial={:?}, vowel={:?}, final={:?}",
+        syl_ero.initial, syl_ero.vowel, syl_ero.final_c
+    );
 }

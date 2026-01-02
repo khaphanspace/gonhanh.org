@@ -156,8 +156,7 @@ fn pattern4_vowel_modifier_vowel() {
         ("use ", "use "),
         ("user ", "user "),
         ("users ", "users "),
-        // "ussers" → "users": "u+ss" at word start is very rare in English
-        // (no English words start with "uss"), so collapse double 's' to single
+        // "ussers" → "users": double 's' in MIDDLE collapses to single
         ("ussers ", "users "),
     ]);
 }
@@ -479,7 +478,7 @@ fn pattern7_vowel_modifier_vowel_with_initial() {
         ("life ", "life "), // l + i + f + e → lìe (invalid) → restore
         // Short words: consonant + vowel + modifier (no final vowel)
         ("per ", "per "),    // p + e + r → pẻ (invalid) → restore "per"
-        ("thiss ", "this "), // t + h + i + s + s → double s reverts → buffer "this" (4 chars)
+        ("thiss ", "this "), // double 's' in MIDDLE → buffer "this" (4 chars)
     ]);
 }
 
@@ -686,18 +685,18 @@ fn pattern9_double_mark_no_prefix() {
 }
 
 #[test]
-fn pattern9_double_mark_4char_keeps_reverted() {
-    // 4-char words with double mark: keep reverted result
-    // User typed double modifier to explicitly revert the mark
+fn pattern9_double_mark_4char_restores_english() {
+    // 4-char words ending with invalid Vietnamese final restore to English
+    // 's' is NOT a valid Vietnamese final → restore to raw
     telex_auto_restore(&[
-        ("bass ", "bas "),
-        ("boss ", "bos "),
-        ("less ", "les "),
-        ("loss ", "los "),
-        ("mass ", "mas "),
-        ("mess ", "mes "),
-        ("miss ", "mis "),
-        ("pass ", "pas "),
+        ("bass ", "bass "),
+        ("boss ", "boss "),
+        ("less ", "less "),
+        ("loss ", "loss "),
+        ("mass ", "mass "),
+        ("mess ", "mess "),
+        ("miss ", "miss "),
+        ("pass ", "pass "),
     ]);
 }
 
@@ -771,8 +770,8 @@ fn issue26_ua_with_hook_tone_before_vowel() {
         ("aor ", "ảo "), // a + o + r → ảo (standard order)
         // Double 'r' reverts hỏi, then restore to raw
         ("arro ", "aro "), // a + r + r(revert) + o → aro (restore to raw)
-        // Double 's' at start, more letters after - should collapse
-        ("ussers ", "users "), // u + s + s(revert) + e + r + s → users
+        // Double 's' in MIDDLE collapses to single
+        ("ussers ", "users "),
     ]);
 }
 

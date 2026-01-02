@@ -355,7 +355,7 @@ fn english_words_restored() {
         ("half ", "half "),  // should restore
         ("wolf ", "wolf "),  // should restore
         ("sims ", "sims "),  // sím (invalid VI) → restore to sims
-        ("simss ", "sims "), // double s reverts mark → sims (not simss)
+        ("simss ", "sims "), // double 's' at END but 's' in middle (sim+ss) → collapse
     ]);
 }
 
