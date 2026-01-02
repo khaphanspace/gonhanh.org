@@ -597,11 +597,11 @@ fn delayed_circumflex_auto_restore_space() {
     let cases = [
         ("toto ", "toto "),   // Multi-syllable foreign pattern → no transforms
         ("data ", "data "),   // Multi-syllable foreign pattern → no transforms
-        ("dataa ", "dataa "), // Multi-syllable foreign pattern → no transforms
+        ("dataa ", "data "),  // Double-a reverts circumflex → collapse to "data"
         ("noto ", "noto "),   // Multi-syllable foreign pattern → no transforms
         ("hete ", "hete "),   // Multi-syllable foreign pattern → no transforms
-        ("tetee ", "tetee "), // Multi-syllable foreign pattern → no transforms
-        ("cocoo ", "cocoo "), // Multi-syllable foreign pattern → no transforms
+        ("tetee ", "tete "),  // Double-e reverts circumflex → collapse to "tete"
+        ("cocoo ", "coco "),  // Double-o reverts circumflex → collapse to "coco"
     ];
 
     for (input, expected) in cases {
