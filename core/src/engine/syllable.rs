@@ -6,6 +6,7 @@
 //! - V: Vowel nucleus (nguyên âm chính) - REQUIRED
 //! - C₂: Final consonant (âm cuối)
 
+use crate::data::constants;
 use crate::data::keys;
 
 /// Parsed syllable structure
@@ -39,8 +40,7 @@ impl Syllable {
     }
 }
 
-/// Valid final consonants (âm cuối) - used for reference
-#[allow(dead_code)]
+/// Valid final consonants (âm cuối)
 const FINALS_2: &[[u16; 2]] = &[
     [keys::C, keys::H], // ch
     [keys::N, keys::G], // ng
@@ -158,25 +158,24 @@ pub fn parse(buffer_keys: &[u16]) -> Syllable {
     syllable
 }
 
-/// Match final consonant (lenient - accepts any consonant, validation rejects invalid)
+/// Match final consonant
 fn match_final(keys: &[u16], start: usize, syllable: &mut Syllable) {
     let len = keys.len();
-    if start >= len {
-        return;
-    }
+    let remaining = len - start;
 
-    // Collect all remaining consonants as final
-    // Stop at first vowel (handles patterns like "ase" where E is vowel after S)
-    let mut end = start;
-    while end < len && keys::is_consonant(keys[end]) {
-        end += 1;
-    }
-
-    // If we found consonants, add them as final
-    if end > start {
-        for i in start..end {
-            syllable.final_c.push(i);
+    // Try 2-char finals
+    if remaining >= 2 {
+        for pattern in FINALS_2 {
+            if keys[start] == pattern[0] && keys[start + 1] == pattern[1] {
+                syllable.final_c = vec![start, start + 1];
+                return;
+            }
         }
+    }
+
+    // Try 1-char finals
+    if remaining >= 1 && constants::VALID_FINALS_1.contains(&keys[start]) {
+        syllable.final_c = vec![start];
     }
 }
 

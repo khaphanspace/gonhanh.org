@@ -610,15 +610,9 @@ impl Engine {
                     let len = self.raw_input.len();
                     let (last_key, _, _) = self.raw_input[len - 1];
                     let (second_last_key, _, _) = self.raw_input[len - 2];
+                    let is_double_f = last_key == keys::F && second_last_key == keys::F;
 
-                    // Skip pop for common English double letters
-                    // ff: off, staff, effect, coffee
-                    // ss: guess, less, pass, boss, class
-                    // rr: error, mirror, current (less common but still valid)
-                    let is_common_double = last_key == second_last_key
-                        && matches!(last_key, keys::F | keys::S | keys::R);
-
-                    if !is_common_double {
+                    if !is_double_f {
                         let revert_key = self.raw_input.pop();
                         self.raw_input.pop(); // mark_key (consumed)
                         if let Some(k) = revert_key {
@@ -870,18 +864,15 @@ impl Engine {
                 // We want: [..., revert_key, current_key]
                 // So we pop current, pop revert, pop mark, push revert, push current
                 //
-                // EXCEPTION: Common doubles should NOT pop because they're valid in English
-                // - ff: offline, offer, office, coffee, effect
-                // - ss: assess, discuss, possible, message
-                // - rr: error, mirror, correct, current
+                // EXCEPTION: Double 'f' should NOT pop because 'ff' is common in English
+                // (offline, offer, office, coffee, effect, etc.)
                 if self.raw_input.len() >= 3 {
                     let len = self.raw_input.len();
                     let (revert_key, _, _) = self.raw_input[len - 2];
                     let (mark_key, _, _) = self.raw_input[len - 3];
-                    let is_common_double =
-                        revert_key == mark_key && matches!(revert_key, keys::F | keys::S | keys::R);
+                    let is_double_f = revert_key == keys::F && mark_key == keys::F;
 
-                    if !is_common_double {
+                    if !is_double_f {
                         let current = self.raw_input.pop(); // current key (just added)
                         let revert = self.raw_input.pop(); // revert key
                         self.raw_input.pop(); // mark key (consumed, discard)
@@ -1288,9 +1279,7 @@ impl Engine {
         // Only validate if buffer has vowels (complete syllable)
         // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
         // Skip validation if free_tone mode is enabled
-        // Use is_valid() (stricter) instead of is_valid_for_transform() to check finals
-        // This prevents "dead" + "d" → "deađ" (invalid 'd' final)
-        if !self.free_tone_enabled && has_vowel && !is_valid(&buffer_keys) {
+        if !self.free_tone_enabled && has_vowel && !is_valid_for_transform(&buffer_keys) {
             return None;
         }
 
@@ -1363,20 +1352,6 @@ impl Engine {
                 if vowel_key == keys::I && final_keys == [keys::N, keys::G] {
                     return None;
                 }
-            }
-        }
-
-        // Check for foreign word patterns (multi-syllable, invalid diphthongs, etc.)
-        // Skip if free_tone mode OR if buffer has existing transforms (intentional Vietnamese)
-        if !self.free_tone_enabled && self.english_auto_restore {
-            let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
-            let has_horn_transforms = self.buf.iter().any(|c| c.tone == tone::HORN);
-            let has_stroke_transforms = self.buf.iter().any(|c| c.stroke);
-            if !has_horn_transforms
-                && !has_stroke_transforms
-                && is_foreign_word_pattern(&buffer_keys, &buffer_tones, key)
-            {
-                return None;
             }
         }
 
@@ -1697,32 +1672,16 @@ impl Engine {
                                     // Same-vowel trigger: typing the same vowel after consonant
                                     // Example: "nanag" → second 'a' triggers circumflex on first 'a'
                                     // Pattern: initial + vowel + consonant + SAME_VOWEL
-                                    // The consonant must be IMMEDIATELY after the target vowel.
-                                    // Example: "boemo" has O-E-M-O, so E is between two O's → NOT same-vowel trigger
-                                    // Only allow immediate circumflex for middle consonants that:
-                                    // 1. Can form double finals (n→ng/nh, c→ch)
-                                    // 2. Are non-stop consonants (m) that form valid Vietnamese finals
-                                    // For stop consonants (t, p), delay circumflex until mark key
-                                    // to avoid false positives like "data"→"dât", "toto"→"tôt"
+                                    // Only allow immediate circumflex for middle consonants that
+                                    // can form double finals (n→ng/nh, c→ch). These are clearly
+                                    // Vietnamese patterns.
+                                    // For other single finals (t,m,p), delay circumflex until
+                                    // a mark key is typed to avoid false positives like "data"→"dât"
                                     let is_same_vowel_trigger =
                                         self.buf.get(i).is_some_and(|c| c.key == key);
-                                    // Check that the character immediately after target is a consonant
-                                    // This prevents "boemo" from triggering (E is vowel between O's)
-                                    let has_consonant_immediately_after = (i + 1 < self.buf.len())
-                                        && self
-                                            .buf
-                                            .get(i + 1)
-                                            .is_some_and(|c| !keys::is_vowel(c.key));
-                                    // Consonants that allow immediate circumflex:
-                                    // - n: can extend to ng/nh, forms valid finals (hân)
-                                    // - c: can extend to ch (but blocked if multi-syllable stop pattern)
-                                    // - m: non-stop consonant, forms valid finals (hôm, mâm)
+                                    // Consonants that can form double finals: n→ng/nh, c→ch
                                     let middle_can_extend = consonants_after.len() == 1
-                                        && has_consonant_immediately_after
-                                        && matches!(
-                                            consonants_after[0],
-                                            keys::N | keys::C | keys::M
-                                        );
+                                        && matches!(consonants_after[0], keys::N | keys::C);
 
                                     // Check if initial consonant already has stroke (đ/Đ)
                                     // If so, it's clearly Vietnamese (from delayed stroke pattern)
@@ -1731,85 +1690,25 @@ impl Engine {
                                         .take_while(|c| !keys::is_vowel(c.key))
                                         .any(|c| c.stroke);
 
-                                    // Check for stop consonant middle (t, p)
-                                    // These require delayed circumflex (no immediate on same-vowel trigger)
-                                    // Note: 'm' is non-stop, handled in middle_can_extend above
-                                    let is_stop_consonant_final = consonants_after.len() == 1
-                                        && matches!(consonants_after[0], keys::T | keys::P);
-
-                                    // Check for multi-syllable foreign pattern early
-                                    // We need this check for both extending and non-extending finals
-                                    // BUT: only block if the middle consonant is a STOP consonant (t, c, p, k)
-                                    // Non-stop consonants (m, n) form valid Vietnamese words like "hôm", "mâm"
-                                    let buffer_keys_early: Vec<u16> =
-                                        self.buf.iter().map(|c| c.key).collect();
-                                    let would_be_multisyllable_early = if self.english_auto_restore
-                                    {
-                                        let mut temp_keys = buffer_keys_early.clone();
-                                        temp_keys.push(key);
-                                        if temp_keys.len() >= 4 {
-                                            let temp_syllable = syllable::parse(&temp_keys);
-                                            if !temp_syllable.final_c.is_empty() {
-                                                let last_pos =
-                                                    *temp_syllable.final_c.last().unwrap();
-                                                let has_vowel_after = temp_keys
-                                                    .iter()
-                                                    .skip(last_pos + 1)
-                                                    .any(|k| keys::is_vowel(*k));
-                                                // Only block if middle consonant is a stop consonant
-                                                // Stop consonants: t, c, p, k (cannot extend, rarely valid VN)
-                                                // Non-stop: m, n (form valid VN words like hôm, mâm)
-                                                let first_final_pos =
-                                                    *temp_syllable.final_c.first().unwrap();
-                                                let middle_is_stop = temp_keys
-                                                    .get(first_final_pos)
-                                                    .is_some_and(|&k| {
-                                                        matches!(
-                                                            k,
-                                                            keys::T | keys::C | keys::P | keys::K
-                                                        )
-                                                    });
-                                                has_vowel_after && middle_is_stop
-                                            } else {
-                                                false
-                                            }
-                                        } else {
-                                            false
-                                        }
-                                    } else {
-                                        false
-                                    };
-
-                                    // Check for foreign word patterns (TR, PR, CR clusters)
-                                    // Skip circumflex if buffer contains these patterns
-                                    // Example: "suprem" has PR cluster → don't apply circumflex
-                                    let buffer_keys_for_cluster: Vec<u16> =
-                                        self.buf.iter().map(|c| c.key).collect();
-                                    let has_foreign_cluster =
-                                        buffer_keys_for_cluster.windows(2).any(|w| {
-                                            w[1] == keys::R
-                                                && matches!(w[0], keys::T | keys::P | keys::C)
-                                        });
+                                    // Check for non-extending middle consonant (t, m, p)
+                                    // These require special handling for delayed circumflex
+                                    let is_non_extending_final = consonants_after.len() == 1
+                                        && matches!(
+                                            consonants_after[0],
+                                            keys::T | keys::M | keys::P
+                                        );
 
                                     // Allow circumflex if any of these conditions are true:
                                     // 1. Has adjacent vowel forming VALID diphthong (au, oi, etc.)
-                                    //    BUT NOT if final is stop consonant (t,p) - diphthong+t/p rarely valid
-                                    //    AND must have consonant immediately after target (no vowel between)
-                                    //    This prevents "boemo" from triggering (E is between O and M)
+                                    //    BUT NOT if final is non-extending (t,m,p) - diphthong+t/m/p rarely valid
                                     // 2. Has Vietnamese double initial (nh, th, ph, etc.)
-                                    // 3. Same-vowel trigger with middle consonant that can extend (n,c,m)
-                                    //    BUT NOT if multi-syllable foreign pattern OR foreign cluster
+                                    // 3. Same-vowel trigger with middle consonant that can extend (n,c)
                                     // 4. Initial has stroke (đ) - clearly Vietnamese
-                                    let diphthong_allows = has_valid_adjacent_diphthong
-                                        && !is_stop_consonant_final
-                                        && has_consonant_immediately_after;
-                                    let extending_allows = is_same_vowel_trigger
-                                        && middle_can_extend
-                                        && !would_be_multisyllable_early
-                                        && !has_foreign_cluster;
+                                    let diphthong_allows =
+                                        has_valid_adjacent_diphthong && !is_non_extending_final;
                                     let allow_circumflex = diphthong_allows
                                         || has_vietnamese_double_initial
-                                        || extending_allows
+                                        || (is_same_vowel_trigger && middle_can_extend)
                                         || initial_has_stroke;
 
                                     // Special case: same-vowel trigger with non-extending middle consonant
@@ -1837,19 +1736,11 @@ impl Engine {
                                             .is_some_and(|ch| keys::is_vowel(ch.key));
                                     let has_any_adjacent_vowel =
                                         has_adjacent_vowel_before || has_adjacent_vowel_after;
-
-                                    // Delayed circumflex for stop consonant finals (t, p)
-                                    // Same-vowel trigger: V-C-V where both V's are the same
-                                    // Apply circumflex immediately and consume the trigger vowel
-                                    // Example: "xepe" → "xêp" (second 'e' triggers, gets consumed)
-                                    // Note: we DON'T check would_be_multisyllable here because the
-                                    // trailing vowel IS the same-vowel trigger, not a separate syllable
-                                    // Auto-restore on space will revert if result is invalid Vietnamese
+                                    // Block if: has adjacent vowel (diphthong pattern) with non-extending final
                                     if is_same_vowel_trigger
-                                        && is_stop_consonant_final
+                                        && is_non_extending_final
                                         && target_has_no_mark
                                         && !has_any_adjacent_vowel
-                                        && !has_foreign_cluster
                                     {
                                         // Apply circumflex to first vowel
                                         if let Some(c) = self.buf.get_mut(i) {
@@ -2237,45 +2128,15 @@ impl Engine {
                     let has_vietnamese_double_initial =
                         initial_keys.len() >= 2 && has_valid_vietnamese_initial;
 
-                    // Check for multi-syllable foreign pattern (C-V-C-V like "data")
-                    // Skip delayed circumflex if buffer forms a multi-syllable pattern
-                    // BUT: only block if the middle consonant is a STOP consonant (t, c, p, k)
-                    // Non-stop consonants (m, n) form valid Vietnamese words like "hôm", "mâm"
-                    let buffer_keys_delayed: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-                    let is_multisyllable_foreign =
-                        if self.english_auto_restore && buffer_keys_delayed.len() >= 4 {
-                            let temp_syllable = syllable::parse(&buffer_keys_delayed);
-                            if !temp_syllable.final_c.is_empty() {
-                                let last_pos = *temp_syllable.final_c.last().unwrap();
-                                let has_vowel_after = buffer_keys_delayed
-                                    .iter()
-                                    .skip(last_pos + 1)
-                                    .any(|k| keys::is_vowel(*k));
-                                // Only block if middle consonant is a stop consonant
-                                let first_final_pos = *temp_syllable.final_c.first().unwrap();
-                                let middle_is_stop =
-                                    buffer_keys_delayed.get(first_final_pos).is_some_and(|&k| {
-                                        matches!(k, keys::T | keys::C | keys::P | keys::K)
-                                    });
-                                has_vowel_after && middle_is_stop
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        };
-
                     // Only apply delayed circumflex if:
                     // - Has non-extending middle consonant (t, m, p)
                     // - Second vowel is at end (trigger position)
                     // - Has valid Vietnamese initial (skip English like "proposal")
                     // - No double initial (those work immediately without delay)
-                    // - Not a multi-syllable foreign pattern (skip "data", "toto", etc.)
                     if is_non_extending_final
                         && second_vowel_at_end
                         && has_valid_vietnamese_initial
                         && !has_vietnamese_double_initial
-                        && !is_multisyllable_foreign
                     {
                         had_delayed_circumflex = true;
                         // Apply circumflex to first vowel
@@ -2303,11 +2164,10 @@ impl Engine {
         // Also skip validation if free_tone mode is enabled
         let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
         let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
-        let is_valid_for_xform = is_valid_for_transform(&buffer_keys);
         if !self.free_tone_enabled
             && !has_horn_transforms
             && !has_stroke_transforms
-            && !is_valid_for_xform
+            && !is_valid_for_transform(&buffer_keys)
         {
             return None;
         }
@@ -2343,8 +2203,11 @@ impl Engine {
         // - "rươu" + 'j' → has horn transforms → DON'T skip, apply mark normally
         // - "đe" + 's' → has stroke transform → DON'T skip, apply mark normally (Issue #48)
         // Skip foreign word detection if free_tone mode is enabled
-        let is_foreign = is_foreign_word_pattern(&buffer_keys, &buffer_tones, key);
-        if !self.free_tone_enabled && !has_horn_transforms && !has_stroke_transforms && is_foreign {
+        if !self.free_tone_enabled
+            && !has_horn_transforms
+            && !has_stroke_transforms
+            && is_foreign_word_pattern(&buffer_keys, &buffer_tones, key)
+        {
             return None;
         }
 
@@ -3272,36 +3135,7 @@ impl Engine {
             // Invalid buffers (containing F, W at wrong positions, etc.) should still restore
             let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
             let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
-
-            // EXCEPTION: 'x' and 'j' doubles should always keep reverted (uncommon in English)
-            // Skip the invalid final check for these modifiers
-            let last_raw_key = self.raw_input.last().map(|(k, _, _)| *k).unwrap_or(0);
-            let is_uncommon_modifier = matches!(last_raw_key, keys::X | keys::J);
-            if is_uncommon_modifier {
-                return None; // Keep reverted for x/j doubles
-            }
-
-            // Check for invalid trailing consonant (syllable parser doesn't detect these)
-            // Example: "boss" → "bos" (3 chars) → 's' is not valid Vietnamese final
-            // Note: Handle digraph finals (ng, nh, ch) - these are valid even if last key alone isn't
-            // IMPORTANT: Only apply to SHORT words (buffer len <= 3)
-            // Longer words like "thiss" → "this" (4 chars) should keep buffer
-            let has_invalid_trailing_consonant = if buffer_keys.len() >= 2 && buffer_keys.len() <= 3
-            {
-                let last_key = buffer_keys[buffer_keys.len() - 1];
-                let second_last_key = buffer_keys[buffer_keys.len() - 2];
-                let digraph = [second_last_key, last_key];
-                let is_valid_digraph = constants::VALID_FINALS_2.contains(&digraph);
-                !is_valid_digraph
-                    && keys::is_consonant(last_key)
-                    && !constants::VALID_FINALS_1.contains(&last_key)
-            } else {
-                false
-            };
-
-            if !has_invalid_trailing_consonant
-                && validation::is_valid_with_tones(&buffer_keys, &buffer_tones)
-            {
+            if validation::is_valid_with_tones(&buffer_keys, &buffer_tones) {
                 return None;
             }
         }
@@ -3329,39 +3163,15 @@ impl Engine {
         // This handles "buff" (4 chars, ff at end) → keep 'buf' (user intentionally reverted)
         // But longer words like "assess" (6 chars, ends with ss) should still restore
         // Rule: 4 char words → keep reverted, 5+ char words → restore
-        //
-        // EXCEPTION: If buffer ends with INVALID Vietnamese final consonant, still restore.
-        // Example: "less" → buffer "les" ends with 's' (invalid final) → restore to "less"
         if self.had_mark_revert && self.raw_input.len() >= 2 && self.raw_input.len() <= 4 {
-            // Check if buffer ends with invalid Vietnamese final
-            // Note: Handle digraph finals (ng, nh, ch) - these are valid
-            let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
-            let has_invalid_final = if buffer_keys.len() >= 2 {
-                let last_key = buffer_keys[buffer_keys.len() - 1];
-                let second_last_key = buffer_keys[buffer_keys.len() - 2];
-                let digraph = [second_last_key, last_key];
-                let is_valid_digraph = constants::VALID_FINALS_2.contains(&digraph);
-                !is_valid_digraph
-                    && keys::is_consonant(last_key)
-                    && !constants::VALID_FINALS_1.contains(&last_key)
-            } else if !buffer_keys.is_empty() {
-                let last_key = buffer_keys[buffer_keys.len() - 1];
-                keys::is_consonant(last_key) && !constants::VALID_FINALS_1.contains(&last_key)
-            } else {
-                false
-            };
-
-            // Only keep reverted form if buffer is valid Vietnamese
-            if !has_invalid_final {
-                let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
-                let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
-                // Double tone modifier at end (ss, ff, rr, xx, jj)
-                if last_key == second_last_key
-                    && matches!(last_key, keys::S | keys::F | keys::R | keys::X | keys::J)
-                {
-                    // Short word with double tone modifier at end - keep reverted form
-                    return None;
-                }
+            let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
+            let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
+            // Double tone modifier at end (ss, ff, rr, xx, jj)
+            if last_key == second_last_key
+                && matches!(last_key, keys::S | keys::F | keys::R | keys::X | keys::J)
+            {
+                // Short word with double tone modifier at end - keep reverted form
+                return None;
             }
         }
 
@@ -3369,40 +3179,7 @@ impl Engine {
         let raw_input_valid_en = self.is_raw_input_valid_english();
 
         // UNIFIED: Restore only when buffer is invalid Vietnamese AND raw_input is valid English
-        // EXCEPTION: For double-modifier revert AT END with LONG raw_input (5+ chars), keep buffer
-        // Example: "thiss" (5 raw) → "this" (4 buf), double-s at END, keep "this"
-        // Example: "ussers" (6 raw) → "users" (5 buf), double-s in MIDDLE, keep "users"
-        // But "issue" (5 raw) → double-s at positions 1-2 (MIDDLE), restore to "issue"
-        // Short raw_input (4 or less) like "boss" (4 raw) → "bos" (3 buf) should restore to "boss"
-        let double_at_end = if self.raw_input.len() >= 2 {
-            let (last, _, _) = self.raw_input[self.raw_input.len() - 1];
-            let (second_last, _, _) = self.raw_input[self.raw_input.len() - 2];
-            last == second_last && matches!(last, keys::S | keys::F | keys::R | keys::X | keys::J)
-        } else {
-            false
-        };
-
-        // Count total occurrences of the ending modifier
-        // Words like "assess" (4 's') are legitimate English, not revert patterns
-        let modifier_count = if double_at_end {
-            let (last, _, _) = self.raw_input[self.raw_input.len() - 1];
-            self.raw_input.iter().filter(|(k, _, _)| *k == last).count()
-        } else {
-            0
-        };
-
-        // Only skip restore if:
-        // 1. Double modifier at END (e.g., "thiss" → "this")
-        // 2. AND modifier appears exactly twice (intentional revert pattern)
-        // Words with 3+ occurrences (like "assess") are real English words
-        let skip_for_long_raw = self.had_mark_revert
-            && !has_marks_or_tones
-            && !has_stroke
-            && self.raw_input.len() >= 5
-            && double_at_end
-            && modifier_count == 2; // Only skip if exactly 2 occurrences
-
-        if buffer_invalid_vn && raw_input_valid_en && !skip_for_long_raw {
+        if buffer_invalid_vn && raw_input_valid_en {
             return self.build_raw_chars();
         }
 
@@ -3419,25 +3196,21 @@ impl Engine {
         }
 
         // Check 3: Significant character consumption with circumflex
-        // If raw_input is 2+ chars longer than buffer AND buffer has circumflex,
-        // this suggests V+modifier+V pattern consumed chars (English word).
-        // Example: "param" (5 chars) → "pẩm" (3 chars) - diff of 2
-        // - 'r' adds hỏi mark to 'a' → 'ả'
-        // - second 'a' triggers circumflex → 'ẩ', consuming the second 'a'
+        // If raw_input is 2+ chars longer than buffer AND buffer has circumflex without mark,
+        // this suggests transforms consumed chars that shouldn't have been consumed.
         // Example: "await" (5 chars) → "âit" (3 chars) - diff of 2
+        // - "aw" triggers breve on 'a'
+        // - second 'a' triggers circumflex (double-vowel), consuming 'w' and second 'a'
+        // - Result: buffer is valid but user typed English word
         // EXCEPTION: If buffer has stroke (đ), it's intentional Vietnamese
-        // EXCEPTION: If buffer is VALID Vietnamese word (nếu, mếu, kếu), don't restore
         if is_word_complete
             && self.raw_input.len() >= self.buf.len() + 2
             && !has_stroke
             && raw_input_valid_en
-            && buffer_invalid_vn
-        // Only restore if buffer is NOT valid Vietnamese
         {
             let has_circumflex = self.buf.iter().any(|c| c.tone == tone::CIRCUMFLEX);
-            // Significant char consumption with circumflex = likely English V+modifier+V pattern
-            // Don't require !has_marks - "param" → "pẩm" has both circumflex AND mark
-            if has_circumflex {
+            let has_marks = self.buf.iter().any(|c| c.mark > 0);
+            if has_circumflex && !has_marks {
                 return self.build_raw_chars();
             }
         }
@@ -3470,74 +3243,6 @@ impl Engine {
                     || buf_str.ends_with("ôp")
                 {
                     return self.build_raw_chars();
-                }
-            }
-        }
-
-        // Check 4b: Multi-syllable foreign pattern with delayed circumflex + mark
-        // When delayed circumflex is triggered by same-vowel pattern (V-C-V) AND
-        // the raw_input looks like a multi-syllable foreign word, restore even if
-        // the buffer has a mark (sắc, etc.).
-        // Example: "datas" → d-a-t-a-s → "dất" (has sắc) → NOT valid Vietnamese → restore
-        // But: "xepes" → x-e-p-e-s → "xếp" (has sắc) → VALID Vietnamese word → keep
-        // The heuristic: if raw_input has C-V-C-V-C pattern where the middle C is a
-        // stop consonant (T, P, C, K) and the vowels are the same, it's likely foreign.
-        // Skip if buffer is a KNOWN valid Vietnamese word pattern.
-        if is_word_complete
-            && self.had_vowel_triggered_circumflex
-            && !has_stroke
-            && raw_input_valid_en
-            && has_marks_or_tones
-        {
-            // Check for multi-syllable pattern in raw_input: C-V-C-V-C
-            // where middle consonant is a stop consonant
-            if self.raw_input.len() >= 5 {
-                let raw_keys: Vec<u16> = self.raw_input.iter().map(|(k, _, _)| *k).collect();
-                let syllable = syllable::parse(&raw_keys);
-
-                // Check for C-V-C-V pattern where the stop consonant is in the middle
-                if !syllable.final_c.is_empty() {
-                    let first_final_pos = *syllable.final_c.first().unwrap();
-                    let last_final_pos = *syllable.final_c.last().unwrap();
-
-                    // Check if there's a vowel after the final consonant
-                    let has_vowel_after = raw_keys
-                        .iter()
-                        .skip(last_final_pos + 1)
-                        .any(|k| keys::is_vowel(*k));
-
-                    // Check if middle consonant is a stop consonant
-                    let middle_is_stop = raw_keys
-                        .get(first_final_pos)
-                        .is_some_and(|&k| matches!(k, keys::T | keys::C | keys::P | keys::K));
-
-                    // Only restore if it's a multi-syllable pattern with stop consonant
-                    // AND the buffer is NOT a known valid Vietnamese word
-                    if has_vowel_after && middle_is_stop {
-                        // Check if the resulting word is a common Vietnamese pattern
-                        // Known valid: xếp, đếm, tết, etc.
-                        // These typically have distinctive initials (x, đ, etc.)
-                        // or are in common word lists
-                        let buf_str = self.buf.to_full_string().to_lowercase();
-
-                        // List of known valid Vietnamese words that match this pattern
-                        let known_valid = [
-                            "xếp", "xép", "xệp", "xẹp", // arrange
-                            "tết", "tét", "tẹt", // lunar new year
-                            "đếm", "đém", // count
-                            "nếp", "nép", "nẹp", // sticky rice
-                            "bếp", "bép", "bẹp", // kitchen
-                            "kẹp", "kép", "kếp", // clip
-                            "lếp", "lép", "lẹp", // flat
-                            "mếp", "mép", "mẹp", // edge
-                            "tốt", "tót", "tọt", // good
-                            "nốt", "nót", "nọt", // dot/note
-                        ];
-
-                        if !known_valid.iter().any(|&w| buf_str == w) {
-                            return self.build_raw_chars();
-                        }
-                    }
                 }
             }
         }
@@ -3724,41 +3429,6 @@ impl Engine {
         let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
         let buffer_marks: Vec<u8> = self.buf.iter().map(|c| c.mark).collect();
 
-        // Check 0: Invalid trailing consonant (syllable parser doesn't detect these)
-        // The syllable parser only adds VALID finals to final_c, so invalid finals
-        // like 's', 'b', 'd', 'l', 'r', 'v', 'z' are not caught by rule_valid_final.
-        // Example: "guess" → "gues" → 's' is not valid Vietnamese final
-        //
-        // IMPORTANT: Check for digraph finals first (ng, nh, ch) before checking single final.
-        // "ưng" ends with 'ng' which is valid, but 'g' alone is not.
-        //
-        // IMPORTANT: For double-modifier revert, only apply to SHORT words (buffer len <= 3)
-        // Longer words like "thiss" → "this" (4 chars) should keep buffer as valid result
-        // because "this" is a useful English word produced by the revert.
-        let should_check_invalid_final = !self.had_mark_revert || buffer_keys.len() <= 3;
-
-        if should_check_invalid_final && buffer_keys.len() >= 2 {
-            let last_key = buffer_keys[buffer_keys.len() - 1];
-            let second_last_key = buffer_keys[buffer_keys.len() - 2];
-            let digraph = [second_last_key, last_key];
-
-            // Check if it's a valid digraph final (ng, nh, ch)
-            let is_valid_digraph = constants::VALID_FINALS_2.contains(&digraph);
-
-            // If not valid digraph and last key is consonant not in valid single finals
-            if !is_valid_digraph
-                && keys::is_consonant(last_key)
-                && !constants::VALID_FINALS_1.contains(&last_key)
-            {
-                return true;
-            }
-        } else if should_check_invalid_final && !buffer_keys.is_empty() {
-            let last_key = buffer_keys[buffer_keys.len() - 1];
-            if keys::is_consonant(last_key) && !constants::VALID_FINALS_1.contains(&last_key) {
-                return true;
-            }
-        }
-
         // Check 1: Basic structural validation
         if !validation::is_valid_with_tones(&buffer_keys, &buffer_tones) {
             return true;
@@ -3815,29 +3485,7 @@ impl Engine {
             }
         }
 
-        // Check 4: Invalid final consonant after double-modifier revert (SHORT WORDS ONLY)
-        // When user typed double modifier (ss, ff, rr) to revert, the second letter
-        // becomes a final consonant. If it's not a valid Vietnamese final, restore.
-        // Example: "boss" → b-o-s-s → buffer "bos" (3 chars) → 's' is invalid VN final → restore
-        // But: "thiss" → t-h-i-s-s → buffer "this" (4 chars) → keep buffer (longer word)
-        // Valid VN finals: c, m, n, p, t, i, y, o, u (and ch, ng, nh)
-        // EXCEPTION: Skip for 'x' and 'j' doubles (uncommon in English, intentional revert)
-        // Only apply to short words (buffer len <= 3) to avoid breaking longer words
-        if self.had_mark_revert && buffer_keys.len() >= 2 && buffer_keys.len() <= 3 {
-            // Check if this was an x/j double (skip invalid final check for these)
-            let last_raw_key = self.raw_input.last().map(|(k, _, _)| *k).unwrap_or(0);
-            let is_uncommon_modifier = matches!(last_raw_key, keys::X | keys::J);
-            if !is_uncommon_modifier {
-                let last_key = buffer_keys[buffer_keys.len() - 1];
-                // Check if last char is a consonant that's NOT a valid Vietnamese final
-                if keys::is_consonant(last_key) && !constants::VALID_FINALS_1.contains(&last_key) {
-                    // 's', 'b', 'd', 'g', 'l', 'r', 'v', 'z' are not valid VN finals
-                    return true;
-                }
-            }
-        }
-
-        // Check 5: C + circumflex vowel (from double vowel) + NO MARK + no final = uncommon
+        // Check 4: C + circumflex vowel (from double vowel) + NO MARK + no final = uncommon
         // "sê", "tê", "pê" are not real Vietnamese words (no mark)
         // But "số" (number), "tế" (cell), etc. with marks ARE valid Vietnamese
         // And "bê" (calf), "mê" (obsessed), "lê" (pear) are valid even without marks
@@ -3854,29 +3502,6 @@ impl Engine {
             {
                 // Check if this is an uncommon pattern
                 if constants::UNCOMMON_CIRCUMFLEX_NO_FINAL.contains(&initial) {
-                    return true;
-                }
-            }
-        }
-
-        // Check 6: Consonant + OE/UE diphthong + mark + NO final = uncommon Vietnamese
-        // Pattern: "goes" → "goé", "does" → "doé", "hues" → "huế"
-        // Vietnamese words with diphthong + mark usually have final consonants (góp, gót)
-        // Or are standalone/special words (hòe, họa)
-        // C + oe/ue + mark + no_final is rare → likely English
-        if buffer_keys.len() == 3 {
-            let initial = buffer_keys[0];
-            let v1 = buffer_keys[1];
-            let v2 = buffer_keys[2];
-            let v2_mark = buffer_marks[2];
-
-            if keys::is_consonant(initial) && v2_mark > 0 {
-                // Check for OE or UE diphthong patterns
-                let is_oe = v1 == keys::O && v2 == keys::E;
-                let is_ue = v1 == keys::U && v2 == keys::E;
-
-                if is_oe || is_ue {
-                    // C + oe/ue + mark without final consonant = likely English
                     return true;
                 }
             }
@@ -3928,31 +3553,7 @@ impl Engine {
     /// - Triple vowel (aaa, eee, ooo) is collapsed to double vowel
     /// - This handles circumflex revert in Telex (aa=â, aaa=aa)
     fn build_raw_chars(&self) -> Option<Vec<char>> {
-        // Check if buffer still has any marks/tones (indicates incomplete revert)
-        // e.g., "disscover" → 'ss' reverted but 'r' applied new mark → buffer "discỏve" has mark
-        // In this case, DON'T use buffer - use raw_input with collapse instead
-        let buffer_has_marks = self.buf.iter().any(|c| c.has_tone() || c.has_mark());
-
-        // Check if raw_input has multiple tone modifier doubles
-        // e.g., "disscuss" has 'ss' at 2-3 AND 'ss' at 6-7
-        // In this case, buffer will collapse ALL doubles, but we only want to collapse ONE
-        // So use raw_input with selective collapse instead of buffer
-        let tone_mods = [keys::S, keys::R, keys::X, keys::J];
-        let mut double_count = 0;
-        for i in 0..self.raw_input.len().saturating_sub(1) {
-            let (k1, _, _) = self.raw_input[i];
-            let (k2, _, _) = self.raw_input[i + 1];
-            if tone_mods.contains(&k1) && k1 == k2 {
-                double_count += 1;
-            }
-        }
-        let has_multiple_doubles = double_count > 1;
-
-        let raw_chars: Vec<char> = if self.had_mark_revert
-            && self.should_use_buffer_for_revert()
-            && !buffer_has_marks
-            && !has_multiple_doubles
-        {
+        let raw_chars: Vec<char> = if self.had_mark_revert && self.should_use_buffer_for_revert() {
             // Use buffer content which already has the correct reverted form
             // e.g., "dissable" → "disable", "usser" → "user"
             self.buf.to_string_preserve_case().chars().collect()
@@ -4019,15 +3620,11 @@ impl Engine {
             }
 
             // 3. Double vowel at VERY END → collapse when circumflex was applied then reverted
-            // Example: "saaas" → "saas" (triple collapsed to double first, then no further collapse)
+            // Example: "dataa" → "data" (aa at end, circumflex was applied then reverted)
             // This happens when user types a-a-a and third 'a' reverts the circumflex
             // IMPORTANT: Use had_circumflex_revert, NOT had_mark_revert
             // had_mark_revert is set for tone marks (ff in coffee), which should NOT collapse
-            // EXCEPTION: Don't collapse when buffer is INVALID Vietnamese - we're doing auto-restore
-            // for a foreign word and should preserve ALL typed characters
-            // Example: "dataa" should stay "dataa" (not collapse to "data")
-            let buffer_is_valid_vn = !self.is_buffer_invalid_vietnamese();
-            if self.had_circumflex_revert && buffer_is_valid_vn && chars.len() >= 2 {
+            if self.had_circumflex_revert && chars.len() >= 2 {
                 let last = chars[chars.len() - 1].to_ascii_lowercase();
                 let second_last = chars[chars.len() - 2].to_ascii_lowercase();
                 // Double vowel at very end (a/e/o)
@@ -4048,9 +3645,8 @@ impl Engine {
 
             // Collapse consecutive double tone modifiers when mark was reverted
             // AND one of these conditions:
-            // 1. BOTH buffer AND raw_input are short - user just wanted a diphthong
-            //    Example: "arro" → "aro" (buffer=3, raw=4, collapse double 'r')
-            //    Counter-example: "error" → "error" (buffer=3, raw=5, DON'T collapse)
+            // 1. Short buffer (<=3 chars) - user just wanted a diphthong
+            //    Example: "arro" → "aro" (buffer="aro" = 3 chars, collapse double 'r')
             // 2. Word starts with "u + doubled_modifier" - rare pattern in English
             //    English words rarely start with u+ss, u+ff, u+rr, etc.
             //    Example: "ussers" → "users" (u+ss is revert artifact)
@@ -4060,145 +3656,12 @@ impl Engine {
             // EXCEPTION: Never collapse 'ff' because it's very common in English:
             // - off, offer, office, coffee, effect, effort, afford, differ, etc.
             // - Collapsing 'ff' → 'f' would break many common English words
-            //
-            // EXCEPTION: Don't collapse if buffer ends with INVALID Vietnamese final.
-            // Example: "less" → buffer "les" ends with 's' (invalid final) → keep "less"
-            // The double 's' is legitimate English, not a Telex revert artifact.
-            // Note: Handle digraph finals (ng, nh, ch) - these are valid
-            let buf_ends_with_invalid_final = if self.buf.len() >= 2 {
-                let last_buf_key = self.buf.last().map(|c| c.key).unwrap_or(0);
-                let second_last_buf_key =
-                    self.buf.get(self.buf.len() - 2).map(|c| c.key).unwrap_or(0);
-                let digraph = [second_last_buf_key, last_buf_key];
-                let is_valid_digraph = constants::VALID_FINALS_2.contains(&digraph);
-                !is_valid_digraph
-                    && keys::is_consonant(last_buf_key)
-                    && !constants::VALID_FINALS_1.contains(&last_buf_key)
-            } else {
-                let last_buf_key = self.buf.last().map(|c| c.key).unwrap_or(0);
-                keys::is_consonant(last_buf_key)
-                    && !constants::VALID_FINALS_1.contains(&last_buf_key)
-            };
-
             let tone_modifiers_char = ['s', 'r', 'x', 'j']; // Exclude 'f'
             let starts_with_u_doubled_modifier = chars.len() >= 3
                 && chars[0].eq_ignore_ascii_case(&'u')
                 && tone_modifiers_char.contains(&chars[1].to_ascii_lowercase())
                 && chars[1].eq_ignore_ascii_case(&chars[2]);
-            // Check that BOTH buffer and raw_input are short (<=3 and <=4 respectively)
-            // This prevents collapsing 'rr' in "error" (buf=3, raw=5) while allowing
-            // collapse in "arro" (buf=3, raw=4)
-            let short_word = self.buf.len() <= 3 && chars.len() <= 4;
-
-            // Check for double modifier at VERY END as revert trigger
-            // When raw ends with double modifier and buffer ends with single of that modifier,
-            // and raw length = buffer length + 1, the second modifier was the revert trigger
-            // Example: "simss" → buf="sims", raw ends with "ss", buf ends with "s" → collapse
-            // IMPORTANT: Require at least 5 chars to avoid collapsing short words like "bass", "less"
-            // These short words with double modifier at end are often valid English spellings
-            // IMPORTANT: If there's a vowel before the double modifier, it's likely valid English
-            // e.g., "excess" has 'e' before 'ss' - this is valid English, not revert artifact
-            // vs "simss" has 'm' before 'ss' - this is revert artifact
-            let double_at_end_is_revert =
-                chars.len() >= 5 && chars.len() == self.buf.len() + 1 && !self.buf.is_empty() && {
-                    let last_char = chars[chars.len() - 1].to_ascii_lowercase();
-                    let second_last_char = chars[chars.len() - 2].to_ascii_lowercase();
-                    let buf_last = self
-                        .buf
-                        .last()
-                        .and_then(|c| utils::key_to_char(c.key, false))
-                        .map(|c| c.to_ascii_lowercase())
-                        .unwrap_or('?');
-
-                    // Check if char before double is a vowel - if so, likely valid English
-                    // "excess" → 'e' before 'ss' → valid English, don't collapse
-                    // "simss" → 'm' before 'ss' → revert artifact, collapse
-                    let char_before_double =
-                        chars.get(chars.len() - 3).map(|c| c.to_ascii_lowercase());
-                    let vowel_before = char_before_double
-                        .is_some_and(|c| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u'));
-
-                    // Double modifier at raw end, single in buffer → revert trigger
-                    // BUT only if no vowel before (vowel before = valid English pattern)
-                    tone_modifiers_char.contains(&last_char)
-                        && last_char == second_last_char
-                        && buf_last == last_char
-                        && !vowel_before
-                };
-
-            // For longer words, check if the double modifier is followed by 4+ chars
-            // This detects suffix patterns like "-ified" in "verrified"
-            // Examples:
-            //   "verrified" - 'rr' at pos 2-3, 5 chars after → collapse to "verified"
-            //   "error" - 'rr' at pos 1-2, 2 chars after → DON'T collapse (real spelling)
-            let has_suffix_after_double = {
-                let mut found = false;
-                for i in 0..chars.len().saturating_sub(1) {
-                    let c = chars[i].to_ascii_lowercase();
-                    let next = chars[i + 1].to_ascii_lowercase();
-                    if tone_modifiers_char.contains(&c) && c == next {
-                        // Found double modifier at position i, i+1
-                        // Check if there are 4+ chars after it
-                        let chars_after = chars.len() - (i + 2);
-                        if chars_after >= 4 {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                found
-            };
-
-            // Check for double modifier in MIDDLE of word followed by CONSONANT
-            // This detects patterns like "tesst" → "test" where user reverted then typed more
-            // Key insight:
-            //   - Valid English: double + vowel (issue, error, worry) → don't collapse
-            //   - Artifact: double + consonant (tesst) → collapse
-            // Examples:
-            //   "tesst" - 'ss' at pos 2-3, 't' (consonant) after → collapse to "test"
-            //   "issue" - 'ss' at pos 1-2, 'u' (vowel) after → DON'T collapse (valid English)
-            //   "error" - 'rr' at pos 1-2, 'o' (vowel) after → DON'T collapse (valid English)
-            //   "worry" - 'rr' at pos 2-3, 'y' (vowel in English) after → DON'T collapse
-            let has_middle_double_followed_by_consonant = chars.len() >= 5 && {
-                let mut found = false;
-                for i in 0..chars.len().saturating_sub(2) {
-                    let c = chars[i].to_ascii_lowercase();
-                    let next = chars[i + 1].to_ascii_lowercase();
-                    if tone_modifiers_char.contains(&c) && c == next {
-                        // Found double at position i, i+1
-                        // Check if char after is a consonant (not vowel)
-                        // Include 'y' as vowel since it acts as vowel in English (worry, hurry)
-                        if let Some(after) = chars.get(i + 2) {
-                            let after_lower = after.to_ascii_lowercase();
-                            let is_vowel = matches!(after_lower, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
-                            if !is_vowel {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                found
-            };
-
-            // The buf_ends_with_invalid_final exception only applies when double is near END
-            // For suffix/middle patterns (double in middle), ignore this exception
-            // Also don't skip for u+doubled patterns (ussers → users) since those are revert artifacts
-            // And don't skip for double-at-end revert pattern (simss → sims)
-            let skip_for_invalid_final = buf_ends_with_invalid_final
-                && !has_suffix_after_double
-                && !starts_with_u_doubled_modifier
-                && !double_at_end_is_revert
-                && !has_middle_double_followed_by_consonant;
-
-            if self.had_mark_revert
-                && !skip_for_invalid_final
-                && (short_word
-                    || starts_with_u_doubled_modifier
-                    || has_suffix_after_double
-                    || double_at_end_is_revert
-                    || has_middle_double_followed_by_consonant)
-            {
+            if self.had_mark_revert && (self.buf.len() <= 3 || starts_with_u_doubled_modifier) {
                 // Note: 'f' is excluded from collapse because 'ff' is common in English
                 let tone_modifiers = ['s', 'r', 'x', 'j']; // Exclude 'f'
                 let mut i = 0;
@@ -4207,50 +3670,6 @@ impl Engine {
                     let next = chars[i + 1].to_ascii_lowercase();
                     // Same tone modifier doubled → collapse to single (except 'ff')
                     if tone_modifiers.contains(&c) && c == next {
-                        // Validation-based collapse: only collapse if followed by consonant
-                        // This is the "artifact" pattern: double modifier + consonant
-                        // Example: "disscuss" → 'ss' followed by 'c' → collapse
-                        // Example: "assess" → 'ss' followed by 'e' (vowel) → don't collapse
-                        // Example: "discuss" → 'ss' at end (valid English) → don't collapse
-                        // Example: "simss" → double at end is revert artifact → collapse
-                        let followed_by_consonant = chars
-                            .get(i + 2)
-                            .map(|ch| {
-                                !matches!(
-                                    ch.to_ascii_lowercase(),
-                                    'a' | 'e' | 'i' | 'o' | 'u' | 'y'
-                                )
-                            })
-                            .unwrap_or(false);
-
-                        // Check if this specific double is at the very end
-                        // (for double_at_end_is_revert case like "simss")
-                        let is_this_double_at_end = i + 2 == chars.len();
-
-                        // Only collapse for short words, when followed by consonant,
-                        // or when double_at_end_is_revert is true and this is the end double
-                        // Short words (tesst, erros) always collapse
-                        // Long words only collapse at artifact positions (double + consonant)
-                        // End doubles only collapse if detected as revert artifact
-                        let should_collapse = short_word
-                            || starts_with_u_doubled_modifier
-                            || followed_by_consonant
-                            || (double_at_end_is_revert && is_this_double_at_end);
-
-                        if !should_collapse {
-                            i += 1;
-                            continue; // Skip - not an artifact pattern
-                        }
-
-                        // For long words with suffix pattern, only collapse if 4+ chars follow
-                        if has_suffix_after_double && !short_word && !starts_with_u_doubled_modifier
-                        {
-                            let chars_after = chars.len() - (i + 2);
-                            if chars_after < 4 {
-                                i += 1;
-                                continue; // Skip this double, not enough chars after
-                            }
-                        }
                         chars.remove(i);
                         continue; // Check again at same position for triple+
                     }
@@ -4334,7 +3753,6 @@ impl Engine {
         // Avoids unnecessary backspace + retype of the same content
         let buffer_str: String = self.buf.to_string_preserve_case();
         let raw_str: String = raw_chars.iter().collect();
-
         if buffer_str == raw_str {
             return None;
         }
@@ -4538,33 +3956,7 @@ impl Engine {
         // Buffer has 4+ chars ending with that consonant
         // Only apply if double modifier at end is the ONLY occurrence of that char
         // This preserves "assess" (multiple 's') while converting "thiss" → "this"
-        //
-        // EXCEPTION: If buffer ends with INVALID Vietnamese final consonant, don't use buffer.
-        // The syllable parser doesn't catch invalid finals like 's', 'b', 'd', 'l', 'r', 'v', 'z'.
-        // Example: "guess" → buffer "gues" ends with 's' (invalid final) → use raw_input "guess"
-        // Note: Handle digraph finals (ng, nh, ch) - these are valid
         if self.raw_input.len() >= 4 && buf_str.len() >= 4 && buf_str.len() <= 6 {
-            // Check if buffer ends with invalid Vietnamese final consonant
-            let has_invalid_final = if self.buf.len() >= 2 {
-                let last_buf_key = self.buf.last().map(|c| c.key).unwrap_or(0);
-                let second_last_buf_key =
-                    self.buf.get(self.buf.len() - 2).map(|c| c.key).unwrap_or(0);
-                let digraph = [second_last_buf_key, last_buf_key];
-                let is_valid_digraph = constants::VALID_FINALS_2.contains(&digraph);
-                !is_valid_digraph
-                    && keys::is_consonant(last_buf_key)
-                    && !constants::VALID_FINALS_1.contains(&last_buf_key)
-            } else {
-                let last_buf_key = self.buf.last().map(|c| c.key).unwrap_or(0);
-                keys::is_consonant(last_buf_key)
-                    && !constants::VALID_FINALS_1.contains(&last_buf_key)
-            };
-
-            if has_invalid_final {
-                // Buffer has invalid final → don't use buffer, use raw_input instead
-                return false;
-            }
-
             let len = self.raw_input.len();
             let (last_key, _, _) = self.raw_input[len - 1];
             let (second_last_key, _, _) = self.raw_input[len - 2];
