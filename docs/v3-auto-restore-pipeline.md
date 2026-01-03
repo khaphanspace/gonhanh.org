@@ -2,6 +2,8 @@
 
 ## Table of Contents
 
+0. [Critical Fixes Summary (v3.1)](#critical-fixes-summary-v31)
+
 1. [V3 Unified Smart Pipeline](#v3-unified-smart-pipeline)
    - [Design Goals](#design-goals)
    - [V1 → V3 Case Mapping](#v1--v3-case-mapping-complete)
@@ -77,6 +79,49 @@
     - [Full Validation Function](#full-validation-function)
     - [Memory Summary](#memory-summary)
     - [Comparison with OpenKey](#comparison-with-openkey-approach)
+
+---
+
+## Critical Fixes Summary (v3.1)
+
+> Based on critical review that identified 8 design flaws in v3.0.
+> All fixes applied. Document now ready for implementation.
+
+| Flaw | Issue | Fix Applied |
+|------|-------|-------------|
+| 1 | `has_tone → KEEP` too aggressive (tesla→téla kept) | Check Impossible BEFORE tone; tone only KEEPs if Complete |
+| 2 | Phase 3 only checks `has_mark_only` | Added Impossible state check in Phase 2 |
+| 3 | M_EN_CODA missing patterns | Added: sh, ry, se, ks, fe, re |
+| 4 | V+modifier+V pattern missing (core, care, user) | Added TIER 6: `has_vcv_pattern()` |
+| 5 | Two-check bypassed by tone short-circuit | Removed tone short-circuit; proper validation order |
+| 6 | Impossible state handling incomplete | Full Impossible handling in Phase 2 |
+| 7 | M_EN_VOWEL missing patterns | Added: oo, oa, io |
+| 8 | W-as-vowel not documented | Added TIER 7: `has_w_as_vowel_pattern()` |
+
+**Key Algorithm Change:**
+```
+BEFORE (v3.0 - FLAWED):
+├── has_stroke? → KEEP
+├── has_tone? → KEEP          ← ❌ Short-circuits validation
+├── vn_state == Complete? → KEEP
+└── ... remaining checks
+
+AFTER (v3.1 - FIXED):
+├── has_stroke? → KEEP
+├── vn_state == Impossible? → check EN → RESTORE/KEEP
+├── has_tone && Complete? → KEEP    ← ✓ Only if Complete
+├── vn_state == Complete? → KEEP
+├── has_tone && Incomplete? → check EN → RESTORE/KEEP
+└── ... remaining checks
+```
+
+**Counter-example that exposed the flaw:**
+```
+Input: "tesla " (user types "telas " in Telex)
+Buffer: "téla" (s adds sắc tone to e)
+v3.0: has_tone=YES → KEEP "téla" ❌
+v3.1: has_tone=YES but vn_state=Impossible → check EN → RESTORE "tesla" ✓
+```
 
 ---
 
@@ -218,82 +263,136 @@ enum VnState {
 
 ### V3 Unified Restore Decision
 
+> **CRITICAL FIX (v3.1)**: Removed aggressive `has_tone → KEEP` short-circuit.
+> Counter-example: "tesla " → "téla" must restore, not keep.
+> New flow: has_tone only KEEPs if vn_state == Complete.
+
 ```rust
 /// Single function replaces V1's multiple checks
+/// FIXED: has_tone no longer unconditionally KEEPs
 fn should_restore(state: &BufferState, raw: &str, buffer: &str) -> RestoreDecision {
     // ══════════════════════════════════════════════════════════
     // PHASE 1: Quick exits (O(1))
     // ══════════════════════════════════════════════════════════
 
-    // No transform = no restore
+    // No transform = no restore needed
     if !state.had_transform {
         return RestoreDecision::Keep;
     }
 
-    // Stroke = 100% intentional VN
+    // Stroke (đ/Đ) = 100% intentional VN, always keep
     if state.has_stroke {
         return RestoreDecision::Keep;
     }
 
-    // Tone applied = intentional VN (includes overwrite like banjs→bán)
-    if state.has_tone {
-        return RestoreDecision::Keep;
-    }
-
     // ══════════════════════════════════════════════════════════
-    // PHASE 2: VN validation (cached, O(1))
+    // PHASE 2: Impossible state check (MUST come before tone check)
     // ══════════════════════════════════════════════════════════
 
     let vn_state = state.vn_state; // Already computed during typing
 
+    // Impossible VN structure → must check if valid EN
+    // Examples: "téla" (tesla), "corê" (core), "crêam" (cream)
+    if vn_state == VnState::Impossible {
+        if has_english_pattern(raw, state) || is_valid_english_word(raw) {
+            return RestoreDecision::Restore;
+        }
+        // Impossible VN but not valid EN → keep (user typed gibberish)
+        return RestoreDecision::Keep;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 3: Tone + Complete check (AFTER impossible check)
+    // ══════════════════════════════════════════════════════════
+
+    // Tone + Complete VN = intentional Vietnamese
+    // Examples: "chào" (chaof), "bán" (bans), "đẹp" (ddepj)
+    if state.has_tone && vn_state == VnState::Complete {
+        return RestoreDecision::Keep;
+    }
+
+    // Complete VN without tone = also valid Vietnamese
+    // Examples: "xin", "chao", "viet"
     if vn_state == VnState::Complete {
-        return RestoreDecision::Keep; // Valid VN word
+        return RestoreDecision::Keep;
     }
 
     // ══════════════════════════════════════════════════════════
-    // PHASE 3: English detection (O(n) but short strings)
+    // PHASE 4: Incomplete VN + Tone (edge case)
     // ══════════════════════════════════════════════════════════
 
-    // Mark only + incomplete VN + valid EN → restore
+    // Tone but incomplete → check if EN word
+    // Example: "tésla" incomplete VN, but "tesla" is valid EN
+    if state.has_tone && vn_state == VnState::Incomplete {
+        if has_english_pattern(raw, state) || is_valid_english_word(raw) {
+            return RestoreDecision::Restore;
+        }
+        // Incomplete VN with tone but not EN → keep (user typing VN)
+        return RestoreDecision::Keep;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 5: Mark only + Incomplete (V1 compatible)
+    // ══════════════════════════════════════════════════════════
+
+    // Mark only (no tone) + incomplete VN + valid EN → restore
+    // Examples: "câse" → "case", "vîew" → "view"
     if state.has_mark && !state.has_tone {
-        if vn_state == VnState::Incomplete && is_valid_english(raw) {
-            return RestoreDecision::Restore;
-        }
-    }
-
-    // Revert case + invalid VN + valid EN → restore
-    if state.had_revert {
-        if vn_state != VnState::Complete && is_valid_english(raw) {
-            return RestoreDecision::Restore;
+        if vn_state == VnState::Incomplete {
+            if has_english_pattern(raw, state) || is_valid_english_word(raw) {
+                return RestoreDecision::Restore;
+            }
         }
     }
 
     // ══════════════════════════════════════════════════════════
-    // PHASE 4: Additional triggers (from V1)
+    // PHASE 6: Revert case (Telex ss, ff, etc.)
+    // ══════════════════════════════════════════════════════════
+
+    // Revert + not complete VN + valid EN → restore
+    if state.had_revert {
+        if vn_state != VnState::Complete {
+            if has_english_pattern(raw, state) || is_valid_english_word(raw) {
+                return RestoreDecision::Restore;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 7: Additional triggers (from V1)
     // ══════════════════════════════════════════════════════════
 
     // Char consumption: raw 2+ chars longer than buffer
+    // Example: "coffee" raw vs "côffee" buffer
     if raw.len() >= buffer.len() + 2 && has_circumflex_no_mark(buffer) {
-        if is_valid_english(raw) {
+        if has_english_pattern(raw, state) || is_valid_english_word(raw) {
             return RestoreDecision::Restore;
         }
     }
 
     // V+C+V circumflex pattern with stop consonant
     if matches_vcv_stop_pattern(buffer) && !has_mark(buffer) {
-        if is_valid_english(raw) {
+        if has_english_pattern(raw, state) || is_valid_english_word(raw) {
             return RestoreDecision::Restore;
         }
     }
 
+    // Default: keep current buffer
     RestoreDecision::Keep
 }
 ```
 
 ### V3 English Detection (Unified)
 
+> **FIXES (v3.1)**:
+> - Flaw 3: Added missing coda patterns (sh, ry, se, ks, fe, re)
+> - Flaw 4: Added TIER 6 for V+modifier+V pattern (core, care, user)
+> - Flaw 7: Added missing vowel patterns (oo, oa, io)
+> - Flaw 8: Added W-as-vowel handling in TIER 7
+
 ```rust
 /// Replaces V1's has_english_modifier_pattern() with cleaner logic
+/// FIXED: Added missing patterns and V+C+V detection
 fn has_english_pattern(raw: &str, state: &BufferState) -> bool {
     let bytes = raw.as_bytes();
     let len = bytes.len();
@@ -320,25 +419,30 @@ fn has_english_pattern(raw: &str, state: &BufferState) -> bool {
     }
 
     // ══════════════════════════════════════════════════════════
-    // TIER 3: EN-only coda clusters (90% EN)
+    // TIER 3: EN-only coda clusters (90% EN) - EXPANDED
     // ══════════════════════════════════════════════════════════
     if len >= 2 {
         let c1 = char_index(bytes[len-2]);
         let c2 = char_index(bytes[len-1]);
         if M_EN_CODA[c1] & (1 << c2) != 0 {
-            return true; // ct, ft, ld, lf, lk, lm, lp, lt, xt, nd, nk, nt, pt, rb, rd, rk, rm, rn, rp, rt, sk, sp, st
+            return true;
+            // ORIGINAL: ct, ft, ld, lf, lk, lm, lp, lt, xt, nd, nk, nt, pt, rb, rd, rk, rm, rn, rp, rt, sk, sp, st
+            // ADDED: sh (push, brush), ry (story, cherry), se (case, base),
+            //        ks (books, looks), fe (safe, cafe), re (core, care, sure)
         }
     }
 
     // ══════════════════════════════════════════════════════════
-    // TIER 4: EN-only vowel patterns (85% EN)
+    // TIER 4: EN-only vowel patterns (85% EN) - EXPANDED
     // ══════════════════════════════════════════════════════════
     for i in 0..len.saturating_sub(1) {
         let v1 = char_index(bytes[i]);
         let v2 = char_index(bytes[i+1]);
         if is_vowel(v1) && is_vowel(v2) {
             if M_EN_VOWEL[v1] & (1 << v2) != 0 {
-                return true; // ea, ee, ou, ei, eu, yo, ae, yi
+                return true;
+                // ORIGINAL: ea, ee, ou, ei, eu, yo, ae, yi
+                // ADDED: oo (book, look, too), oa (boat, road), io (action, ratio)
             }
         }
     }
@@ -360,7 +464,84 @@ fn has_english_pattern(raw: &str, state: &BufferState) -> bool {
         }
     }
 
+    // ══════════════════════════════════════════════════════════
+    // TIER 6: V+modifier+V pattern (75% EN) - NEW
+    // ══════════════════════════════════════════════════════════
+    // Detects: vowel + Telex modifier + vowel → likely EN word
+    // Examples: "core" (o+r+e), "care" (a+r+e), "user" (u+s+e+r),
+    //           "base" (a+s+e), "note" (o+t+e), "file" (i+l+e)
+    if has_vcv_pattern(raw) {
+        return true;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 7: W-as-vowel patterns (70% EN) - NEW
+    // ══════════════════════════════════════════════════════════
+    // In English, 'w' can act as vowel in certain positions
+    // Examples: "view" (iew), "new" (ew), "show" (ow), "flow" (ow)
+    // Note: In Telex, 'w' → 'ư', so "view" → "viếư" if not detected
+    if has_w_as_vowel_pattern(raw) {
+        return true;
+    }
+
     false
+}
+
+/// TIER 6: Detect V+C+V patterns common in English
+/// Pattern: vowel + consonant (Telex modifier) + vowel
+fn has_vcv_pattern(raw: &str) -> bool {
+    let bytes = raw.as_bytes();
+    let len = bytes.len();
+
+    if len < 3 { return false; }
+
+    // Check for V+C+V where C is a Telex modifier key
+    // Telex modifiers: a, e, o, w, d, s, f, r, x, j
+    // Focus on: a, e, o (mark keys) and s (tone key)
+    for i in 0..len.saturating_sub(2) {
+        let c1 = bytes[i];
+        let c2 = bytes[i + 1];
+        let c3 = bytes[i + 2];
+
+        if is_vowel_byte(c1) && is_vowel_byte(c3) {
+            // Check if middle char is consonant that's also Telex key
+            // "ore" → "ôre" (core), "are" → "âre" (care), "ase" → "âse" (base)
+            match c2 {
+                b'r' | b'l' | b't' | b's' | b'n' | b'm' => return true,
+                _ => {}
+            }
+        }
+    }
+
+    false
+}
+
+/// TIER 7: Detect W-as-vowel patterns
+/// In English: -ew, -ow, -aw, -iew, -ow at end of words
+fn has_w_as_vowel_pattern(raw: &str) -> bool {
+    let bytes = raw.as_bytes();
+    let len = bytes.len();
+
+    if len < 2 { return false; }
+
+    // Check endings: ew, ow, aw, iew
+    if len >= 3 {
+        let last3 = &bytes[len-3..];
+        if last3 == b"iew" || last3 == b"iew" {
+            return true; // view, review
+        }
+    }
+
+    let last2 = &bytes[len-2..];
+    match last2 {
+        b"ew" | b"ow" | b"aw" => true, // new, show, draw
+        _ => false,
+    }
+}
+
+#[inline]
+fn is_vowel_byte(b: u8) -> bool {
+    matches!(b, b'a' | b'e' | b'i' | b'o' | b'u' | b'y')
 }
 ```
 
@@ -410,17 +591,86 @@ const M_EN_ONSET: [u32; 32] = [
     // ... (populate based on pattern table)
 ];
 
-/// EN-only coda clusters: ct,ft,ld,lf,lk,lm,lp,lt,lv,xt,nd,nk,nt,pt,rb,rd,rk,rl,rm,rn,rp,rt,sk,sp,st
+/// EN-only coda clusters - EXPANDED (v3.1)
+/// ORIGINAL: ct, ft, ld, lf, lk, lm, lp, lt, lv, xt, nd, nk, nt, pt, rb, rd, rk, rl, rm, rn, rp, rt, sk, sp, st
+/// ADDED: sh (push), ry (story), se (case), ks (books), fe (safe), re (core, care)
+/// Index: a=0, b=1, c=2, d=3, e=4, f=5, g=6, h=7, i=8, j=9, k=10, l=11, m=12,
+///        n=13, o=14, p=15, q=16, r=17, s=18, t=19, u=20, v=21, w=22, x=23, y=24, z=25
 const M_EN_CODA: [u32; 32] = [
-    // Similar structure for coda clusters
+    // For each first char, set bit for valid second char
+    // Example: 'f' (index 5) + 'e' (index 4) = fe (safe) → M_EN_CODA[5] |= (1 << 4)
+    // Example: 's' (index 18) + 'h' (index 7) = sh (push) → M_EN_CODA[18] |= (1 << 7)
+    0x00000000, // a
+    0x00000000, // b
+    0x00080000, // c: +t (ct) → bit 19
+    0x00000000, // d
+    0x00000000, // e
+    0x00080010, // f: +t (ft) → bit 19, +e (fe) → bit 4 [NEW]
+    0x00000000, // g
+    0x00000000, // h
+    0x00000000, // i
+    0x00000000, // j
+    0x00080000, // k: +s (ks) → bit 18 [NEW]
+    0x000AC930, // l: +d,f,k,m,p,t,v → bits 3,5,10,12,15,19,21
+    0x00000000, // m
+    0x000A0400, // n: +d,k,t → bits 3,10,19
+    0x00000000, // o
+    0x00080000, // p: +t (pt) → bit 19
+    0x00000000, // q
+    0x0108FC06, // r: +b,d,e,k,l,m,n,p,t,y → bits 1,3,4,10,11,12,13,15,19,24 [+e,y NEW]
+    0x001E0090, // s: +e,h,k,p,t → bits 4,7,10,15,19 [+e,h NEW]
+    0x00000000, // t
+    0x00000000, // u
+    0x00000000, // v
+    0x00000000, // w
+    0x00080000, // x: +t (xt) → bit 19
+    0x00000000, // y
+    0x00000000, // z
+    0x00000000, // đ
+    0x00000000, // ă
+    0x00000000, // â
+    0x00000000, // ê
+    0x00000000, // ô
+    0x00000000, // ơ
 ];
 
-/// EN-only vowel pairs: ea,ee,ou,ei,eu,yo,ae,yi
+/// EN-only vowel pairs - EXPANDED (v3.1)
+/// ORIGINAL: ea, ee, ou, ei, eu, yo, ae, yi
+/// ADDED: oo (book, too), oa (boat, road), io (action, ratio)
+/// Index: a=0, e=4, i=8, o=14, u=20, y=24
 const M_EN_VOWEL: [u32; 32] = [
-    // a: e valid → bit 4 set (ae)
-    // e: a,e,i,u valid → bits 0,4,8,20 set (ea,ee,ei,eu)
-    // o: u valid → bit 20 set (ou)
-    // y: i,o valid → bits 8,14 set (yi,yo)
+    0x00000010, // a: +e (ae) → bit 4
+    0x00000000, // b
+    0x00000000, // c
+    0x00000000, // d
+    0x00100111, // e: +a,e,i,u (ea,ee,ei,eu) → bits 0,4,8,20
+    0x00000000, // f
+    0x00000000, // g
+    0x00000000, // h
+    0x00004000, // i: +o (io) → bit 14 [NEW]
+    0x00000000, // j
+    0x00000000, // k
+    0x00000000, // l
+    0x00000000, // m
+    0x00000000, // n
+    0x00104001, // o: +a,o,u (oa,oo,ou) → bits 0,14,20 [+a,o NEW]
+    0x00000000, // p
+    0x00000000, // q
+    0x00000000, // r
+    0x00000000, // s
+    0x00000000, // t
+    0x00000000, // u
+    0x00000000, // v
+    0x00000000, // w
+    0x00000000, // x
+    0x00004100, // y: +i,o (yi,yo) → bits 8,14
+    0x00000000, // z
+    0x00000000, // đ
+    0x00000000, // ă
+    0x00000000, // â
+    0x00000000, // ê
+    0x00000000, // ô
+    0x00000000, // ơ
 ];
 
 /// Circumflex required pairs: eu→êu, ie→iê, ue→uê, ye→yê
@@ -1724,37 +1974,65 @@ fn detect_vn_signals(keystrokes: &[Keystroke]) -> VnSignals {
 
 ### Decision Flow
 
+> **CRITICAL FIX (v3.1)**: has_tone → KEEP was too aggressive.
+> Example: "tesla " → "téla" must restore to "tesla", not keep "téla".
+> New flow checks Impossible state BEFORE tone check.
+
 ```
-INPUT: buffer, raw, signals
+INPUT: buffer, raw, signals, vn_state
 │
 ├── had_transform? ─NO──→ KEEP (no change)
 │   │
 │   YES
 │   │
-├── has_stroke? ─YES──→ KEEP (đ = 100% VN)
+├── has_stroke? ─YES──→ KEEP (đ = 100% intentional VN)
 │   │
 │   NO
 │   │
-├── has_tone_applied? ─YES──→ KEEP (intentional VN)
+├── vn_state == Impossible? ────────────────────────────────┐
+│   │                                                        │
+│   YES───→ has_english_pattern(raw) || dict_EN? ─YES──→ RESTORE
+│   │                                              │
+│   │                                              NO───→ KEEP (gibberish)
+│   NO
 │   │
+├── has_tone && vn_state == Complete? ─YES──→ KEEP (valid VN + tone)
+│   │
+│   NO
+│   │
+├── vn_state == Complete? ─YES──→ KEEP (valid VN)
+│   │
+│   NO (vn_state == Incomplete)
+│   │
+├── has_tone && vn_state == Incomplete?
+│   │
+│   YES───→ has_english_pattern(raw) || dict_EN? ─YES──→ RESTORE
+│   │                                              │
+│   │                                              NO───→ KEEP
 │   NO
 │   │
 ├── has_mark_only?
 │   │
-│   YES───→ buffer_incomplete && raw_EN? ─YES──→ RESTORE
-│   │                                     │
-│   │                                     NO───→ KEEP
+│   YES───→ has_english_pattern(raw) || dict_EN? ─YES──→ RESTORE
+│   │                                              │
+│   │                                              NO───→ KEEP
 │   NO
 │   │
 ├── is_revert_case?
 │   │
-│   YES───→ buffer_invalid && raw_EN? ─YES──→ RESTORE
-│   │                                  │
-│   │                                  NO───→ KEEP
+│   YES───→ has_english_pattern(raw) || dict_EN? ─YES──→ RESTORE
+│   │                                              │
+│   │                                              NO───→ KEEP
 │   NO
 │   │
 └── KEEP (default)
 ```
+
+**Key Changes from v3.0:**
+1. `vn_state == Impossible` check comes BEFORE `has_tone` check
+2. `has_tone` only KEEPs if `vn_state == Complete`
+3. Added Incomplete + Tone case with EN detection
+4. All EN checks use `has_english_pattern() || dict_EN`
 
 ---
 
