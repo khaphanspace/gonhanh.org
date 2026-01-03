@@ -605,14 +605,16 @@ impl Engine {
                 self.pending_mark_revert_pop = false;
                 // Pop the consumed mark key from raw_input
                 // raw_input: [..., mark_key, revert_key] → [..., revert_key]
-                // SKIP for double 'f' to preserve 'ff' for auto-restore
+                // SKIP for double 'f' or double 's' to preserve 'ff'/'ss' for auto-restore
+                // because these are very common in English (off, offer, guess, miss, class, etc.)
                 if self.raw_input.len() >= 2 {
                     let len = self.raw_input.len();
                     let (last_key, _, _) = self.raw_input[len - 1];
                     let (second_last_key, _, _) = self.raw_input[len - 2];
                     let is_double_f = last_key == keys::F && second_last_key == keys::F;
+                    let is_double_s = last_key == keys::S && second_last_key == keys::S;
 
-                    if !is_double_f {
+                    if !is_double_f && !is_double_s {
                         let revert_key = self.raw_input.pop();
                         self.raw_input.pop(); // mark_key (consumed)
                         if let Some(k) = revert_key {
@@ -3802,9 +3804,48 @@ impl Engine {
             }
         }
 
+        // Check if raw_input contains double 'ss' or 'ff' with MULTIPLE chars after
+        // The rule: double letter + multiple chars after → use raw (English word)
+        //           double letter + single char after → use buffer (revert pattern)
+        // Examples:
+        // - "massive" (ss at pos 2-3, then ive) → use raw "massive"
+        // - "soffa" (ff at pos 2-3, then just 'a') → use buffer "sofa"
+        let raw_len = self.raw_input.len();
+        for i in 0..raw_len.saturating_sub(1) {
+            let (k1, _, _) = self.raw_input[i];
+            let (k2, _, _) = self.raw_input[i + 1];
+            if (k1 == keys::S && k2 == keys::S) || (k1 == keys::F && k2 == keys::F) {
+                // Found double at position i, i+1
+                // Check how many chars follow after the double
+                let chars_after_double = raw_len - (i + 2);
+                if chars_after_double >= 2 {
+                    // Multiple chars after double → likely English word, use raw
+                    return false;
+                }
+                // Only 0-1 char after double → likely revert pattern, continue to suffix check
+                break;
+            }
+        }
+
+        // Suffix check: only use buffer if raw_input is exactly 1 char longer
+        // This indicates user typed double modifier to revert, and buffer has the collapsed form.
+        // Example: "verrified" (9 chars) → buffer "verified" (8 chars) → use buffer
+        // Counter-example: "massive" (7 chars) → buffer "masive" (6 chars) → raw has 7, buf has 6
+        //   But raw_input for "massive" should be 7 chars... let me check
+        // Actually for double 's' at end, we skip the pop, so raw stays at 7 chars.
+        // For double 'r' in "verrified", we don't skip the pop, so raw becomes 8 chars? No wait...
+        // The issue is that suffix check runs AFTER the pop logic on space.
+        // For "verrified": pop removes one 'r', so raw becomes 8 chars = buffer.len
+        // For "massive": we skip pop for double 's', so raw stays 7 chars > buffer 6
+        // So the condition should be: raw_input.len() == buf_str.len() + 1 means double was NOT at end
+        // and raw_input.len() == buf_str.len() means pop happened (double was at end of pattern)
         for suffix in SUFFIXES {
             if buf_str.ends_with(suffix) && buf_str.len() >= suffix.len() + 2 {
-                return true;
+                // Only use buffer if lengths match (pop happened) or diff is 1 (expected revert pattern)
+                // This filters out cases like "massive" where raw has legitimate double letter
+                if self.raw_input.len() <= buf_str.len() + 1 {
+                    return true;
+                }
             }
         }
 
@@ -3865,6 +3906,38 @@ impl Engine {
             );
             if is_core_vowel && second_last_key == keys::S && third_last_key == keys::S {
                 return true;
+            }
+
+            // Double 's' at very end: distinguish revert pattern from English words
+            // "thiss" → buffer "this" (revert pattern, buffer is valid word)
+            // "guess" → raw "guess" (valid English word with double 's')
+            // Heuristics for when buffer is a valid English word:
+            // 1. Buffer starts with common English digraph (th, wh, ch, sh)
+            // 2. Buffer ends with consonant + 's' (common plural: sims, gaps, maps)
+            //    vs buffer ends with vowel + 's' (less common: gues, mues)
+            if last_key == keys::S && second_last_key == keys::S && len == buf_str.len() + 1 {
+                let starts_with_digraph = buf_str.starts_with("th")
+                    || buf_str.starts_with("wh")
+                    || buf_str.starts_with("ch")
+                    || buf_str.starts_with("sh");
+                if starts_with_digraph {
+                    return true;
+                }
+
+                // Check if buffer ends with consonant + 's' (common English plural pattern)
+                // "sims" = m + s (consonant + s) → use buffer
+                // "gues" = e + s (vowel + s) → use raw "guess"
+                if buf_str.len() >= 2 {
+                    let chars: Vec<char> = buf_str.chars().collect();
+                    let second_last_char = chars[chars.len() - 2];
+                    let last_char = chars[chars.len() - 1];
+                    // Check consonant + 's' pattern (plural)
+                    let is_plural_pattern = last_char == 's'
+                        && !matches!(second_last_char, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+                    if is_plural_pattern {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -3962,6 +4035,8 @@ impl Engine {
         // Buffer has 4+ chars ending with that consonant
         // Only apply if double modifier at end is the ONLY occurrence of that char
         // This preserves "assess" (multiple 's') while converting "thiss" → "this"
+        // IMPORTANT: Only use buffer if it's VALID Vietnamese structure.
+        // If buffer is invalid (like "gues" ending with 's'), use raw input "guess" instead.
         if self.raw_input.len() >= 4 && buf_str.len() >= 4 && buf_str.len() <= 6 {
             let len = self.raw_input.len();
             let (last_key, _, _) = self.raw_input[len - 1];
@@ -3988,7 +4063,13 @@ impl Engine {
                         _ => '\0',
                     };
                     if expected_char != '\0' && buf_str.ends_with(expected_char) {
-                        return true;
+                        // Check if buffer is valid Vietnamese structure
+                        // If not (like "gues" ending with invalid final 's'), don't use buffer
+                        let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+                        let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
+                        if validation::is_valid_with_tones(&buffer_keys, &buffer_tones) {
+                            return true;
+                        }
                     }
                 }
             }
@@ -4357,6 +4438,47 @@ impl Engine {
                             }
                         }
                     }
+                    // OE before modifier at end (no final consonant) is English "-oes" pattern
+                    // Examples: "goes", "does", "toes", "woes", "foes", "hoes"
+                    // Vietnamese "oe" diphthong (hoè, xoè) typically has different tone placement
+                    // or final consonant, not bare "oe + sắc at end"
+                    // EXCEPTION: "oes" without initial consonant is Vietnamese exclamation "oé"
+                    // EXCEPTION: Vietnamese-specific initials (kh, gh, ngh, tr, ph, etc.) + oe + modifier
+                    //            Example: "khoer" → "khoẻ" (healthy), "nhoer" → "nhoẻ"
+                    if v1 == keys::O && v2 == keys::E && total_vowels == 2 {
+                        // Check for Vietnamese-specific initial consonant clusters
+                        let is_vietnamese_initial = self.raw_input.len() >= 2 && {
+                            let (c1, _, _) = self.raw_input[0];
+                            let (c2, _, _) = self.raw_input[1];
+                            // Vietnamese digraphs: kh, gh, ph, ch, th, nh (end with H)
+                            //                     tr (T+R), ng/ngh (N+G)
+                            let ends_with_h = c2 == keys::H
+                                && matches!(
+                                    c1,
+                                    k if k == keys::K
+                                        || k == keys::G
+                                        || k == keys::P
+                                        || k == keys::C
+                                        || k == keys::T
+                                        || k == keys::N
+                                );
+                            let is_tr = c1 == keys::T && c2 == keys::R;
+                            let is_ng = c1 == keys::N && c2 == keys::G;
+                            ends_with_h || is_tr || is_ng
+                        };
+
+                        if is_vietnamese_initial {
+                            continue; // Vietnamese word, don't restore
+                        }
+
+                        // Only return true if there's an initial consonant (goes, does, toes)
+                        // Words without initial like "oes" → "oé" should stay Vietnamese
+                        let has_initial =
+                            !self.raw_input.is_empty() && keys::is_consonant(self.raw_input[0].0);
+                        if has_initial {
+                            return true;
+                        }
+                    }
                 }
 
                 // Pattern 2b: P + single vowel + modifier at end → English
@@ -4440,8 +4562,20 @@ impl Engine {
                         let prev_vowel = prev_char;
                         // Same vowel is Telex circumflex doubling (aa, ee, oo)
                         // Example: "loxoi" = l+o+x+O+i → O after X is same vowel doubling
+                        // EXCEPTION: If a CONSONANT follows the doubled vowel, it's likely English
+                        // Example: "param" = p+a+r+A+m → 'A' after 'r' same as before, 'm' (consonant) follows
+                        // Counter-example: "loxoi" has 'i' (vowel) after → Vietnamese diphthong
                         if prev_vowel == next_key {
-                            continue; // Same vowel is Telex pattern, not English
+                            // Check if there are more chars after the second vowel
+                            if i + 2 < self.raw_input.len() {
+                                let (char_after, _, _) = self.raw_input[i + 2];
+                                // Only English if followed by CONSONANT (param has 'm')
+                                // If followed by vowel (loxoi has 'i'), it's Vietnamese diphthong
+                                if keys::is_consonant(char_after) {
+                                    return true;
+                                }
+                            }
+                            continue; // Same vowel without consonant after is Telex pattern
                         }
                         // Vietnamese exceptions: diphthongs with tone modifier in middle
                         let is_vietnamese_pattern = match prev_vowel {

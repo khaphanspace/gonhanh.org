@@ -464,7 +464,7 @@ mod tests {
     const INVALID_SPELLING: &[&str] = &["ci", "ce", "cy", "ka", "ko", "ku", "ngi", "nge", "ge"];
 
     /// Invalid: foreign words
-    const INVALID_FOREIGN: &[&str] = &["exp", "expect", "test", "claudeco", "claus"];
+    const INVALID_FOREIGN: &[&str] = &["exp", "expect", "test", "claudeco", "claus", "gues"];
 
     fn assert_all_valid(words: &[&str]) {
         for w in words {
@@ -550,6 +550,17 @@ mod tests {
                 pattern
             );
         }
+    }
+
+    #[test]
+    fn test_gues_invalid_final() {
+        // "gues" has invalid final 's' - should fail validation
+        let keys = keys_from_str("gues");
+        let tones = vec![0; 4]; // no tones
+        assert!(
+            !is_valid_with_tones(&keys, &tones),
+            "'gues' should be invalid (S is not valid Vietnamese final)"
+        );
     }
 
     #[test]

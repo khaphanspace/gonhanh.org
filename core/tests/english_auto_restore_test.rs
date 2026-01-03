@@ -476,7 +476,9 @@ fn pattern7_vowel_modifier_vowel_with_initial() {
         ("wore ", "wore "), // W initial also triggers Pattern 5
         ("store ", "store "),
         ("score ", "score "),
-        ("life ", "life "), // l + i + f + e → lìe (invalid) → restore
+        ("goes ", "goes "),   // g + o + e + s → goé (invalid) → restore
+        ("param ", "param "), // p + a + r + a + m → paảm (invalid) → restore
+        ("life ", "life "),   // l + i + f + e → lìe (invalid) → restore
         // Short words: consonant + vowel + modifier (no final vowel)
         ("per ", "per "),    // p + e + r → pẻ (invalid) → restore "per"
         ("thiss ", "this "), // t + h + i + s + s → double s reverts → buffer "this" (4 chars)
@@ -664,6 +666,8 @@ fn pattern9_double_mark_no_prefix() {
         ("process ", "process "),
         ("profess ", "profess "),
         ("progress ", "progress "),
+        ("guess ", "guess "),
+        ("massive ", "massive "),
         // Double 'r' without matching prefix (need vowel before rr)
         ("error ", "error "),
         ("mirror ", "mirror "),
