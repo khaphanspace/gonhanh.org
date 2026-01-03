@@ -1,0 +1,101 @@
+word,input_seq,input_post,input_mix,input_vni,buffer,raw,had_transform,vn_b_valid,en_r_valid,expected,action,category,notes
+# ============================================
+# VIETNAMESE WORDS - KEEP_VN
+# ============================================
+# input_seq: Sequential (modifier ngay sau ký tự cần biến đổi)
+# input_post: Post-tone (gõ hết chữ rồi thêm dấu cuối)
+# input_mix: Interleaved (đan xen linh hoạt)
+# input_vni: VNI (1=sắc 2=huyền 3=hỏi 4=ngã 5=nặng 6=â/ê/ô 7=ơ/ư 8=ă 9=đ)
+# DECISION: had_transform=TRUE + vn_b_valid=TRUE → KEEP_VN
+# ============================================
+# Common Vietnamese words
+# ============================================
+bạn,bajn,banj,bajn,ba5n,bạn,bajn,TRUE,TRUE,FALSE,bạn,KEEP_VN,vietnamese,you/friend
+việt,vieejt,vieetj,vieejt,vie65t,việt,vieejt,TRUE,TRUE,FALSE,việt,KEEP_VN,vietnamese,Vietnamese
+được,dduowjc,duocdwj,dduwojc,d9uo75c,được,dduowjc,TRUE,TRUE,FALSE,được,KEEP_VN,vietnamese,can/able
+# ============================================
+# Tone S (sắc) - conflicts with English
+# ============================================
+sáng,sasng,sangs,sasng,sa1ng,sáng,sasng,TRUE,TRUE,FALSE,sáng,KEEP_VN,vn_tone_s,morning/bright
+sống,sosng,songs,sosng,so1ng,sống,sosng,TRUE,TRUE,FALSE,sống,KEEP_VN,vn_tone_s,live/life - songs conflict
+số,sos,sos,sos,so1,số,sos,TRUE,TRUE,TRUE,số,KEEP_VN,vn_tone_s,number - SOS conflict
+có,cos,cos,cos,co1,có,cos,TRUE,TRUE,TRUE,có,KEEP_VN,vn_tone_s,have - cos conflict
+cảm,carm,camr,carm,ca3m,cảm,carm,TRUE,TRUE,FALSE,cảm,KEEP_VN,vn_tone_r,feel - carm like car+m
+# ============================================
+# Tone F (huyền)
+# ============================================
+và,vaf,vaf,vaf,va2,và,vaf,TRUE,TRUE,FALSE,và,KEEP_VN,vn_tone_f,and
+là,laf,laf,laf,la2,là,laf,TRUE,TRUE,FALSE,là,KEEP_VN,vn_tone_f,is/to be
+thì,thif,thif,thif,thi2,thì,thif,TRUE,TRUE,FALSE,thì,KEEP_VN,vn_tone_f,then
+gì,gif,gif,gif,gi2,gì,gif,TRUE,TRUE,TRUE,gì,KEEP_VN,vn_tone_f,what - GIF conflict
+mà,maf,maf,maf,ma2,mà,maf,TRUE,TRUE,FALSE,mà,KEEP_VN,vn_tone_f,but/that
+từ,tuwf,tuwf,tuwf,tu72,từ,tuwf,TRUE,TRUE,FALSE,từ,KEEP_VN,vn_horn_tone,from/word
+# ============================================
+# Tone R (hỏi)
+# ============================================
+cả,car,car,car,ca3,cả,car,TRUE,TRUE,TRUE,cả,KEEP_VN,vn_tone_r,all - car conflict
+ở,owr,owr,owr,o73,ở,owr,TRUE,TRUE,FALSE,ở,KEEP_VN,vn_horn_tone,at/live
+mở,mowr,mowr,mowr,mo73,mở,mowr,TRUE,TRUE,FALSE,mở,KEEP_VN,vn_horn_tone,open
+bởi,bowri,boirw,bowri,bo73i,bởi,bowri,TRUE,TRUE,FALSE,bởi,KEEP_VN,vn_horn_tone,by/because
+hỏi,hori,hoir,hori,ho3i,hỏi,hori,TRUE,TRUE,FALSE,hỏi,KEEP_VN,vn_tone_r,ask
+thể,theer,theer,theer,the63,thể,theer,TRUE,TRUE,FALSE,thể,KEEP_VN,vn_circum_tone,can/body
+lẻ,ler,ler,ler,le3,lẻ,ler,TRUE,TRUE,FALSE,lẻ,KEEP_VN,vn_tone_r,odd/single
+# ============================================
+# Tone X (ngã) - many English conflicts
+# ============================================
+sẽ,sex,sex,sex,se4,sẽ,sex,TRUE,TRUE,TRUE,sẽ,KEEP_VN,vn_tone_x,will - sex conflict
+mẽ,mex,mex,mex,me4,mẽ,mex,TRUE,TRUE,TRUE,mẽ,KEEP_VN,vn_tone_x,proud - Mex conflict
+ngõ,ngox,ngox,ngox,ngo4,ngõ,ngox,TRUE,TRUE,FALSE,ngõ,KEEP_VN,vn_tone_x,alley
+vẫn,vaxn,vanx,vaxn,va4n,vẫn,vaxn,TRUE,TRUE,FALSE,vẫn,KEEP_VN,vn_tone_x,still
+mãi,maxi,maix,maxi,ma4i,mãi,maxi,TRUE,TRUE,TRUE,mãi,KEEP_VN,vn_tone_x,forever - maxi conflict
+lẽ,lex,lex,lex,le4,lẽ,lex,TRUE,TRUE,TRUE,lẽ,KEEP_VN,vn_tone_x,reason - lex conflict
+# ============================================
+# Tone J (nặng)
+# ============================================
+họ,hoj,hoj,hoj,ho5,họ,hoj,TRUE,TRUE,FALSE,họ,KEEP_VN,vn_tone_j,they/surname
+ạ,aj,aj,aj,a5,ạ,aj,TRUE,TRUE,FALSE,ạ,KEEP_VN,vn_tone_j,polite particle
+bị,bij,bij,bij,bi5,bị,bij,TRUE,TRUE,FALSE,bị,KEEP_VN,vn_tone_j,suffer/passive
+vẹn,vejn,venj,vejn,ve5n,vẹn,vejn,TRUE,TRUE,FALSE,vẹn,KEEP_VN,vn_tone_j,whole/complete
+sợ,soj,soj,soj,so5,sợ,soj,TRUE,TRUE,FALSE,sợ,KEEP_VN,vn_tone_j,afraid
+sự,suwj,suwj,suwj,su75,sự,suwj,TRUE,TRUE,FALSE,sự,KEEP_VN,vn_horn_tone,matter/thing
+# ============================================
+# Stroke DD - tech conflicts
+# ============================================
+đi,ddi,ddi,ddi,d9i,đi,ddi,TRUE,TRUE,FALSE,đi,KEEP_VN,vn_stroke,go
+đó,ddos,ddos,ddos,d9o1,đó,ddos,TRUE,TRUE,TRUE,đó,KEEP_VN,vn_stroke,that - DDoS conflict
+đây,dday,dday,dday,d9ay,đây,dday,TRUE,TRUE,TRUE,đây,KEEP_VN,vn_stroke,here - D-Day conflict
+đến,ddesn,ddens,ddesn,d9e1n,đến,ddesn,TRUE,TRUE,FALSE,đến,KEEP_VN,vn_stroke,arrive/to
+đã,ddax,ddax,ddax,d9a4,đã,ddax,TRUE,TRUE,FALSE,đã,KEEP_VN,vn_stroke,already
+đang,ddang,ddang,ddang,d9ang,đang,ddang,TRUE,TRUE,FALSE,đang,KEEP_VN,vn_stroke,currently
+đường,dduowngf,dduongwf,dduwowngf,d9uo7ng2,đường,dduowngf,TRUE,TRUE,FALSE,đường,KEEP_VN,vn_stroke,road/sugar
+# ============================================
+# Circumflex (aa/ee/oo) - many English conflicts
+# ============================================
+ân,aan,aan,aan,a6n,ân,aan,TRUE,TRUE,FALSE,ân,KEEP_VN,vn_circumflex,grace/favor
+ấy,aasy,aays,aasy,a61y,ấy,aasy,TRUE,TRUE,FALSE,ấy,KEEP_VN,vn_circumflex,that
+bên,been,been,been,be6n,bên,been,TRUE,TRUE,TRUE,bên,KEEP_VN,vn_circumflex,side - been conflict
+đêm,deem,deem,deem,de6m,đêm,deem,TRUE,TRUE,TRUE,đêm,KEEP_VN,vn_circumflex,night - deem conflict
+lên,leen,leen,leen,le6n,lên,leen,TRUE,TRUE,FALSE,lên,KEEP_VN,vn_circumflex,up/go up
+nên,neen,neen,neen,ne6n,nên,neen,TRUE,TRUE,FALSE,nên,KEEP_VN,vn_circumflex,should
+tên,teen,teen,teen,te6n,tên,teen,TRUE,TRUE,TRUE,tên,KEEP_VN,vn_circumflex,name - teen conflict
+bộ,booj,booj,booj,bo65,bộ,booj,TRUE,TRUE,FALSE,bộ,KEEP_VN,vn_circumflex,set/ministry
+hôm,hoom,hoom,hoom,ho6m,hôm,hoom,TRUE,TRUE,FALSE,hôm,KEEP_VN,vn_circumflex,day
+không,khoong,khoong,khoong,kho6ng,không,khoong,TRUE,TRUE,FALSE,không,KEEP_VN,vn_circumflex,no/not
+tôi,tooi,tooi,tooi,to6i,tôi,tooi,TRUE,TRUE,FALSE,tôi,KEEP_VN,vn_circumflex,I/me
+để,deer,deer,deer,de63,để,deer,TRUE,TRUE,TRUE,để,KEEP_VN,vn_circum_tone,let/put - deer conflict
+về,veef,veef,veef,ve62,về,veef,TRUE,TRUE,FALSE,về,KEEP_VN,vn_circum_tone,about/return
+data,data,data,data,data6,dât,data,TRUE,TRUE,TRUE,dât,KEEP_VN,circumflex,dât valid VN - VN priority
+# ============================================
+# Horn (ow/uw)
+# ============================================
+hơn,hown,honw,hown,ho7n,hơn,hown,TRUE,TRUE,FALSE,hơn,KEEP_VN,vn_horn,more than
+mới,mowi,moiw,mowi,mo7i,mới,mowi,TRUE,TRUE,FALSE,mới,KEEP_VN,vn_horn,new
+người,nguowif,nguoiwf,nguwowif,nguo7i2,người,nguowif,TRUE,TRUE,FALSE,người,KEEP_VN,vn_horn,person
+trước,truowsc,truocws,truowsc,truo71c,trước,truowsc,TRUE,TRUE,FALSE,trước,KEEP_VN,vn_horn,before
+nước,nuowsc,nuocws,nuowsc,nuo71c,nước,nuowsc,TRUE,TRUE,FALSE,nước,KEEP_VN,vn_horn,water/country
+sử,suwr,suwr,suwr,su73,sử,suwr,TRUE,TRUE,FALSE,sử,KEEP_VN,vn_horn_tone,history
+# ============================================
+# Breve (aw)
+# ============================================
+ăn,awn,anw,awn,a8n,ăn,awn,TRUE,TRUE,FALSE,ăn,KEEP_VN,vn_breve,eat
+bằng,bawngf,bangwf,bawngf,ba8ng2,bằng,bawngf,TRUE,TRUE,FALSE,bằng,KEEP_VN,vn_breve,equal/by

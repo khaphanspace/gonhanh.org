@@ -2207,7 +2207,9 @@ fn backspace_after_space_type_numbers_delete() {
 }
 
 /// EDGE CASE: Very long sequence - type, partial delete, more type, delete all
-/// "mình" + " " + "abc" + delete 1 + "def" + delete 5 + restore
+/// "mình" + " " + "abc" + delete 1 + "def" → "abdef" (5 chars, 'f' does NOT apply due to foreign pattern) + delete 5 + restore
+/// Note: After fix for foreign pattern detection, "abde" + 'f' doesn't apply tone because
+/// "abde" is a multi-syllable pattern (vowel 'e' after final consonants 'bd')
 #[test]
 fn backspace_after_space_complex_edit_sequence() {
     let mut e = Engine::new();
@@ -2216,9 +2218,10 @@ fn backspace_after_space_complex_edit_sequence() {
     type_word(&mut e, "abc");
     // Delete 1 char (now "ab")
     e.on_key(keys::DELETE, false, false);
-    // Type "def" (now "abdef")
+    // Type "def" → buffer = "abdef" (5 chars)
+    // 'f' does NOT apply tone because "abde" is foreign pattern (vowel after final consonants)
     type_word(&mut e, "def");
-    // Delete all 5 chars
+    // Delete all 5 chars to empty buffer
     for _ in 0..5 {
         e.on_key(keys::DELETE, false, false);
     }

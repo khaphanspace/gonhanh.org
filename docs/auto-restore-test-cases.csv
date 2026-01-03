@@ -1,0 +1,143 @@
+word,input_telex,input_telex_revert,input_vni,buffer,raw,had_transform,vn_b_valid,en_r_valid,expected,action,category,notes
+# ============================================
+# ENGLISH WORDS - AUTO RESTORE
+# ============================================
+# input_telex: Gõ trực tiếp chờ auto-restore
+# input_telex_revert: Gõ Telex thuần với double/triple modifier để revert (N/A nếu không cần)
+# input_vni: Gõ trực tiếp chờ auto-restore
+# ============================================
+# INVALID VN INITIAL - NO REVERT NEEDED
+# Engine detects foreign from start (pr, cl, gr, str, cr, fl, sh, kn, dr, etc.)
+# ============================================
+press,press,N/A,press,press,press,FALSE,FALSE,TRUE,press,RESTORE,invalid_initial,pr invalid VN initial
+stress,stress,N/A,stress,stress,stress,FALSE,FALSE,TRUE,stress,RESTORE,invalid_initial,str invalid VN initial
+class,class,N/A,class,class,class,FALSE,FALSE,TRUE,class,RESTORE,invalid_initial,cl invalid VN initial
+grass,grass,N/A,grass,grass,grass,FALSE,FALSE,TRUE,grass,RESTORE,invalid_initial,gr invalid VN initial
+cross,cross,N/A,cross,cross,cross,FALSE,FALSE,TRUE,cross,RESTORE,invalid_initial,cr invalid VN initial
+gross,gross,N/A,gross,gross,gross,FALSE,FALSE,TRUE,gross,RESTORE,invalid_initial,gr invalid VN initial
+flow,flow,N/A,flow,flow,flow,FALSE,FALSE,TRUE,flow,RESTORE,invalid_initial,fl invalid VN initial
+show,show,N/A,show,show,show,FALSE,FALSE,TRUE,show,RESTORE,invalid_initial,sh invalid VN initial
+know,know,N/A,know,know,know,FALSE,FALSE,TRUE,know,RESTORE,invalid_initial,kn invalid VN initial
+draw,draw,N/A,draw,draw,draw,FALSE,FALSE,TRUE,draw,RESTORE,invalid_initial,dr invalid VN initial
+process,process,N/A,process,process,process,FALSE,FALSE,TRUE,process,RESTORE,invalid_initial,pr invalid VN initial
+express,express,N/A,express,express,express,FALSE,FALSE,TRUE,express,RESTORE,invalid_initial,xpr invalid cluster
+address,address,N/A,address,address,address,FALSE,FALSE,TRUE,address,RESTORE,invalid_initial,ddr invalid cluster
+stuff,stuff,N/A,stuff,stuff,stuff,FALSE,FALSE,TRUE,stuff,RESTORE,invalid_initial,st invalid VN initial
+# ============================================
+# DOUBLE SS AT END - REVERT NEEDED
+# Valid VN start, s applies sắc tone, need ss to revert
+# ============================================
+bass,bass,basss,bass,bas,bass,TRUE,FALSE,TRUE,bass,RESTORE,double_end,ss reverts tone → bas
+lass,lass,lasss,lass,las,lass,TRUE,FALSE,TRUE,lass,RESTORE,double_end,ss reverts tone → las
+mass,mass,masss,mass,mas,mass,TRUE,FALSE,TRUE,mass,RESTORE,double_end,ss reverts tone → mas
+pass,pass,passs,pass,pas,pass,TRUE,FALSE,TRUE,pass,RESTORE,double_end,ss reverts tone → pas
+ass,ass,asss,ass,as,ass,TRUE,FALSE,TRUE,ass,RESTORE,short_word,ss reverts tone → as
+guess,guess,N/A,guess,guess,guess,FALSE,FALSE,TRUE,guess,RESTORE,invalid_vowel,ue not valid VN vowel pattern
+less,less,lesss,less,les,less,TRUE,FALSE,TRUE,less,RESTORE,double_end,ss reverts tone → les
+boss,boss,bosss,boss,bos,boss,TRUE,FALSE,TRUE,boss,RESTORE,double_end,ss reverts tone → bos
+loss,loss,losss,loss,los,loss,TRUE,FALSE,TRUE,loss,RESTORE,double_end,ss reverts tone → los
+miss,miss,misss,miss,mis,miss,TRUE,FALSE,TRUE,miss,RESTORE,double_end,ss reverts tone → mis
+unless,unless,N/A,unless,unless,unless,FALSE,FALSE,TRUE,unless,RESTORE,invalid_cluster,unl cluster invalid VN
+# ============================================
+# DOUBLE FF AT END - REVERT NEEDED
+# Valid VN start, f applies huyền tone, need ff to revert
+# ============================================
+off,off,offf,off,of,off,TRUE,FALSE,TRUE,off,RESTORE,double_end,ff reverts tone → of
+buff,buff,bufff,buff,buf,buff,TRUE,FALSE,TRUE,buff,RESTORE,double_end,ff reverts tone → buf
+diff,diff,difff,diff,dif,diff,TRUE,FALSE,TRUE,diff,RESTORE,double_end,ff reverts tone → dif
+jeff,jeff,N/A,jeff,jeff,jeff,FALSE,FALSE,TRUE,jeff,RESTORE,invalid_initial,j not valid VN initial
+# ============================================
+# DOUBLE RR AT END - REVERT NEEDED
+# Valid VN start, r applies hỏi tone, need rr to revert
+# ============================================
+err,err,errr,err,er,err,TRUE,FALSE,TRUE,err,RESTORE,short_word,rr reverts tone → er
+var,var,varr,var,vả,var,TRUE,FALSE,TRUE,var,RESTORE,double_end,single r → vả (need varr to revert)
+error,error,errror,error,eror,error,TRUE,FALSE,TRUE,error,RESTORE,rr_middle,rr reverts → eror (need errror for error)
+for,for,forr,for,fỏ,for,TRUE,FALSE,TRUE,for,RESTORE,tech_term,single r → fỏ (need forr to revert)
+# ============================================
+# DOUBLE SS IN MIDDLE - REVERT + FOREIGN MODE
+# ss triggers revert, need triple s (sss) to get full word
+# ============================================
+issue,issue,isssue,issue,isue,issue,TRUE,FALSE,TRUE,issue,RESTORE,ss_middle,ss reverts → isue (need isssue for issue)
+tissue,tissue,tisssue,tissue,tisue,tissue,TRUE,FALSE,TRUE,tissue,RESTORE,ss_middle,ss reverts → tisue
+mission,mission,misssion,mission,mision,mission,TRUE,FALSE,TRUE,mission,RESTORE,ss_middle,ss reverts → mision
+massive,massive,masssive,massive,masive,massive,TRUE,FALSE,TRUE,massive,RESTORE,ss_middle,ss reverts → masive
+assess,assess,assesss,assess,asess,assess,TRUE,FALSE,TRUE,assess,RESTORE,double_multiple,first ss reverts → ases + s
+access,access,N/A,access,access,access,FALSE,FALSE,TRUE,access,RESTORE,invalid_cluster,cc cluster invalid VN
+possess,possess,possesss,possess,posess,possess,TRUE,FALSE,TRUE,possess,RESTORE,double_multiple,first ss reverts → poses + s
+success,success,N/A,success,success,success,FALSE,FALSE,TRUE,success,RESTORE,invalid_cluster,cc cluster invalid VN
+# ============================================
+# DOUBLE FF IN MIDDLE - REVERT + FOREIGN MODE
+# ff triggers revert, need triple f (fff) to get full word
+# ============================================
+coffee,coffee,cofffee,coffee,cofee,coffee,TRUE,FALSE,TRUE,coffee,RESTORE,ff_middle,ff reverts → cofee (need cofffee for coffee)
+offer,offer,offfer,offer,ofer,offer,TRUE,FALSE,TRUE,offer,RESTORE,ff_middle,ff reverts → ofer
+office,office,offfice,office,ofice,office,TRUE,FALSE,TRUE,office,RESTORE,ff_middle,ff reverts → ofice
+effect,effect,efffect,effect,efect,effect,TRUE,FALSE,TRUE,effect,RESTORE,ff_middle,ff reverts → efect
+# ============================================
+# AW PATTERN - REVERT NEEDED
+# Valid VN start, w applies breve, need ww to revert
+# ============================================
+law,law,laww,law,lă,law,TRUE,FALSE,TRUE,law,RESTORE,aw_pattern,la valid VN + w breve
+raw,raw,raww,raw,ră,raw,TRUE,FALSE,TRUE,raw,RESTORE,aw_pattern,ra valid VN + w breve
+saw,saw,saww,saw,să,saw,TRUE,FALSE,TRUE,saw,RESTORE,aw_pattern,sa valid VN + w breve
+# ============================================
+# OW PATTERN - REVERT NEEDED
+# Valid VN start, w applies horn, need ww to revert
+# ============================================
+low,low,loww,low,lơ,low,TRUE,FALSE,TRUE,low,RESTORE,ow_pattern,lo valid VN + w horn
+row,row,roww,row,rơ,row,TRUE,FALSE,TRUE,row,RESTORE,ow_pattern,ro valid VN + w horn
+# ============================================
+# CIRCUMFLEX PATTERN - REVERT NEEDED
+# aa/ee/oo triggers circumflex, need triple to revert
+# ============================================
+saas,saas,saaas,saas,sâs,saas,TRUE,FALSE,TRUE,saas,RESTORE,circumflex,aa triggers circumflex
+keep,keep,keeep,keep,kêp,keep,TRUE,FALSE,TRUE,keep,RESTORE,circumflex,ee triggers circumflex
+beep,beep,beeep,beep,bêp,beep,TRUE,FALSE,TRUE,beep,RESTORE,circumflex,ee triggers circumflex
+# ============================================
+# IEW PATTERN - INVALID TRIPHTHONG (NO REVERT NEEDED)
+# ============================================
+view,view,N/A,view,view,view,FALSE,FALSE,TRUE,view,RESTORE,invalid_triphthong,iew+w → vieư invalid VN triphthong
+review,review,N/A,review,review,review,FALSE,FALSE,TRUE,review,RESTORE,invalid_triphthong,iew+w → revieư invalid VN triphthong
+# ============================================
+# TECH TERMS - VARIOUS PATTERNS
+# ============================================
+text,text,N/A,text,text,text,FALSE,FALSE,TRUE,text,RESTORE,tech_term,xt impossible cluster
+next,next,N/A,next,next,next,FALSE,FALSE,TRUE,next,RESTORE,tech_term,xt impossible cluster
+expect,expect,N/A,expect,expect,expect,FALSE,FALSE,TRUE,expect,RESTORE,tech_term,xp impossible cluster
+context,context,N/A,context,context,context,FALSE,FALSE,TRUE,context,RESTORE,tech_term,xt impossible cluster
+param,param,parram,param,pảam,param,TRUE,FALSE,TRUE,param,RESTORE,tech_term,r applies hỏi (parram to revert early)
+if,if,iff,if,ì,if,TRUE,FALSE,TRUE,if,RESTORE,tech_term,f applies huyền
+perfect,perfect,N/A,perfect,perfect,perfect,FALSE,FALSE,TRUE,perfect,RESTORE,tech_term,rf cluster invalid
+goes,goes,goess,goes,goés,goes,TRUE,FALSE,TRUE,goes,RESTORE,tech_term,s applies sắc
+from,from,N/A,from,from,from,FALSE,FALSE,TRUE,from,RESTORE,tech_term,fr invalid VN initial
+server,server,serrver,server,sẻver,server,TRUE,FALSE,TRUE,server,RESTORE,tech_term,r applies hỏi (serrver to revert early)
+user,user,usser,user,úer,user,TRUE,FALSE,TRUE,user,RESTORE,tech_term,s applies sắc (usser to revert early)
+sims,sims,simss,sims,sím,sims,TRUE,FALSE,TRUE,sims,RESTORE,standalone_earlier,s start + s end
+dist,dist,N/A,dist,dist,dist,FALSE,FALSE,TRUE,dist,RESTORE,tech_term,st cluster
+console,console,N/A,console,console,console,FALSE,FALSE,TRUE,console,RESTORE,tech_term,ns cluster - no VN transform
+# ============================================
+# MULTISYLLABLE FOREIGN
+# ============================================
+datas,datas,datass,datas,dất,datas,TRUE,TRUE,TRUE,datas,RESTORE,multisyllable,EN plural
+makes,makes,N/A,makes,makes,makes,FALSE,FALSE,TRUE,makes,RESTORE,multisyllable,k before a invalid VN
+wikis,wikis,N/A,wikis,wikis,wikis,FALSE,FALSE,TRUE,wikis,RESTORE,multisyllable,w initial foreign
+# ============================================
+# NO TRANSFORM (ll pattern - not VN modifier)
+# ============================================
+call,call,N/A,call,call,call,FALSE,FALSE,TRUE,call,RESTORE,no_transform,l not VN modifier
+pull,pull,N/A,pull,pull,pull,FALSE,FALSE,TRUE,pull,RESTORE,no_transform,l not VN modifier
+full,full,N/A,full,full,full,FALSE,FALSE,TRUE,full,RESTORE,no_transform,l not VN modifier
+will,will,N/A,will,will,will,FALSE,FALSE,TRUE,will,RESTORE,no_transform,l not VN modifier
+null,null,N/A,null,null,null,FALSE,FALSE,TRUE,null,RESTORE,no_transform,l not VN modifier
+# ============================================
+# AMBIGUOUS - NO TRANSFORM (Both VN and EN valid)
+# ============================================
+con,con,N/A,con,con,con,FALSE,TRUE,TRUE,con,KEEP,ambiguous,No transform
+an,an,N/A,an,an,an,FALSE,TRUE,TRUE,an,KEEP,ambiguous,No transform
+me,me,N/A,me,me,me,FALSE,TRUE,TRUE,me,KEEP,ambiguous,tamarind vs EN me
+no,no,N/A,no,no,no,FALSE,TRUE,TRUE,no,KEEP,ambiguous,full vs EN no
+do,do,N/A,do,do,do,FALSE,TRUE,TRUE,do,KEEP,ambiguous,because vs EN do
+to,to,N/A,to,to,to,FALSE,TRUE,TRUE,to,KEEP,ambiguous,big vs EN to
+can,can,N/A,can,can,can,FALSE,TRUE,TRUE,can,KEEP,ambiguous,liver vs EN can
+ban,ban,N/A,ban,ban,ban,FALSE,TRUE,TRUE,ban,KEEP,ambiguous,committee vs EN ban

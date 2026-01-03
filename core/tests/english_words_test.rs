@@ -192,12 +192,25 @@ const INVALID_YO_PATTERN: &[&str] = &[
 ];
 
 // =============================================================================
-// INVALID FINAL CLUSTERS - T+R, C+R patterns (detected by is_foreign_word_pattern)
-// NOTE: "describe" removed - now handled via auto-restore (D+E pattern)
+// INVALID FINAL CLUSTERS - detected via different mechanisms:
+// - Words with invalid initials (sp-, ce-) → blocked during typing
+// - Words starting with vowels or valid initials → auto-restore at word end
 // =============================================================================
 
-const INVALID_FINAL_CLUSTERS: &[&str] = &[
-    "metric", "matrix", "electric", "spectrum", "control", "central", "abstract", "contract",
+/// Words with invalid initials that block transforms during typing
+const INVALID_FINAL_CLUSTERS_NO_TRANSFORM: &[&str] = &[
+    "spectrum", // sp- invalid initial
+    "central",  // ce- invalid (should use "ke-" in Vietnamese)
+];
+
+/// Words without invalid initials - need auto-restore at word boundary
+const INVALID_FINAL_CLUSTERS_AUTO_RESTORE: &[&str] = &[
+    "metric",   // me- valid, but "tr" cluster detected
+    "matrix",   // ma- valid initial
+    "electric", // starts with vowel
+    "control",  // co- valid initial (c before o)
+    "abstract", // starts with vowel
+    "contract", // co- valid initial
 ];
 
 // =============================================================================
@@ -215,11 +228,15 @@ const AUTO_RESTORE_DE_S: &[&str] = &[
 ];
 
 // =============================================================================
-// TECH TERMS - chỉ những từ có invalid structure
+// TECH TERMS - words with invalid Vietnamese structure
+// Split by detection mechanism:
+// - Invalid initials (bl-, str-, etc.) → blocked during typing
+// - Valid initials (ty-, tr-, gi-) → auto-restore at word boundary
 // =============================================================================
 
-const TECH_TERMS: &[&str] = &[
-    // Invalid initials - protected
+/// Tech terms with invalid initials - transforms blocked during typing
+const TECH_TERMS_NO_TRANSFORM: &[&str] = &[
+    // str- cluster (invalid 3-char initial)
     "string",
     "struct",
     "stream",
@@ -227,39 +244,58 @@ const TECH_TERMS: &[&str] = &[
     "scroll",
     "spring",
     "sprite",
+    // bl- cluster
     "blockchain",
     "bluetooth",
+    // br- cluster
     "broadcast",
     "browser",
+    // chr- cluster
     "chrome",
     "chromium",
+    // cr- cluster
     "crypto",
     "crystal",
+    // fl- cluster
     "flask",
     "flutter",
+    // fr- cluster
     "framework",
     "frontend",
-    "github",
-    "gitlab",
+    // gr- cluster
     "gradle",
     "graphql",
     "grpc",
+    // pl- cluster
     "playwright",
+    // pr- cluster
     "prisma",
     "prometheus",
+    // sk- cluster
     "sklearn",
+    // sl- cluster
     "slack",
+    // sm- cluster
     "smtp",
+    // sp- cluster
     "spark",
     "splunk",
+    // sq- cluster
     "sql",
     "sqlite",
+    // st- cluster
     "stack",
     "stripe",
-    "trello",
-    "typescript",
-    // NOTE: Removed - starts with valid Vietnamese pattern:
-    // "postgres" (po+s→pó), "terraform" (te+r→tẻ), "travis" (tra+v→valid)
+];
+
+/// Tech terms with valid Vietnamese initials - need auto-restore
+const TECH_TERMS_AUTO_RESTORE: &[&str] = &[
+    "typescript", // ty- has valid initial 't'
+    "trello",     // tr- is valid Vietnamese initial
+    "github",     // gi- special handling, but 'g' alone is valid
+    "gitlab",     // gi- special handling
+                  // NOTE: Removed - starts with valid Vietnamese pattern:
+                  // "postgres" (po+s→pó), "terraform" (te+r→tẻ), "travis" (tra+v→valid)
 ];
 
 // =============================================================================
@@ -283,7 +319,10 @@ fn protect_yo_pattern() {
 
 #[test]
 fn protect_final_clusters() {
-    assert_no_transform(INVALID_FINAL_CLUSTERS);
+    // Words with invalid initials - transforms blocked
+    assert_no_transform(INVALID_FINAL_CLUSTERS_NO_TRANSFORM);
+    // Words without invalid initials - need auto-restore
+    assert_auto_restore(INVALID_FINAL_CLUSTERS_AUTO_RESTORE);
 }
 
 #[test]
@@ -294,18 +333,21 @@ fn protect_de_s_pattern() {
 
 #[test]
 fn protect_tech_terms() {
-    assert_no_transform(TECH_TERMS);
+    // Words with invalid initials - transforms blocked
+    assert_no_transform(TECH_TERMS_NO_TRANSFORM);
+    // Words with valid Vietnamese initials - need auto-restore
+    assert_auto_restore(TECH_TERMS_AUTO_RESTORE);
 }
 
 #[test]
 fn all_protected_words() {
-    // Words that are protected without transformation (invalid Vietnamese structure)
+    // Words protected via transform blocking (invalid Vietnamese structure)
     let no_transform: Vec<&str> = [
         INVALID_INITIALS,
         INVALID_OU_PATTERN,
         INVALID_YO_PATTERN,
-        INVALID_FINAL_CLUSTERS,
-        TECH_TERMS,
+        INVALID_FINAL_CLUSTERS_NO_TRANSFORM,
+        TECH_TERMS_NO_TRANSFORM,
     ]
     .concat();
 
@@ -316,7 +358,14 @@ fn all_protected_words() {
     println!("Testing {} unique words (no transform)", unique.len());
     assert_no_transform(&unique);
 
-    // Words that are restored via auto-restore (D+E pattern)
-    println!("Testing {} words (auto-restore)", AUTO_RESTORE_DE_S.len());
-    assert_auto_restore(AUTO_RESTORE_DE_S);
+    // Words protected via auto-restore at word boundary
+    let auto_restore: Vec<&str> = [
+        INVALID_FINAL_CLUSTERS_AUTO_RESTORE,
+        TECH_TERMS_AUTO_RESTORE,
+        AUTO_RESTORE_DE_S,
+    ]
+    .concat();
+
+    println!("Testing {} words (auto-restore)", auto_restore.len());
+    assert_auto_restore(&auto_restore);
 }
