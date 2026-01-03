@@ -690,18 +690,25 @@ fn pattern9_double_mark_no_prefix() {
 }
 
 #[test]
-fn pattern9_double_mark_4char_keeps_reverted() {
-    // 4-char words with double mark: keep reverted result
-    // User typed double modifier to explicitly revert the mark
+fn pattern9_double_ss_english_words() {
+    // English 4-char words ending with -ss should restore to English
+    // 's' is not a valid Vietnamese final consonant
+    // Double 's' reverts tone mark, then auto-restore preserves double 's'
     telex_auto_restore(&[
-        ("bass ", "bas "),
-        ("boss ", "bos "),
-        ("less ", "les "),
-        ("loss ", "los "),
-        ("mass ", "mas "),
-        ("mess ", "mes "),
-        ("miss ", "mis "),
-        ("pass ", "pas "),
+        ("bass ", "bass "),  // bass - fish or music term
+        ("basss ", "bass "), // triple s collapses to double
+        ("boss ", "boss "),  // boss - employer
+        ("fuss ", "fuss "),  // fuss - commotion
+        ("joss ", "joss "),  // joss - Chinese idol
+        ("kiss ", "kiss "),  // kiss - embrace
+        ("less ", "less "),  // less - smaller amount
+        ("loss ", "loss "),  // loss - opposite of gain
+        ("mass ", "mass "),  // mass - quantity
+        ("mess ", "mess "),  // mess - disorder
+        ("miss ", "miss "),  // miss - fail to hit
+        ("moss ", "moss "),  // moss - plant
+        ("pass ", "pass "),  // pass - go by
+        ("toss ", "toss "),  // toss - throw
     ]);
 }
 

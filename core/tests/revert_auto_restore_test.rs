@@ -32,13 +32,19 @@ fn revert_then_more_chars_keeps_post_revert_result() {
 // =============================================================================
 
 #[test]
-fn revert_at_end_keeps_result_short() {
-    // Very short words (3 chars raw) → always keep reverted result
+fn revert_at_end_short_words() {
+    // Short words (3 chars raw) with double modifiers
+    // EXCEPTIONS: "off", "iff", "ass" keep reverted form
+    // Other -ss/-ff words restore to English
     telex_auto_restore(&[
-        // 3-char raw with double modifier at end
-        ("ass ", "as "), // a-s-s → as
-        ("off ", "of "), // o-f-f → of
-        ("eff ", "ef "), // e-f-f → ef
+        // Double ss: "ass" is exception, keeps reverted "as"
+        ("ass ", "as "), // EXCEPTION: a-s-s → as
+        // Double ff: exceptions keep reverted, others restore
+        ("off ", "of "),  // EXCEPTION: o-f-f → of (common English word)
+        ("iff ", "if "),  // EXCEPTION: i-f-f → if (common English word)
+        ("eff ", "eff "), // e-f-f → eff (restore to English)
+        ("aff ", "aff "), // a-f-f → aff (restore to English)
+        // Other modifiers (rr, xx, jj) keep reverted form
         ("err ", "er "), // e-r-r → er
         ("ajj ", "aj "), // a-j-j → aj
         ("axx ", "ax "), // a-x-x → ax
@@ -46,28 +52,28 @@ fn revert_at_end_keeps_result_short() {
 }
 
 #[test]
-fn revert_at_end_keeps_result_4char() {
-    // 4-char raw producing 3-char result → keep reverted
-    // When user types double modifier to revert, keep the result.
-    // This only works for words with VALID Vietnamese initials where mark was applied.
+fn revert_at_end_restores_or_keeps_4char() {
+    // 4-char raw with double modifiers:
+    // - 'ss' and 'ff' → restore to English (s/f not valid VN finals)
+    // - 'rr', 'xx', 'jj' → keep reverted form
     telex_auto_restore(&[
-        // Double s: abbreviations and short words
-        ("SOSS ", "SOS "), // S-O-S-S → SOS (distress signal)
-        ("BOSS ", "BOS "), // B-O-S-S → BOS
-        ("LOSS ", "LOS "), // L-O-S-S → LOS
-        ("MOSS ", "MOS "), // M-O-S-S → MOS
-        ("boss ", "bos "), // lowercase also works
-        // Double r: programming keywords
+        // Double ss: restore to English (s not valid VN final)
+        ("SOSS ", "SOSS "), // S-O-S-S → SOSS
+        ("BOSS ", "BOSS "), // B-O-S-S → BOSS
+        ("LOSS ", "LOSS "), // L-O-S-S → LOSS
+        ("MOSS ", "MOSS "), // M-O-S-S → MOSS
+        ("boss ", "boss "), // lowercase also works
+        // Double ff: restore to English (f not valid VN final)
+        ("buff ", "buff "), // b-u-f-f → buff
+        ("cuff ", "cuff "), // c-u-f-f → cuff
+        ("puff ", "puff "), // p-u-f-f → puff
+        // Double r: keep reverted (programming keywords)
         ("varr ", "var "), // v-a-r-r → var (JS keyword)
         ("VARR ", "VAR "), // V-A-R-R → VAR
         ("norr ", "nor "), // n-o-r-r → nor
-        // Double f: short words
-        ("buff ", "buf "), // b-u-f-f → buf
-        ("cuff ", "cuf "), // c-u-f-f → cuf
-        ("puff ", "puf "), // p-u-f-f → puf
-        // Double x: uncommon
+        // Double x: keep reverted
         ("boxx ", "box "), // b-o-x-x → box
-        // Double j: uncommon
+        // Double j: keep reverted
         ("hajj ", "haj "), // h-a-j-j → haj
     ]);
 }

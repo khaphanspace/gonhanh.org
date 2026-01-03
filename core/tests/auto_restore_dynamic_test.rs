@@ -1000,22 +1000,24 @@ fn double_mark_english_words() {
 }
 
 #[test]
-fn double_mark_4char_keeps_reverted() {
-    // 4-char words with double modifiers: user intended revert, keep result
+fn double_mark_4char_restores_english() {
+    // 4-char words ending with double 'ss' or 'ff': restore to English
+    // 's' and 'f' are NOT valid Vietnamese final consonants
+    // so "bass", "boss", "buff", "cuff", etc. → restore to English
     telex_auto_restore(&[
-        // Double s: 4-char → 3-char keeps reverted
-        ("bass ", "bas "),
-        ("boss ", "bos "),
-        ("loss ", "los "),
-        ("mass ", "mas "),
-        ("mess ", "mes "),
-        ("miss ", "mis "),
-        ("pass ", "pas "),
-        ("less ", "les "),
-        // Double f: 4-char → 3-char keeps reverted
-        ("buff ", "buf "),
-        ("cuff ", "cuf "),
-        ("puff ", "puf "),
+        // Double ss at end: restore to English (not Vietnamese)
+        ("bass ", "bass "),
+        ("boss ", "boss "),
+        ("loss ", "loss "),
+        ("mass ", "mass "),
+        ("mess ", "mess "),
+        ("miss ", "miss "),
+        ("pass ", "pass "),
+        ("less ", "less "),
+        // Double ff at end: also restore to English (common English pattern)
+        ("buff ", "buff "),
+        ("cuff ", "cuff "),
+        ("puff ", "puff "),
     ]);
 }
 

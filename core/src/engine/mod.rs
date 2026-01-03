@@ -3193,24 +3193,64 @@ impl Engine {
             return None;
         }
 
-        // If user typed double TONE modifier (s, f, r, x, j) at END of SHORT word, keep reverted form
-        // This handles "buff" (4 chars, ff at end) → keep 'buf' (user intentionally reverted)
+        // If user typed double TONE modifier (r, x, j) at END of SHORT word, keep reverted form
         // But longer words like "assess" (6 chars, ends with ss) should still restore
-        // Rule: 4 char words → keep reverted, 5+ char words → restore
+        // EXCEPTION: Double 'ss' and 'ff' should restore because:
+        // - 's' is NOT a valid Vietnamese final consonant
+        // - 'f' is NOT a valid Vietnamese final consonant
+        // Words like bass, pass, buff, cuff are valid English → restore
         if self.had_mark_revert && self.raw_input.len() >= 2 && self.raw_input.len() <= 4 {
             let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
             let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
-            // Double tone modifier at end (ss, ff, rr, xx, jj)
-            if last_key == second_last_key
-                && matches!(last_key, keys::S | keys::F | keys::R | keys::X | keys::J)
-            {
-                // Short word with double tone modifier at end - keep reverted form
+            // Double tone modifier at end (rr, xx, jj) - but NOT 'ss' or 'ff'
+            // 'ss' and 'ff' should restore because 's' and 'f' are not valid Vietnamese finals
+            if last_key == second_last_key && matches!(last_key, keys::R | keys::X | keys::J) {
+                // Keep reverted form for rr, xx, jj
                 return None;
             }
         }
 
         // Second check: Is raw_input valid English?
         let raw_input_valid_en = self.is_raw_input_valid_english();
+
+        // SPECIAL CASE: Double 'ss' or 'ff' at end should ALWAYS restore to English
+        // because 's' and 'f' are NOT valid Vietnamese final consonants.
+        // Examples: bass, pass, boss, less, mess, miss, buff, cuff, puff → restore to English
+        // This check must come BEFORE buffer_invalid_vn check since buffer may be valid ("ba")
+        // but raw_input "bass" should still restore to English.
+        //
+        // EXCEPTIONS: "off" and "iff" should NOT auto-restore because:
+        // - "off" → "of" (reverted form "of" is a very common English word)
+        // - "iff" → "if" (reverted form "if" is a very common English word)
+        if self.had_mark_revert && self.raw_input.len() >= 2 && raw_input_valid_en {
+            let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
+            let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
+            let is_double_ss = last_key == keys::S && second_last_key == keys::S;
+            let is_double_ff = last_key == keys::F && second_last_key == keys::F;
+
+            // Check for exceptions: "off", "iff", "ass" should keep reverted form
+            let is_exception = if self.raw_input.len() == 3 {
+                let (first_key, _, _) = self.raw_input[0];
+                // "off" (O-F-F) → keep "of"
+                let is_off = first_key == keys::O && is_double_ff;
+                // "iff" (I-F-F) → keep "if"
+                let is_iff = first_key == keys::I && is_double_ff;
+                // "ass" (A-S-S) → keep "as"
+                let is_ass = first_key == keys::A && is_double_ss;
+                is_off || is_iff || is_ass
+            } else {
+                false
+            };
+
+            // Exceptions: return None to keep buffer (reverted form)
+            if is_exception {
+                return None;
+            }
+
+            if is_double_ss || is_double_ff {
+                return self.build_raw_chars();
+            }
+        }
 
         // UNIFIED: Restore only when buffer is invalid Vietnamese AND raw_input is valid English
         if buffer_invalid_vn && raw_input_valid_en {
@@ -3430,9 +3470,19 @@ impl Engine {
 
         // For 4-char raw input producing 3-char result (e.g., "SOSS" → "SOS", "varr" → "var"),
         // keep the reverted result. The user explicitly typed double modifier to revert.
-        // This only applies when a transform WAS applied (valid Vietnamese initial).
-        // Words with invalid initials (f, j, w, z) never get transforms, so they stay as-is.
+        // EXCEPTION: Double 'ss' with buffer ending in 's' - this is invalid VN final
+        // Words like "bass", "pass", "boss", "less" should restore to English.
         if self.raw_input.len() == 4 && self.buf.len() == 3 {
+            // Double 'ss' at end → buffer ends with 's' → invalid VN final → restore
+            if last_key == keys::S {
+                if let Some(last_char) = self.buf.last() {
+                    if last_char.key == keys::S {
+                        // Buffer ends with 's' = invalid Vietnamese final
+                        // Return false to allow restore
+                        return false;
+                    }
+                }
+            }
             return true;
         }
 
@@ -3669,14 +3719,28 @@ impl Engine {
                 && chars[0].eq_ignore_ascii_case(&'u')
                 && tone_modifiers_char.contains(&chars[1].to_ascii_lowercase())
                 && chars[1].eq_ignore_ascii_case(&chars[2]);
+
             if self.had_mark_revert && (self.buf.len() <= 3 || starts_with_u_doubled_modifier) {
-                // Note: 'f' is excluded from collapse because 'ff' is common in English
-                let tone_modifiers = ['s', 'r', 'x', 'j']; // Exclude 'f'
+                // Collapse consecutive double modifiers, but skip 'ss'/'ff' at the VERY END
+                // Examples:
+                // - "usser" → "user" (ss in middle, collapse)
+                // - "bass" → "bass" (ss at end, keep)
+                // - "buff" → "buff" (ff at end, keep)
+                let tone_modifiers = ['s', 'f', 'r', 'x', 'j'];
                 let mut i = 0;
                 while i + 1 < chars.len() {
                     let c = chars[i].to_ascii_lowercase();
                     let next = chars[i + 1].to_ascii_lowercase();
-                    // Same tone modifier doubled → collapse to single (except 'ff')
+
+                    // Skip 'ss' or 'ff' at the VERY END of the word
+                    let is_at_end = i + 2 == chars.len();
+                    let is_ss_or_ff = (c == 's' && next == 's') || (c == 'f' && next == 'f');
+                    if is_at_end && is_ss_or_ff {
+                        i += 1;
+                        continue;
+                    }
+
+                    // Same tone modifier doubled → collapse to single
                     if tone_modifiers.contains(&c) && c == next {
                         chars.remove(i);
                         continue; // Check again at same position for triple+
