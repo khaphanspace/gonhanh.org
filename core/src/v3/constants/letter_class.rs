@@ -57,7 +57,7 @@ pub const LETTER_CLASS: [LetterClass; 26] = [
 #[inline]
 pub fn get_class(c: char) -> LetterClass {
     let lower = c.to_ascii_lowercase();
-    if lower.is_ascii_lowercase() {
+    if ('a'..='z').contains(&lower) {
         LETTER_CLASS[(lower as u8 - b'a') as usize]
     } else {
         LetterClass::Invalid

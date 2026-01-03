@@ -494,8 +494,8 @@ pub static M_VOWEL_PAIR: [[u8; vowel_type::COUNT]; vowel_type::COUNT] = {
     m[vowel_type::E as usize][vowel_type::E as usize] = 1; // ee → ê
     m[vowel_type::O as usize][vowel_type::O as usize] = 1; // oo → ô
 
-    // Telex intermediate for ê toggle
-    m[vowel_type::E as usize][vowel_type::I as usize] = 1; // ei (intermediate)
+    // NOTE: "ei" is NOT a valid Vietnamese diphthong - removed
+    // "ei" pattern will trigger InvalidVowelPattern for proper English detection
 
     m
 };

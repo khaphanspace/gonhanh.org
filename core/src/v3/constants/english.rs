@@ -306,7 +306,7 @@ pub fn is_impossible_bigram(c1: u8, c2: u8) -> bool {
     let c1_lower = c1.to_ascii_lowercase();
     let c2_lower = c2.to_ascii_lowercase();
 
-    if !c1_lower.is_ascii_lowercase() {
+    if c1_lower < b'a' || c1_lower > b'z' {
         return false;
     }
 
@@ -567,7 +567,7 @@ pub fn should_restore_english(confidence: EnglishConfidence) -> bool {
 pub fn has_invalid_initial(word: &str) -> bool {
     word.chars()
         .next()
-        .map(is_invalid_vn_initial)
+        .map(|c| is_invalid_vn_initial(c))
         .unwrap_or(false)
 }
 

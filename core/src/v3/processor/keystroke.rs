@@ -151,8 +151,9 @@ fn handle_tone(ctx: &mut ActionContext) -> ProcessResult {
     let tone_idx = find_tone_position(&vowel_chars);
     let (char_pos, vowel_char) = vowels[tone_idx];
 
-    // Apply tone to vowel
-    let new_char = apply_tone(vowel_char, tone_value);
+    // Remove existing tone first, then apply new tone
+    let base_char = remove_tone(vowel_char);
+    let new_char = apply_tone(base_char, tone_value);
 
     // Build new transformed string
     let mut new_transformed = String::new();
@@ -658,13 +659,13 @@ fn handle_defer(ctx: &mut ActionContext) -> ProcessResult {
 
     match (last_char, key_lower) {
         // TONE: apply or change tone (s/f/r/x/j)
-        (Some(_), 's' | 'f' | 'r' | 'x' | 'j') => handle_tone(ctx),
+        (Some(_), k) if matches!(k, 's' | 'f' | 'r' | 'x' | 'j') => handle_tone(ctx),
         // CIRCUMFLEX: aa→â, ee→ê, oo→ô (same vowel repeated)
-        (Some(c), k) if c.eq_ignore_ascii_case(&k) && matches!(k, 'a' | 'e' | 'o') => {
+        (Some(c), k) if c.to_ascii_lowercase() == k && matches!(k, 'a' | 'e' | 'o') => {
             handle_circumflex(ctx)
         }
         // BREVE: a+w → ă
-        (Some(c), 'w') if c.eq_ignore_ascii_case(&'a') => handle_breve(ctx),
+        (Some(c), 'w') if c.to_ascii_lowercase() == 'a' => handle_breve(ctx),
         // HORN: o+w→ơ, u+w→ư
         (Some(c), 'w') if matches!(c.to_ascii_lowercase(), 'o' | 'u') => handle_horn(ctx),
         // Default: pass through as regular character

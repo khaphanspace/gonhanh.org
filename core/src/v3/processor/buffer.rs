@@ -121,6 +121,8 @@ impl RawBuffer {
     /// Push a keystroke
     pub fn push(&mut self, key: char) {
         if self.len < MAX_BUFFER_SIZE {
+            // Clear pending pop when new key is pushed (user continued typing after revert)
+            self.pending_pop.active = false;
             self.data[self.len] = RawKeystroke::new(key);
             self.len += 1;
         }

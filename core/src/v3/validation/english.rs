@@ -26,10 +26,10 @@ pub fn english_likelihood(word: &str) -> EnglishConfidence {
     english_confidence(word)
 }
 
-/// Check if word should be treated as English
-/// Threshold: HasSuffix (90%) or higher triggers restore
+/// Check if word has ANY English pattern
+/// No threshold - returns true if ANY of 8 layers match
 pub fn is_english_word(word: &str) -> bool {
-    english_likelihood(word) >= EnglishConfidence::HasSuffix
+    english_likelihood(word) > EnglishConfidence::None
 }
 
 /// Detailed English detection result
@@ -134,17 +134,19 @@ mod tests {
 
     #[test]
     fn test_is_english() {
-        // >= HasSuffix (90%) = true
-        assert!(is_english_word("file")); // Certain (100%)
-        assert!(is_english_word("class")); // OnsetCluster (98%)
-        assert!(is_english_word("coffee")); // DoubleConsonant (95%)
-        assert!(is_english_word("running")); // HasSuffix (90%)
-        assert!(is_english_word("text")); // CodaCluster (90%)
-        assert!(is_english_word("test")); // CodaCluster (90%)
+        // Has ANY English pattern = true
+        assert!(is_english_word("file")); // Certain - invalid VN initial 'f'
+        assert!(is_english_word("class")); // OnsetCluster - 'cl'
+        assert!(is_english_word("coffee")); // DoubleConsonant - 'ff'
+        assert!(is_english_word("running")); // HasSuffix - 'ing'
+        assert!(is_english_word("text")); // CodaCluster - 'xt'
+        assert!(is_english_word("test")); // CodaCluster - 'st'
+        assert!(is_english_word("their")); // VowelPattern - 'ei'
+        assert!(is_english_word("search")); // VowelPattern - 'ea'
+        assert!(is_english_word("undo")); // HasPrefix - 'un'
 
-        // < HasSuffix = false
-        assert!(!is_english_word("undo")); // HasPrefix (75%)
-        assert!(!is_english_word("ban")); // None
+        // No pattern = false
+        assert!(!is_english_word("ban")); // None - could be VN or EN
     }
 
     #[test]

@@ -3,10 +3,11 @@
 //! Stateful processor that transforms keystrokes into Vietnamese text.
 //! Uses matrix dispatch for all decisions.
 //!
-//! ## Architecture
+//! ## Architecture (Phase 6: Hybrid Validation)
 //!
 //! ```text
-//! Input → Classify (matrix) → Dispatch (matrix) → Execute → Validate → Output
+//! Input → Classify → Dispatch → PRE-VALIDATE → Execute → POST-CHECK → Output
+//!                               (skip if EN)              (restore if IMPOSSIBLE)
 //! ```
 //!
 //! ## State Machine
@@ -25,6 +26,7 @@ pub use result::ProcessResult;
 pub use state::{EngineState, Transition};
 
 use crate::v3::constants::dispatch::State;
+use crate::v3::validation::{should_restore, should_restore_immediate, RestoreDecision};
 use keystroke::{execute_action_with_context, ActionContext};
 
 /// Main V3 processor struct
@@ -56,7 +58,7 @@ impl Processor {
 
     /// Process a single keystroke
     ///
-    /// Pipeline: Input → Classify → Dispatch → Execute → Update State → Output
+    /// Pipeline: Input → Classify → Dispatch → PRE-VALIDATE → Execute → POST-CHECK → Output
     pub fn process(&mut self, key: char, _caps: bool, ctrl: bool) -> ProcessResult {
         // Ctrl bypass - pass through without processing
         if ctrl {
@@ -77,12 +79,63 @@ impl Processor {
         // Step 3: Update state
         self.state = next_state;
 
-        // Step 4: Handle special results
+        // Step 4: POST-CHECK - Check if immediate restore needed (IMPOSSIBLE state)
+        if self.buffer.has_transform && !self.foreign_mode {
+            let buffer_str = self.buffer.transformed();
+            let raw_str = self.buffer.raw_all();
+
+            if should_restore_immediate(&buffer_str, &raw_str, true, self.buffer.has_stroke) {
+                // Execute restore
+                let backspaces = buffer_str.chars().count() as u8;
+                self.buffer.set_transformed(&raw_str);
+                self.buffer.has_transform = false;
+                self.foreign_mode = true; // Enter foreign mode after restore
+
+                return ProcessResult::Restore {
+                    backspaces,
+                    output: raw_str,
+                };
+            }
+        }
+
+        // Step 5: Handle special results
         match &result {
             ProcessResult::ForeignMode => {
                 self.foreign_mode = true;
             }
             ProcessResult::Commit => {
+                // Check boundary restore before clearing
+                // Restore when: has_transform OR buffer differs from raw (revert case)
+                let has_difference = self.buffer.has_difference();
+                if self.buffer.has_transform || has_difference {
+                    let buffer_str = self.buffer.transformed();
+                    let raw_str = self.buffer.raw_all();
+                    let had_revert = self.buffer.track.xform_type == XformType::None
+                        && has_difference;
+
+                    let decision = should_restore(
+                        self.buffer.has_transform || has_difference,
+                        self.buffer.has_stroke,
+                        &buffer_str,
+                        &raw_str,
+                        had_revert,
+                    );
+
+                    if decision == RestoreDecision::RestoreEnglish {
+                        let backspaces = buffer_str.chars().count() as u8;
+                        // Set buffer to raw (restored) value instead of clearing
+                        // This ensures buffer_content() returns the restored word
+                        self.buffer.set_transformed(&raw_str);
+                        self.buffer.has_transform = false;
+                        self.state = State::Empty;
+                        self.foreign_mode = true; // Enter foreign mode after restore
+                        return ProcessResult::Restore {
+                            backspaces,
+                            output: raw_str,
+                        };
+                    }
+                }
+
                 // Clear buffer and reset state after commit
                 self.state = State::Empty;
                 self.foreign_mode = false;

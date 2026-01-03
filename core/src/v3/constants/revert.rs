@@ -83,7 +83,7 @@ pub fn should_revert(last_key: char, new_key: char) -> Option<RevertType> {
     }
 
     // Check if key has revert type
-    if last.is_ascii_lowercase() {
+    if ('a'..='z').contains(&last) {
         let idx = (last as u8 - b'a') as usize;
         let revert = REVERT_KEY[idx];
         if revert > 0 {

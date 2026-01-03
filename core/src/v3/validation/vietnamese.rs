@@ -290,8 +290,10 @@ pub fn validate_vietnamese(syllable: &str) -> ValidationResult {
     // For now, skip this as M_VOWEL_FINAL allows all
 
     // Rule 8: Tone-stop restriction
-    if syl.final_cat == final_cat::STOP && !is_valid_tone_final(syl.tone, syl.final_cat) {
-        return ValidationResult::InvalidTone;
+    if syl.final_cat == final_cat::STOP {
+        if !is_valid_tone_final(syl.tone, syl.final_cat) {
+            return ValidationResult::InvalidTone;
+        }
     }
 
     ValidationResult::Valid
@@ -547,3 +549,23 @@ mod tests {
         assert_eq!(validate_vietnamese("àc"), ValidationResult::InvalidTone);
     }
 }
+
+    #[test]
+    fn test_failing_buffers() {
+        // Test buffers from failing paragraph tests
+        println!("thẻi: {:?}", validate_vietnamese("thẻi"));
+        println!("kỏean: {:?}", validate_vietnamese("kỏean"));
+        println!("thánk: {:?}", validate_vietnamese("thánk"));
+        println!("lủuy: {:?}", validate_vietnamese("lủuy"));
+        println!("téla: {:?}", validate_vietnamese("téla"));
+        println!("lìe: {:?}", validate_vietnamese("lìe"));
+        println!("cỏe: {:?}", validate_vietnamese("cỏe"));
+        println!("cảe: {:?}", validate_vietnamese("cảe"));
+        println!("sấ: {:?}", validate_vietnamese("sấ"));
+        println!("sã: {:?}", validate_vietnamese("sã"));
+        println!("púh: {:?}", validate_vietnamese("púh"));
+        println!("ủe: {:?}", validate_vietnamese("ủe"));
+        println!("rẻtoe: {:?}", validate_vietnamese("rẻtoe"));
+        println!("mẻmoy: {:?}", validate_vietnamese("mẻmoy"));
+        println!("chínê: {:?}", validate_vietnamese("chínê"));
+    }

@@ -15,9 +15,6 @@ impl ShortcutsStub {
     pub fn len(&self) -> usize {
         0
     }
-    pub fn is_empty(&self) -> bool {
-        true
-    }
     pub fn add(&mut self, _shortcut: Shortcut) {}
     pub fn remove(&mut self, _trigger: &str) {}
     pub fn clear(&mut self) {}

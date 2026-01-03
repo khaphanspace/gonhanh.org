@@ -75,7 +75,7 @@ pub const KEY_CAT_TELEX: [KeyCategory; 38] = [
 #[inline]
 pub fn get_category(c: char) -> KeyCategory {
     let lower = c.to_ascii_lowercase();
-    if lower.is_ascii_lowercase() {
+    if lower >= 'a' && lower <= 'z' {
         KEY_CAT_TELEX[(lower as u8 - b'a') as usize]
     } else {
         match c {
