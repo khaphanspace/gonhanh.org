@@ -150,6 +150,7 @@
 │  │   aw → keep "aw", set pending_breve = true                              ││
 │  │   aw + consonant → "ăm", "ăn", "ăp", "ăt", "ăc"                         ││
 │  │   aw + tone → "ă" + tone                                                ││
+│  │   aw + w → revert breve → "aw", pending_breve = false, had_revert = true││
 │  │   aw + terminator → restore to "aw" (likely EN: law, saw)               ││
 │  │                                                                         ││
 │  │ STROKE (đ): replace d→đ                                                 ││
@@ -670,8 +671,13 @@ fn should_restore(state: &State, raw: &str, buffer: &str, dict: &Dict) -> Decisi
         return Decision::Restore;  // raw is valid word
     }
 
-    // Neither buffer nor raw is valid word → SKIP (keep buffer as-is)
-    // User will manually fix if needed
+    // Neither buffer nor raw is valid word
+    // Fallback: Impossible VN should still restore (broken text is worse than SKIP)
+    if state.vn_state == VnState::Impossible {
+        return Decision::Restore;
+    }
+
+    // Otherwise SKIP (keep buffer as-is, let user fix)
     Decision::Skip
 }
 
@@ -1384,7 +1390,7 @@ fn validate_vn(buffer: &str) -> VnState {
 
 ---
 
-**Document Version**: 3.6
+**Document Version**: 3.7
 **Last Updated**: 2026-01-03
 
 ---
@@ -1396,6 +1402,8 @@ fn validate_vn(buffer: &str) -> VnState {
 - **Fixed M_EN_VOWEL matrix**: Removed `oa` (valid VN diphthong: hoà, toà, loà)
 - **Generalized VCV pattern**: Now V₁+(r|l|t|s|n|m)+V₂ formula instead of case-by-case listing
 - **Fixed tesla example**: Shows dictionary-based restore flow (primary method)
+- **Added Impossible fallback after dict SKIP**: Broken VN restores even if dict misses both
+- **Added aww revert case**: `aw + w → revert breve` documented in Step 3B
 
 ### v3.6 (2026-01-03)
 - **Merged valuable content from old docs**:
