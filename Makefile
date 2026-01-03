@@ -1,4 +1,4 @@
-.PHONY: help all test test-v3 format build build-linux clean setup install dmg release release-minor release-major
+.PHONY: help all test test-v3 format build build-v3 build-linux clean setup install dmg release release-minor release-major
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -35,8 +35,13 @@ test-v3: ## Run all lib tests (v1 + v3)
 format: ## Format & lint
 	@cd core && cargo fmt && cargo clippy -- -D warnings
 
-build: format ## Build core + macos app
+build: format ## Build core + macos app (v1 engine)
 	@./scripts/build-core.sh
+	@./scripts/build-macos.sh
+	@./scripts/build-windows.sh
+
+build-v3: format ## Build core + macos app (v3 engine)
+	@./scripts/build-core-v3.sh
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
 

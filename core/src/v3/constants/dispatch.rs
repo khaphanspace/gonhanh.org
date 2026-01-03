@@ -60,58 +60,58 @@ pub enum State {
 pub const DISPATCH: [[u8; 8]; 5] = [
     // State::Empty
     [
-        pack(Action::AddInitial, State::Init),    // Letter -> Init
-        pack(Action::Pass, State::Empty),         // Tone -> pass (no vowel)
-        pack(Action::AddVowel, State::Vow),       // Circumflex vowel -> Vow
-        pack(Action::Pass, State::Empty),         // Horn -> pass
-        pack(Action::Defer, State::Init),         // Stroke -> defer (might be đ)
-        pack(Action::Pass, State::Empty),         // Breve -> pass
-        pack(Action::Pass, State::Empty),         // Boundary -> pass
-        pack(Action::Pass, State::Empty),         // Invalid -> pass
+        pack(Action::AddInitial, State::Init), // Letter -> Init
+        pack(Action::Pass, State::Empty),      // Tone -> pass (no vowel)
+        pack(Action::AddVowel, State::Vow),    // Circumflex vowel -> Vow
+        pack(Action::Pass, State::Empty),      // Horn -> pass
+        pack(Action::Defer, State::Init),      // Stroke -> defer (might be đ)
+        pack(Action::Pass, State::Empty),      // Breve -> pass
+        pack(Action::Pass, State::Empty),      // Boundary -> pass
+        pack(Action::Pass, State::Empty),      // Invalid -> pass
     ],
     // State::Init
     [
-        pack(Action::Defer, State::Init),         // Letter -> defer (cluster or vowel?)
-        pack(Action::Pass, State::Init),          // Tone -> pass (no vowel yet)
-        pack(Action::AddVowel, State::Vow),       // Circumflex vowel -> Vow
-        pack(Action::Pass, State::Init),          // Horn -> pass
-        pack(Action::ApplyStroke, State::Init),   // Stroke -> đ
-        pack(Action::Pass, State::Init),          // Breve -> pass
-        pack(Action::Commit, State::Empty),       // Boundary -> commit
-        pack(Action::Pass, State::Init),          // Invalid -> pass
+        pack(Action::Defer, State::Init), // Letter -> defer (cluster or vowel?)
+        pack(Action::Pass, State::Init),  // Tone -> pass (no vowel yet)
+        pack(Action::AddVowel, State::Vow), // Circumflex vowel -> Vow
+        pack(Action::Pass, State::Init),  // Horn -> pass
+        pack(Action::ApplyStroke, State::Init), // Stroke -> đ
+        pack(Action::Pass, State::Init),  // Breve -> pass
+        pack(Action::Commit, State::Empty), // Boundary -> commit
+        pack(Action::Pass, State::Init),  // Invalid -> pass
     ],
     // State::Vow
     [
-        pack(Action::Defer, State::Vow),          // Letter -> defer (final or next word?)
-        pack(Action::ApplyTone, State::Dia),      // Tone -> apply
-        pack(Action::Defer, State::Vow),          // Circumflex -> defer (double or new?)
-        pack(Action::ApplyHorn, State::Dia),      // Horn -> ơ/ư
-        pack(Action::Pass, State::Vow),           // Stroke -> pass (invalid here)
-        pack(Action::ApplyBreve, State::Dia),     // Breve -> ă
-        pack(Action::Commit, State::Empty),       // Boundary -> commit
-        pack(Action::Pass, State::Vow),           // Invalid -> pass
+        pack(Action::Defer, State::Vow), // Letter -> defer (final or next word?)
+        pack(Action::ApplyTone, State::Dia), // Tone -> apply
+        pack(Action::Defer, State::Vow), // Circumflex -> defer (double or new?)
+        pack(Action::ApplyHorn, State::Dia), // Horn -> ơ/ư
+        pack(Action::Pass, State::Vow),  // Stroke -> pass (invalid here)
+        pack(Action::ApplyBreve, State::Dia), // Breve -> ă
+        pack(Action::Commit, State::Empty), // Boundary -> commit
+        pack(Action::Pass, State::Vow),  // Invalid -> pass
     ],
     // State::Dia (has diacritic)
     [
-        pack(Action::Defer, State::Dia),          // Letter -> defer
-        pack(Action::Defer, State::Dia),          // Tone -> defer (change or revert?)
-        pack(Action::Defer, State::Dia),          // Circumflex -> defer
-        pack(Action::Defer, State::Dia),          // Horn -> defer
-        pack(Action::Pass, State::Dia),           // Stroke -> pass
-        pack(Action::Defer, State::Dia),          // Breve -> defer
-        pack(Action::Commit, State::Empty),       // Boundary -> commit
-        pack(Action::Pass, State::Dia),           // Invalid -> pass
+        pack(Action::Defer, State::Dia),    // Letter -> defer
+        pack(Action::Defer, State::Dia),    // Tone -> defer (change or revert?)
+        pack(Action::Defer, State::Dia),    // Circumflex -> defer
+        pack(Action::Defer, State::Dia),    // Horn -> defer
+        pack(Action::Pass, State::Dia),     // Stroke -> pass
+        pack(Action::Defer, State::Dia),    // Breve -> defer
+        pack(Action::Commit, State::Empty), // Boundary -> commit
+        pack(Action::Pass, State::Dia),     // Invalid -> pass
     ],
     // State::Fin (has final)
     [
-        pack(Action::Defer, State::Fin),          // Letter -> defer (cluster?)
-        pack(Action::ApplyTone, State::Fin),      // Tone -> apply to vowel
-        pack(Action::Pass, State::Fin),           // Circumflex -> pass
-        pack(Action::Pass, State::Fin),           // Horn -> pass
-        pack(Action::Pass, State::Fin),           // Stroke -> pass
-        pack(Action::Pass, State::Fin),           // Breve -> pass
-        pack(Action::Commit, State::Empty),       // Boundary -> commit
-        pack(Action::Pass, State::Fin),           // Invalid -> pass
+        pack(Action::Defer, State::Fin),     // Letter -> defer (cluster?)
+        pack(Action::ApplyTone, State::Fin), // Tone -> apply to vowel
+        pack(Action::Pass, State::Fin),      // Circumflex -> pass
+        pack(Action::Pass, State::Fin),      // Horn -> pass
+        pack(Action::Pass, State::Fin),      // Stroke -> pass
+        pack(Action::Pass, State::Fin),      // Breve -> pass
+        pack(Action::Commit, State::Empty),  // Boundary -> commit
+        pack(Action::Pass, State::Fin),      // Invalid -> pass
     ],
 ];
 

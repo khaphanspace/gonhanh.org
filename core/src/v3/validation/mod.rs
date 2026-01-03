@@ -12,10 +12,10 @@
 //!
 //! All decisions MUST go through validation flow, NO hardcoding for specific cases.
 
-pub mod vietnamese;
 pub mod english;
 pub mod restore;
+pub mod vietnamese;
 
-pub use vietnamese::{validate_vietnamese, is_valid_syllable};
 pub use english::{english_likelihood, EnglishConfidence};
 pub use restore::{should_restore, RestoreDecision};
+pub use vietnamese::{is_valid_syllable, validate_vietnamese};

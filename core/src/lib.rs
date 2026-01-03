@@ -27,7 +27,13 @@ pub mod updater;
 pub mod utils;
 pub mod v3;
 
-use engine::{Engine, Result};
+// Engine selection based on feature flag
+#[cfg(not(feature = "v3"))]
+use engine::Engine;
+#[cfg(feature = "v3")]
+use v3::adapter::Engine;
+
+use engine::Result;
 use std::sync::Mutex;
 
 // Global engine instance (thread-safe via Mutex)

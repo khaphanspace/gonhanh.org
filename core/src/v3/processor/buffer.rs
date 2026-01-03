@@ -278,9 +278,10 @@ impl Default for RawBuffer {
 }
 
 /// Transform type for tracking last transformation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum XformType {
     /// No transformation
+    #[default]
     None,
     /// Tone applied (sắc, huyền, hỏi, ngã, nặng)
     Tone,
@@ -288,12 +289,6 @@ pub enum XformType {
     Mark,
     /// Stroke applied (đ)
     Stroke,
-}
-
-impl Default for XformType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// Transform tracking for revert detection
@@ -492,7 +487,7 @@ mod tests {
         buf.get_mut(1).unwrap().unconsume(); // already not consumed
         buf.get_mut(2).unwrap().consume();
 
-        assert_eq!(buf.restore(), "is");      // skip consumed
+        assert_eq!(buf.restore(), "is"); // skip consumed
         assert_eq!(buf.restore_all(), "iss"); // include all
     }
 
@@ -515,8 +510,8 @@ mod tests {
         // Simulate "issue" typing with revert
         let mut buf = RawBuffer::new();
         buf.push('i');
-        buf.push('s');  // tone applied (consumed=true later via unconsume/consume dance)
-        buf.push('s');  // revert trigger
+        buf.push('s'); // tone applied (consumed=true later via unconsume/consume dance)
+        buf.push('s'); // revert trigger
         buf.push('u');
         buf.push('e');
 
@@ -524,7 +519,7 @@ mod tests {
         // buf.data[1] stays not consumed (literal 's')
         buf.get_mut(2).unwrap().consume(); // trigger 's'
 
-        assert_eq!(buf.restore(), "isue");   // skip consumed
+        assert_eq!(buf.restore(), "isue"); // skip consumed
         assert_eq!(buf.restore_all(), "issue"); // include all
     }
 
@@ -556,8 +551,8 @@ mod tests {
         let mut buf = RawBuffer::new();
         buf.push('t');
         buf.push('e');
-        buf.push('s');  // first s - was consumed for tone
-        buf.push('s');  // second s - revert trigger
+        buf.push('s'); // first s - was consumed for tone
+        buf.push('s'); // second s - revert trigger
 
         // Simulate: set pending pop (consumed='s', revert='s')
         buf.set_pending_pop('s', 's');
@@ -576,8 +571,8 @@ mod tests {
 
         let mut buf = RawBuffer::new();
         buf.push('i');
-        buf.push('s');  // consumed for tone
-        buf.push('s');  // revert trigger
+        buf.push('s'); // consumed for tone
+        buf.push('s'); // revert trigger
 
         // Set pending pop
         buf.set_pending_pop('s', 's');
@@ -597,8 +592,8 @@ mod tests {
 
         let mut buf = RawBuffer::new();
         buf.push('o');
-        buf.push('f');  // consumed for tone
-        buf.push('f');  // revert trigger
+        buf.push('f'); // consumed for tone
+        buf.push('f'); // revert trigger
 
         // Set pending pop for double f
         buf.set_pending_pop('f', 'f');
@@ -619,8 +614,8 @@ mod tests {
         buf.push('s');
         buf.push('i');
         buf.push('m');
-        buf.push('s');  // consumed for tone
-        buf.push('s');  // revert trigger
+        buf.push('s'); // consumed for tone
+        buf.push('s'); // revert trigger
 
         // Set pending pop
         buf.set_pending_pop('s', 's');

@@ -57,25 +57,25 @@ pub const KEY_CAT_TELEX: [KeyCategory; 38] = [
     KeyCategory::Circumflex, // y - vowel (goes to Vow state)
     KeyCategory::Letter,     // z
     // Punctuation/special (index 26-37)
-    KeyCategory::Boundary,   // space
-    KeyCategory::Boundary,   // .
-    KeyCategory::Boundary,   // ,
-    KeyCategory::Boundary,   // ;
-    KeyCategory::Boundary,   // :
-    KeyCategory::Boundary,   // !
-    KeyCategory::Boundary,   // ?
-    KeyCategory::Boundary,   // '
-    KeyCategory::Boundary,   // "
-    KeyCategory::Boundary,   // (
-    KeyCategory::Boundary,   // )
-    KeyCategory::Boundary,   // -
+    KeyCategory::Boundary, // space
+    KeyCategory::Boundary, // .
+    KeyCategory::Boundary, // ,
+    KeyCategory::Boundary, // ;
+    KeyCategory::Boundary, // :
+    KeyCategory::Boundary, // !
+    KeyCategory::Boundary, // ?
+    KeyCategory::Boundary, // '
+    KeyCategory::Boundary, // "
+    KeyCategory::Boundary, // (
+    KeyCategory::Boundary, // )
+    KeyCategory::Boundary, // -
 ];
 
 /// Get key category for a character (Telex method)
 #[inline]
 pub fn get_category(c: char) -> KeyCategory {
     let lower = c.to_ascii_lowercase();
-    if lower >= 'a' && lower <= 'z' {
+    if lower.is_ascii_lowercase() {
         KEY_CAT_TELEX[(lower as u8 - b'a') as usize]
     } else {
         match c {

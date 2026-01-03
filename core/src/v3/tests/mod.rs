@@ -16,11 +16,11 @@
 //! 9. Stress tests (50)
 //! 10. Regression tests (50)
 
-mod basic_vietnamese;
-mod tone_mark_tests;
-mod english_detection;
 mod auto_restore;
+mod basic_vietnamese;
 mod edge_cases;
+mod english_detection;
+mod tone_mark_tests;
 
 /// Test helper: simulate typing a sequence of keys
 #[allow(dead_code)]

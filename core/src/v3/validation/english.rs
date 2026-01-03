@@ -21,7 +21,6 @@ use crate::v3::constants::english::{
 // Re-export from constants
 pub use crate::v3::constants::english::EnglishConfidence;
 
-
 /// Calculate English likelihood for a word
 pub fn english_likelihood(word: &str) -> EnglishConfidence {
     english_confidence(word)
@@ -123,7 +122,10 @@ mod tests {
         // Layer 2: Onset cluster (cl) = OnsetCluster (98%)
         assert_eq!(english_likelihood("class"), EnglishConfidence::OnsetCluster);
         // Layer 3: Double consonant = DoubleConsonant (95%)
-        assert_eq!(english_likelihood("coffee"), EnglishConfidence::DoubleConsonant);
+        assert_eq!(
+            english_likelihood("coffee"),
+            EnglishConfidence::DoubleConsonant
+        );
         // Layer 4: Suffix = HasSuffix (90%)
         assert_eq!(english_likelihood("nation"), EnglishConfidence::HasSuffix);
         // Layer 5: Coda cluster (xt) = CodaCluster (90%)
@@ -133,16 +135,16 @@ mod tests {
     #[test]
     fn test_is_english() {
         // >= HasSuffix (90%) = true
-        assert!(is_english_word("file"));   // Certain (100%)
-        assert!(is_english_word("class"));  // OnsetCluster (98%)
+        assert!(is_english_word("file")); // Certain (100%)
+        assert!(is_english_word("class")); // OnsetCluster (98%)
         assert!(is_english_word("coffee")); // DoubleConsonant (95%)
         assert!(is_english_word("running")); // HasSuffix (90%)
-        assert!(is_english_word("text"));   // CodaCluster (90%)
-        assert!(is_english_word("test"));   // CodaCluster (90%)
+        assert!(is_english_word("text")); // CodaCluster (90%)
+        assert!(is_english_word("test")); // CodaCluster (90%)
 
         // < HasSuffix = false
-        assert!(!is_english_word("undo"));  // HasPrefix (75%)
-        assert!(!is_english_word("ban"));   // None
+        assert!(!is_english_word("undo")); // HasPrefix (75%)
+        assert!(!is_english_word("ban")); // None
     }
 
     #[test]

@@ -53,7 +53,10 @@ impl ProcessResult {
 
     /// Check if result requires output
     pub fn has_output(&self) -> bool {
-        matches!(self, Self::Transform { .. } | Self::Restore { .. } | Self::Pass(_))
+        matches!(
+            self,
+            Self::Transform { .. } | Self::Restore { .. } | Self::Pass(_)
+        )
     }
 
     /// Get backspace count

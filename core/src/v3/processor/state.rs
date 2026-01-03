@@ -81,14 +81,12 @@ impl EngineState {
 
     /// Check if in state where tone can be applied
     pub fn can_apply_tone(&self) -> bool {
-        matches!(self.state, State::Vow | State::Dia | State::Fin)
-            && self.vowel_count > 0
+        matches!(self.state, State::Vow | State::Dia | State::Fin) && self.vowel_count > 0
     }
 
     /// Check if in state where modifier can be applied
     pub fn can_apply_modifier(&self) -> bool {
-        matches!(self.state, State::Vow | State::Dia)
-            && self.vowel_count > 0
+        matches!(self.state, State::Vow | State::Dia) && self.vowel_count > 0
     }
 }
 

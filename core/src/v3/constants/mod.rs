@@ -16,18 +16,18 @@
 //! | EN Detection | ~400 bytes | Pattern detection |
 //! | Placement | ~250 bytes | Tone/modifier placement |
 
-pub mod letter_class;
-pub mod key_category;
-pub mod dispatch;
 pub mod defer;
+pub mod dispatch;
+pub mod english;
+pub mod key_category;
+pub mod letter_class;
+pub mod placement;
 pub mod revert;
 pub mod vietnamese;
-pub mod english;
-pub mod placement;
 
 // Re-exports
-pub use letter_class::{LetterClass, LETTER_CLASS};
-pub use key_category::{KeyCategory, KEY_CAT_TELEX};
-pub use dispatch::{Action, DISPATCH};
 pub use defer::{DeferType, DEFER};
-pub use revert::{REVERT_KEY, should_revert};
+pub use dispatch::{Action, DISPATCH};
+pub use key_category::{KeyCategory, KEY_CAT_TELEX};
+pub use letter_class::{LetterClass, LETTER_CLASS};
+pub use revert::{should_revert, REVERT_KEY};

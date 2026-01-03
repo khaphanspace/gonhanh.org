@@ -69,15 +69,16 @@ pub mod onset_c2 {
 /// Size: 9 x 10 = 90 bytes (rounded to 96)
 pub static E_ONSET_PAIRS: [[u8; 10]; 9] = [
     //          L  R  W  C  K  M  N  P  T  H
-    /* B */   [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // bl, br
-    /* C */   [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // cl, cr
-    /* D */   [0, 1, 1, 0, 0, 0, 0, 0, 0, 0], // dr, dw
-    /* F */   [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // fl, fr
-    /* G */   [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // gl, gr
-    /* P */   [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // pl, pr
-    /* S */   [1, 0, 1, 1, 1, 1, 1, 1, 1, 0], // sl,sw,sc,sk,sm,sn,sp,st
-    /* T */   [0, 1, 1, 0, 0, 0, 0, 0, 0, 0], // tr, tw (th removed - valid VN)
-    /* W */   [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], // wr
+    /* B */
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // bl, br
+    /* C */ [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // cl, cr
+    /* D */ [0, 1, 1, 0, 0, 0, 0, 0, 0, 0], // dr, dw
+    /* F */ [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // fl, fr
+    /* G */ [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // gl, gr
+    /* P */ [1, 1, 0, 0, 0, 0, 0, 0, 0, 0], // pl, pr
+    /* S */ [1, 0, 1, 1, 1, 1, 1, 1, 1, 0], // sl,sw,sc,sk,sm,sn,sp,st
+    /* T */ [0, 1, 1, 0, 0, 0, 0, 0, 0, 0], // tr, tw (th removed - valid VN)
+    /* W */ [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], // wr
 ];
 
 /// Map first consonant to onset_c1 index
@@ -205,15 +206,16 @@ pub mod coda_c2 {
 /// Size: 9 x 10 = 90 bytes
 pub static E_CODA_PAIRS: [[u8; 10]; 9] = [
     //          B  D  F  K  L  M  N  P  T  V
-    /* C */   [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ct (fact, act)
-    /* F */   [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ft (left, soft)
-    /* L */   [0, 1, 1, 1, 0, 1, 0, 1, 1, 1], // ld,lf,lk,lm,lp,lt,lv
-    /* M */   [1, 0, 0, 0, 0, 0, 0, 1, 0, 0], // mb, mp
-    /* N */   [0, 1, 0, 1, 0, 0, 0, 0, 1, 0], // nd, nk, nt
-    /* P */   [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // pt (script)
-    /* R */   [1, 1, 0, 1, 1, 1, 1, 1, 1, 0], // rb,rd,rk,rl,rm,rn,rp,rt
-    /* S */   [0, 0, 0, 1, 0, 0, 0, 1, 1, 0], // sk, sp, st
-    /* X */   [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // xt (text, next)
+    /* C */
+    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ct (fact, act)
+    /* F */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ft (left, soft)
+    /* L */ [0, 1, 1, 1, 0, 1, 0, 1, 1, 1], // ld,lf,lk,lm,lp,lt,lv
+    /* M */ [1, 0, 0, 0, 0, 0, 0, 1, 0, 0], // mb, mp
+    /* N */ [0, 1, 0, 1, 0, 0, 0, 0, 1, 0], // nd, nk, nt
+    /* P */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // pt (script)
+    /* R */ [1, 1, 0, 1, 1, 1, 1, 1, 1, 0], // rb,rd,rk,rl,rm,rn,rp,rt
+    /* S */ [0, 0, 0, 1, 0, 0, 0, 1, 1, 0], // sk, sp, st
+    /* X */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // xt (text, next)
 ];
 
 /// Map first consonant to coda_c1 index
@@ -304,7 +306,7 @@ pub fn is_impossible_bigram(c1: u8, c2: u8) -> bool {
     let c1_lower = c1.to_ascii_lowercase();
     let c2_lower = c2.to_ascii_lowercase();
 
-    if c1_lower < b'a' || c1_lower > b'z' {
+    if !c1_lower.is_ascii_lowercase() {
         return false;
     }
 
@@ -565,7 +567,7 @@ pub fn should_restore_english(confidence: EnglishConfidence) -> bool {
 pub fn has_invalid_initial(word: &str) -> bool {
     word.chars()
         .next()
-        .map(|c| is_invalid_vn_initial(c))
+        .map(is_invalid_vn_initial)
         .unwrap_or(false)
 }
 
@@ -672,17 +674,17 @@ mod tests {
 
     #[test]
     fn test_impossible_codas() {
-        assert!(has_impossible_coda("text"));  // xt
+        assert!(has_impossible_coda("text")); // xt
         assert!(has_impossible_coda("world")); // ld
         assert!(has_impossible_coda("point")); // nt
-        assert!(has_impossible_coda("test"));  // st
-        assert!(!has_impossible_coda("ban"));  // n - valid VN final
-        assert!(!has_impossible_coda("cam"));  // m - valid VN final
+        assert!(has_impossible_coda("test")); // st
+        assert!(!has_impossible_coda("ban")); // n - valid VN final
+        assert!(!has_impossible_coda("cam")); // m - valid VN final
     }
 
     #[test]
     fn test_english_suffixes() {
-        assert!(has_english_suffix("action"));  // tion
+        assert!(has_english_suffix("action")); // tion
         assert!(has_english_suffix("running")); // ing
         assert!(has_english_suffix("beautiful")); // ful
         assert!(has_english_suffix("happiness")); // ness
@@ -702,25 +704,25 @@ mod tests {
 
     #[test]
     fn test_double_consonants() {
-        assert!(has_doubled_consonant("coffee"));  // ff
-        assert!(has_doubled_consonant("class"));   // ss
-        assert!(has_doubled_consonant("letter"));  // tt
-        assert!(has_doubled_consonant("happy"));   // pp
-        assert!(has_doubled_consonant("all"));     // ll
-        assert!(has_doubled_consonant("add"));     // dd
-        assert!(has_doubled_consonant("egg"));     // gg
-        assert!(has_doubled_consonant("buzz"));    // zz
-        assert!(has_doubled_consonant("access"));  // cc
+        assert!(has_doubled_consonant("coffee")); // ff
+        assert!(has_doubled_consonant("class")); // ss
+        assert!(has_doubled_consonant("letter")); // tt
+        assert!(has_doubled_consonant("happy")); // pp
+        assert!(has_doubled_consonant("all")); // ll
+        assert!(has_doubled_consonant("add")); // dd
+        assert!(has_doubled_consonant("egg")); // gg
+        assert!(has_doubled_consonant("buzz")); // zz
+        assert!(has_doubled_consonant("access")); // cc
         assert!(!has_doubled_consonant("ban"));
-        assert!(!has_doubled_consonant("text"));   // no double
+        assert!(!has_doubled_consonant("text")); // no double
     }
 
     #[test]
     fn test_vowel_patterns() {
         assert!(has_invalid_vn_vowel_pattern(b"search")); // ea
-        assert!(has_invalid_vn_vowel_pattern(b"tree"));   // ee
-        assert!(has_invalid_vn_vowel_pattern(b"good"));   // oo
-        assert!(has_invalid_vn_vowel_pattern(b"you"));    // ou
+        assert!(has_invalid_vn_vowel_pattern(b"tree")); // ee
+        assert!(has_invalid_vn_vowel_pattern(b"good")); // oo
+        assert!(has_invalid_vn_vowel_pattern(b"you")); // ou
         assert!(has_invalid_vn_vowel_pattern(b"receive")); // ei
         assert!(!has_invalid_vn_vowel_pattern(b"ban"));
         assert!(!has_invalid_vn_vowel_pattern(b"viet")); // ie ambiguous with iê
@@ -736,13 +738,25 @@ mod tests {
 
         // Layer 2: Onset cluster = OnsetCluster (98%)
         assert_eq!(english_confidence("class"), EnglishConfidence::OnsetCluster);
-        assert_eq!(english_confidence("string"), EnglishConfidence::OnsetCluster);
+        assert_eq!(
+            english_confidence("string"),
+            EnglishConfidence::OnsetCluster
+        );
         assert_eq!(english_confidence("black"), EnglishConfidence::OnsetCluster);
 
         // Layer 3: Double consonant = DoubleConsonant (95%)
-        assert_eq!(english_confidence("coffee"), EnglishConfidence::DoubleConsonant);
-        assert_eq!(english_confidence("letter"), EnglishConfidence::DoubleConsonant);
-        assert_eq!(english_confidence("happy"), EnglishConfidence::DoubleConsonant);
+        assert_eq!(
+            english_confidence("coffee"),
+            EnglishConfidence::DoubleConsonant
+        );
+        assert_eq!(
+            english_confidence("letter"),
+            EnglishConfidence::DoubleConsonant
+        );
+        assert_eq!(
+            english_confidence("happy"),
+            EnglishConfidence::DoubleConsonant
+        );
 
         // Layer 4: Suffix = HasSuffix (90%)
         assert_eq!(english_confidence("action"), EnglishConfidence::HasSuffix);
@@ -756,7 +770,10 @@ mod tests {
         assert_eq!(english_confidence("undo"), EnglishConfidence::HasPrefix);
 
         // Layer 7: Vowel pattern = VowelPattern (85%)
-        assert_eq!(english_confidence("search"), EnglishConfidence::VowelPattern);
+        assert_eq!(
+            english_confidence("search"),
+            EnglishConfidence::VowelPattern
+        );
 
         // No match = None
         assert_eq!(english_confidence("ban"), EnglishConfidence::None);
@@ -785,15 +802,21 @@ mod tests {
     #[test]
     fn test_memory_size() {
         // Verify memory budget ~500 bytes
-        let onset_size = core::mem::size_of_val(&E_ONSET_PAIRS);   // 90 bytes
-        let coda_size = core::mem::size_of_val(&E_CODA_PAIRS);     // 90 bytes
+        let onset_size = core::mem::size_of_val(&E_ONSET_PAIRS); // 90 bytes
+        let coda_size = core::mem::size_of_val(&E_CODA_PAIRS); // 90 bytes
         let bigram_size = core::mem::size_of_val(&E_IMPOSSIBLE_BIGRAM); // 104 bytes
-        let suffix_size = core::mem::size_of_val(&E_SUFFIXES);     // 80 bytes
-        let prefix_size = core::mem::size_of_val(&E_PREFIXES);     // 40 bytes
+        let suffix_size = core::mem::size_of_val(&E_SUFFIXES); // 80 bytes
+        let prefix_size = core::mem::size_of_val(&E_PREFIXES); // 40 bytes
         let vowel_size = core::mem::size_of_val(&E_VOWEL_PATTERNS); // 12 bytes
         let double_size = core::mem::size_of_val(&E_DOUBLE_CONSONANTS); // 13 bytes
 
-        let total = onset_size + coda_size + bigram_size + suffix_size + prefix_size + vowel_size + double_size;
+        let total = onset_size
+            + coda_size
+            + bigram_size
+            + suffix_size
+            + prefix_size
+            + vowel_size
+            + double_size;
         assert!(total <= 500, "Memory budget exceeded: {} bytes", total);
         println!("English detection memory: {} bytes", total);
     }

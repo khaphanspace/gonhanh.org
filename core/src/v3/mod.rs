@@ -27,10 +27,10 @@
 //! **NGUYÊN TẮC 1: TRẢI NGHIỆM GÕ LÀ SỐ 1**
 //! **NGUYÊN TẮC 2: KHÔNG FIX CASE-BY-CASE**
 
+pub mod adapter;
 pub mod constants;
 pub mod processor;
 pub mod validation;
-pub mod adapter;
 
 #[cfg(test)]
 pub mod tests;
@@ -42,11 +42,11 @@ pub use constants::{
     letter_class::LetterClass,
 };
 
-pub use processor::{DualBuffer, Processor, ProcessResult, RawBuffer, RawKeystroke};
+pub use processor::{DualBuffer, ProcessResult, Processor, RawBuffer, RawKeystroke};
 
 pub use validation::{
-    english_likelihood, is_valid_syllable, should_restore, validate_vietnamese,
-    EnglishConfidence, RestoreDecision,
+    english_likelihood, is_valid_syllable, should_restore, validate_vietnamese, EnglishConfidence,
+    RestoreDecision,
 };
 
 // V1-compatible Engine adapter

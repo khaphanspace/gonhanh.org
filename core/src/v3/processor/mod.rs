@@ -14,15 +14,15 @@
 //! 5 states: EMPTY → INIT → VOW → DIA → FIN
 //! Transitions are matrix-driven, zero conditionals in hot path.
 
-pub mod state;
 pub mod buffer;
 pub mod keystroke;
 pub mod result;
+pub mod state;
 
-pub use state::{EngineState, Transition};
-pub use buffer::{DualBuffer, RawBuffer, RawKeystroke, PendingPop, XformType, TransformTrack};
+pub use buffer::{DualBuffer, PendingPop, RawBuffer, RawKeystroke, TransformTrack, XformType};
 pub use keystroke::process_keystroke;
 pub use result::ProcessResult;
+pub use state::{EngineState, Transition};
 
 use crate::v3::constants::dispatch::State;
 use keystroke::{execute_action_with_context, ActionContext};

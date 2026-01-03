@@ -11,9 +11,9 @@
 //! 8. Tone-stop restriction (stop finals only allow sắc/nặng)
 
 use crate::v3::constants::vietnamese::{
-    char_to_tone, char_to_vowel_type, final_cat, final_type, initial, is_valid_spelling,
-    is_valid_tone_final, is_valid_vowel_pair, is_vn_vowel, lookup_final_type, lookup_initial_type,
-    tone, vowel_type, final_type_to_category, Tone,
+    char_to_tone, char_to_vowel_type, final_cat, final_type, final_type_to_category, initial,
+    is_valid_spelling, is_valid_tone_final, is_valid_vowel_pair, is_vn_vowel, lookup_final_type,
+    lookup_initial_type, tone, vowel_type, Tone,
 };
 
 // ============================================================================
@@ -245,7 +245,11 @@ pub fn validate_vietnamese(syllable: &str) -> ValidationResult {
         // Get the first vowel after any glide
         let check_vowel = if syl.glide.is_some() {
             // Skip glide, check actual vowel
-            syl.vowel.chars().next().map(char_to_vowel_type).unwrap_or(vowel_type::INVALID)
+            syl.vowel
+                .chars()
+                .next()
+                .map(char_to_vowel_type)
+                .unwrap_or(vowel_type::INVALID)
         } else {
             syl.vowel_type
         };
@@ -272,10 +276,11 @@ pub fn validate_vietnamese(syllable: &str) -> ValidationResult {
             let v1 = char_to_vowel_type(vowel_chars[i]);
             let v2 = char_to_vowel_type(vowel_chars[i + 1]);
 
-            if v1 != vowel_type::INVALID && v2 != vowel_type::INVALID {
-                if !is_valid_vowel_pair(v1, v2) {
-                    return ValidationResult::InvalidVowelPattern;
-                }
+            if v1 != vowel_type::INVALID
+                && v2 != vowel_type::INVALID
+                && !is_valid_vowel_pair(v1, v2)
+            {
+                return ValidationResult::InvalidVowelPattern;
             }
         }
     }
@@ -285,10 +290,8 @@ pub fn validate_vietnamese(syllable: &str) -> ValidationResult {
     // For now, skip this as M_VOWEL_FINAL allows all
 
     // Rule 8: Tone-stop restriction
-    if syl.final_cat == final_cat::STOP {
-        if !is_valid_tone_final(syl.tone, syl.final_cat) {
-            return ValidationResult::InvalidTone;
-        }
+    if syl.final_cat == final_cat::STOP && !is_valid_tone_final(syl.tone, syl.final_cat) {
+        return ValidationResult::InvalidTone;
     }
 
     ValidationResult::Valid
@@ -483,7 +486,7 @@ mod tests {
         // Foreign word vowel patterns
         assert!(!is_valid_syllable("ea")); // ea not valid
         assert!(!is_valid_syllable("ou")); // ou not valid
-        // Note: "yo" parses differently, skip for now
+                                           // Note: "yo" parses differently, skip for now
     }
 
     // Telex intermediate states
@@ -532,9 +535,15 @@ mod tests {
     #[test]
     fn test_validation_result_types() {
         assert_eq!(validate_vietnamese("ba"), ValidationResult::Valid);
-        assert_eq!(validate_vietnamese("ng"), ValidationResult::InvalidStructure);
+        assert_eq!(
+            validate_vietnamese("ng"),
+            ValidationResult::InvalidStructure
+        );
         assert_eq!(validate_vietnamese("ce"), ValidationResult::InvalidSpelling);
-        assert_eq!(validate_vietnamese("ea"), ValidationResult::InvalidVowelPattern);
+        assert_eq!(
+            validate_vietnamese("ea"),
+            ValidationResult::InvalidVowelPattern
+        );
         assert_eq!(validate_vietnamese("àc"), ValidationResult::InvalidTone);
     }
 }

@@ -9,10 +9,9 @@ use crate::v3::constants::{
     dispatch::{dispatch, Action, State},
     key_category::get_category,
     placement::{
-        apply_circumflex, apply_horn, apply_breve, apply_stroke, apply_tone,
-        remove_tone, remove_circumflex, remove_horn, remove_breve, remove_stroke,
-        find_tone_position, is_vowel,
-        tone, mark, key_to_tone_telex,
+        apply_breve, apply_circumflex, apply_horn, apply_stroke, apply_tone, find_tone_position,
+        is_vowel, key_to_tone_telex, mark, remove_breve, remove_circumflex, remove_horn,
+        remove_stroke, remove_tone, tone,
     },
 };
 
@@ -30,7 +29,10 @@ pub fn process_keystroke(state: State, key: char, foreign_mode: bool) -> (Action
     if foreign_mode {
         let cat = get_category(key);
         // Only boundary exits foreign mode
-        if matches!(cat, crate::v3::constants::key_category::KeyCategory::Boundary) {
+        if matches!(
+            cat,
+            crate::v3::constants::key_category::KeyCategory::Boundary
+        ) {
             return (Action::Commit, State::Empty);
         }
         return (Action::Pass, state);
@@ -45,7 +47,7 @@ pub fn process_keystroke(state: State, key: char, foreign_mode: bool) -> (Action
 pub struct ActionContext<'a> {
     pub buffer: &'a mut DualBuffer,
     pub key: char,
-    pub method: u8,  // 0=Telex, 1=VNI
+    pub method: u8, // 0=Telex, 1=VNI
 }
 
 /// Execute action with buffer context
@@ -232,7 +234,9 @@ fn handle_circumflex(ctx: &mut ActionContext) -> ProcessResult {
     }
     ctx.buffer.set_transformed(&new_transformed);
     ctx.buffer.has_transform = true;
-    ctx.buffer.track.record_mark(ctx.key, char_pos, mark::CIRCUM);
+    ctx.buffer
+        .track
+        .record_mark(ctx.key, char_pos, mark::CIRCUM);
 
     let chars_after = transformed.chars().count() - char_pos;
     let new_suffix: String = new_transformed.chars().skip(char_pos).collect();
@@ -276,7 +280,8 @@ fn handle_horn(ctx: &mut ActionContext) -> ProcessResult {
         .filter(|(_, c)| is_vowel(**c))
         .map(|(byte_idx, c)| {
             // Calculate byte position for char_indices
-            let byte_pos = transformed.char_indices()
+            let byte_pos = transformed
+                .char_indices()
                 .find(|(_, ch)| std::ptr::eq(ch, c) || *ch == *c)
                 .map(|(i, _)| i)
                 .unwrap_or(byte_idx);
@@ -323,9 +328,12 @@ fn handle_horn(ctx: &mut ActionContext) -> ProcessResult {
         }
         ctx.buffer.set_transformed(&new_transformed);
         ctx.buffer.has_transform = true;
-        ctx.buffer.track.record_mark(ctx.key, o_byte_pos, mark::HORN);
+        ctx.buffer
+            .track
+            .record_mark(ctx.key, o_byte_pos, mark::HORN);
 
-        let chars_after = transformed.chars().count() - chars.iter().position(|&c| c == u_char).unwrap_or(0);
+        let chars_after =
+            transformed.chars().count() - chars.iter().position(|&c| c == u_char).unwrap_or(0);
         let u_char_idx = chars.iter().position(|&c| c == u_char).unwrap_or(0);
         let new_suffix: String = new_transformed.chars().skip(u_char_idx).collect();
 
@@ -463,7 +471,7 @@ fn handle_stroke(ctx: &mut ActionContext) -> ProcessResult {
         if lower == 'd' {
             found_pos = Some(i);
             found_char = c;
-            break;  // Take first 'd' (initial position)
+            break; // Take first 'd' (initial position)
         }
     }
 
@@ -526,7 +534,9 @@ fn handle_revert(ctx: &mut ActionContext) -> ProcessResult {
 
             // Set pending pop for consumed modifier
             let consumed = track.consumed_key;
-            ctx.buffer.raw_buffer_mut().set_pending_pop(consumed, ctx.key);
+            ctx.buffer
+                .raw_buffer_mut()
+                .set_pending_pop(consumed, ctx.key);
 
             // Update buffer
             ctx.buffer.push_raw(ctx.key);
@@ -565,7 +575,9 @@ fn handle_revert(ctx: &mut ActionContext) -> ProcessResult {
 
             // Set pending pop
             let consumed = track.consumed_key;
-            ctx.buffer.raw_buffer_mut().set_pending_pop(consumed, ctx.key);
+            ctx.buffer
+                .raw_buffer_mut()
+                .set_pending_pop(consumed, ctx.key);
 
             // Update buffer
             ctx.buffer.push_raw(ctx.key);
@@ -646,23 +658,17 @@ fn handle_defer(ctx: &mut ActionContext) -> ProcessResult {
 
     match (last_char, key_lower) {
         // TONE: apply or change tone (s/f/r/x/j)
-        (Some(_), k) if matches!(k, 's' | 'f' | 'r' | 'x' | 'j') => {
-            handle_tone(ctx)
-        }
+        (Some(_), 's' | 'f' | 'r' | 'x' | 'j') => handle_tone(ctx),
         // CIRCUMFLEX: aa→â, ee→ê, oo→ô (same vowel repeated)
-        (Some(c), k) if c.to_ascii_lowercase() == k && matches!(k, 'a' | 'e' | 'o') => {
+        (Some(c), k) if c.eq_ignore_ascii_case(&k) && matches!(k, 'a' | 'e' | 'o') => {
             handle_circumflex(ctx)
         }
         // BREVE: a+w → ă
-        (Some(c), 'w') if c.to_ascii_lowercase() == 'a' => {
-            handle_breve(ctx)
-        }
+        (Some(c), 'w') if c.eq_ignore_ascii_case(&'a') => handle_breve(ctx),
         // HORN: o+w→ơ, u+w→ư
-        (Some(c), 'w') if matches!(c.to_ascii_lowercase(), 'o' | 'u') => {
-            handle_horn(ctx)
-        }
+        (Some(c), 'w') if matches!(c.to_ascii_lowercase(), 'o' | 'u') => handle_horn(ctx),
         // Default: pass through as regular character
-        _ => handle_pass(ctx)
+        _ => handle_pass(ctx),
     }
 }
 
@@ -670,20 +676,20 @@ fn handle_defer(ctx: &mut ActionContext) -> ProcessResult {
 fn check_has_transform(s: &str) -> bool {
     for c in s.chars() {
         match c {
-            'ă'|'â'|'ê'|'ô'|'ơ'|'ư'|'đ' => return true,
-            'Ă'|'Â'|'Ê'|'Ô'|'Ơ'|'Ư'|'Đ' => return true,
-            'á'|'à'|'ả'|'ã'|'ạ' => return true,
-            'ắ'|'ằ'|'ẳ'|'ẵ'|'ặ' => return true,
-            'ấ'|'ầ'|'ẩ'|'ẫ'|'ậ' => return true,
-            'é'|'è'|'ẻ'|'ẽ'|'ẹ' => return true,
-            'ế'|'ề'|'ể'|'ễ'|'ệ' => return true,
-            'í'|'ì'|'ỉ'|'ĩ'|'ị' => return true,
-            'ó'|'ò'|'ỏ'|'õ'|'ọ' => return true,
-            'ố'|'ồ'|'ổ'|'ỗ'|'ộ' => return true,
-            'ớ'|'ờ'|'ở'|'ỡ'|'ợ' => return true,
-            'ú'|'ù'|'ủ'|'ũ'|'ụ' => return true,
-            'ứ'|'ừ'|'ử'|'ữ'|'ự' => return true,
-            'ý'|'ỳ'|'ỷ'|'ỹ'|'ỵ' => return true,
+            'ă' | 'â' | 'ê' | 'ô' | 'ơ' | 'ư' | 'đ' => return true,
+            'Ă' | 'Â' | 'Ê' | 'Ô' | 'Ơ' | 'Ư' | 'Đ' => return true,
+            'á' | 'à' | 'ả' | 'ã' | 'ạ' => return true,
+            'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' => return true,
+            'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' => return true,
+            'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ' => return true,
+            'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' => return true,
+            'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị' => return true,
+            'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ' => return true,
+            'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' => return true,
+            'ớ' | 'ờ' | 'ở' | 'ỡ' | 'ợ' => return true,
+            'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ' => return true,
+            'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' => return true,
+            'ý' | 'ỳ' | 'ỷ' | 'ỹ' | 'ỵ' => return true,
             _ => {}
         }
     }

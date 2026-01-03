@@ -3,9 +3,28 @@
 //! Wraps v3::Processor to provide v1-compatible Engine interface.
 //! This allows running v1 tests against v3 implementation.
 
-use crate::v3::processor::{Processor, ProcessResult};
-use crate::engine::Result;
 use crate::data::keys;
+use crate::engine::shortcut::Shortcut;
+use crate::engine::Result;
+use crate::v3::processor::{ProcessResult, Processor};
+
+/// Stub shortcuts manager for v3 (shortcuts not yet implemented)
+pub struct ShortcutsStub;
+
+impl ShortcutsStub {
+    pub fn len(&self) -> usize {
+        0
+    }
+    pub fn is_empty(&self) -> bool {
+        true
+    }
+    pub fn add(&mut self, _shortcut: Shortcut) {}
+    pub fn remove(&mut self, _trigger: &str) {}
+    pub fn clear(&mut self) {}
+    pub fn lookup(&self, _trigger: &str) -> Option<(usize, &Shortcut)> {
+        None
+    }
+}
 
 /// V3 Engine with v1-compatible interface
 pub struct Engine {
@@ -15,6 +34,8 @@ pub struct Engine {
     english_auto_restore: bool,
     // Track state for Result generation
     prev_buffer: String,
+    // Shortcuts stub (v3 doesn't support shortcuts yet)
+    shortcuts_stub: ShortcutsStub,
 }
 
 impl Engine {
@@ -25,6 +46,7 @@ impl Engine {
             method: 0,
             english_auto_restore: true,
             prev_buffer: String::new(),
+            shortcuts_stub: ShortcutsStub,
         }
     }
 
@@ -88,6 +110,15 @@ impl Engine {
         // TODO: Implement if needed
     }
 
+    // Shortcut stubs (v3 doesn't support shortcuts yet)
+    pub fn shortcuts(&self) -> &ShortcutsStub {
+        &self.shortcuts_stub
+    }
+
+    pub fn shortcuts_mut(&mut self) -> &mut ShortcutsStub {
+        &mut self.shortcuts_stub
+    }
+
     // Debug methods
     pub fn debug_buffer_len(&self) -> usize {
         self.processor.buffer_content().chars().count()
@@ -103,7 +134,7 @@ impl Engine {
 
     fn convert_result(&mut self, result: ProcessResult) -> Result {
         match result {
-            ProcessResult::Pass(c) => {
+            ProcessResult::Pass(_c) => {
                 // Pass through - return the char
                 Result::none()
             }

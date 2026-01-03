@@ -39,21 +39,21 @@ fn test_impossible_onset_clusters() {
 #[test]
 fn test_impossible_coda_clusters() {
     // Impossible in Vietnamese
-    assert!(has_impossible_coda("text"));  // xt
+    assert!(has_impossible_coda("text")); // xt
     assert!(has_impossible_coda("world")); // ld
     assert!(has_impossible_coda("point")); // nt
-    assert!(has_impossible_coda("help"));  // lp
+    assert!(has_impossible_coda("help")); // lp
 
     // Possible in Vietnamese
-    assert!(!has_impossible_coda("ban"));  // n is valid final
-    assert!(!has_impossible_coda("cam"));  // m is valid final
+    assert!(!has_impossible_coda("ban")); // n is valid final
+    assert!(!has_impossible_coda("cam")); // m is valid final
 }
 
 #[test]
 fn test_english_suffixes() {
-    assert!(has_english_suffix("action"));   // -tion
-    assert!(has_english_suffix("mission"));  // -sion
-    assert!(has_english_suffix("running"));  // -ing
+    assert!(has_english_suffix("action")); // -tion
+    assert!(has_english_suffix("mission")); // -sion
+    assert!(has_english_suffix("running")); // -ing
     assert!(has_english_suffix("beautiful")); // -ful
 
     // Not matching
@@ -70,7 +70,10 @@ fn test_confidence_levels() {
 
     // Tier 2 (95%): Onset clusters (cl, st, etc.)
     assert_eq!(english_confidence("class"), EnglishConfidence::OnsetCluster);
-    assert_eq!(english_confidence("string"), EnglishConfidence::OnsetCluster);
+    assert_eq!(
+        english_confidence("string"),
+        EnglishConfidence::OnsetCluster
+    );
 
     // Tier 3 (90%): Coda clusters (xt, lp, st, etc.)
     assert_eq!(english_confidence("text"), EnglishConfidence::CodaCluster);
@@ -95,7 +98,7 @@ fn test_programming_terms() {
 #[test]
 fn test_common_english_words() {
     // Words that might get transformed by Vietnamese IME
-    assert!(english_confidence("file") >= EnglishConfidence::High);     // Certain (f = invalid initial)
-    assert!(english_confidence("world") >= EnglishConfidence::Medium);  // CodaCluster (ld)
-    assert!(english_confidence("text") >= EnglishConfidence::Medium);   // CodaCluster (xt)
+    assert!(english_confidence("file") >= EnglishConfidence::High); // Certain (f = invalid initial)
+    assert!(english_confidence("world") >= EnglishConfidence::Medium); // CodaCluster (ld)
+    assert!(english_confidence("text") >= EnglishConfidence::Medium); // CodaCluster (xt)
 }

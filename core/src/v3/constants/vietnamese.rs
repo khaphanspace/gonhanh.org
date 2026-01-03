@@ -53,9 +53,8 @@ pub mod initial {
 
 /// String representations for initial consonants (for parsing)
 pub const INITIAL_STRINGS: [&str; 29] = [
-    "b", "c", "ch", "d", "g", "gh", "gi", "h", "k", "kh",
-    "l", "m", "n", "ng", "ngh", "nh", "p", "ph", "q", "qu",
-    "r", "s", "t", "th", "tr", "v", "x", "đ", "",
+    "b", "c", "ch", "d", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng", "ngh", "nh", "p",
+    "ph", "q", "qu", "r", "s", "t", "th", "tr", "v", "x", "đ", "",
 ];
 
 /// Lookup initial type from string
@@ -102,18 +101,18 @@ pub fn lookup_initial_type(s: &str) -> u8 {
 
 /// Vowel type indices for matrix lookup
 pub mod vowel_type {
-    pub const A: u8 = 0;   // a, à, á, ả, ã, ạ
-    pub const AW: u8 = 1;  // ă, ằ, ắ, ẳ, ẵ, ặ
-    pub const AA: u8 = 2;  // â, ầ, ấ, ẩ, ẫ, ậ
-    pub const E: u8 = 3;   // e, è, é, ẻ, ẽ, ẹ
-    pub const EE: u8 = 4;  // ê, ề, ế, ể, ễ, ệ
-    pub const I: u8 = 5;   // i, ì, í, ỉ, ĩ, ị
-    pub const O: u8 = 6;   // o, ò, ó, ỏ, õ, ọ
-    pub const OO: u8 = 7;  // ô, ồ, ố, ổ, ỗ, ộ
-    pub const OW: u8 = 8;  // ơ, ờ, ớ, ở, ỡ, ợ
-    pub const U: u8 = 9;   // u, ù, ú, ủ, ũ, ụ
+    pub const A: u8 = 0; // a, à, á, ả, ã, ạ
+    pub const AW: u8 = 1; // ă, ằ, ắ, ẳ, ẵ, ặ
+    pub const AA: u8 = 2; // â, ầ, ấ, ẩ, ẫ, ậ
+    pub const E: u8 = 3; // e, è, é, ẻ, ẽ, ẹ
+    pub const EE: u8 = 4; // ê, ề, ế, ể, ễ, ệ
+    pub const I: u8 = 5; // i, ì, í, ỉ, ĩ, ị
+    pub const O: u8 = 6; // o, ò, ó, ỏ, õ, ọ
+    pub const OO: u8 = 7; // ô, ồ, ố, ổ, ỗ, ộ
+    pub const OW: u8 = 8; // ơ, ờ, ớ, ở, ỡ, ợ
+    pub const U: u8 = 9; // u, ù, ú, ủ, ũ, ụ
     pub const UW: u8 = 10; // ư, ừ, ứ, ử, ữ, ự
-    pub const Y: u8 = 11;  // y, ỳ, ý, ỷ, ỹ, ỵ
+    pub const Y: u8 = 11; // y, ỳ, ý, ỷ, ỹ, ỵ
     pub const COUNT: usize = 12;
     pub const INVALID: u8 = 255;
 }
@@ -122,18 +121,42 @@ pub mod vowel_type {
 #[inline]
 pub fn char_to_vowel_type(c: char) -> u8 {
     match c {
-        'a' | 'A' | 'à' | 'á' | 'ả' | 'ã' | 'ạ' | 'À' | 'Á' | 'Ả' | 'Ã' | 'Ạ' => vowel_type::A,
-        'ă' | 'Ă' | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ' | 'Ằ' | 'Ắ' | 'Ẳ' | 'Ẵ' | 'Ặ' => vowel_type::AW,
-        'â' | 'Â' | 'ầ' | 'ấ' | 'ẩ' | 'ẫ' | 'ậ' | 'Ầ' | 'Ấ' | 'Ẩ' | 'Ẫ' | 'Ậ' => vowel_type::AA,
-        'e' | 'E' | 'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'È' | 'É' | 'Ẻ' | 'Ẽ' | 'Ẹ' => vowel_type::E,
-        'ê' | 'Ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' => vowel_type::EE,
-        'i' | 'I' | 'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị' | 'Ì' | 'Í' | 'Ỉ' | 'Ĩ' | 'Ị' => vowel_type::I,
-        'o' | 'O' | 'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ' | 'Ò' | 'Ó' | 'Ỏ' | 'Õ' | 'Ọ' => vowel_type::O,
-        'ô' | 'Ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ' | 'Ồ' | 'Ố' | 'Ổ' | 'Ỗ' | 'Ộ' => vowel_type::OO,
-        'ơ' | 'Ơ' | 'ờ' | 'ớ' | 'ở' | 'ỡ' | 'ợ' | 'Ờ' | 'Ớ' | 'Ở' | 'Ỡ' | 'Ợ' => vowel_type::OW,
-        'u' | 'U' | 'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'Ù' | 'Ú' | 'Ủ' | 'Ũ' | 'Ụ' => vowel_type::U,
-        'ư' | 'Ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' => vowel_type::UW,
-        'y' | 'Y' | 'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ' | 'Ỳ' | 'Ý' | 'Ỷ' | 'Ỹ' | 'Ỵ' => vowel_type::Y,
+        'a' | 'A' | 'à' | 'á' | 'ả' | 'ã' | 'ạ' | 'À' | 'Á' | 'Ả' | 'Ã' | 'Ạ' => {
+            vowel_type::A
+        }
+        'ă' | 'Ă' | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ' | 'Ằ' | 'Ắ' | 'Ẳ' | 'Ẵ' | 'Ặ' => {
+            vowel_type::AW
+        }
+        'â' | 'Â' | 'ầ' | 'ấ' | 'ẩ' | 'ẫ' | 'ậ' | 'Ầ' | 'Ấ' | 'Ẩ' | 'Ẫ' | 'Ậ' => {
+            vowel_type::AA
+        }
+        'e' | 'E' | 'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'È' | 'É' | 'Ẻ' | 'Ẽ' | 'Ẹ' => {
+            vowel_type::E
+        }
+        'ê' | 'Ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' => {
+            vowel_type::EE
+        }
+        'i' | 'I' | 'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị' | 'Ì' | 'Í' | 'Ỉ' | 'Ĩ' | 'Ị' => {
+            vowel_type::I
+        }
+        'o' | 'O' | 'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ' | 'Ò' | 'Ó' | 'Ỏ' | 'Õ' | 'Ọ' => {
+            vowel_type::O
+        }
+        'ô' | 'Ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ' | 'Ồ' | 'Ố' | 'Ổ' | 'Ỗ' | 'Ộ' => {
+            vowel_type::OO
+        }
+        'ơ' | 'Ơ' | 'ờ' | 'ớ' | 'ở' | 'ỡ' | 'ợ' | 'Ờ' | 'Ớ' | 'Ở' | 'Ỡ' | 'Ợ' => {
+            vowel_type::OW
+        }
+        'u' | 'U' | 'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'Ù' | 'Ú' | 'Ủ' | 'Ũ' | 'Ụ' => {
+            vowel_type::U
+        }
+        'ư' | 'Ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' => {
+            vowel_type::UW
+        }
+        'y' | 'Y' | 'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ' | 'Ỳ' | 'Ý' | 'Ỷ' | 'Ỹ' | 'Ỵ' => {
+            vowel_type::Y
+        }
         _ => vowel_type::INVALID,
     }
 }
@@ -149,18 +172,65 @@ pub fn is_vn_vowel(c: char) -> bool {
 pub fn is_toned_vowel(c: char) -> bool {
     matches!(
         c,
-        'á' | 'à' | 'ả' | 'ã' | 'ạ' |
-        'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' |
-        'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' |
-        'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ' |
-        'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' |
-        'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị' |
-        'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ' |
-        'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' |
-        'ớ' | 'ờ' | 'ở' | 'ỡ' | 'ợ' |
-        'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ' |
-        'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' |
-        'ý' | 'ỳ' | 'ỷ' | 'ỹ' | 'ỵ'
+        'á' | 'à'
+            | 'ả'
+            | 'ã'
+            | 'ạ'
+            | 'ắ'
+            | 'ằ'
+            | 'ẳ'
+            | 'ẵ'
+            | 'ặ'
+            | 'ấ'
+            | 'ầ'
+            | 'ẩ'
+            | 'ẫ'
+            | 'ậ'
+            | 'é'
+            | 'è'
+            | 'ẻ'
+            | 'ẽ'
+            | 'ẹ'
+            | 'ế'
+            | 'ề'
+            | 'ể'
+            | 'ễ'
+            | 'ệ'
+            | 'í'
+            | 'ì'
+            | 'ỉ'
+            | 'ĩ'
+            | 'ị'
+            | 'ó'
+            | 'ò'
+            | 'ỏ'
+            | 'õ'
+            | 'ọ'
+            | 'ố'
+            | 'ồ'
+            | 'ổ'
+            | 'ỗ'
+            | 'ộ'
+            | 'ớ'
+            | 'ờ'
+            | 'ở'
+            | 'ỡ'
+            | 'ợ'
+            | 'ú'
+            | 'ù'
+            | 'ủ'
+            | 'ũ'
+            | 'ụ'
+            | 'ứ'
+            | 'ừ'
+            | 'ử'
+            | 'ữ'
+            | 'ự'
+            | 'ý'
+            | 'ỳ'
+            | 'ỷ'
+            | 'ỹ'
+            | 'ỵ'
     )
 }
 
@@ -177,7 +247,7 @@ pub mod final_type {
     pub const NH: u8 = 4;
     pub const P: u8 = 5;
     pub const T: u8 = 6;
-    pub const C: u8 = 7;  // includes k
+    pub const C: u8 = 7; // includes k
     pub const CH: u8 = 8;
     pub const COUNT: usize = 9;
     pub const INVALID: u8 = 255;
@@ -185,10 +255,10 @@ pub mod final_type {
 
 /// Final consonant category (for tone restriction)
 pub mod final_cat {
-    pub const OPEN: u8 = 0;   // no final
-    pub const NASAL: u8 = 1;  // m, n, ng, nh
-    pub const SEMI: u8 = 2;   // i, y, o, u (semivowel finals)
-    pub const STOP: u8 = 3;   // p, t, c, ch
+    pub const OPEN: u8 = 0; // no final
+    pub const NASAL: u8 = 1; // m, n, ng, nh
+    pub const SEMI: u8 = 2; // i, y, o, u (semivowel finals)
+    pub const STOP: u8 = 3; // p, t, c, ch
     pub const COUNT: usize = 4;
 }
 
@@ -251,11 +321,21 @@ pub mod tone {
 #[inline]
 pub fn char_to_tone(c: char) -> u8 {
     match c {
-        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => tone::SAC,
-        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => tone::HUY,
-        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => tone::HOI,
-        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => tone::NGA,
-        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => tone::NANG,
+        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => {
+            tone::SAC
+        }
+        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => {
+            tone::HUY
+        }
+        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => {
+            tone::HOI
+        }
+        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => {
+            tone::NGA
+        }
+        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => {
+            tone::NANG
+        }
         _ => tone::NONE,
     }
 }
@@ -364,58 +444,58 @@ pub static M_VOWEL_PAIR: [[u8; vowel_type::COUNT]; vowel_type::COUNT] = {
     let mut m = [[0u8; vowel_type::COUNT]; vowel_type::COUNT];
 
     // Standard Vietnamese diphthongs
-    m[vowel_type::A as usize][vowel_type::I as usize] = 1;   // ai
-    m[vowel_type::A as usize][vowel_type::O as usize] = 1;   // ao
-    m[vowel_type::A as usize][vowel_type::U as usize] = 1;   // au
-    m[vowel_type::A as usize][vowel_type::Y as usize] = 1;   // ay
+    m[vowel_type::A as usize][vowel_type::I as usize] = 1; // ai
+    m[vowel_type::A as usize][vowel_type::O as usize] = 1; // ao
+    m[vowel_type::A as usize][vowel_type::U as usize] = 1; // au
+    m[vowel_type::A as usize][vowel_type::Y as usize] = 1; // ay
 
-    m[vowel_type::AW as usize][vowel_type::U as usize] = 1;  // ău (rare but valid)
-    m[vowel_type::AW as usize][vowel_type::Y as usize] = 1;  // ăy (rare but valid)
+    m[vowel_type::AW as usize][vowel_type::U as usize] = 1; // ău (rare but valid)
+    m[vowel_type::AW as usize][vowel_type::Y as usize] = 1; // ăy (rare but valid)
 
-    m[vowel_type::AA as usize][vowel_type::U as usize] = 1;  // âu
-    m[vowel_type::AA as usize][vowel_type::Y as usize] = 1;  // ây
+    m[vowel_type::AA as usize][vowel_type::U as usize] = 1; // âu
+    m[vowel_type::AA as usize][vowel_type::Y as usize] = 1; // ây
 
-    m[vowel_type::E as usize][vowel_type::O as usize] = 1;   // eo
+    m[vowel_type::E as usize][vowel_type::O as usize] = 1; // eo
 
-    m[vowel_type::EE as usize][vowel_type::U as usize] = 1;  // êu
+    m[vowel_type::EE as usize][vowel_type::U as usize] = 1; // êu
 
-    m[vowel_type::I as usize][vowel_type::A as usize] = 1;   // ia
-    m[vowel_type::I as usize][vowel_type::EE as usize] = 1;  // iê (in iên, iếu)
-    m[vowel_type::I as usize][vowel_type::U as usize] = 1;   // iu
+    m[vowel_type::I as usize][vowel_type::A as usize] = 1; // ia
+    m[vowel_type::I as usize][vowel_type::EE as usize] = 1; // iê (in iên, iếu)
+    m[vowel_type::I as usize][vowel_type::U as usize] = 1; // iu
 
-    m[vowel_type::O as usize][vowel_type::A as usize] = 1;   // oa
-    m[vowel_type::O as usize][vowel_type::AW as usize] = 1;  // oă
-    m[vowel_type::O as usize][vowel_type::E as usize] = 1;   // oe
-    m[vowel_type::O as usize][vowel_type::I as usize] = 1;   // oi
+    m[vowel_type::O as usize][vowel_type::A as usize] = 1; // oa
+    m[vowel_type::O as usize][vowel_type::AW as usize] = 1; // oă
+    m[vowel_type::O as usize][vowel_type::E as usize] = 1; // oe
+    m[vowel_type::O as usize][vowel_type::I as usize] = 1; // oi
 
-    m[vowel_type::OO as usize][vowel_type::I as usize] = 1;  // ôi
+    m[vowel_type::OO as usize][vowel_type::I as usize] = 1; // ôi
 
-    m[vowel_type::OW as usize][vowel_type::I as usize] = 1;  // ơi
+    m[vowel_type::OW as usize][vowel_type::I as usize] = 1; // ơi
 
-    m[vowel_type::U as usize][vowel_type::A as usize] = 1;   // ua
-    m[vowel_type::U as usize][vowel_type::AA as usize] = 1;  // uâ
-    m[vowel_type::U as usize][vowel_type::EE as usize] = 1;  // uê
-    m[vowel_type::U as usize][vowel_type::I as usize] = 1;   // ui
-    m[vowel_type::U as usize][vowel_type::O as usize] = 1;   // uo (intermediate for uô)
-    m[vowel_type::U as usize][vowel_type::OO as usize] = 1;  // uô
-    m[vowel_type::U as usize][vowel_type::OW as usize] = 1;  // uơ
-    m[vowel_type::U as usize][vowel_type::Y as usize] = 1;   // uy
+    m[vowel_type::U as usize][vowel_type::A as usize] = 1; // ua
+    m[vowel_type::U as usize][vowel_type::AA as usize] = 1; // uâ
+    m[vowel_type::U as usize][vowel_type::EE as usize] = 1; // uê
+    m[vowel_type::U as usize][vowel_type::I as usize] = 1; // ui
+    m[vowel_type::U as usize][vowel_type::O as usize] = 1; // uo (intermediate for uô)
+    m[vowel_type::U as usize][vowel_type::OO as usize] = 1; // uô
+    m[vowel_type::U as usize][vowel_type::OW as usize] = 1; // uơ
+    m[vowel_type::U as usize][vowel_type::Y as usize] = 1; // uy
 
-    m[vowel_type::UW as usize][vowel_type::A as usize] = 1;  // ưa
-    m[vowel_type::UW as usize][vowel_type::I as usize] = 1;  // ưi
-    m[vowel_type::UW as usize][vowel_type::O as usize] = 1;  // ươ (intermediate)
+    m[vowel_type::UW as usize][vowel_type::A as usize] = 1; // ưa
+    m[vowel_type::UW as usize][vowel_type::I as usize] = 1; // ưi
+    m[vowel_type::UW as usize][vowel_type::O as usize] = 1; // ươ (intermediate)
     m[vowel_type::UW as usize][vowel_type::OW as usize] = 1; // ươ
-    m[vowel_type::UW as usize][vowel_type::U as usize] = 1;  // ưu
+    m[vowel_type::UW as usize][vowel_type::U as usize] = 1; // ưu
 
-    m[vowel_type::Y as usize][vowel_type::EE as usize] = 1;  // yê (in yên, yếu)
+    m[vowel_type::Y as usize][vowel_type::EE as usize] = 1; // yê (in yên, yếu)
 
     // Telex intermediate states (toggle patterns)
-    m[vowel_type::A as usize][vowel_type::A as usize] = 1;   // aa → â
-    m[vowel_type::E as usize][vowel_type::E as usize] = 1;   // ee → ê
-    m[vowel_type::O as usize][vowel_type::O as usize] = 1;   // oo → ô
+    m[vowel_type::A as usize][vowel_type::A as usize] = 1; // aa → â
+    m[vowel_type::E as usize][vowel_type::E as usize] = 1; // ee → ê
+    m[vowel_type::O as usize][vowel_type::O as usize] = 1; // oo → ô
 
     // Telex intermediate for ê toggle
-    m[vowel_type::E as usize][vowel_type::I as usize] = 1;   // ei (intermediate)
+    m[vowel_type::E as usize][vowel_type::I as usize] = 1; // ei (intermediate)
 
     m
 };
@@ -438,14 +518,10 @@ pub fn is_valid_vowel_pair(v1: u8, v2: u8) -> bool {
 /// 12 x 9 = 108 entries
 ///
 /// Most combinations are valid. Specific restrictions handled in validation logic.
-pub static M_VOWEL_FINAL: [[u8; final_type::COUNT]; vowel_type::COUNT] = {
-    let m = [[1u8; final_type::COUNT]; vowel_type::COUNT];
-
-    // Note: Complex restrictions like "ưu + any final = INVALID"
-    // are handled in the validation function because ưu is a digraph
-
-    m
-};
+// Note: Complex restrictions like "ưu + any final = INVALID"
+// are handled in the validation function because ưu is a digraph
+pub static M_VOWEL_FINAL: [[u8; final_type::COUNT]; vowel_type::COUNT] =
+    [[1u8; final_type::COUNT]; vowel_type::COUNT];
 
 /// Check vowel-final compatibility
 #[inline]
@@ -468,12 +544,13 @@ pub fn is_valid_vowel_final(vowel_t: u8, final_t: u8) -> bool {
 /// (huyền, hỏi, ngã are invalid with stop finals)
 pub static M_TONE_FINAL: [[u8; final_cat::COUNT]; tone::COUNT] = [
     //         OPEN  NASAL SEMI  STOP
-    /* NONE */ [1,    1,    1,    1],  // ngang OK everywhere (including stops)
-    /* SAC  */ [1,    1,    1,    1],  // sắc OK everywhere
-    /* HUY  */ [1,    1,    1,    0],  // huyền not with stops
-    /* HOI  */ [1,    1,    1,    0],  // hỏi not with stops
-    /* NGA  */ [1,    1,    1,    0],  // ngã not with stops
-    /* NANG */ [1,    1,    1,    1],  // nặng OK everywhere
+    /* NONE */
+    [1, 1, 1, 1], // ngang OK everywhere (including stops)
+    /* SAC  */ [1, 1, 1, 1], // sắc OK everywhere
+    /* HUY  */ [1, 1, 1, 0], // huyền not with stops
+    /* HOI  */ [1, 1, 1, 0], // hỏi not with stops
+    /* NGA  */ [1, 1, 1, 0], // ngã not with stops
+    /* NANG */ [1, 1, 1, 1], // nặng OK everywhere
 ];
 
 /// Check tone-final compatibility
@@ -498,22 +575,14 @@ pub fn is_valid_tone_with_stop(t: Tone) -> bool {
 /// Valid vowel combinations (diphthongs and triphthongs) - string version
 pub const VALID_VOWEL_COMBOS: [&str; 33] = [
     // Diphthongs
-    "ai", "ao", "au", "ay", "âu", "ây",
-    "eo", "êu",
-    "ia", "iê", "iu",
-    "oa", "oă", "oe", "oi", "ôi",
-    "ơi",
-    "ua", "uâ", "uê", "ui", "uo", "uô", "uơ", "uy",
-    "ưa", "ưi", "ươ", "ưu",
-    "yê",
+    "ai", "ao", "au", "ay", "âu", "ây", "eo", "êu", "ia", "iê", "iu", "oa", "oă", "oe", "oi", "ôi",
+    "ơi", "ua", "uâ", "uê", "ui", "uo", "uô", "uơ", "uy", "ưa", "ưi", "ươ", "ưu", "yê",
     // Telex intermediates
     "aa", "ee", "oo",
 ];
 
 /// Vietnamese vowels (base forms)
-pub const VOWELS: [char; 12] = [
-    'a', 'ă', 'â', 'e', 'ê', 'i', 'o', 'ô', 'ơ', 'u', 'ư', 'y',
-];
+pub const VOWELS: [char; 12] = ['a', 'ă', 'â', 'e', 'ê', 'i', 'o', 'ô', 'ơ', 'u', 'ư', 'y'];
 
 // ============================================================================
 // TESTS
@@ -634,41 +703,41 @@ mod tests {
     #[test]
     fn test_valid_vowel_pairs() {
         // Standard diphthongs
-        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::I));  // ai
-        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::O));  // ao
-        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::U));  // au
+        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::I)); // ai
+        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::O)); // ao
+        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::U)); // au
         assert!(is_valid_vowel_pair(vowel_type::EE, vowel_type::U)); // êu
-        assert!(is_valid_vowel_pair(vowel_type::I, vowel_type::A));  // ia
-        assert!(is_valid_vowel_pair(vowel_type::U, vowel_type::A));  // ua
+        assert!(is_valid_vowel_pair(vowel_type::I, vowel_type::A)); // ia
+        assert!(is_valid_vowel_pair(vowel_type::U, vowel_type::A)); // ua
         assert!(is_valid_vowel_pair(vowel_type::UW, vowel_type::A)); // ưa
     }
 
     #[test]
     fn test_invalid_vowel_pairs() {
         // These are NOT valid Vietnamese diphthongs
-        assert!(!is_valid_vowel_pair(vowel_type::E, vowel_type::A));  // ea
-        assert!(!is_valid_vowel_pair(vowel_type::O, vowel_type::U));  // ou
-        assert!(!is_valid_vowel_pair(vowel_type::Y, vowel_type::O));  // yo
+        assert!(!is_valid_vowel_pair(vowel_type::E, vowel_type::A)); // ea
+        assert!(!is_valid_vowel_pair(vowel_type::O, vowel_type::U)); // ou
+        assert!(!is_valid_vowel_pair(vowel_type::Y, vowel_type::O)); // yo
     }
 
     #[test]
     fn test_telex_intermediate_vowel_pairs() {
         // Telex toggle patterns
-        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::A));  // aa → â
-        assert!(is_valid_vowel_pair(vowel_type::E, vowel_type::E));  // ee → ê
-        assert!(is_valid_vowel_pair(vowel_type::O, vowel_type::O));  // oo → ô
+        assert!(is_valid_vowel_pair(vowel_type::A, vowel_type::A)); // aa → â
+        assert!(is_valid_vowel_pair(vowel_type::E, vowel_type::E)); // ee → ê
+        assert!(is_valid_vowel_pair(vowel_type::O, vowel_type::O)); // oo → ô
     }
 
     // Tone-final tests
     #[test]
     fn test_tone_final_stop_restriction() {
         // Stop finals allow ngang, sắc, or nặng
-        assert!(is_valid_tone_final(tone::NONE, final_cat::STOP));  // ngang OK with stops
-        assert!(is_valid_tone_final(tone::SAC, final_cat::STOP));   // sắc OK
-        assert!(!is_valid_tone_final(tone::HUY, final_cat::STOP));  // huyền NOT with stops
-        assert!(!is_valid_tone_final(tone::HOI, final_cat::STOP));  // hỏi NOT with stops
-        assert!(!is_valid_tone_final(tone::NGA, final_cat::STOP));  // ngã NOT with stops
-        assert!(is_valid_tone_final(tone::NANG, final_cat::STOP));  // nặng OK
+        assert!(is_valid_tone_final(tone::NONE, final_cat::STOP)); // ngang OK with stops
+        assert!(is_valid_tone_final(tone::SAC, final_cat::STOP)); // sắc OK
+        assert!(!is_valid_tone_final(tone::HUY, final_cat::STOP)); // huyền NOT with stops
+        assert!(!is_valid_tone_final(tone::HOI, final_cat::STOP)); // hỏi NOT with stops
+        assert!(!is_valid_tone_final(tone::NGA, final_cat::STOP)); // ngã NOT with stops
+        assert!(is_valid_tone_final(tone::NANG, final_cat::STOP)); // nặng OK
     }
 
     #[test]
