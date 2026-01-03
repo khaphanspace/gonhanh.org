@@ -51,6 +51,13 @@ pub enum Tone {
 impl From<u8> for Tone {
     fn from(v: u8) -> Self {
         match v {
+            // Telex keys
+            b's' => Tone::Sac,
+            b'f' => Tone::Huyen,
+            b'r' => Tone::Hoi,
+            b'x' => Tone::Nga,
+            b'j' => Tone::Nang,
+            // VNI numbers
             1 => Tone::Sac,
             2 => Tone::Huyen,
             3 => Tone::Hoi,

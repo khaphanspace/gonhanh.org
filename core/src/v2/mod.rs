@@ -12,6 +12,8 @@
 
 pub mod buffer;
 pub mod classify;
+pub mod dispatch;
+pub mod placement;
 pub mod precheck;
 pub mod state;
 pub mod types;
@@ -19,6 +21,8 @@ pub mod types;
 // Re-exports
 pub use buffer::Buffer;
 pub use classify::{classify_key, Method};
+pub use dispatch::dispatch;
+pub use placement::{find_tone_position, VowelInfo};
 pub use precheck::{pre_check, Mode};
 pub use state::{BufferState, VnState};
 pub use types::*;
