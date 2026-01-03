@@ -595,13 +595,13 @@ fn delayed_circumflex_auto_restore_space() {
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),   // Multi-syllable foreign pattern → no transforms
-        ("data ", "data "),   // Multi-syllable foreign pattern → no transforms
-        ("dataa ", "data "),  // Double-a reverts circumflex → collapse to "data"
-        ("noto ", "noto "),   // Multi-syllable foreign pattern → no transforms
-        ("hete ", "hete "),   // Multi-syllable foreign pattern → no transforms
-        ("tetee ", "tete "),  // Double-e reverts circumflex → collapse to "tete"
-        ("cocoo ", "coco "),  // Double-o reverts circumflex → collapse to "coco"
+        ("toto ", "toto "),  // Multi-syllable foreign pattern → no transforms
+        ("data ", "data "),  // Multi-syllable foreign pattern → no transforms
+        ("dataa ", "data "), // Double-a reverts circumflex → collapse to "data"
+        ("noto ", "noto "),  // Multi-syllable foreign pattern → no transforms
+        ("hete ", "hete "),  // Multi-syllable foreign pattern → no transforms
+        ("tetee ", "tete "), // Double-e reverts circumflex → collapse to "tete"
+        ("cocoo ", "coco "), // Double-o reverts circumflex → collapse to "coco"
     ];
 
     for (input, expected) in cases {
