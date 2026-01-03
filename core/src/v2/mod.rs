@@ -24,6 +24,9 @@ pub mod state;
 pub mod types;
 pub mod validate;
 
+#[cfg(test)]
+mod tests;
+
 // Re-exports
 pub use bitmask::{char_idx, get_base_vowel, get_tone, is_vn_vowel};
 pub use buffer::Buffer;

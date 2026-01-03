@@ -373,6 +373,11 @@ impl Engine {
         };
     }
 
+    /// Check if engine is enabled
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     /// Enable/disable engine
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
