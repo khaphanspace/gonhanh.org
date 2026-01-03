@@ -1,5 +1,643 @@
 # V3 Auto-Restore Pipeline
 
+## Table of Contents
+
+1. [V3 Unified Smart Pipeline](#v3-unified-smart-pipeline)
+   - [Design Goals](#design-goals)
+   - [V1 → V3 Case Mapping](#v1--v3-case-mapping-complete)
+   - [V3 Unified State Machine](#v3-unified-state-machine)
+   - [V3 8-Layer Validation](#v3-8-layer-validation-single-pass)
+   - [V3 Unified Restore Decision](#v3-unified-restore-decision)
+   - [V3 English Detection](#v3-english-detection-unified)
+   - [V3 Bitmask Constants](#v3-bitmask-constants)
+   - [Memory Comparison](#memory-comparison)
+   - [Performance Comparison](#performance-comparison)
+   - [V1 vs V3 Pipeline Comparison](#v1-vs-v3-pipeline-comparison)
+   - [V1 Case Coverage Checklist](#v1-case-coverage-checklist)
+
+2. [Overview](#overview)
+
+3. [Pattern Reference Table (Master)](#pattern-reference-table-master)
+   - [English Detection Functions](#english-detection-functions-check-on-raw)
+   - [Vietnamese Validation Functions](#vietnamese-validation-functions-check-on-buffer)
+   - [Full Pattern Matrix](#full-pattern-matrix)
+
+4. [Function Naming Convention](#function-naming-convention)
+
+5. [Full Pipeline](#full-pipeline)
+
+6. [Decision Summary](#decision-summary)
+
+7. [Examples](#examples)
+   - [Example 1: "class"](#example-1-class-foreign_mode-at-start)
+   - [Example 2: "file"](#example-2-file-foreign_mode---invalid-vn-initial)
+   - [Example 3: "case"](#example-3-case-auto_restore-via-dictionary)
+   - [Example 4: "casse"](#example-4-casse-telex-revert--auto_restore-keeps-buffer)
+   - [Example 5: "coffee"](#example-5-coffee-double-consonant---actual-english-word)
+   - [Example 6: "bass"](#example-6-bass-auto_restore-to-raw)
+   - [Example 7: "their"](#example-7-their-foreign_mode-via-vowel-pattern)
+   - [Example 8: "user"](#example-8-user-dictionary-only)
+   - [Example 9: "việt"](#example-9-việt-valid-vietnamese)
+   - [Example 10: "xyz"](#example-10-xyz-typo---no-match)
+   - [Example 11: "text"](#example-11-text-coda-cluster-xt)
+   - [Example 12: "expect"](#example-12-expect-coda-cluster-ct)
+   - [Example 13: "perfect"](#example-13-perfect-coda-cluster-ct)
+   - [Example 14: "sarah"](#example-14-sarah-dictionary-lookup---proper-name)
+
+8. [Intentional VN Detection & Restore Logic](#intentional-vn-detection--restore-logic)
+   - [VN Intent Signals](#vn-intent-signals)
+   - [Special Keys in Telex](#special-keys-in-telex)
+   - [Tone Overwrite Case](#tone-overwrite-case)
+   - [Continuous Typing Case](#continuous-typing-case)
+   - [Comprehensive Case Table](#comprehensive-case-table)
+   - [Restore Logic (Rust)](#restore-logic-rust)
+   - [Signal Detection](#signal-detection)
+   - [Decision Flow](#decision-flow)
+
+9. [V1 Production Logic (Reference)](#v1-production-logic-reference)
+   - [V1 6-Rule Validation Pipeline](#v1-6-rule-validation-pipeline)
+   - [V1 Modifier Requirements](#v1-modifier-requirements-tone-aware)
+   - [V1 Foreign Word Detection](#v1-foreign-word-detection-is_foreign_word_pattern)
+   - [V1 Auto-Restore Core Logic](#v1-auto-restore-core-logic)
+   - [V1 Additional Restore Triggers](#v1-additional-restore-triggers)
+   - [V1 Prevent Restore Conditions](#v1-prevent-restore-conditions)
+   - [V1 English Pattern Detection](#v1-english-pattern-detection-has_english_modifier_pattern)
+   - [V1 Buffer State Flags](#v1-buffer-state-flags)
+   - [V1 Breve Deferral Logic](#v1-breve-deferral-logic)
+   - [V1 Edge Cases](#v1-edge-cases-from-issues)
+   - [V3 Should Port From V1](#v3-should-port-from-v1)
+
+10. [Implementation Checklist](#implementation-checklist)
+
+11. [Memory Budget](#memory-budget)
+
+12. [Validation Approach: Layered Bitmask Matrix](#validation-approach-layered-bitmask-matrix)
+    - [Char Type Encoding](#char-type-encoding)
+    - [Bitmask Matrices](#bitmask-matrices)
+    - [Full Validation Function](#full-validation-function)
+    - [Memory Summary](#memory-summary)
+    - [Comparison with OpenKey](#comparison-with-openkey-approach)
+
+---
+
+## V3 Unified Smart Pipeline
+
+### Design Goals
+
+```
+V1 Problems:                         V3 Solutions:
+├── Many if-else chains              → Bitmask matrix O(1) lookup
+├── String comparisons               → Char index lookup
+├── Multiple function calls          → Single-pass validation
+├── Case-by-case handling            → Pattern-based unified
+├── O(n) whitelist search            → O(1) bit check
+└── ~50 separate conditions          → 8-layer pipeline
+```
+
+### V1 → V3 Case Mapping (Complete)
+
+Mỗi case của V1 được map sang V3 approach thông minh hơn:
+
+| # | V1 Case | V1 Approach | V3 Approach | Performance |
+|---|---------|-------------|-------------|-------------|
+| 1 | Valid initial check | Whitelist array search O(n) | `M_ONSET` bitmask O(1) | 10x faster |
+| 2 | Valid final check | Whitelist array search O(n) | `M_CODA` bitmask O(1) | 10x faster |
+| 3 | Onset cluster (ch,th,tr...) | String comparison | `M_ONSET_PAIR[c1][c2]` O(1) | 5x faster |
+| 4 | Coda cluster (ng,nh,ch) | String comparison | `M_CODA_PAIR[c1][c2]` O(1) | 5x faster |
+| 5 | Diphthong validation | 29-item whitelist O(n) | `M_VOWEL_PAIR[v1][v2]` O(1) | 20x faster |
+| 6 | Triphthong validation | 14-item whitelist O(n) | `M_VOWEL_TRIPLE[v1][v2][v3]` O(1) | 15x faster |
+| 7 | Spelling rules (c/k,g/gh) | Multiple if-else | `M_SPELL[onset][vowel]` O(1) | 8x faster |
+| 8 | Tone-stop restriction | If-else chain | `M_TONE_CODA[tone][coda]` O(1) | 5x faster |
+| 9 | Circumflex requirements | 5 separate checks | `M_CIRCUMFLEX_REQ[v1][v2]` O(1) | 5x faster |
+| 10 | Breve restrictions | If (ă + vowel) | `M_BREVE_INVALID[next_char]` O(1) | 3x faster |
+| 11 | Foreign onset (f,j,w,z) | 4-item check | `CHAR_TYPE[c] & INVALID` O(1) | 2x faster |
+| 12 | Foreign coda cluster | String search | `M_EN_CODA[c1][c2]` O(1) | 10x faster |
+| 13 | Foreign vowel (ou,yo,ea) | 8-item check | `M_EN_VOWEL[v1][v2]` O(1) | 5x faster |
+| 14 | has_english_modifier_pattern | 15+ if-else branches | Unified state machine | 3x faster |
+| 15 | Stroke detection (đ) | Flag check | `signals.stroke` bit | Same |
+| 16 | Tone detection (s,f,r,x,j) | Flag check | `signals.tone` bit | Same |
+| 17 | Mark detection (w,aa,oo) | Multiple flags | `signals.mark` bit | Same |
+| 18 | Revert detection (ss,ff) | Flag check | `signals.revert` bit | Same |
+| 19 | Breve deferral | State machine | `pending.breve` state | Same |
+| 20 | Horn deferral (uo) | State machine | `pending.horn` state | Same |
+| 21 | Buffer state tracking | 7 separate flags | `BufferState` bitmask | Cleaner |
+| 22 | Two-check restore | 2 function calls | Single `should_restore()` | Same |
+| 23 | Char consumption check | String length compare | `raw.len() - buffer.len()` | Same |
+| 24 | V+C+V circumflex pattern | If-else chain | Pattern match in state | Cleaner |
+| 25 | Double modifier collapse | Multiple conditions | `signals.revert` + rules | Cleaner |
+
+### V3 Unified State Machine
+
+```rust
+/// Single unified state - replaces V1's 7 separate flags
+#[repr(u16)]
+struct BufferState {
+    // Transform signals (4 bits)
+    had_transform: bool,      // bit 0
+    has_stroke: bool,         // bit 1
+    has_tone: bool,           // bit 2
+    has_mark: bool,           // bit 3
+
+    // Revert signals (2 bits)
+    had_revert: bool,         // bit 4
+    revert_type: u8,          // bits 5-6 (0=none, 1=tone, 2=mark, 3=circumflex)
+
+    // Pending transforms (2 bits)
+    pending_breve: bool,      // bit 7
+    pending_horn: bool,       // bit 8
+
+    // Validation cache (3 bits)
+    vn_state: VnState,        // bits 9-11 (Complete/Incomplete/Impossible)
+
+    // Reserved (4 bits for future)
+}
+
+enum VnState {
+    Unknown = 0,
+    Complete = 1,      // Valid complete VN word
+    Incomplete = 2,    // Could become valid (consonant only, etc.)
+    Impossible = 3,    // Cannot be valid VN
+}
+```
+
+### V3 8-Layer Validation (Single Pass)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    V3 SINGLE-PASS VALIDATION                    │
+│                    (replaces V1's 6 rules)                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  INPUT: buffer chars[], tones[], marks[]                        │
+│                                                                 │
+│  L1: CHAR_TYPE ─────────────────────────────────────────────── │
+│      for each char: type = CHAR_TYPE[char_index]               │
+│      if type & INVALID → return Impossible                      │
+│                                                                 │
+│  L2: ONSET ─────────────────────────────────────────────────── │
+│      if first char is consonant:                                │
+│        if !(M_ONSET >> c & 1) → return Impossible               │
+│                                                                 │
+│  L3: ONSET_CLUSTER ─────────────────────────────────────────── │
+│      if first 2 chars are consonants:                           │
+│        if !M_ONSET_PAIR[c1][c2] → check if c2 starts vowel     │
+│                                                                 │
+│  L4: VOWEL_PATTERN ─────────────────────────────────────────── │
+│      extract vowel sequence from buffer                         │
+│      if 2 vowels: check M_VOWEL_PAIR[v1][v2]                   │
+│      if 3 vowels: check M_VOWEL_TRIPLE[v1][v2][v3]             │
+│      if invalid pattern → return Impossible                     │
+│                                                                 │
+│  L5: CODA ──────────────────────────────────────────────────── │
+│      if last char is consonant:                                 │
+│        if !(M_CODA >> c & 1) → return Impossible                │
+│                                                                 │
+│  L6: CODA_CLUSTER ──────────────────────────────────────────── │
+│      if last 2 chars are consonants:                            │
+│        if !M_CODA_PAIR[c1][c2] → return Impossible              │
+│                                                                 │
+│  L7: TONE_STOP ─────────────────────────────────────────────── │
+│      if has stop coda (c,ch,p,t) && has tone:                   │
+│        if !M_TONE_CODA[tone][coda] → return Impossible          │
+│                                                                 │
+│  L8: SPELLING ──────────────────────────────────────────────── │
+│      if onset + vowel:                                          │
+│        if !M_SPELL[onset][vowel] → return Impossible            │
+│                                                                 │
+│  L9: MODIFIER_REQ ──────────────────────────────────────────── │
+│      if 2 vowels && has_tone_info:                              │
+│        if M_CIRCUMFLEX_REQ[v1][v2] && !has_circumflex           │
+│          → return Impossible                                    │
+│      if has_breve && next_is_vowel:                             │
+│        → return Impossible                                      │
+│                                                                 │
+│  OUTPUT: Complete | Incomplete | Impossible                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### V3 Unified Restore Decision
+
+```rust
+/// Single function replaces V1's multiple checks
+fn should_restore(state: &BufferState, raw: &str, buffer: &str) -> RestoreDecision {
+    // ══════════════════════════════════════════════════════════
+    // PHASE 1: Quick exits (O(1))
+    // ══════════════════════════════════════════════════════════
+
+    // No transform = no restore
+    if !state.had_transform {
+        return RestoreDecision::Keep;
+    }
+
+    // Stroke = 100% intentional VN
+    if state.has_stroke {
+        return RestoreDecision::Keep;
+    }
+
+    // Tone applied = intentional VN (includes overwrite like banjs→bán)
+    if state.has_tone {
+        return RestoreDecision::Keep;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2: VN validation (cached, O(1))
+    // ══════════════════════════════════════════════════════════
+
+    let vn_state = state.vn_state; // Already computed during typing
+
+    if vn_state == VnState::Complete {
+        return RestoreDecision::Keep; // Valid VN word
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 3: English detection (O(n) but short strings)
+    // ══════════════════════════════════════════════════════════
+
+    // Mark only + incomplete VN + valid EN → restore
+    if state.has_mark && !state.has_tone {
+        if vn_state == VnState::Incomplete && is_valid_english(raw) {
+            return RestoreDecision::Restore;
+        }
+    }
+
+    // Revert case + invalid VN + valid EN → restore
+    if state.had_revert {
+        if vn_state != VnState::Complete && is_valid_english(raw) {
+            return RestoreDecision::Restore;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 4: Additional triggers (from V1)
+    // ══════════════════════════════════════════════════════════
+
+    // Char consumption: raw 2+ chars longer than buffer
+    if raw.len() >= buffer.len() + 2 && has_circumflex_no_mark(buffer) {
+        if is_valid_english(raw) {
+            return RestoreDecision::Restore;
+        }
+    }
+
+    // V+C+V circumflex pattern with stop consonant
+    if matches_vcv_stop_pattern(buffer) && !has_mark(buffer) {
+        if is_valid_english(raw) {
+            return RestoreDecision::Restore;
+        }
+    }
+
+    RestoreDecision::Keep
+}
+```
+
+### V3 English Detection (Unified)
+
+```rust
+/// Replaces V1's has_english_modifier_pattern() with cleaner logic
+fn has_english_pattern(raw: &str, state: &BufferState) -> bool {
+    let bytes = raw.as_bytes();
+    let len = bytes.len();
+
+    if len == 0 { return false; }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 1: Invalid VN initials (100% EN)
+    // ══════════════════════════════════════════════════════════
+    let first = char_index(bytes[0]);
+    if CHAR_TYPE[first] & CharType::Invalid != 0 {
+        return true; // f, j, w, z at start
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 2: EN-only onset clusters (95% EN)
+    // ══════════════════════════════════════════════════════════
+    if len >= 2 {
+        let c1 = char_index(bytes[0]);
+        let c2 = char_index(bytes[1]);
+        if M_EN_ONSET[c1] & (1 << c2) != 0 {
+            return true; // bl, br, cl, cr, dr, fl, fr, gl, gr, pl, pr, sc, sk, sl, sm, sn, sp, st, sw, tr, tw, wr
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 3: EN-only coda clusters (90% EN)
+    // ══════════════════════════════════════════════════════════
+    if len >= 2 {
+        let c1 = char_index(bytes[len-2]);
+        let c2 = char_index(bytes[len-1]);
+        if M_EN_CODA[c1] & (1 << c2) != 0 {
+            return true; // ct, ft, ld, lf, lk, lm, lp, lt, xt, nd, nk, nt, pt, rb, rd, rk, rm, rn, rp, rt, sk, sp, st
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 4: EN-only vowel patterns (85% EN)
+    // ══════════════════════════════════════════════════════════
+    for i in 0..len.saturating_sub(1) {
+        let v1 = char_index(bytes[i]);
+        let v2 = char_index(bytes[i+1]);
+        if is_vowel(v1) && is_vowel(v2) {
+            if M_EN_VOWEL[v1] & (1 << v2) != 0 {
+                return true; // ea, ee, ou, ei, eu, yo, ae, yi
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TIER 5: EN suffixes (80% EN)
+    // ══════════════════════════════════════════════════════════
+    if len >= 4 {
+        if raw.ends_with("tion") || raw.ends_with("sion") ||
+           raw.ends_with("ness") || raw.ends_with("ment") ||
+           raw.ends_with("able") || raw.ends_with("ible") {
+            return true;
+        }
+    }
+    if len >= 3 {
+        if raw.ends_with("ing") || raw.ends_with("ful") ||
+           raw.ends_with("ous") || raw.ends_with("ive") {
+            return true;
+        }
+    }
+
+    false
+}
+```
+
+### V3 Bitmask Constants
+
+```rust
+// ══════════════════════════════════════════════════════════
+// CHAR INDEX: a=0, b=1, ..., z=25, đ=26, ă=27, â=28, ê=29, ô=30, ơ=31
+// ══════════════════════════════════════════════════════════
+
+/// Char type classification (32 bytes)
+const CHAR_TYPE: [u8; 32] = [
+    // a      b      c      d      e      f      g      h
+    0b0010, 0b0001, 0b0101, 0b0001, 0b0010, 0b1000, 0b0001, 0b0001,
+    // i      j      k      l      m      n      o      p
+    0b0110, 0b1000, 0b0001, 0b0001, 0b0101, 0b0101, 0b0110, 0b0101,
+    // q      r      s      t      u      v      w      x
+    0b0001, 0b0001, 0b0001, 0b0101, 0b0110, 0b0001, 0b1000, 0b0001,
+    // y      z      đ      ă      â      ê      ô      ơ
+    0b0110, 0b1000, 0b0001, 0b0010, 0b0010, 0b0010, 0b0010, 0b0010,
+];
+
+const ONSET: u8   = 0b0001;  // Valid as onset
+const VOWEL: u8   = 0b0010;  // Valid as vowel
+const CODA: u8    = 0b0100;  // Valid as coda
+const INVALID: u8 = 0b1000;  // Invalid in VN (f,j,w,z)
+
+/// Valid VN single onsets: b,c,d,đ,g,h,k,l,m,n,p,q,r,s,t,v,x (4 bytes)
+const M_ONSET: u32 = 0b_0010_0101_1111_1110_1111_1110_0110;
+
+/// Valid VN single codas: c,m,n,p,t + semi-vowels i,o,u,y (4 bytes)
+const M_CODA: u32 = 0b_0000_0011_0100_1001_0011_0100_0100;
+
+/// EN-only onset clusters: bl,br,cl,cr,dr,dw,fl,fr,gl,gr,pl,pr,sc,sk,sl,sm,sn,sp,st,sw,tw,wr
+/// M_EN_ONSET[first_char] & (1 << second_char) != 0 means EN cluster
+const M_EN_ONSET: [u32; 32] = [
+    // Precomputed bitmasks for each first char
+    // b: l,r valid → bits 11,17 set
+    // c: l,r valid → bits 11,17 set
+    // d: r,w valid → bits 17,22 set
+    // f: l,r valid → bits 11,17 set
+    // g: l,r valid → bits 11,17 set
+    // p: l,r valid → bits 11,17 set
+    // s: c,k,l,m,n,p,t,w valid
+    // t: r,w valid → bits 17,22 set
+    // w: r valid → bit 17 set
+    // ... (populate based on pattern table)
+];
+
+/// EN-only coda clusters: ct,ft,ld,lf,lk,lm,lp,lt,lv,xt,nd,nk,nt,pt,rb,rd,rk,rl,rm,rn,rp,rt,sk,sp,st
+const M_EN_CODA: [u32; 32] = [
+    // Similar structure for coda clusters
+];
+
+/// EN-only vowel pairs: ea,ee,ou,ei,eu,yo,ae,yi
+const M_EN_VOWEL: [u32; 32] = [
+    // a: e valid → bit 4 set (ae)
+    // e: a,e,i,u valid → bits 0,4,8,20 set (ea,ee,ei,eu)
+    // o: u valid → bit 20 set (ou)
+    // y: i,o valid → bits 8,14 set (yi,yo)
+];
+
+/// Circumflex required pairs: eu→êu, ie→iê, ue→uê, ye→yê
+const M_CIRCUMFLEX_REQ: [u32; 32] = [
+    // e: u requires circumflex
+    // i: e requires circumflex
+    // u: e requires circumflex
+    // y: e requires circumflex
+];
+
+/// Tone-stop restriction: stops (c,ch,p,t) only allow sắc(1) or nặng(5)
+const M_TONE_CODA: [[bool; 8]; 6] = [
+    // tone 0 (none): all codas valid
+    [true, true, true, true, true, true, true, true],
+    // tone 1 (sắc): all codas valid
+    [true, true, true, true, true, true, true, true],
+    // tone 2 (huyền): stops invalid
+    [false, false, true, true, true, true, false, true], // c,ch invalid, m,n,ng,nh,p,t valid? Check
+    // tone 3 (hỏi): stops invalid
+    [false, false, true, true, true, true, false, true],
+    // tone 4 (ngã): stops invalid
+    [false, false, true, true, true, true, false, true],
+    // tone 5 (nặng): all codas valid
+    [true, true, true, true, true, true, true, true],
+];
+```
+
+### Memory Comparison
+
+| Component | V1 Size | V3 Size | Reduction |
+|-----------|---------|---------|-----------|
+| Validation tables | ~2KB | ~600B | 70% |
+| Whitelist arrays | ~1KB | 0B (bitmask) | 100% |
+| State flags | 7 bools (7B) | 1 u16 (2B) | 70% |
+| Pattern checks | runtime | compile-time | N/A |
+| **Total core** | **~3KB** | **~600B** | **80%** |
+| EN Dictionary | ~100KB | ~100KB | Same |
+
+### Performance Comparison
+
+| Operation | V1 | V3 | Speedup |
+|-----------|----|----|---------|
+| Single char validation | O(n) search | O(1) bit | 10x |
+| Onset cluster check | strcmp | bit lookup | 5x |
+| Diphthong validation | 29-item scan | bit lookup | 20x |
+| Full syllable validation | ~50 ops | ~15 ops | 3x |
+| Restore decision | ~20 conditions | ~8 conditions | 2.5x |
+| **Total per keystroke** | **~100 ops** | **~30 ops** | **3x** |
+
+### V1 vs V3 Pipeline Comparison
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              V1 PIPELINE (Current Production)                                │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                             │
+│  INPUT: keystroke                                                                           │
+│     │                                                                                       │
+│     ▼                                                                                       │
+│  ┌──────────────────┐                                                                       │
+│  │ TRANSFORM PHASE  │ ← Apply tone/mark/stroke immediately                                  │
+│  │ (7 separate      │   - Check modifier key                                                │
+│  │  transform       │   - Find target vowel                                                 │
+│  │  functions)      │   - Apply transform                                                   │
+│  └────────┬─────────┘   - Update 7 separate flags                                           │
+│           │                                                                                 │
+│           ▼                                                                                 │
+│  ┌──────────────────┐                                                                       │
+│  │ VALIDATION PHASE │ ← 6 separate rule checks                                              │
+│  │ (6 rules,        │   - Rule 1: has_vowel() O(n)                                         │
+│  │  O(n) searches)  │   - Rule 2: valid_initial() O(n) whitelist                           │
+│  └────────┬─────────┘   - Rule 3: all_chars_parsed()                                       │
+│           │             - Rule 4: spelling_rules() if-else                                  │
+│           │             - Rule 5: valid_final() O(n) whitelist                              │
+│           │             - Rule 6: valid_vowel_pattern() O(n) whitelist                      │
+│           ▼                                                                                 │
+│  ┌──────────────────┐                                                                       │
+│  │ ON TERMINATOR    │ ← Complex restore decision                                            │
+│  │ (15+ conditions) │   - Check had_any_transform flag                                      │
+│  └────────┬─────────┘   - Check has_stroke flag                                             │
+│           │             - Check has_mark flag                                               │
+│           │             - Check had_mark_revert flag                                        │
+│           │             - Check is_buffer_invalid_vietnamese() [6 rules again]              │
+│           │             - Check is_raw_input_valid_english()                                │
+│           │             - Check has_english_modifier_pattern() [15+ branches]               │
+│           │             - Check char consumption                                            │
+│           │             - Check V+C+V pattern                                               │
+│           │             - Check double modifier collapse                                    │
+│           ▼                                                                                 │
+│     RESTORE or KEEP                                                                         │
+│                                                                                             │
+│  PROBLEMS:                                                                                  │
+│  ├── 7 separate state flags (hard to track)                                                │
+│  ├── 6 rules called twice (transform + terminator)                                         │
+│  ├── O(n) whitelist searches (slow)                                                        │
+│  ├── 15+ if-else branches in restore decision                                              │
+│  ├── has_english_modifier_pattern() is 200+ lines                                          │
+│  └── ~100 operations per keystroke                                                          │
+│                                                                                             │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              V3 PIPELINE (New Smart Engine)                                  │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                             │
+│  INPUT: keystroke                                                                           │
+│     │                                                                                       │
+│     ▼                                                                                       │
+│  ┌──────────────────┐                                                                       │
+│  │ PRE-CHECK (L0)   │ ← O(1) bitmask check                                                  │
+│  │ CHAR_TYPE[c]     │   if CHAR_TYPE[c] & INVALID → FOREIGN_MODE                            │
+│  └────────┬─────────┘   if M_EN_ONSET[c1][c2] → FOREIGN_MODE                                │
+│           │                                                                                 │
+│     ┌─────┴─────┐                                                                           │
+│     ▼           ▼                                                                           │
+│  FOREIGN     CONTINUE                                                                       │
+│  (skip)         │                                                                           │
+│                 ▼                                                                           │
+│  ┌──────────────────┐                                                                       │
+│  │ TRANSFORM +      │ ← Single pass, update unified state                                   │
+│  │ VALIDATE (L1-L9) │   - Transform: tone/mark/stroke                                       │
+│  │ (unified state)  │   - Update: BufferState (1 u16)                                       │
+│  └────────┬─────────┘   - Validate: 9 layers O(1) bitmask each                              │
+│           │             - Cache: vn_state (Complete/Incomplete/Impossible)                  │
+│           │                                                                                 │
+│           ▼                                                                                 │
+│  ┌──────────────────┐                                                                       │
+│  │ ON TERMINATOR    │ ← 4-phase restore (uses cached state)                                 │
+│  │ (4 phases)       │   Phase 1: Quick exits O(1)                                           │
+│  └────────┬─────────┘     - !had_transform → Keep                                           │
+│           │               - has_stroke → Keep                                               │
+│           │               - has_tone → Keep                                                 │
+│           │             Phase 2: VN state O(1)                                              │
+│           │               - vn_state == Complete → Keep                                     │
+│           │             Phase 3: EN detection O(n)                                          │
+│           │               - Mark + incomplete + EN → Restore                                │
+│           │               - Revert + invalid + EN → Restore                                 │
+│           │             Phase 4: Additional triggers                                        │
+│           │               - Char consumption                                                │
+│           │               - V+C+V pattern                                                   │
+│           ▼                                                                                 │
+│     RESTORE or KEEP                                                                         │
+│                                                                                             │
+│  IMPROVEMENTS:                                                                              │
+│  ├── 1 unified state (BufferState u16)                                                     │
+│  ├── 9 layers run once (validation cached)                                                 │
+│  ├── O(1) bitmask lookups (fast)                                                           │
+│  ├── 4-phase restore (structured)                                                          │
+│  ├── has_english_pattern() is ~50 lines                                                    │
+│  └── ~30 operations per keystroke                                                           │
+│                                                                                             │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Side-by-Side Comparison
+
+| Aspect | V1 (Production) | V3 (Smart) | Improvement |
+|--------|-----------------|------------|-------------|
+| **State tracking** | 7 separate bool flags | 1 BufferState u16 | Unified |
+| **Validation** | 6 rules, O(n) each | 9 layers, O(1) each | 3-20x faster |
+| **Validation timing** | Called twice (transform + terminator) | Called once, cached | 2x less work |
+| **Restore logic** | 15+ scattered conditions | 4 structured phases | Cleaner |
+| **EN detection** | 200+ lines if-else | 50 lines tiered | Maintainable |
+| **Whitelist search** | O(n) array scan | O(1) bitmask | 10-20x faster |
+| **Memory** | ~3KB tables | ~600B bitmasks | 80% smaller |
+| **Ops per keystroke** | ~100 | ~30 | 3x faster |
+
+### V1 Case Coverage Checklist
+
+```
+V1 VALIDATION RULES:
+☑ Rule 1: HAS_VOWEL        → L1 CHAR_TYPE vowel check
+☑ Rule 2: VALID_INITIAL    → L2 M_ONSET bitmask
+☑ Rule 3: ALL_CHARS_PARSED → L1-L6 syllable structure
+☑ Rule 4: SPELLING_RULES   → L8 M_SPELL matrix
+☑ Rule 5: VALID_FINAL      → L5-L6 M_CODA bitmask
+☑ Rule 6: VALID_VOWEL      → L4 M_VOWEL_PAIR/TRIPLE
+
+V1 MODIFIER REQUIREMENTS:
+☑ Circumflex required (êu,iê,uê,yê)  → L9 M_CIRCUMFLEX_REQ
+☑ Breve restrictions (ă+vowel)       → L9 M_BREVE_INVALID
+
+V1 FOREIGN DETECTION:
+☑ Invalid initials (f,j,w,z)         → CHAR_TYPE & INVALID
+☑ EN onset clusters                  → M_EN_ONSET
+☑ EN coda clusters                   → M_EN_CODA
+☑ EN vowel patterns (ou,yo,ea)       → M_EN_VOWEL
+
+V1 RESTORE SIGNALS:
+☑ Stroke (đ)                         → state.has_stroke
+☑ Tone (s,f,r,x,j)                   → state.has_tone
+☑ Mark (w,aa,oo,ee)                  → state.has_mark
+☑ Revert (ss,ff,rr)                  → state.had_revert
+
+V1 RESTORE TRIGGERS:
+☑ Two-check (buffer_invalid && raw_EN) → should_restore() phases
+☑ Char consumption                     → raw.len() - buffer.len()
+☑ V+C+V circumflex pattern             → matches_vcv_stop_pattern()
+☑ Double modifier collapse             → revert_type check
+
+V1 PREVENT RESTORE:
+☑ Has stroke                           → Phase 1 quick exit
+☑ Has tone                             → Phase 1 quick exit
+☑ Double modifier at end               → revert logic
+☑ Non-letter prefix                    → pre-check
+☑ No transform                         → Phase 1 quick exit
+☑ Never collapse "ff"                  → special case in revert
+
+V1 SPECIAL CASES:
+☑ Breve deferral (aw→ăn/aw)           → pending_breve state
+☑ Horn deferral (uo→ươ)               → pending_horn state
+☑ Tone overwrite (banjs→bán)          → has_tone stays true
+☑ Continuous typing (chaofooo)        → has_tone prevents restore
+```
+
+---
+
 ## Overview
 
 Pipeline xử lý Vietnamese IME V3 engine với 2 mechanisms:
@@ -1116,6 +1754,247 @@ INPUT: buffer, raw, signals
 │   NO
 │   │
 └── KEEP (default)
+```
+
+---
+
+## V1 Production Logic (Reference)
+
+### V1 6-Rule Validation Pipeline
+
+```
+Rule 1: HAS_VOWEL
+├── Buffer must contain at least one vowel
+└── Single consonants fail validation
+
+Rule 2: VALID_INITIAL
+├── 1-char: b,c,d,đ,g,h,k,l,m,n,p,q,r,s,t,v,x
+├── 2-char: ch,gh,gi,kh,ng,nh,ph,qu,th,tr
+└── 3-char: ngh
+
+Rule 3: ALL_CHARS_PARSED
+├── Every char must fit syllable structure (C+V+F)
+└── Unparseable = invalid
+
+Rule 4: SPELLING_RULES
+├── C + I/E/Y → invalid (use K: ke, ki, ky)
+├── K + A/O/U → invalid (use C: ca, co, cu)
+├── G + E → invalid (use GH: ghe)
+└── NG + I/E → invalid (use NGH: nghi, nghe)
+
+Rule 5: VALID_FINAL
+├── Valid: c, m, n, p, t, ch, ng, nh
+└── Invalid: b, d, g, h, k, l, q, r, s, v, x, z, j, w
+
+Rule 6: VALID_VOWEL_PATTERN (WHITELIST)
+├── 29 diphthongs: ai,ao,au,ay,âu,ây,êu,ia,iê,iu,oa,oă,oe,oi,ôi,ơi,ua,uâ,uê,ui,uô,uy,ưa,ưi,ươ,ưu,yê...
+├── 11+ triphthongs: iêu,oai,oao,oay,uôi,ươi,ươu,uya,uyê,uyu,yêu...
+└── INVALID: ea,ou,yo,yi,ae,eo (English patterns)
+```
+
+### V1 Modifier Requirements (Tone-Aware)
+
+```
+CIRCUMFLEX REQUIRED (khi có tone info):
+├── E+U → êu (eu invalid)
+├── I+E → iê (ie invalid)
+├── U+E → uê (ue invalid)
+├── Y+E → yê (ye invalid)
+├── U+Y+E → uyê (uye invalid)
+├── I+E+U → iêu (ieu invalid, horn on U = ieư invalid)
+└── U+Y+E → uyê (horn on U invalid)
+
+BREVE RESTRICTIONS:
+├── ă + vowel → INVALID
+├── ăi, ăo, ău, ăy → all invalid
+└── Valid: ăn, ăm, ăc, ăp, ăt, ăng, ănh, ăch
+```
+
+### V1 Foreign Word Detection (is_foreign_word_pattern)
+
+```rust
+// Detects English patterns that shouldn't be transformed
+fn is_foreign_word_pattern(buffer_keys, buffer_tones, modifier_key) -> bool {
+    // 1. Invalid vowel patterns
+    if has_vowel_pair("ou") || has_vowel_pair("yo") {
+        return true; // NEVER valid Vietnamese
+    }
+
+    // 2. Consonant clusters after finals
+    // "tr" after t: "text", "other"
+    // "pr" after p: "prayer"
+    // "cr" after c: "cry", "create"
+    if has_final_consonant_cluster("tr", "pr", "cr") {
+        return true;
+    }
+
+    // 3. Invalid final + mark modifier
+    // Single vowel + INVALID final (x,b,d,g,h,k,l,q,r,s,v) + mark key
+    if has_invalid_final_with_mark() {
+        return true;
+    }
+
+    false
+}
+```
+
+### V1 Auto-Restore Core Logic
+
+```rust
+// Two-check decision
+fn should_auto_restore() -> bool {
+    // Must have had transform
+    if !had_any_transform {
+        return false;
+    }
+
+    // Check 1: Is buffer invalid Vietnamese?
+    let buffer_invalid = is_buffer_invalid_vietnamese();
+
+    // Check 2: Is raw input valid English?
+    let raw_valid_en = is_raw_input_valid_english();
+
+    // Core decision
+    if buffer_invalid && raw_valid_en {
+        return true;
+    }
+
+    // Additional triggers...
+    false
+}
+
+fn is_buffer_invalid_vietnamese() -> bool {
+    // Fails 6-rule validation
+    if !is_valid_with_tones(buffer) { return true; }
+
+    // -ing + tone mark: "thíng" invalid
+    if has_ing_with_tone() { return true; }
+
+    // Single vowel + uncommon tone
+    if is_single_vowel_uncommon() { return true; }
+
+    false
+}
+
+fn is_raw_input_valid_english() -> bool {
+    // All keys are ASCII letters
+    raw.chars().all(|c| c.is_ascii_alphabetic())
+    // Must have at least one vowel (or allow 1-2 char abbreviations)
+}
+```
+
+### V1 Additional Restore Triggers
+
+| Trigger | Condition | Example |
+|---------|-----------|---------|
+| **English Modifier Pattern** | `has_english_modifier_pattern()` | "cursor", "expect" |
+| **Significant Char Consumption** | raw 2+ chars longer than buffer | "await"→"âit" |
+| **V+C+V Circumflex Pattern** | Circumflex + stop (t,c,p) no mark | "dât", "sêt" |
+| **Double Modifier Revert** | Same modifier doubled + vowel (≤3 chars) | "arro"→"aro" |
+| **V1-V2-V1 Vowel Collapse** | 3+ consecutive vowels, first=last | "queue"→"quêu" |
+
+### V1 Prevent Restore Conditions
+
+| Condition | Reason | Example |
+|-----------|--------|---------|
+| **Has Stroke (đ)** | Intentional VN | "đang" |
+| **Has Mark/Tone** | Confirms VN intent | "bán", "hỏi" |
+| **Double Modifier at End** | Intentional revert | "ass"→keep "as" |
+| **has_non_letter_prefix** | Contains numbers/symbols | "149k" |
+| **had_any_transform == false** | No transform applied | "forr" (F invalid) |
+| **Never collapse "ff"** | Common EN: off, coffee | "coffee" |
+
+### V1 English Pattern Detection (has_english_modifier_pattern)
+
+```
+W at Word Start:
+├── "w" alone → VN (ư)
+├── "w" + mark only (wf, ws) → VN
+├── "w" + valid final + mark (wmn) → VN
+├── "w" + vowel + consonant (win) → EN
+├── "wo", "woa", "wou" + consonant → EN
+
+Consonant + W Pattern (word complete):
+├── C + W + O + N + G → VN "ương" (tương)
+├── C + W + A exactly 3 chars → VN "ưa" (mưa)
+├── C + W + vowel (no tone) → EN "swim"
+
+Consecutive Different Tone Modifiers:
+├── "rs" + vowel (r≠s) → EN "cursor"
+├── "ss", "ff", "rr" (same) → Telex revert, NOT EN
+
+Modifier + Consonant Patterns:
+├── Modifier + consonant + more letters → EN "expect"
+├── Exception: J or S + consonant → VN (học, bức)
+├── Exception: F/R/X + sonorant (m,n,ng,nh) → VN (làm, mãnh)
+
+Vowel + Modifier + Vowel Pattern:
+├── "use" (u+s+e) → EN
+├── Exception: U+modifier+A (ủa, ùa) → VN
+├── Exception: A+modifier+O (ảo, ào) → VN
+```
+
+### V1 Buffer State Flags
+
+```rust
+struct BufferState {
+    had_any_transform: bool,           // Any VN transform applied
+    had_mark_revert: bool,             // Mark removed (ss, ff)
+    had_vowel_triggered_circumflex: bool, // V+C+V pattern
+    had_circumflex_revert: bool,       // aaa → aa
+    pending_breve_pos: Option<usize>,  // Deferred breve
+    pending_u_horn_pos: Option<usize>, // Deferred horn
+    stroke_reverted: bool,             // đ → d reverted
+}
+```
+
+### V1 Breve Deferral Logic
+
+```
+Open Syllable Breve Deferral:
+├── "aw" → keep "aw" (wait for more input)
+├── "awm" → "ăm" (apply breve when consonant added)
+├── "aws" → "ă" (apply breve when tone added)
+├── "aw " → "aw" (boundary, no breve applied)
+
+Reason: "aw" could become:
+├── "ăn" (valid VN) if followed by n
+├── "aw" (EN word "law") if followed by space
+```
+
+### V1 Edge Cases (From Issues)
+
+| Issue | Case | Solution |
+|-------|------|----------|
+| #44 | Breve in open syllables | Defer breve until consonant/tone |
+| #51 | Stroke only on adjacent d's | dd→đ, d+mark→đ |
+| #107 | Shortcut prefix (@, #, :) | Skip transform |
+| #133 | "uo" pattern horn | Only O gets horn initially |
+| #151 | C+W+A pattern | 3-char exactly = VN "ưa" |
+| #312 | Vowel with tone | Don't trigger circumflex |
+
+### V3 Should Port From V1
+
+```
+CRITICAL:
+├── 6-Rule Validation Pipeline
+├── Whitelist Vowel Patterns (29 diphthongs, 11+ triphthongs)
+├── Two-Check Restore Logic (buffer_invalid && raw_valid_en)
+├── Transform Tracking Flags
+├── Breve Deferral Logic
+└── raw_input Parallel Tracking
+
+IMPORTANT:
+├── English Pattern Detection (has_english_modifier_pattern)
+├── Modifier Requirements (circumflex, breve restrictions)
+├── Buffer State Machine (mark/tone/stroke with revert)
+└── Edge Cases (breve deferral, stroke rules)
+
+PATTERN (not case-by-case):
+├── Pattern-based transformations
+├── Post-transform validation
+├── State flags for revert detection
+└── Restore via raw reconstruction
 ```
 
 ---
