@@ -788,10 +788,10 @@ struct ImeResult {
 ### 11.4 Dictionary (for auto-restore)
 
 ```rust
-/// Unified dictionary for both EN and VN words
+/// Dictionary for EN words (auto-restore)
 /// Used by should_restore() to decide: buffer vs raw
 struct Dict {
-    /// Bloom filter for fast negative lookup (~10KB for 100K words)
+    /// Bloom filter for fast negative lookup (~5KB for 10K words)
     bloom: BloomFilter,
     /// Optional: full word set for exact match
     words: Option<HashSet<String>>,
@@ -799,7 +799,7 @@ struct Dict {
 
 impl Dict {
     /// Check if word exists in dictionary
-    /// Returns: true if word is valid EN or VN
+    /// Returns: true if word is valid EN
     fn contains(&self, word: &str) -> bool {
         // Fast path: bloom filter says NO → definitely not in dict
         if !self.bloom.may_contain(word) {
@@ -812,8 +812,7 @@ impl Dict {
 
 // Dictionary sources:
 // - EN: Top 10K English words (~50KB compressed)
-// - VN: Top 10K Vietnamese words (~60KB compressed)
-// - Combined Bloom filter: ~10KB for 20K words (0.1% false positive)
+// - Bloom filter: ~5KB for 10K words (0.1% false positive)
 ```
 
 **Dictionary Priority:**
