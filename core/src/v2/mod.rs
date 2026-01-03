@@ -10,6 +10,7 @@
 //! 6. Restore Decision
 //! 7. Output Generation
 
+pub mod bitmask;
 pub mod buffer;
 pub mod classify;
 pub mod dispatch;
@@ -17,8 +18,10 @@ pub mod placement;
 pub mod precheck;
 pub mod state;
 pub mod types;
+pub mod validate;
 
 // Re-exports
+pub use bitmask::{char_idx, get_base_vowel, get_tone, is_vn_vowel};
 pub use buffer::Buffer;
 pub use classify::{classify_key, Method};
 pub use dispatch::dispatch;
@@ -26,3 +29,4 @@ pub use placement::{find_tone_position, VowelInfo};
 pub use precheck::{pre_check, Mode};
 pub use state::{BufferState, VnState};
 pub use types::*;
+pub use validate::{parse_syllable, validate_vn, Syllable};
