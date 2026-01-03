@@ -11,10 +11,14 @@
 //! 7. Output Generation
 
 pub mod buffer;
+pub mod classify;
+pub mod precheck;
 pub mod state;
 pub mod types;
 
 // Re-exports
 pub use buffer::Buffer;
+pub use classify::{classify_key, Method};
+pub use precheck::{pre_check, Mode};
 pub use state::{BufferState, VnState};
 pub use types::*;
