@@ -1,6 +1,6 @@
 # V3 Engine Specification
 
-> **Version**: 3.6 | **Status**: Ready for Implementation
+> **Version**: 3.7 | **Status**: Ready for Implementation
 
 ## Table of Contents
 
@@ -142,6 +142,7 @@
 │  │                                                                         ││
 │  │ HORN (ơ,ư): place on o→ơ or u→ư                                         ││
 │  │   ow→ơ, uw→ư                                                            ││
+│  │   uow→ươ (horn on both: u→ư, o→ơ)                                       ││
 │  │   C+W+A pattern (3 chars exactly): mwa→mưa, cwa→cưa                     ││
 │  │   But 4+ chars: swan, swap → FOREIGN (don't apply horn)                 ││
 │  │                                                                         ││
@@ -348,9 +349,9 @@
 | 1 | `f, j, w, z` (invalid initial) | 100% | 1 |
 | 2 | `bl,br,cl,cr,dr,fl,fr,gl,gr,pl,pr,sc,sk,sl,sm,sn,sp,st,sw,tw,wr` (onset cluster) | 98% | 1 |
 | 3 | `ct,ft,ld,lf,lk,lm,lp,lt,xt,nd,nk,nt,pt,rb,rd,rk,rm,rn,rp,rt,sk,sp,st,sh,ry,se,ks,fe,re` (coda cluster) | 90% | 6 |
-| 4 | `ea,ee,ou,ei,eu,yo,ae,yi,oo,oa,io` (vowel pattern) | 85% | 6 |
+| 4 | `ea,ee,ou,ei,eu,yo,ae,yi,oo,io` (vowel pattern) | 85% | 6 |
 | 5 | `tion,sion,ness,ment,able,ible,ing,ful,ous,ive` (suffix) | 90% | 6 |
-| 6 | `ore,are,ase,ote,ile,ure,ife,ose,use,ory,ary,ery` (V+C+V pattern) | 75% | 6 |
+| 6 | V₁+(r\|l\|t\|s\|n\|m)+V₂ pattern (e.g., ore,are,ase,ile,ure) | 75% | 6 |
 | 7 | `-ew,-ow,-aw,-iew` (W-as-vowel) | 70% | 6 |
 
 ### 2.2 Vietnamese Patterns (check on BUFFER)
@@ -503,17 +504,8 @@ fn find_tone_position(vowels: &[VowelInfo], has_final: bool) -> usize {
         2 if has_final => vowels[0].position,
 
         // Diphthong without final: place on SECOND vowel
-        // tìa, hoà, khuê
-        2 => {
-            // Special cases: oa, oe, uy always on second
-            let v1 = vowels[0].base;
-            let v2 = vowels[1].base;
-            if matches!((v1, v2), ('o', 'a') | ('o', 'e') | ('u', 'y')) {
-                vowels[1].position
-            } else {
-                vowels[1].position
-            }
-        }
+        // tìa, hoà, khuê (all diphthongs follow this rule)
+        2 => vowels[1].position,
 
         // Triphthong: place on MIDDLE vowel
         // oái, uối, ươi
@@ -929,7 +921,8 @@ const M_EN_CODA: [u32; 32] = [
 ```rust
 /// EN-only vowel pairs
 /// ORIGINAL: ea, ee, ou, ei, eu, yo, ae, yi
-/// ADDED: oo (book, too), oa (boat, road), io (action, ratio)
+/// ADDED: oo (book, too), io (action, ratio)
+/// NOTE: oa removed - valid VN diphthong (hoà, toà, loà)
 /// Index: a=0, e=4, i=8, o=14, u=20, y=24
 const M_EN_VOWEL: [u32; 32] = [
     0x00000010, // a: +e (ae) → bit 4
@@ -946,7 +939,7 @@ const M_EN_VOWEL: [u32; 32] = [
     0x00000000, // l
     0x00000000, // m
     0x00000000, // n
-    0x00104001, // o: +a,o,u (oa,oo,ou) → bits 0,14,20
+    0x00104000, // o: +o,u (oo,ou) → bits 14,20 (oa removed)
     0x00000000, // p
     0x00000000, // q
     0x00000000, // r
@@ -1041,8 +1034,9 @@ Step 0: [space] → TERMINATOR
 Step 6: should_restore():
         - P1: had_transform = YES → continue
         - P2: has_stroke = NO → continue
-        - P3: vn_state = Impossible → RESTORE
-        (broken VN always restores, no EN check needed)
+        - P3: pending_breve = NO → continue
+        - dict("téla") = NO → continue
+        - dict("tesla") = YES (EN word) → RESTORE
 
 Step 7: output = "tesla "
 ```
@@ -1288,7 +1282,19 @@ V1 SPECIAL CASES:
 ☑ Continuous typing (chaofooo)        → has_tone prevents restore
 ```
 
-### 14.5 Full Pattern Matrix
+### 14.5 Implicit Edge Case Handling
+
+These edge cases are caught by existing validation, no special code needed:
+
+| Edge Case | Example | How Handled |
+|-----------|---------|-------------|
+| "uo" horn pattern | `uow→ươ` | Step 3B: horn applied to both u→ư, o→ơ |
+| rs modifier pattern | `first→fírst` | Impossible VN (f invalid initial), auto-restore |
+| V1-V2-V1 vowel collapse | `queue→quêu` | L4 vowel pattern check rejects "uêu" as invalid VN triphthong |
+| Double modifier in EN | `coffee→côffêe` | Impossible VN + tier3_coda_cluster (ff) → restore |
+| Consecutive modifiers | `stress→strếss` | Impossible VN (str onset) → FOREIGN_MODE at Step 1 |
+
+### 14.6 Full Pattern Matrix
 
 | Position | Vietnamese only | Shared (VN & EN) | English only |
 |----------|-----------------|------------------|--------------|
@@ -1385,6 +1391,12 @@ fn validate_vn(buffer: &str) -> VnState {
 
 ## Changelog
 
+### v3.7 (2026-01-03)
+- **Removed redundant tone Rule 5**: Diphthong without final always places tone on 2nd vowel (no special case for oa/oe/uy needed)
+- **Fixed M_EN_VOWEL matrix**: Removed `oa` (valid VN diphthong: hoà, toà, loà)
+- **Generalized VCV pattern**: Now V₁+(r|l|t|s|n|m)+V₂ formula instead of case-by-case listing
+- **Fixed tesla example**: Shows dictionary-based restore flow (primary method)
+
 ### v3.6 (2026-01-03)
 - **Merged valuable content from old docs**:
   - Complete bitmask implementations (M_EN_CODA, M_EN_VOWEL with hex values)
@@ -1395,7 +1407,9 @@ fn validate_vn(buffer: &str) -> VnState {
   - Performance comparison table (3x faster)
   - Architecture comparison table
   - V1 Case Coverage Checklist (all 30+ V1 features mapped)
+  - Implicit Edge Case Handling table (uo horn, rs modifier, V1-V2-V1 collapse)
   - Full Pattern Matrix (VN only | Shared | EN only)
+- **Updated Step 3B**: Added `uow→ươ` horn pattern explicitly
 
 ### v3.5 (2026-01-03)
 - **Dictionary-based restore**: Primary method for restore decision

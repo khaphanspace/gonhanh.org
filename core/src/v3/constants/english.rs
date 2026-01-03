@@ -127,28 +127,27 @@ pub fn is_en_onset_pair(c1: u8, c2: u8) -> bool {
 }
 
 // ============================================================================
-// LAYER 3: Double Consonants (13 bytes)
+// LAYER 3: Double Consonants (Bitmask - 4 bytes)
 // ============================================================================
 
-/// Double consonants - Vietnamese NEVER uses doubled consonants
-/// (uses digraphs like ng, nh, ch instead)
-pub const E_DOUBLE_CONSONANTS: [u8; 13] = [
-    b'l', // ll - tell, all, will
-    b's', // ss - class, glass, pass
-    b'f', // ff - off, staff, coffee
-    b't', // tt - letter, better
-    b'p', // pp - happy, apple
-    b'm', // mm - summer, hammer
-    b'n', // nn - dinner, funny
-    b'r', // rr - sorry, worry
-    b'd', // dd - add, ladder
-    b'g', // gg - egg, bigger
-    b'b', // bb - rabbit, hobby
-    b'z', // zz - buzz, pizza
-    b'c', // cc - access, success
-];
+/// Double consonants bitmask - Vietnamese NEVER uses doubled consonants
+/// Bit positions: a=0, b=1, c=2, d=3, ... z=25
+/// Set bits: b(1), c(2), d(3), f(5), g(6), l(11), m(12), n(13), p(15), r(17), s(18), t(19), z(25)
+/// Binary: 0b_0010_0000_0000_1110_1011_0110_0110_1110 = 0x200EB66E
+const M_DOUBLE_CONSONANT: u32 = 0b_0010_0000_0000_1110_1011_0110_0110_1110;
 
-/// Check if word contains doubled consonant (O(n) scan)
+/// Check if character can be doubled in English (O(1) bitmask lookup)
+#[inline]
+fn can_double(c: u8) -> bool {
+    let lower = c.to_ascii_lowercase();
+    if lower < b'a' || lower > b'z' {
+        return false;
+    }
+    let bit = 1u32 << (lower - b'a');
+    (M_DOUBLE_CONSONANT & bit) != 0
+}
+
+/// Check if word contains doubled consonant (O(n) scan with O(1) lookup)
 #[inline]
 pub fn has_double_consonant(word: &[u8]) -> bool {
     if word.len() < 2 {
@@ -159,7 +158,7 @@ pub fn has_double_consonant(word: &[u8]) -> bool {
         let c1 = word[i].to_ascii_lowercase();
         let c2 = word[i + 1].to_ascii_lowercase();
 
-        if c1 == c2 && E_DOUBLE_CONSONANTS.contains(&c1) {
+        if c1 == c2 && can_double(c1) {
             return true;
         }
     }
