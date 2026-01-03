@@ -1,4 +1,4 @@
-.PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major
+.PHONY: help all test test-v2 format build build-v2 build-linux clean setup install dmg release release-minor release-major
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -16,7 +16,7 @@ help: ## Show this help
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;34mDevelopment:\033[0m"
-	@grep -E '^(test|format|build|build-linux|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(test|test-v2|format|build|build-v2|build-linux|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "\033[1;33mSetup & Install:\033[0m"
 	@grep -E '^(setup|install):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
@@ -26,16 +26,22 @@ help: ## Show this help
 
 all: test build ## Run test + build
 
-test: ## Run tests
+test: ## Run tests (V1 engine)
 	@cd core && cargo test
+
+test-v2: ## Run tests (V2 engine)
+	@cd core && cargo test --features engine-v2
 
 format: ## Format & lint
 	@cd core && cargo fmt && cargo clippy -- -D warnings
 
-build: format ## Build core + macos app
+build: format ## Build core + macos app (V1 engine)
 	@./scripts/build-core.sh
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
+
+build-v2: format ## Build core with V2 engine
+	@cd core && cargo build --release --features engine-v2
 
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh

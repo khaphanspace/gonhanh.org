@@ -29,7 +29,15 @@ pub mod utils;
 #[cfg(feature = "engine-v2")]
 pub mod v2;
 
+// Feature-gated engine selection:
+// V1 (default) - use engine::Engine and engine::Result
+// V2 (with --features engine-v2) - use v2::Engine and v2::Result
+#[cfg(not(feature = "engine-v2"))]
 use engine::{Engine, Result};
+
+#[cfg(feature = "engine-v2")]
+use v2::{Engine, Result};
+
 use std::sync::Mutex;
 
 // Global engine instance (thread-safe via Mutex)
@@ -426,8 +434,10 @@ mod tests {
     use serial_test::serial;
     use std::ffi::CString;
 
+    /// Test Vietnamese transformation (V1 only - V2 doesn't implement tone placement yet)
     #[test]
     #[serial]
+    #[cfg(not(feature = "engine-v2"))]
     fn test_ffi_flow() {
         ime_init();
         ime_method(0); // Telex
@@ -636,8 +646,10 @@ mod tests {
     }
 
     /// Issue #161: Test that shortcuts containing numbers work correctly via FFI
+    /// V1 only - V2 doesn't implement shortcut expansion yet
     #[test]
     #[serial]
+    #[cfg(not(feature = "engine-v2"))]
     fn test_shortcut_ffi_with_numbers() {
         ime_init();
         ime_clear_shortcuts();
@@ -689,8 +701,10 @@ mod tests {
         ime_clear();
     }
 
+    /// V1 only - V2 doesn't implement tone transformation on restored words yet
     #[test]
     #[serial]
+    #[cfg(not(feature = "engine-v2"))]
     fn test_restore_word_ffi() {
         ime_init();
         ime_method(0); // Telex
