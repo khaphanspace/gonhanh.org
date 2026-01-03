@@ -55,3 +55,6 @@ obj/
 .opencode/
 plans/
 CLAUDE.md
+
+# Reference repos (not to be committed)
+references/

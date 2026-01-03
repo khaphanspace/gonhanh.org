@@ -1,4 +1,4 @@
-.PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major
+.PHONY: help all test test-v3 format build build-linux clean setup install dmg release release-minor release-major
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -26,8 +26,11 @@ help: ## Show this help
 
 all: test build ## Run test + build
 
-test: ## Run tests
-	@cd core && cargo test
+test: ## Run v1 engine tests (skip v3)
+	@cd core && cargo test --lib -- --skip v3::
+
+test-v3: ## Run all lib tests (v1 + v3)
+	@cd core && cargo test --lib
 
 format: ## Format & lint
 	@cd core && cargo fmt && cargo clippy -- -D warnings
