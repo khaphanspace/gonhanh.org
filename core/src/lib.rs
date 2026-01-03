@@ -26,6 +26,9 @@ pub mod input;
 pub mod updater;
 pub mod utils;
 
+#[cfg(feature = "engine-v2")]
+pub mod v2;
+
 use engine::{Engine, Result};
 use std::sync::Mutex;
 

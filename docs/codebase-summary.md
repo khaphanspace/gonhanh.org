@@ -24,12 +24,18 @@ gonhanh.org/
 │   │   │   ├── telex.rs          # Telex method (a/e/o/w for tones, s/f/r/x/j for marks)
 │   │   │   └── vni.rs            # VNI method (1-5 for marks, 6-8 for tones, 9 for đ)
 │   │   │
-│   │   └── data/                 # Static Vietnamese linguistic data
-│   │       ├── mod.rs            # Data module exports
-│   │       ├── keys.rs           # Telex/VNI keycode to transformation mappings
-│   │       ├── chars.rs          # Character data (UTF-32 constants, casing)
-│   │       ├── vowel.rs          # Vowel table (72 entries: 12 bases × 6 marks)
-│   │       └── constants.rs      # Constants (consonants, valid clusters, etc.)
+│   │   ├── data/                 # Static Vietnamese linguistic data
+│   │   │   ├── mod.rs            # Data module exports
+│   │   │   ├── keys.rs           # Telex/VNI keycode to transformation mappings
+│   │   │   ├── chars.rs          # Character data (UTF-32 constants, casing)
+│   │   │   ├── vowel.rs          # Vowel table (72 entries: 12 bases × 6 marks)
+│   │   │   └── constants.rs      # Constants (consonants, valid clusters, etc.)
+│   │   │
+│   │   └── v2/                   # Engine V2 (Spec v3.7) - Next-gen architecture
+│   │       ├── mod.rs            # 7-step keystroke pipeline orchestration
+│   │       ├── types.rs          # KeyType, MarkType, Tone, Action enums
+│   │       ├── state.rs          # BufferState u16 bitmask, VnState enum
+│   │       └── buffer.rs         # Dual-buffer (raw/transformed) tracking
 │   │
 │   ├── tests/                    # Integration + unit tests (2100+ lines)
 │   │   ├── common/mod.rs         # Test utilities (IME helper, test setup)
@@ -227,6 +233,93 @@ Pre-computed UTF-32 codepoints for all Vietnamese characters, used for FFI outpu
 **Source**: `core/src/data/constants.rs`
 
 Valid initial consonants, final consonants, consonant clusters, vowel groups.
+
+### Engine V2 Modules (core/src/v2/) - Next-Generation Architecture
+
+**Phase 1 (Spec v3.7)**: Foundation types, state machine, dual-buffer tracking
+
+**Feature Flag**: `#[cfg(feature = "engine-v2")]` in `core/Cargo.toml`
+
+#### `v2/mod.rs` - Pipeline Orchestration
+**Lines**: ~50 | **Complexity**: High | **Source**: `core/src/v2/mod.rs`
+
+Implements 7-step keystroke pipeline (Spec v3.7):
+0. **Key Classification** - Classify keystroke to KeyType
+1. **Pre-check (Foreign Mode)** - Skip processing if disabled
+2. **Dispatch & Execute** - Route to appropriate handler
+3. **Tone/Mark Placement** - Position diacritics intelligently
+4. **Buffer Update** - Sync raw + transformed buffers
+5. **9-Layer Validation** - Exhaustive Vietnamese phonology check
+6. **Restore Decision** - Auto-restore to English if invalid
+7. **Output Generation** - Produce final keystroke result
+
+#### `v2/types.rs` - Core Type Definitions
+**Lines**: ~120 | **Complexity**: Medium | **Source**: `core/src/v2/types.rs`
+
+**KeyType enum**: Classifies input keystrokes
+- `Letter(u8)` - Regular letter (a-z, A-Z)
+- `Tone(u8)` - Tone key (Telex: s,f,r,x,j or VNI: 1-5)
+- `Mark(MarkType)` - Vowel mark key (aa,oo,w or VNI: 6-9,0)
+- `Terminator` - Word boundary (space, punctuation)
+- `Special` - Backspace, delete, escape
+- `Passthrough` - No processing needed
+
+**MarkType enum**: Vietnamese diacritical marks
+- `Stroke` - dd → đ
+- `Circumflex` - aa,oo,ee → â,ô,ê
+- `HornOrBreve` - w context-dependent (ư/ơ/ă)
+
+**Tone enum**: Vietnamese tone marks (6 including neutral)
+- `None` (0), `Sac` (1), `Huyen` (2), `Hoi` (3), `Nga` (4), `Nang` (5)
+
+**Action enum**: Post-classification action
+- `Continue` - Add to buffer
+- `AddTone(Tone)` - Apply tone mark
+- `RevertTone` - Undo tone (double-key)
+- `AddMark(MarkType)` - Apply vowel mark
+- `AddStroke` - Apply đ stroke
+- `CheckRestore` - Evaluate auto-restore on terminator
+- `Passthrough` - No modification
+
+#### `v2/state.rs` - Buffer State Machine
+**Lines**: ~450 | **Complexity**: High | **Source**: `core/src/v2/state.rs`
+
+**BufferState**: Compact u16 bitmask replacing 7 separate booleans
+```
+Bits 0-4:    Transformation tracking (had_transform, has_stroke, has_tone, has_mark, had_revert)
+Bits 5-6:    Revert type (0=none, 1=tone, 2=mark, 3=both)
+Bits 7-8:    Pending marks (pending_breve, pending_horn)
+Bits 9-11:   Vietnamese validation state (VnState)
+Bits 12-15:  Reserved for future features
+```
+
+**VnState enum**: Phonological validation state
+- `Unknown` (0) - Not yet determined
+- `Complete` (1) - Valid complete syllable
+- `Incomplete` (2) - Valid start, needs more input
+- `Impossible` (3) - Definitely not Vietnamese
+
+**Cache Optimization**: Single u16 enables O(1) state comparisons vs 7 boolean comparisons
+
+#### `v2/buffer.rs` - Dual-String Buffer
+**Lines**: ~290 | **Complexity**: Medium | **Source**: `core/src/v2/buffer.rs`
+
+Maintains parallel tracking of raw input vs transformed output:
+- **raw**: Original ASCII keystrokes as typed (e.g., "vieejt")
+- **transformed**: Vietnamese output (e.g., "việt")
+
+**Why Dual-Buffer**:
+- Accurate auto-restore (restore to raw on English detection)
+- Character consumption tracking (raw.len - transformed.len)
+- Clean diff calculation for keystroke output
+
+**Key Methods**:
+- `raw()` / `transformed()` - Read-only accessors
+- `push_raw()` / `push_transformed()` - Append characters
+- `pop_raw()` / `pop_transformed()` - Backspace
+- `char_consumption()` - (raw_len - transformed_len), detects English being typed as Vietnamese
+- `is_unchanged()` - Check if raw == transformed
+- `clear()` - Reset both buffers at word boundary
 
 ### FFI Layer (core/src/lib.rs)
 

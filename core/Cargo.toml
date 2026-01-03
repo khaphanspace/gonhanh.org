@@ -11,6 +11,10 @@ repository = "https://github.com/khaphanspace/gonhanh.org"
 name = "gonhanh_core"
 crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests
 
+[features]
+default = []
+engine-v2 = []
+
 [dependencies]
 # Minimal dependencies for core engine
 
