@@ -732,6 +732,24 @@ impl Engine {
             }
             self.auto_capitalize_used = false; // Reset on word boundary
 
+            // Issue #167: Check for word boundary shortcuts on punctuation and ENTER
+            // Example: "ko." → "không." or "ko<Enter>" → "không<Enter>"
+            // ENTER doesn't have a printable char, so check it separately
+            let trigger_char = if key == keys::RETURN || key == keys::ENTER {
+                Some('\n') // ENTER: use newline as trigger (won't be appended)
+            } else {
+                break_key_to_char(key, shift)
+            };
+            if let Some(ch) = trigger_char {
+                let shortcut_result = self.try_word_boundary_shortcut_with_char(ch);
+                if shortcut_result.action != 0 {
+                    self.clear();
+                    self.word_history.clear();
+                    self.spaces_after_commit = 0;
+                    return shortcut_result;
+                }
+            }
+
             let restore_result = self.try_auto_restore_on_break();
             self.clear();
             self.word_history.clear();
@@ -951,7 +969,7 @@ impl Engine {
 
         // 1. Stroke modifier (d → đ)
         if !skip_vni_modifiers && m.stroke(key) {
-            if let Some(result) = self.try_stroke(key) {
+            if let Some(result) = self.try_stroke(key, caps) {
                 return result;
             }
         }
@@ -997,7 +1015,8 @@ impl Engine {
     }
 
     /// Try word boundary shortcuts (triggered by space, punctuation, etc.)
-    fn try_word_boundary_shortcut(&mut self) -> Result {
+    /// The `trigger_char` is appended to the output (space for space, punctuation for punctuation)
+    fn try_word_boundary_shortcut_with_char(&mut self, trigger_char: char) -> Result {
         // Issue #107: Allow shortcuts with special char prefix (like "#fne")
         // If shortcut_prefix is set, we still try to match even with empty buffer
         if self.buf.is_empty() && self.shortcut_prefix.is_empty() {
@@ -1020,9 +1039,17 @@ impl Engine {
         let input_method = self.current_input_method();
 
         // Check for word boundary shortcut match
+        // For SPACE: append to output (space is "consumed" via Result::forward later)
+        // For punctuation: pass None - don't append, platform layer types it normally
+        // (This matches auto-restore behavior which also doesn't append break char)
+        let key_char = if trigger_char == ' ' {
+            Some(' ')
+        } else {
+            None // Punctuation: don't append, let platform type it
+        };
         if let Some(m) =
             self.shortcuts
-                .try_match_for_method(&full_trigger, Some(' '), true, input_method)
+                .try_match_for_method(&full_trigger, key_char, true, input_method)
         {
             let output: Vec<char> = m.output.chars().collect();
             // backspace_count = trigger.len() which already includes prefix (e.g., "#fne" = 4)
@@ -1030,6 +1057,11 @@ impl Engine {
         }
 
         Result::none()
+    }
+
+    /// Try word boundary shortcuts (triggered by space)
+    fn try_word_boundary_shortcut(&mut self) -> Result {
+        self.try_word_boundary_shortcut_with_char(' ')
     }
 
     /// Try "w" as vowel "ư" in Telex mode
@@ -1125,7 +1157,7 @@ impl Engine {
     ///
     /// In VNI mode, '9' is always an intentional stroke command (not a letter), so
     /// delayed stroke is allowed (e.g., "duong9" → "đuong").
-    fn try_stroke(&mut self, key: u16) -> Option<Result> {
+    fn try_stroke(&mut self, key: u16, caps: bool) -> Option<Result> {
         // If stroke was already reverted in this word (ddd → dd), skip further stroke attempts
         // This prevents "ddddd" from oscillating and ensures subsequent 'd's are just letters
         if self.stroke_reverted && key == keys::D {
@@ -1142,8 +1174,8 @@ impl Engine {
                     if let Some(c) = self.buf.get_mut(pos) {
                         c.stroke = false;
                     }
-                    // Add another 'd' as normal char
-                    self.buf.push(Char::new(key, false));
+                    // Add another 'd' as normal char (preserve caps state)
+                    self.buf.push(Char::new(key, caps));
                     self.last_transform = None;
                     // Mark that stroke was reverted - subsequent 'd' keys will be normal letters
                     self.stroke_reverted = true;
@@ -1176,8 +1208,8 @@ impl Engine {
                     if let Some(c) = self.buf.get_mut(pos) {
                         c.stroke = false;
                     }
-                    // Add another 'd' as normal char
-                    self.buf.push(Char::new(key, false));
+                    // Add another 'd' as normal char (preserve caps state)
+                    self.buf.push(Char::new(key, caps));
                     self.last_transform = None;
                     // Mark that stroke was reverted - subsequent 'd' keys will be normal letters
                     self.stroke_reverted = true;
@@ -4979,6 +5011,31 @@ mod tests {
             assert_eq!(
                 result, *expected,
                 "[Auto-restore J] '{}' → '{}', expected '{}'",
+                input, result, expected
+            );
+        }
+    }
+
+    /// Issue: Typing "DDD" with shift/capslock held → should produce "DD", not "Dd"
+    /// When stroke is reverted (ddd → dd), the added 'd' must preserve caps state
+    #[test]
+    fn test_stroke_revert_preserves_caps() {
+        // Uppercase: DDD → Đ → DD (both chars uppercase)
+        let cases: &[(&str, &str)] = &[
+            ("DDD", "DD"),   // caps: D→D, DD→Đ, DDD→DD (both uppercase)
+            ("ddd", "dd"),   // no caps: d→d, dd→đ, ddd→dd
+            ("DDd", "Dd"),   // mixed: first two caps, third lowercase → Dd
+            ("ddD", "dD"),   // mixed: first two lowercase, third caps → dD
+            ("DDDD", "DDD"), // 4 D's: after revert, stroke_reverted=true, 4th D added
+            ("dddd", "ddd"), // 4 d's: after revert, stroke_reverted=true, 4th d added
+        ];
+
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Stroke caps] '{}' → '{}', expected '{}'",
                 input, result, expected
             );
         }

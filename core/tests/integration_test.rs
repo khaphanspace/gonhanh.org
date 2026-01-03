@@ -998,38 +998,135 @@ fn shortcut_not_triggered_by_tone_marked_vowel() {
     assert_eq!(result2, "được ", "plain 'duoc' should match shortcut");
 }
 
+/// Issue #167: Shortcuts should trigger on punctuation (not just space)
+/// Example: "ko." → "không." when "ko" → "không" shortcut is defined
 #[test]
-fn shortcut_only_triggers_on_space_not_punctuation() {
+fn shortcut_triggers_on_period() {
     let mut e = Engine::new();
 
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Type "vn" + period - should NOT trigger shortcut
-    // Just type "vn" then clear buffer on period
+    // Type "vn" + period - SHOULD trigger shortcut
     e.on_key(keys::V, false, false);
     e.on_key(keys::N, false, false);
     let r = e.on_key(keys::DOT, false, false);
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "period should not trigger shortcut"
+        Action::Send as u8,
+        "period should trigger shortcut"
+    );
+    // Verify output is "Việt Nam" (without period - platform layer types it)
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "Việt Nam",
+        "output should NOT include period (typed by platform)"
     );
 }
 
+/// Issue #167: Shortcut triggers on comma
 #[test]
-fn shortcut_not_triggered_by_comma() {
+fn shortcut_triggers_on_comma() {
     let mut e = Engine::new();
 
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Type "vn" + comma - should NOT trigger shortcut
+    // Type "vn" + comma - SHOULD trigger shortcut
     e.on_key(keys::V, false, false);
     e.on_key(keys::N, false, false);
     let r = e.on_key(keys::COMMA, false, false);
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "comma should not trigger shortcut"
+        Action::Send as u8,
+        "comma should trigger shortcut"
+    );
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "Việt Nam",
+        "output should NOT include comma (typed by platform)"
+    );
+}
+
+/// Issue #167: Shortcut triggers on various punctuation marks
+#[test]
+fn shortcut_triggers_on_various_punctuation() {
+    // Test with question mark
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("ko", "không"));
+
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::SLASH, false, false, true); // ? = Shift+/
+    assert_eq!(r.action, Action::Send as u8, "? should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ? (typed by platform)"
+    );
+
+    // Test with exclamation mark
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::N1, false, false, true); // ! = Shift+1
+    assert_eq!(r.action, Action::Send as u8, "! should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ! (typed by platform)"
+    );
+
+    // Test with colon
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::SEMICOLON, false, false, true); // : = Shift+;
+    assert_eq!(r.action, Action::Send as u8, ": should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include : (typed by platform)"
+    );
+
+    // Test with semicolon
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key(keys::SEMICOLON, false, false); // ;
+    assert_eq!(r.action, Action::Send as u8, "; should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ; (typed by platform)"
+    );
+
+    // Test with ENTER key
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key(keys::RETURN, false, false);
+    assert_eq!(
+        r.action,
+        Action::Send as u8,
+        "ENTER should trigger shortcut"
+    );
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include newline (typed by platform)"
     );
 }
 
