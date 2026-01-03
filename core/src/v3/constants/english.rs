@@ -174,56 +174,63 @@ pub fn has_double_consonant(word: &[u8]) -> bool {
 pub mod coda_c1 {
     pub const C: usize = 0;
     pub const F: usize = 1;
-    pub const L: usize = 2;
-    pub const M: usize = 3;
-    pub const N: usize = 4;
-    pub const P: usize = 5;
-    pub const R: usize = 6;
-    pub const S: usize = 7;
-    pub const X: usize = 8;
-    pub const COUNT: usize = 9;
-}
-
-/// Coda cluster matrix indices for second consonant
-pub mod coda_c2 {
-    pub const B: usize = 0;
-    pub const D: usize = 1;
-    pub const F: usize = 2;
-    pub const K: usize = 3;
-    pub const L: usize = 4;
-    pub const M: usize = 5;
-    pub const N: usize = 6;
-    pub const P: usize = 7;
-    pub const T: usize = 8;
-    pub const V: usize = 9;
+    pub const K: usize = 2; // v3.1: for -ks pattern
+    pub const L: usize = 3;
+    pub const M: usize = 4;
+    pub const N: usize = 5;
+    pub const P: usize = 6;
+    pub const R: usize = 7;
+    pub const S: usize = 8;
+    pub const X: usize = 9;
     pub const COUNT: usize = 10;
 }
 
-/// English-only coda consonant clusters
+/// Coda cluster matrix indices for second consonant
+/// EXPANDED v3.1: added E, H, S, Y for patterns: se, sh, ks, ry, fe, re
+pub mod coda_c2 {
+    pub const B: usize = 0;
+    pub const D: usize = 1;
+    pub const E: usize = 2; // v3.1: for -se, -fe, -re
+    pub const F: usize = 3;
+    pub const H: usize = 4; // v3.1: for -sh
+    pub const K: usize = 5;
+    pub const L: usize = 6;
+    pub const M: usize = 7;
+    pub const N: usize = 8;
+    pub const P: usize = 9;
+    pub const S: usize = 10; // v3.1: for -ks
+    pub const T: usize = 11;
+    pub const V: usize = 12;
+    pub const Y: usize = 13; // v3.1: for -ry
+    pub const COUNT: usize = 14;
+}
+
+/// English-only coda consonant clusters (EXPANDED v3.1)
 /// Matrix: first_consonant x second_consonant -> is_en_coda
-/// Covers: ct, ft, ld, lf, lk, lm, lp, lt, lv, mp, nd, nk, nt, pt,
-///         rd, rk, rm, rn, rp, rt, sk, sp, st, xt
-/// Size: 9 x 10 = 90 bytes
-pub static E_CODA_PAIRS: [[u8; 10]; 9] = [
-    //          B  D  F  K  L  M  N  P  T  V
-    /* C */
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ct (fact, act)
-    /* F */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // ft (left, soft)
-    /* L */ [0, 1, 1, 1, 0, 1, 0, 1, 1, 1], // ld,lf,lk,lm,lp,lt,lv
-    /* M */ [1, 0, 0, 0, 0, 0, 0, 1, 0, 0], // mb, mp
-    /* N */ [0, 1, 0, 1, 0, 0, 0, 0, 1, 0], // nd, nk, nt
-    /* P */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // pt (script)
-    /* R */ [1, 1, 0, 1, 1, 1, 1, 1, 1, 0], // rb,rd,rk,rl,rm,rn,rp,rt
-    /* S */ [0, 0, 0, 1, 0, 0, 0, 1, 1, 0], // sk, sp, st
-    /* X */ [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // xt (text, next)
+/// Original: ct, ft, ld, lf, lk, lm, lp, lt, lv, mp, nd, nk, nt, pt, rd, rk, rm, rn, rp, rt, sk, sp, st, xt
+/// ADDED v3.1: sh, ry, se, ks, fe, re
+/// Size: 10 x 14 = 140 bytes
+pub static E_CODA_PAIRS: [[u8; 14]; 10] = [
+    //          B  D  E  F  H  K  L  M  N  P  S  T  V  Y
+    /* C */ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], // ct (fact, act)
+    /* F */ [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], // ft (left), fe (safe, life)
+    /* K */ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // ks (books, looks)
+    /* L */ [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0], // ld,lf,lk,lm,lp,lt,lv
+    /* M */ [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], // mb, mp
+    /* N */ [0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0], // nd, nk, nt
+    /* P */ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], // pt (script)
+    /* R */ [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1], // rb,rd,re,rk,rl,rm,rn,rp,rt,ry
+    /* S */ [0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0], // se,sh,sk,sp,st
+    /* X */ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], // xt (text, next)
 ];
 
-/// Map first consonant to coda_c1 index
+/// Map first consonant to coda_c1 index (UPDATED v3.1: added K)
 #[inline]
 fn coda_c1_index(c: u8) -> Option<usize> {
     match c {
         b'c' | b'C' => Some(coda_c1::C),
         b'f' | b'F' => Some(coda_c1::F),
+        b'k' | b'K' => Some(coda_c1::K),
         b'l' | b'L' => Some(coda_c1::L),
         b'm' | b'M' => Some(coda_c1::M),
         b'n' | b'N' => Some(coda_c1::N),
@@ -235,20 +242,24 @@ fn coda_c1_index(c: u8) -> Option<usize> {
     }
 }
 
-/// Map second consonant to coda_c2 index
+/// Map second consonant to coda_c2 index (UPDATED v3.1: added E, H, S, Y)
 #[inline]
 fn coda_c2_index(c: u8) -> Option<usize> {
     match c {
         b'b' | b'B' => Some(coda_c2::B),
         b'd' | b'D' => Some(coda_c2::D),
+        b'e' | b'E' => Some(coda_c2::E), // v3.1: -se, -fe, -re
         b'f' | b'F' => Some(coda_c2::F),
+        b'h' | b'H' => Some(coda_c2::H), // v3.1: -sh
         b'k' | b'K' => Some(coda_c2::K),
         b'l' | b'L' => Some(coda_c2::L),
         b'm' | b'M' => Some(coda_c2::M),
         b'n' | b'N' => Some(coda_c2::N),
         b'p' | b'P' => Some(coda_c2::P),
+        b's' | b'S' => Some(coda_c2::S), // v3.1: -ks
         b't' | b'T' => Some(coda_c2::T),
         b'v' | b'V' => Some(coda_c2::V),
+        b'y' | b'Y' => Some(coda_c2::Y), // v3.1: -ry
         _ => None,
     }
 }
@@ -423,15 +434,19 @@ pub fn has_en_prefix(word: &[u8]) -> bool {
 // ============================================================================
 
 /// Vowel patterns impossible/rare in Vietnamese
-/// ea, ee, oo, ou, ei, eu (removed ambiguous: ie, ue, io)
-/// Note: ie/ue/io excluded - ambiguous with Vietnamese iê/uê/iô
-pub static E_VOWEL_PATTERNS: [[u8; 2]; 6] = [
+/// Per v3-auto-restore-pipeline.md Tier 4: ea, ee, ou, ei, eu, yo, ae, yi, oo, oa, io
+pub static E_VOWEL_PATTERNS: [[u8; 2]; 11] = [
     [b'e', b'a'], // ea (search, beach)
     [b'e', b'e'], // ee (see, tree)
-    [b'o', b'o'], // oo (good, food)
     [b'o', b'u'], // ou (you, out)
     [b'e', b'i'], // ei (receive)
     [b'e', b'u'], // eu (neutral)
+    [b'y', b'o'], // yo (beyond, yoga)
+    [b'a', b'e'], // ae (aesthetic, paella)
+    [b'y', b'i'], // yi (yikes, yield)
+    [b'o', b'o'], // oo (good, food)
+    [b'o', b'a'], // oa (road, goal)
+    [b'i', b'o'], // io (lion, prior)
 ];
 
 /// Check if word has impossible Vietnamese vowel pattern
@@ -456,106 +471,144 @@ pub fn has_invalid_vn_vowel_pattern(word: &[u8]) -> bool {
 }
 
 // ============================================================================
-// CONFIDENCE SCORING
+// TIER 6: V+C+V Pattern (v3.1) - core, care, user, base, note, file
 // ============================================================================
 
-/// English detection confidence level (8-layer system)
-/// Matches validation-algorithm.md exactly
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum EnglishConfidence {
-    /// Definitely Vietnamese (0%)
-    None = 0,
-    /// Layer 8: Has impossible bigram for VN (80%)
-    ImpossibleBigram = 80,
-    /// Layer 7: Invalid VN vowel pattern (85%)
-    VowelPattern = 85,
-    /// Layer 6: Has common EN prefix (75%)
-    HasPrefix = 75,
-    /// Layer 4: Has common EN suffix (90%)
-    HasSuffix = 90,
-    /// Layer 5: Has EN-only coda cluster (91%)
-    CodaCluster = 91,
-    /// Layer 3: Has double consonant (95%)
-    DoubleConsonant = 95,
-    /// Layer 2: Has EN-only onset cluster (98%)
-    OnsetCluster = 98,
-    /// Layer 1: Invalid VN initial (100%)
-    Certain = 100,
-}
-
-// Legacy compatibility aliases
-#[allow(non_upper_case_globals)]
-impl EnglishConfidence {
-    pub const Low: Self = Self::ImpossibleBigram;
-    pub const Medium: Self = Self::HasSuffix;
-    pub const High: Self = Self::DoubleConsonant;
-}
-
-/// Calculate English confidence for a word (8-layer system)
-/// Returns highest confidence layer matched
-/// Order: Layer 1 > 2 > 3 > 4 > 5 > 6 > 7 > 8
-pub fn english_confidence(word: &str) -> EnglishConfidence {
-    let bytes = word.as_bytes();
-    if bytes.is_empty() {
-        return EnglishConfidence::None;
+/// Check if word has V+C+V pattern (vowel-consonant-vowel)
+/// Detects: core, care, user, base, note, file, pure, sure
+/// Common EN pattern where final 'e' is silent or modifies vowel
+pub fn has_vcv_pattern(word: &[u8]) -> bool {
+    if word.len() < 3 {
+        return false;
     }
 
-    // Layer 1: Invalid VN initials (F, J, W, Z) = Certain (100%)
-    if let Some(&first) = bytes.first() {
-        if is_invalid_vn_initial(first as char) {
-            return EnglishConfidence::Certain;
+    // Check all VCV windows
+    for i in 0..word.len().saturating_sub(2) {
+        let c1 = word[i].to_ascii_lowercase();
+        let c2 = word[i + 1].to_ascii_lowercase();
+        let c3 = word[i + 2].to_ascii_lowercase();
+
+        // Check V+C+V where C is one of: r, l, t, s, n, m
+        if is_vowel_byte(c1) && is_vowel_byte(c3) {
+            if matches!(c2, b'r' | b'l' | b't' | b's' | b'n' | b'm') {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if byte is a vowel (a, e, i, o, u)
+#[inline]
+fn is_vowel_byte(c: u8) -> bool {
+    matches!(c, b'a' | b'e' | b'i' | b'o' | b'u')
+}
+
+// ============================================================================
+// TIER 7: W-as-vowel Pattern (v3.1) - view, new, show, draw
+// ============================================================================
+
+/// Check if word ends with W-as-vowel pattern
+/// Detects: view (-iew), new/few/drew (-ew), show/flow/know (-ow), draw/law/saw (-aw)
+/// W functions as vowel in English but not in Vietnamese
+pub fn has_w_as_vowel(word: &[u8]) -> bool {
+    if word.len() < 2 {
+        return false;
+    }
+
+    // Check endings: -iew, -ew, -ow, -aw
+    let len = word.len();
+    let last = word[len - 1].to_ascii_lowercase();
+
+    if last != b'w' {
+        return false;
+    }
+
+    if len >= 3 {
+        let prev = word[len - 2].to_ascii_lowercase();
+        // -ew, -ow, -aw
+        if matches!(prev, b'e' | b'o' | b'a') {
+            return true;
+        }
+        // -iew (4+ chars: view, review)
+        if len >= 4 && prev == b'e' {
+            let prev2 = word[len - 3].to_ascii_lowercase();
+            if prev2 == b'i' {
+                return true;
+            }
         }
     }
 
-    // Layer 2: English-only onset clusters = OnsetCluster (98%)
-    if bytes.len() >= 2 && is_en_onset_pair(bytes[0], bytes[1]) {
-        return EnglishConfidence::OnsetCluster;
-    }
+    false
+}
 
-    // Layer 3: Double consonants = DoubleConsonant (95%)
-    if has_double_consonant(bytes) {
-        return EnglishConfidence::DoubleConsonant;
-    }
+// ============================================================================
+// 7-TIER ENGLISH DETECTION (per v3-auto-restore-pipeline.md Appendix A)
+// ============================================================================
 
-    // Layer 4: English suffixes = HasSuffix (90%)
-    if has_en_suffix(bytes) {
-        return EnglishConfidence::HasSuffix;
-    }
+/// Tier 1: Invalid Vietnamese initial (f, j, w, z)
+#[inline]
+pub fn tier1_invalid_initial(word: &str) -> bool {
+    word.chars()
+        .next()
+        .map(|c| is_invalid_vn_initial(c))
+        .unwrap_or(false)
+}
 
-    // Layer 5: English-only coda clusters = CodaCluster (90%)
+/// Tier 2: EN-only onset cluster (bl, br, cl, cr, dr, fl, fr, etc.)
+#[inline]
+pub fn tier2_onset_cluster(word: &str) -> bool {
+    let bytes = word.as_bytes();
+    bytes.len() >= 2 && is_en_onset_pair(bytes[0], bytes[1])
+}
+
+/// Tier 3: EN-only coda cluster (ct, ft, ld, lf, lk, xt, nd, nk, nt, etc.)
+#[inline]
+pub fn tier3_coda_cluster(word: &str) -> bool {
+    let bytes = word.as_bytes();
     if bytes.len() >= 2 {
         let last2 = &bytes[bytes.len() - 2..];
-        if is_en_coda_pair(last2[0], last2[1]) {
-            return EnglishConfidence::CodaCluster;
-        }
+        is_en_coda_pair(last2[0], last2[1])
+    } else {
+        false
     }
-
-    // Layer 6: English prefixes = HasPrefix (75%)
-    if has_en_prefix(bytes) {
-        return EnglishConfidence::HasPrefix;
-    }
-
-    // Layer 7: Invalid VN vowel patterns = VowelPattern (85%)
-    if has_invalid_vn_vowel_pattern(bytes) {
-        return EnglishConfidence::VowelPattern;
-    }
-
-    // Layer 8: Impossible bigrams = ImpossibleBigram (80%)
-    for i in 0..bytes.len().saturating_sub(1) {
-        if is_impossible_bigram(bytes[i], bytes[i + 1]) {
-            return EnglishConfidence::ImpossibleBigram;
-        }
-    }
-
-    EnglishConfidence::None
 }
 
-/// Check if confidence is high enough to trigger restore
-/// Threshold: CodaCluster (90%) or higher
+/// Tier 4: Invalid VN vowel pattern (ea, ee, ou, ei, eu, yo, ae, yi, oo, oa, io)
 #[inline]
-pub fn should_restore_english(confidence: EnglishConfidence) -> bool {
-    confidence >= EnglishConfidence::HasSuffix // 90% threshold
+pub fn tier4_vowel_pattern(word: &str) -> bool {
+    has_invalid_vn_vowel_pattern(word.as_bytes())
+}
+
+/// Tier 5: EN suffix (-tion, -sion, -ness, -ment, -able, -ible, -ing, etc.)
+#[inline]
+pub fn tier5_suffix(word: &str) -> bool {
+    has_en_suffix(word.as_bytes())
+}
+
+/// Tier 6: V+C+V pattern (ore, are, ase, ote, ile, ure)
+#[inline]
+pub fn tier6_vcv_pattern(word: &str) -> bool {
+    has_vcv_pattern(word.as_bytes())
+}
+
+/// Tier 7: W-as-vowel (-ew, -ow, -aw, -iew)
+#[inline]
+pub fn tier7_w_as_vowel(word: &str) -> bool {
+    has_w_as_vowel(word.as_bytes())
+}
+
+/// Main English detection function (7-tier OR)
+/// Per v3-auto-restore-pipeline.md Appendix A
+#[inline]
+pub fn is_english(raw: &str) -> bool {
+    tier1_invalid_initial(raw)
+        || tier2_onset_cluster(raw)
+        || tier3_coda_cluster(raw)
+        || tier4_vowel_pattern(raw)
+        || tier5_suffix(raw)
+        || tier6_vcv_pattern(raw)
+        || tier7_w_as_vowel(raw)
 }
 
 // ============================================================================
