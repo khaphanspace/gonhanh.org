@@ -330,6 +330,24 @@ mod engine_tests {
     }
 
     #[test]
+    fn test_duoc_tone_placement() {
+        // Test "được" - tone should be on ơ, not ư (ươ pattern → second vowel)
+        let mut engine = Engine::new();
+
+        // With đ: dduwowcj → được
+        let result = type_str(&mut engine, "dduwowcj");
+        assert_eq!(result, "được", "dduwowcj should produce được");
+
+        // Without đ (different order): duwowjc → dược (no stroke, tone still on ợ)
+        engine.clear();
+        let result2 = type_str(&mut engine, "duwowjc");
+        assert_eq!(result2, "dược", "duwowjc should place tone on ợ not ụ");
+
+        // Verify tone is NOT on first vowel (which would be dụơc)
+        assert_ne!(result2, "dụơc", "tone should NOT be on first vowel");
+    }
+
+    #[test]
     fn test_modern_tone_placement_oa() {
         // Modern style (default): hoàf -> hoà (tone on second vowel)
         let mut engine = Engine::new();
