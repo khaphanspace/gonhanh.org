@@ -85,12 +85,26 @@ pub struct VowelInfo {
 }
 
 /// Context for placement decisions
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct PlacementContext {
     /// Whether buffer starts with "qu" (u is part of consonant)
     pub has_qu_initial: bool,
     /// Whether buffer starts with "gi" (i is part of consonant)
     pub has_gi_initial: bool,
+    /// Modern tone placement style (affects oa, oe, uy patterns)
+    /// - Modern: hoà, hoè, thuỳ (tone on second vowel)
+    /// - Traditional: hòa, hòe, thùy (tone on first vowel)
+    pub modern: bool,
+}
+
+impl Default for PlacementContext {
+    fn default() -> Self {
+        Self {
+            has_qu_initial: false,
+            has_gi_initial: false,
+            modern: true, // Default to modern style (oà, oé, uỳ)
+        }
+    }
 }
 
 /// Find the position where tone should be placed
@@ -178,7 +192,20 @@ fn find_diphthong_position(
         return Some(vowels[1].position);
     }
 
-    // Rule: TONE_SECOND_PATTERNS get mark on second vowel
+    // Rule: Modern vs Traditional placement for oa, oe, uy
+    // - Modern: hoà, hoè, thuỳ (second vowel)
+    // - Traditional: hòa, hòe, thùy (first vowel)
+    let is_modern_pattern = (v1 == 'o' && (v2 == 'a' || v2 == 'e')) || (v1 == 'u' && v2 == 'y');
+    if is_modern_pattern {
+        return if ctx.modern {
+            Some(vowels[1].position) // Modern: second vowel
+        } else {
+            Some(vowels[0].position) // Traditional: first vowel
+        };
+    }
+
+    // Rule: TONE_SECOND_PATTERNS get mark on second vowel (compound vowels)
+    // iê, uê, uô, ươ → always second vowel (not affected by modern setting)
     if TONE_SECOND_PATTERNS
         .iter()
         .any(|p| p[0] == pair[0] && p[1] == pair[1])
@@ -260,6 +287,7 @@ pub fn detect_context(buffer: &str) -> PlacementContext {
             && chars[0] == 'g'
             && chars[1] == 'i'
             && is_vowel(chars[2]),
+        modern: true, // Default to modern style (oà, oé, uỳ), caller can override for traditional (òa, óe, ùy)
     }
 }
 
@@ -745,6 +773,7 @@ mod tests {
         let ctx = PlacementContext {
             has_qu_initial: false,
             has_gi_initial: true,
+            modern: false,
         };
         assert_eq!(
             find_tone_position_with_context(&vowels, false, &ctx),
@@ -753,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn test_special_diphthong_oa() {
+    fn test_diphthong_oa_modern_vs_traditional() {
         let vowels = vec![
             VowelInfo {
                 position: 0,
@@ -766,13 +795,32 @@ mod tests {
                 has_modifier: false,
             },
         ];
-        // oa → always on second (a)
-        assert_eq!(find_tone_position(&vowels, false), Some(1));
-        assert_eq!(find_tone_position(&vowels, true), Some(1));
+
+        // Modern: hoà → second vowel
+        let modern_ctx = PlacementContext {
+            modern: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &modern_ctx),
+            Some(1),
+            "oa modern → second"
+        );
+
+        // Traditional: hòa → first vowel
+        let traditional_ctx = PlacementContext {
+            modern: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &traditional_ctx),
+            Some(0),
+            "oa traditional → first"
+        );
     }
 
     #[test]
-    fn test_special_diphthong_uy() {
+    fn test_diphthong_uy_modern_vs_traditional() {
         let vowels = vec![
             VowelInfo {
                 position: 0,
@@ -785,9 +833,28 @@ mod tests {
                 has_modifier: false,
             },
         ];
-        // uy → always on second (y)
-        assert_eq!(find_tone_position(&vowels, false), Some(1));
-        assert_eq!(find_tone_position(&vowels, true), Some(1));
+
+        // Modern: thuỳ → second vowel
+        let modern_ctx = PlacementContext {
+            modern: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &modern_ctx),
+            Some(1),
+            "uy modern → second"
+        );
+
+        // Traditional: thùy → first vowel
+        let traditional_ctx = PlacementContext {
+            modern: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &traditional_ctx),
+            Some(0),
+            "uy traditional → first"
+        );
     }
 
     #[test]
@@ -1090,6 +1157,7 @@ mod tests {
         let ctx = PlacementContext {
             has_qu_initial: true,
             has_gi_initial: false,
+            modern: false,
         };
         assert_eq!(
             find_tone_position_with_context(&vowels, false, &ctx),

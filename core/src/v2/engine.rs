@@ -9,7 +9,7 @@ use super::dict::Dict;
 use super::output::generate_output;
 use super::precheck::{pre_check, Mode};
 use super::restore::{should_restore, Decision};
-use super::state::{BufferState, VnState};
+use super::state::BufferState;
 use super::types::{KeyType, MarkType};
 use super::validate::validate_vn;
 
@@ -232,8 +232,8 @@ impl Engine {
     fn handle_tone(&mut self, tone_key: u8) -> Result {
         use super::bitmask::get_tone;
         use super::placement::{
-            apply_tone_to_vowel, extract_vowels, find_tone_position, get_base_vowel,
-            has_final_consonant, replace_char_at, telex_key_to_tone,
+            apply_tone_to_vowel, detect_context, extract_vowels, find_tone_position_with_context,
+            get_base_vowel, has_final_consonant, replace_char_at, telex_key_to_tone,
         };
 
         // Convert tone key to tone value (1-5)
@@ -297,7 +297,12 @@ impl Engine {
         self.buffer.push_raw(raw_char);
 
         let has_final = has_final_consonant(&transformed);
-        let pos = find_tone_position(&vowels, has_final);
+
+        // Build placement context with modern flag and qu/gi detection
+        let mut ctx = detect_context(&transformed);
+        ctx.modern = self.modern_tone;
+
+        let pos = find_tone_position_with_context(&vowels, has_final, &ctx);
 
         if let Some(target_pos) = pos {
             // Get the vowel at target position

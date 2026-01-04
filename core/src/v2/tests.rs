@@ -269,6 +269,110 @@ mod engine_tests {
         engine.set_method(1); // VNI
         engine.set_method(0); // Telex
     }
+
+    use crate::data::keys;
+
+    /// Convert ASCII char to macOS virtual keycode
+    fn char_to_keycode(ch: char) -> u16 {
+        match ch.to_ascii_lowercase() {
+            'a' => keys::A,
+            'b' => keys::B,
+            'c' => keys::C,
+            'd' => keys::D,
+            'e' => keys::E,
+            'f' => keys::F,
+            'g' => keys::G,
+            'h' => keys::H,
+            'i' => keys::I,
+            'j' => keys::J,
+            'k' => keys::K,
+            'l' => keys::L,
+            'm' => keys::M,
+            'n' => keys::N,
+            'o' => keys::O,
+            'p' => keys::P,
+            'q' => keys::Q,
+            'r' => keys::R,
+            's' => keys::S,
+            't' => keys::T,
+            'u' => keys::U,
+            'v' => keys::V,
+            'w' => keys::W,
+            'x' => keys::X,
+            'y' => keys::Y,
+            'z' => keys::Z,
+            ' ' => keys::SPACE,
+            _ => 0xFFFF, // Invalid keycode
+        }
+    }
+
+    /// Helper to simulate typing a string
+    fn type_str(engine: &mut Engine, s: &str) -> String {
+        let mut result = String::new();
+        for ch in s.chars() {
+            let key = char_to_keycode(ch);
+            if key == 0xFFFF {
+                continue; // Skip unknown chars
+            }
+            let r = engine.on_key(key, false, false);
+            // Apply backspaces
+            for _ in 0..r.backspace {
+                result.pop();
+            }
+            // Add new chars
+            for i in 0..r.count as usize {
+                if let Some(c) = char::from_u32(r.chars[i]) {
+                    result.push(c);
+                }
+            }
+        }
+        result
+    }
+
+    #[test]
+    fn test_modern_tone_placement_oa() {
+        // Modern style (default): hoàf -> hoà (tone on second vowel)
+        let mut engine = Engine::new();
+        engine.set_modern_tone(true);
+        let result = type_str(&mut engine, "hoaf");
+        assert_eq!(result, "hoà", "modern style: oa -> oà");
+
+        // Traditional style: hoaf -> hòa (tone on first vowel)
+        engine.clear();
+        engine.set_modern_tone(false);
+        let result = type_str(&mut engine, "hoaf");
+        assert_eq!(result, "hòa", "traditional style: oa -> òa");
+    }
+
+    #[test]
+    fn test_modern_tone_placement_oe() {
+        // Modern style: khoẻ (tone on second vowel)
+        let mut engine = Engine::new();
+        engine.set_modern_tone(true);
+        let result = type_str(&mut engine, "khoer");
+        assert_eq!(result, "khoẻ", "modern style: oe -> oẻ");
+
+        // Traditional style: khỏe (tone on first vowel)
+        engine.clear();
+        engine.set_modern_tone(false);
+        let result = type_str(&mut engine, "khoer");
+        assert_eq!(result, "khỏe", "traditional style: oe -> ỏe");
+    }
+
+    #[test]
+    fn test_modern_tone_placement_uy() {
+        // Modern style: thuỳ (tone on second vowel)
+        let mut engine = Engine::new();
+        engine.set_modern_tone(true);
+        let result = type_str(&mut engine, "thuyf");
+        assert_eq!(result, "thuỳ", "modern style: uy -> uỳ");
+
+        // Traditional style: thùy (tone on first vowel)
+        engine.clear();
+        engine.set_modern_tone(false);
+        let result = type_str(&mut engine, "thuyf");
+        assert_eq!(result, "thùy", "traditional style: uy -> ùy");
+    }
 }
 
 #[cfg(test)]
