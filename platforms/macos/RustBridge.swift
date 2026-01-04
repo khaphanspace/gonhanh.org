@@ -529,13 +529,17 @@ class RustBridge {
         defer { ime_free(ptr) }
 
         let r = ptr.pointee
-        guard r.action == 1 else { return nil }
 
+        // Debug: log every key processing result
         let chars = withUnsafePointer(to: r.chars) { p in
             p.withMemoryRebound(to: UInt32.self, capacity: 256) { bound in
                 (0..<Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
             }
         }
+        Log.info("V2 key(\(keyCode), caps=\(caps)): action=\(r.action), bs=\(r.backspace), chars='\(String(chars))'")
+
+        guard r.action == 1 else { return nil }
+
         let keyConsumed = (r.flags & FLAG_KEY_CONSUMED) != 0
         return (Int(r.backspace), chars, keyConsumed)
     }

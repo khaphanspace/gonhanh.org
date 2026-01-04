@@ -75,7 +75,11 @@ fn is_special_diphthong(v1: char, v2: char) -> bool {
     // oa, oe → always on second (a, e)
     (v1 == 'o' && (v2 == 'a' || v2 == 'e')) ||
     // uy → always on second (y)
-    (v1 == 'u' && v2 == 'y')
+    (v1 == 'u' && v2 == 'y') ||
+    // ươ → always on ơ (second): được, nước, ướt
+    (v1 == 'ư' && v2 == 'ơ') ||
+    // iê → always on ê (second): tiếng, biết
+    (v1 == 'i' && v2 == 'ê')
 }
 
 /// Check if character is a base vowel
@@ -206,28 +210,48 @@ pub fn extract_vowels(s: &str) -> Vec<VowelInfo> {
         .collect()
 }
 
-/// Get base vowel without tone marks
+/// Get base vowel without tone marks (preserves circumflex/horn/breve modifiers)
 #[inline]
-fn get_base_vowel(c: char) -> char {
-    match c.to_ascii_lowercase() {
-        // a-based
-        'a' | '\u{00e1}' | '\u{00e0}' | '\u{1ea3}' | '\u{00e3}' | '\u{1ea1}' => 'a',
-        '\u{0103}' | '\u{1eaf}' | '\u{1eb1}' | '\u{1eb3}' | '\u{1eb5}' | '\u{1eb7}' => 'a', // ă
-        '\u{00e2}' | '\u{1ea5}' | '\u{1ea7}' | '\u{1ea9}' | '\u{1eab}' | '\u{1ead}' => 'a', // â
-        // e-based
-        'e' | '\u{00e9}' | '\u{00e8}' | '\u{1ebb}' | '\u{1ebd}' | '\u{1eb9}' => 'e',
-        '\u{00ea}' | '\u{1ebf}' | '\u{1ec1}' | '\u{1ec3}' | '\u{1ec5}' | '\u{1ec7}' => 'e', // ê
-        // i-based
-        'i' | '\u{00ed}' | '\u{00ec}' | '\u{1ec9}' | '\u{0129}' | '\u{1ecb}' => 'i',
-        // o-based
-        'o' | '\u{00f3}' | '\u{00f2}' | '\u{1ecf}' | '\u{00f5}' | '\u{1ecd}' => 'o',
-        '\u{00f4}' | '\u{1ed1}' | '\u{1ed3}' | '\u{1ed5}' | '\u{1ed7}' | '\u{1ed9}' => 'o', // ô
-        '\u{01a1}' | '\u{1edb}' | '\u{1edd}' | '\u{1edf}' | '\u{1ee1}' | '\u{1ee3}' => 'o', // ơ
-        // u-based
-        'u' | '\u{00fa}' | '\u{00f9}' | '\u{1ee7}' | '\u{0169}' | '\u{1ee5}' => 'u',
-        '\u{01b0}' | '\u{1ee9}' | '\u{1eeb}' | '\u{1eed}' | '\u{1eef}' | '\u{1ef1}' => 'u', // ư
-        // y-based
-        'y' | '\u{00fd}' | '\u{1ef3}' | '\u{1ef7}' | '\u{1ef9}' | '\u{1ef5}' => 'y',
+pub fn get_base_vowel(c: char) -> char {
+    match c {
+        // a with tones → a
+        'á' | 'à' | 'ả' | 'ã' | 'ạ' | 'Á' | 'À' | 'Ả' | 'Ã' | 'Ạ' => 'a',
+        // ă with tones → ă
+        'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' | 'Ắ' | 'Ằ' | 'Ẳ' | 'Ẵ' | 'Ặ' => 'ă',
+        // â with tones → â
+        'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' | 'Ấ' | 'Ầ' | 'Ẩ' | 'Ẫ' | 'Ậ' => 'â',
+        // e with tones → e
+        'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ' | 'É' | 'È' | 'Ẻ' | 'Ẽ' | 'Ẹ' => 'e',
+        // ê with tones → ê
+        'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' | 'Ế' | 'Ề' | 'Ể' | 'Ễ' | 'Ệ' => 'ê',
+        // i with tones → i
+        'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị' | 'Í' | 'Ì' | 'Ỉ' | 'Ĩ' | 'Ị' => 'i',
+        // o with tones → o
+        'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ' | 'Ó' | 'Ò' | 'Ỏ' | 'Õ' | 'Ọ' => 'o',
+        // ô with tones → ô
+        'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' | 'Ố' | 'Ồ' | 'Ổ' | 'Ỗ' | 'Ộ' => 'ô',
+        // ơ with tones → ơ
+        'ớ' | 'ờ' | 'ở' | 'ỡ' | 'ợ' | 'Ớ' | 'Ờ' | 'Ở' | 'Ỡ' | 'Ợ' => 'ơ',
+        // u with tones → u
+        'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ' | 'Ú' | 'Ù' | 'Ủ' | 'Ũ' | 'Ụ' => 'u',
+        // ư with tones → ư
+        'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' | 'Ứ' | 'Ừ' | 'Ử' | 'Ữ' | 'Ự' => 'ư',
+        // y with tones → y
+        'ý' | 'ỳ' | 'ỷ' | 'ỹ' | 'ỵ' | 'Ý' | 'Ỳ' | 'Ỷ' | 'Ỹ' | 'Ỵ' => 'y',
+        // Uppercase base vowels - return lowercase equivalent
+        'A' => 'a',
+        'Ă' => 'ă',
+        'Â' => 'â',
+        'E' => 'e',
+        'Ê' => 'ê',
+        'I' => 'i',
+        'O' => 'o',
+        'Ô' => 'ô',
+        'Ơ' => 'ơ',
+        'U' => 'u',
+        'Ư' => 'ư',
+        'Y' => 'y',
+        // Already lowercase base - return as is
         _ => c,
     }
 }

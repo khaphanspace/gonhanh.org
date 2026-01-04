@@ -38,16 +38,20 @@ pub fn classify_key(key: u8, prev_key: Option<u8>, method: Method) -> KeyType {
 /// Classify key for Telex method
 #[inline]
 fn classify_telex(key: u8, prev: Option<u8>) -> KeyType {
-    match key {
+    // Normalize to lowercase for matching
+    let lower = key.to_ascii_lowercase();
+    let prev_lower = prev.map(|p| p.to_ascii_lowercase());
+
+    match lower {
         // Tone keys: s(sắc), f(huyền), r(hỏi), x(ngã), j(nặng)
-        b's' | b'f' | b'r' | b'x' | b'j' => KeyType::Tone(key),
+        b's' | b'f' | b'r' | b'x' | b'j' => KeyType::Tone(lower),
 
         // Mark keys (context-dependent)
-        b'd' if prev == Some(b'd') => KeyType::Mark(MarkType::Stroke),
+        b'd' if prev_lower == Some(b'd') => KeyType::Mark(MarkType::Stroke),
         b'w' => KeyType::Mark(MarkType::HornOrBreve),
-        b'a' if prev == Some(b'a') => KeyType::Mark(MarkType::Circumflex),
-        b'o' if prev == Some(b'o') => KeyType::Mark(MarkType::Circumflex),
-        b'e' if prev == Some(b'e') => KeyType::Mark(MarkType::Circumflex),
+        b'a' if prev_lower == Some(b'a') => KeyType::Mark(MarkType::Circumflex),
+        b'o' if prev_lower == Some(b'o') => KeyType::Mark(MarkType::Circumflex),
+        b'e' if prev_lower == Some(b'e') => KeyType::Mark(MarkType::Circumflex),
 
         // Terminators - word boundaries
         _ if is_terminator(key) => KeyType::Terminator,

@@ -497,4 +497,30 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_validate_tieng() {
+        let s = "tiếng";
+        println!("Testing: '{}'", s);
+
+        let syllable = parse_syllable(s);
+        println!(
+            "Parsed: onset={:?}, vowels={:?}, coda={:?}, tone={}",
+            syllable.onset, syllable.vowels, syllable.coda, syllable.tone
+        );
+
+        // Check each layer
+        println!("L1 check_char_types: {}", check_char_types(s));
+        println!("L2-L3 check_onset: {}", check_onset(&syllable));
+        println!("L4 check_vowel_pattern: {}", check_vowel_pattern(&syllable));
+        println!("L5-L6 check_coda: {}", check_coda(&syllable));
+        println!("L7 check_tone_stop: {}", check_tone_stop(&syllable));
+        println!("L8 check_spelling: {}", check_spelling(&syllable));
+        println!("L9 check_modifier_req: {}", check_modifier_req(&syllable));
+
+        let result = validate_vn(s);
+        println!("validate_vn result: {:?}", result);
+
+        assert_eq!(result, VnState::Complete);
+    }
 }

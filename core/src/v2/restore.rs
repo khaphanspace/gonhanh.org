@@ -74,22 +74,24 @@ pub fn should_restore(
 
 /// Fallback logic when no dictionary available
 fn should_restore_fallback(state: &BufferState, raw: &str, buffer: &str) -> Decision {
+    // P6: Complete + tone = intentional VN (higher priority)
+    // "tiếng" with tone mark is clearly intentional Vietnamese
+    if state.has_tone() && state.vn_state() == VnState::Complete {
+        return Decision::Keep;
+    }
+
+    // P7: Complete = valid VN (even without tone)
+    if state.vn_state() == VnState::Complete {
+        return Decision::Keep;
+    }
+
     // P5: Significant char consumption = restore
+    // Only applies to incomplete/unknown patterns
     let raw_len = raw.chars().count() as i32;
     let buf_len = buffer.chars().count() as i32;
     let consumed = raw_len - buf_len;
     if consumed >= 2 {
         return Decision::Restore;
-    }
-
-    // P6: Complete + tone = intentional VN
-    if state.has_tone() && state.vn_state() == VnState::Complete {
-        return Decision::Keep;
-    }
-
-    // P7: Complete = valid VN
-    if state.vn_state() == VnState::Complete {
-        return Decision::Keep;
     }
 
     // P8: Otherwise = skip (don't guess)
@@ -128,8 +130,11 @@ fn tier3_coda_cluster(raw: &str) -> bool {
 /// From spec: ea, ee, ou, ei, eu, yo, ae, yi, oo, io
 /// Note: "eu" excluded - can appear in VN transforms (e.g., "châu" → intermediate "chauu")
 /// Note: "io" excluded - appears in VN diphthongs (e.g., "bịo")
+/// Note: "ee" excluded - Telex modifier for ê (e.g., "tiếng" → raw "tieengs")
+/// Note: "oo" excluded - Telex modifier for ô (e.g., "tôi" → raw "tooi")
+/// Note: "aa" would also need exclusion (Telex for â), but not in original list
 fn tier4_vowel_pattern(raw: &str) -> bool {
-    const EN_VOWELS: &[&str] = &["ea", "ee", "ou", "ei", "yo", "ae", "yi", "oo"];
+    const EN_VOWELS: &[&str] = &["ea", "ou", "ei", "yo", "ae", "yi"];
     let lower = raw.to_ascii_lowercase();
     EN_VOWELS.iter().any(|p| lower.contains(p))
 }
@@ -188,11 +193,12 @@ mod tests {
     #[test]
     fn test_tier4_vowel_pattern() {
         assert!(tier4_vowel_pattern("search")); // ea
-        assert!(tier4_vowel_pattern("see")); // ee
+        assert!(!tier4_vowel_pattern("see")); // ee excluded (Telex modifier)
         assert!(tier4_vowel_pattern("you")); // ou
         assert!(tier4_vowel_pattern("ceiling")); // ei
         assert!(!tier4_vowel_pattern("ban")); // no EN pattern
         assert!(!tier4_vowel_pattern("toi")); // oi is VN
+        assert!(!tier4_vowel_pattern("too")); // oo excluded (Telex modifier)
     }
 
     // Tier 5 tests

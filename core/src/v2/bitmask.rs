@@ -101,8 +101,23 @@ pub const CHAR_TYPE: [u8; 33] = [
 /// Valid VN single onsets bitmask (17 consonants)
 /// b,c,d,đ,g,h,k,l,m,n,p,q,r,s,t,v,x
 /// bit positions: a=0, b=1, c=2, d=3, ... đ=26
-pub const M_ONSET: u32 = 0b_0000_0100_0010_0101_1111_1110_1111_1110 | (1 << 26);
-// x=23, v=21, t=19, s=18, r=17, q=16, p=15, n=13, m=12, l=11, k=10, h=7, g=6, d=3, c=2, b=1, đ=26
+pub const M_ONSET: u32 = (1 << 1)   // b
+    | (1 << 2)   // c
+    | (1 << 3)   // d
+    | (1 << 6)   // g
+    | (1 << 7)   // h
+    | (1 << 10)  // k
+    | (1 << 11)  // l
+    | (1 << 12)  // m
+    | (1 << 13)  // n
+    | (1 << 15)  // p
+    | (1 << 16)  // q
+    | (1 << 17)  // r
+    | (1 << 18)  // s
+    | (1 << 19)  // t
+    | (1 << 21)  // v
+    | (1 << 23)  // x
+    | (1 << 26); // đ
 
 /// Valid VN single codas bitmask (5 + 4 semi-vowels)
 /// c,m,n,p,t (true consonant codas)
