@@ -40,8 +40,10 @@ build: format ## Build core + macos app (V1 engine)
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
 
-build-v2: format ## Build core with V2 engine
-	@cd core && cargo build --release --features engine-v2
+build-v2: format ## Build core + macos app (V2 engine)
+	@CARGO_FEATURES=engine-v2 ./scripts/build-core.sh
+	@./scripts/build-macos.sh
+	@./scripts/build-windows.sh
 
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh
