@@ -19,8 +19,8 @@ pub enum Mode {
 /// These NEVER appear in Vietnamese word beginnings.
 /// Based on spec Section 4: 21 clusters
 const EN_ONSET_CLUSTERS: &[[u8; 2]] = &[
-    *b"bl", *b"br", *b"cl", *b"cr", *b"dr", *b"fl", *b"fr", *b"gl", *b"gr", *b"pl", *b"pr",
-    *b"sc", *b"sk", *b"sl", *b"sm", *b"sn", *b"sp", *b"st", *b"sw", *b"tw", *b"wr",
+    *b"bl", *b"br", *b"cl", *b"cr", *b"dr", *b"fl", *b"fr", *b"gl", *b"gr", *b"pl", *b"pr", *b"sc",
+    *b"sk", *b"sl", *b"sm", *b"sn", *b"sp", *b"st", *b"sw", *b"tw", *b"wr",
 ];
 
 /// Pre-check for foreign mode (runs on first 2-3 chars only)
@@ -49,10 +49,7 @@ pub fn pre_check(raw: &str) -> Mode {
 
     // Tier 2: English-only onset clusters
     if bytes.len() >= 2 {
-        let pair = [
-            bytes[0].to_ascii_lowercase(),
-            bytes[1].to_ascii_lowercase(),
-        ];
+        let pair = [bytes[0].to_ascii_lowercase(), bytes[1].to_ascii_lowercase()];
         if is_en_onset_cluster(&pair) {
             return Mode::Foreign;
         }

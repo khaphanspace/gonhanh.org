@@ -7,8 +7,8 @@ use super::types::{KeyType, MarkType};
 
 /// Terminator characters - shared between methods
 const TERMINATORS: &[u8] = &[
-    b' ', b'\n', b'\t',                           // whitespace
-    b'.', b',', b';', b':', b'!', b'?',           // punctuation
+    b' ', b'\n', b'\t', // whitespace
+    b'.', b',', b';', b':', b'!', b'?', // punctuation
     b'"', b'\'', b'(', b')', b'[', b']', b'{', b'}', // brackets/quotes
 ];
 
@@ -72,11 +72,11 @@ fn classify_vni(key: u8, _prev: Option<u8>) -> KeyType {
         b'5' => KeyType::Tone(5), // nặng
 
         // Mark keys: 6-9, 0
-        b'6' => KeyType::Mark(MarkType::Circumflex),  // â, ô, ê
+        b'6' => KeyType::Mark(MarkType::Circumflex), // â, ô, ê
         b'7' => KeyType::Mark(MarkType::HornOrBreve), // ơ, ư
         b'8' => KeyType::Mark(MarkType::HornOrBreve), // ă (breve)
-        b'9' => KeyType::Mark(MarkType::Stroke),      // đ (stroke)
-        b'0' => KeyType::Tone(0),                     // remove tone
+        b'9' => KeyType::Mark(MarkType::Stroke),     // đ (stroke)
+        b'0' => KeyType::Tone(0),                    // remove tone
 
         // Terminators (same as Telex)
         _ if is_terminator(key) => KeyType::Terminator,

@@ -429,8 +429,8 @@ mod tests {
         // Stop codas only allow sắc (1) and nặng (5)
         assert_eq!(validate_vn("bác"), VnState::Complete); // sắc + c OK
         assert_eq!(validate_vn("bạc"), VnState::Complete); // nặng + c OK
-        // Invalid: huyền with stop
-        // Note: "bàc" would have tone=2 (huyền)
+                                                           // Invalid: huyền with stop
+                                                           // Note: "bàc" would have tone=2 (huyền)
         let s = parse_syllable("bàc");
         assert_eq!(s.tone, 2);
         assert_eq!(validate_vn("bàc"), VnState::Impossible);

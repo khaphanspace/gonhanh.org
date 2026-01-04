@@ -73,11 +73,7 @@ pub fn should_restore(
 }
 
 /// Fallback logic when no dictionary available
-fn should_restore_fallback(
-    state: &BufferState,
-    raw: &str,
-    buffer: &str,
-) -> Decision {
+fn should_restore_fallback(state: &BufferState, raw: &str, buffer: &str) -> Decision {
     // P5: Significant char consumption = restore
     let raw_len = raw.chars().count() as i32;
     let buf_len = buffer.chars().count() as i32;

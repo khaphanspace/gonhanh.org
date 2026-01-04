@@ -83,7 +83,15 @@ fn is_special_diphthong(v1: char, v2: char) -> bool {
 pub fn is_vowel(c: char) -> bool {
     matches!(
         c.to_ascii_lowercase(),
-        'a' | 'e' | 'i' | 'o' | 'u' | 'y' | '\u{0103}' | '\u{00e2}' | '\u{00ea}' | '\u{00f4}'
+        'a' | 'e'
+            | 'i'
+            | 'o'
+            | 'u'
+            | 'y'
+            | '\u{0103}'
+            | '\u{00e2}'
+            | '\u{00ea}'
+            | '\u{00f4}'
             | '\u{01a1}'
             | '\u{01b0}'
     )
@@ -181,7 +189,7 @@ fn is_modified_vowel(c: char) -> bool {
         '\u{1ef3}' | '\u{1ef2}' | // ỳ, Ỳ
         '\u{1ef7}' | '\u{1ef6}' | // ỷ, Ỷ
         '\u{1ef9}' | '\u{1ef8}' | // ỹ, Ỹ
-        '\u{1ef5}' | '\u{1ef4}'   // ỵ, Ỵ
+        '\u{1ef5}' | '\u{1ef4}' // ỵ, Ỵ
     )
 }
 
@@ -311,6 +319,152 @@ pub fn apply_stroke(s: &str) -> Option<(usize, char)> {
 pub fn is_uo_compound(s: &str) -> bool {
     let lower = s.to_ascii_lowercase();
     lower.contains("uo") || lower.contains("u\u{01a1}")
+}
+
+// ============================================================
+// TONE APPLICATION
+// ============================================================
+
+/// Apply a tone (1-5) to a vowel character
+/// Returns the toned vowel, or the original if no mapping exists
+pub fn apply_tone_to_vowel(vowel: char, tone: u8) -> char {
+    // Get base vowel without existing tone
+    let base = get_base_vowel(vowel);
+    let is_upper = vowel.is_uppercase();
+
+    let result = match (base, tone) {
+        // a variants
+        ('a', 0) => 'a',
+        ('a', 1) => 'á',
+        ('a', 2) => 'à',
+        ('a', 3) => 'ả',
+        ('a', 4) => 'ã',
+        ('a', 5) => 'ạ',
+
+        // ă variants
+        ('ă', 0) => 'ă',
+        ('ă', 1) => 'ắ',
+        ('ă', 2) => 'ằ',
+        ('ă', 3) => 'ẳ',
+        ('ă', 4) => 'ẵ',
+        ('ă', 5) => 'ặ',
+
+        // â variants
+        ('â', 0) => 'â',
+        ('â', 1) => 'ấ',
+        ('â', 2) => 'ầ',
+        ('â', 3) => 'ẩ',
+        ('â', 4) => 'ẫ',
+        ('â', 5) => 'ậ',
+
+        // e variants
+        ('e', 0) => 'e',
+        ('e', 1) => 'é',
+        ('e', 2) => 'è',
+        ('e', 3) => 'ẻ',
+        ('e', 4) => 'ẽ',
+        ('e', 5) => 'ẹ',
+
+        // ê variants
+        ('ê', 0) => 'ê',
+        ('ê', 1) => 'ế',
+        ('ê', 2) => 'ề',
+        ('ê', 3) => 'ể',
+        ('ê', 4) => 'ễ',
+        ('ê', 5) => 'ệ',
+
+        // i variants
+        ('i', 0) => 'i',
+        ('i', 1) => 'í',
+        ('i', 2) => 'ì',
+        ('i', 3) => 'ỉ',
+        ('i', 4) => 'ĩ',
+        ('i', 5) => 'ị',
+
+        // o variants
+        ('o', 0) => 'o',
+        ('o', 1) => 'ó',
+        ('o', 2) => 'ò',
+        ('o', 3) => 'ỏ',
+        ('o', 4) => 'õ',
+        ('o', 5) => 'ọ',
+
+        // ô variants
+        ('ô', 0) => 'ô',
+        ('ô', 1) => 'ố',
+        ('ô', 2) => 'ồ',
+        ('ô', 3) => 'ổ',
+        ('ô', 4) => 'ỗ',
+        ('ô', 5) => 'ộ',
+
+        // ơ variants
+        ('ơ', 0) => 'ơ',
+        ('ơ', 1) => 'ớ',
+        ('ơ', 2) => 'ờ',
+        ('ơ', 3) => 'ở',
+        ('ơ', 4) => 'ỡ',
+        ('ơ', 5) => 'ợ',
+
+        // u variants
+        ('u', 0) => 'u',
+        ('u', 1) => 'ú',
+        ('u', 2) => 'ù',
+        ('u', 3) => 'ủ',
+        ('u', 4) => 'ũ',
+        ('u', 5) => 'ụ',
+
+        // ư variants
+        ('ư', 0) => 'ư',
+        ('ư', 1) => 'ứ',
+        ('ư', 2) => 'ừ',
+        ('ư', 3) => 'ử',
+        ('ư', 4) => 'ữ',
+        ('ư', 5) => 'ự',
+
+        // y variants
+        ('y', 0) => 'y',
+        ('y', 1) => 'ý',
+        ('y', 2) => 'ỳ',
+        ('y', 3) => 'ỷ',
+        ('y', 4) => 'ỹ',
+        ('y', 5) => 'ỵ',
+
+        // No match - return original
+        _ => vowel,
+    };
+
+    // Handle uppercase
+    if is_upper {
+        result.to_uppercase().next().unwrap_or(result)
+    } else {
+        result
+    }
+}
+
+/// Convert Telex key to tone value
+#[inline]
+pub fn telex_key_to_tone(key: u8) -> u8 {
+    match key {
+        b's' | b'S' => 1, // sắc
+        b'f' | b'F' => 2, // huyền
+        b'r' | b'R' => 3, // hỏi
+        b'x' | b'X' => 4, // ngã
+        b'j' | b'J' => 5, // nặng
+        _ => 0,
+    }
+}
+
+/// Replace a character at position in a string
+pub fn replace_char_at(s: &str, pos: usize, new_char: char) -> String {
+    let mut result = String::with_capacity(s.len() + 4);
+    for (i, c) in s.chars().enumerate() {
+        if i == pos {
+            result.push(new_char);
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 #[cfg(test)]

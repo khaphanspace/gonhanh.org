@@ -33,9 +33,12 @@ pub use buffer::Buffer;
 pub use classify::{classify_key, Method};
 pub use dict::Dict;
 pub use dispatch::dispatch;
-pub use engine::{Engine, Result, Action, MAX, FLAG_KEY_CONSUMED};
+pub use engine::{Action, Engine, Result, FLAG_KEY_CONSUMED, MAX};
 pub use output::generate_output;
-pub use placement::{find_tone_position, VowelInfo};
+pub use placement::{
+    apply_breve, apply_circumflex, apply_horn, apply_stroke, apply_tone_to_vowel, extract_vowels,
+    find_tone_position, has_final_consonant, replace_char_at, telex_key_to_tone, VowelInfo,
+};
 pub use precheck::{pre_check, Mode};
 pub use restore::{is_english, should_restore, Decision};
 pub use state::{BufferState, VnState};

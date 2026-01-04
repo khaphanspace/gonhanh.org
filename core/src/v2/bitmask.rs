@@ -60,13 +60,42 @@ pub const INVALID: u8 = 0b1000;
 /// Index: a=0, b=1, ..., z=25, đ=26, ă=27, â=28, ê=29, ô=30, ơ=31, ư=32
 pub const CHAR_TYPE: [u8; 33] = [
     // a      b      c           d      e      f        g      h
-    VOWEL, ONSET, ONSET | CODA, ONSET, VOWEL, INVALID, ONSET, ONSET,
+    VOWEL,
+    ONSET,
+    ONSET | CODA,
+    ONSET,
+    VOWEL,
+    INVALID,
+    ONSET,
+    ONSET,
     // i           j        k      l      m           n           o           p
-    VOWEL | CODA, INVALID, ONSET, ONSET, ONSET | CODA, ONSET | CODA, VOWEL | CODA, ONSET | CODA,
+    VOWEL | CODA,
+    INVALID,
+    ONSET,
+    ONSET,
+    ONSET | CODA,
+    ONSET | CODA,
+    VOWEL | CODA,
+    ONSET | CODA,
     // q      r      s      t           u           v      w        x
-    ONSET, ONSET, ONSET, ONSET | CODA, VOWEL | CODA, ONSET, INVALID, ONSET,
+    ONSET,
+    ONSET,
+    ONSET,
+    ONSET | CODA,
+    VOWEL | CODA,
+    ONSET,
+    INVALID,
+    ONSET,
     // y           z        đ      ă      â      ê      ô      ơ      ư
-    VOWEL | CODA, INVALID, ONSET, VOWEL, VOWEL, VOWEL, VOWEL, VOWEL, VOWEL,
+    VOWEL | CODA,
+    INVALID,
+    ONSET,
+    VOWEL,
+    VOWEL,
+    VOWEL,
+    VOWEL,
+    VOWEL,
+    VOWEL,
 ];
 
 /// Valid VN single onsets bitmask (17 consonants)
@@ -79,13 +108,20 @@ pub const M_ONSET: u32 = 0b_0000_0100_0010_0101_1111_1110_1111_1110 | (1 << 26);
 /// c,m,n,p,t (true consonant codas)
 /// i,o,u,y (semi-vowel codas)
 /// Bit positions: c=2, i=8, m=12, n=13, o=14, p=15, t=19, u=20, y=24
-pub const M_CODA: u32 = (1 << 2) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 19) | (1 << 20) | (1 << 24);
+pub const M_CODA: u32 = (1 << 2)
+    | (1 << 8)
+    | (1 << 12)
+    | (1 << 13)
+    | (1 << 14)
+    | (1 << 15)
+    | (1 << 19)
+    | (1 << 20)
+    | (1 << 24);
 
 /// Valid VN onset clusters (10 two-char clusters)
 /// Note: "ngh" is a 3-char cluster handled separately in validate.rs check_onset()
 pub const VN_ONSET_CLUSTERS: &[[u8; 2]] = &[
-    *b"ch", *b"gh", *b"gi", *b"kh", *b"ng",
-    *b"nh", *b"ph", *b"qu", *b"th", *b"tr",
+    *b"ch", *b"gh", *b"gi", *b"kh", *b"ng", *b"nh", *b"ph", *b"qu", *b"th", *b"tr",
 ];
 
 /// Valid VN coda clusters (3 clusters)
@@ -94,24 +130,53 @@ pub const VN_CODA_CLUSTERS: &[[u8; 2]] = &[*b"ch", *b"ng", *b"nh"];
 /// Valid VN diphthongs (29 patterns)
 /// From spec Section 2.2
 pub const VALID_DIPHTHONGS: &[[char; 2]] = &[
-    ['a', 'i'], ['a', 'o'], ['a', 'u'], ['a', 'y'],
-    ['â', 'u'], ['â', 'y'],
-    ['e', 'o'], ['ê', 'u'],
-    ['i', 'a'], ['i', 'ê'], ['i', 'u'],
-    ['o', 'a'], ['o', 'ă'], ['o', 'e'], ['o', 'i'],
-    ['ô', 'i'], ['ơ', 'i'],
-    ['u', 'a'], ['u', 'â'], ['u', 'ê'], ['u', 'i'], ['u', 'ô'], ['u', 'y'],
-    ['ư', 'a'], ['ư', 'i'], ['ư', 'ơ'], ['ư', 'u'],
+    ['a', 'i'],
+    ['a', 'o'],
+    ['a', 'u'],
+    ['a', 'y'],
+    ['â', 'u'],
+    ['â', 'y'],
+    ['e', 'o'],
+    ['ê', 'u'],
+    ['i', 'a'],
+    ['i', 'ê'],
+    ['i', 'u'],
+    ['o', 'a'],
+    ['o', 'ă'],
+    ['o', 'e'],
+    ['o', 'i'],
+    ['ô', 'i'],
+    ['ơ', 'i'],
+    ['u', 'a'],
+    ['u', 'â'],
+    ['u', 'ê'],
+    ['u', 'i'],
+    ['u', 'ô'],
+    ['u', 'y'],
+    ['ư', 'a'],
+    ['ư', 'i'],
+    ['ư', 'ơ'],
+    ['ư', 'u'],
     ['y', 'ê'],
 ];
 
 /// Valid VN triphthongs (14 patterns)
 /// From spec Section 2.2
 pub const VALID_TRIPHTHONGS: &[[char; 3]] = &[
-    ['i', 'ê', 'u'], ['y', 'ê', 'u'],
-    ['o', 'a', 'i'], ['o', 'a', 'y'], ['o', 'a', 'o'], ['o', 'e', 'o'],
-    ['u', 'â', 'y'], ['u', 'ô', 'i'], ['u', 'y', 'a'], ['u', 'y', 'ê'], ['u', 'y', 'u'], ['u', 'ê', 'u'],
-    ['ư', 'ơ', 'i'], ['ư', 'ơ', 'u'],
+    ['i', 'ê', 'u'],
+    ['y', 'ê', 'u'],
+    ['o', 'a', 'i'],
+    ['o', 'a', 'y'],
+    ['o', 'a', 'o'],
+    ['o', 'e', 'o'],
+    ['u', 'â', 'y'],
+    ['u', 'ô', 'i'],
+    ['u', 'y', 'a'],
+    ['u', 'y', 'ê'],
+    ['u', 'y', 'u'],
+    ['u', 'ê', 'u'],
+    ['ư', 'ơ', 'i'],
+    ['ư', 'ơ', 'u'],
 ];
 
 /// Tone-stop restriction check
@@ -133,15 +198,25 @@ pub fn is_valid_tone_for_coda(tone: u8, coda: &str) -> bool {
 pub fn get_tone(c: char) -> u8 {
     match c {
         // Sắc (1)
-        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => 1,
+        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => {
+            1
+        }
         // Huyền (2)
-        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => 2,
+        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => {
+            2
+        }
         // Hỏi (3)
-        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => 3,
+        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => {
+            3
+        }
         // Ngã (4)
-        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => 4,
+        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => {
+            4
+        }
         // Nặng (5)
-        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => 5,
+        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => {
+            5
+        }
         // No tone (0)
         _ => 0,
     }

@@ -109,6 +109,7 @@ pub struct Engine {
 
     // Settings (match V1)
     skip_w_shortcut: bool,
+    bracket_shortcut: bool,
     esc_restore_enabled: bool,
     free_tone_enabled: bool,
     modern_tone: bool,
@@ -141,6 +142,7 @@ impl Engine {
             prev_output: String::new(),
 
             skip_w_shortcut: false,
+            bracket_shortcut: false,
             esc_restore_enabled: false,
             free_tone_enabled: false,
             modern_tone: true,
@@ -229,24 +231,66 @@ impl Engine {
     }
 
     /// Handle tone key (Telex: s,f,r,x,j or VNI: 1-5)
-    fn handle_tone(&mut self, tone: u8) -> Result {
-        // For now, append raw key and mark state
-        let c = tone as char;
-        self.buffer.push_raw(c);
+    fn handle_tone(&mut self, tone_key: u8) -> Result {
+        use super::placement::{
+            apply_tone_to_vowel, extract_vowels, find_tone_position, has_final_consonant,
+            replace_char_at, telex_key_to_tone,
+        };
 
-        // TODO: Implement proper tone placement using placement.rs
-        // For now, just pass through
-        self.buffer.push_transformed(c);
+        // Convert tone key to tone value (1-5)
+        let tone_value = match self.method {
+            Method::Telex => telex_key_to_tone(tone_key),
+            Method::Vni => tone_key, // VNI already uses 1-5
+        };
 
-        self.state.set_has_tone(true);
-        self.state.set_had_transform(true);
+        // Append raw key
+        let raw_char = tone_key as char;
+        self.buffer.push_raw(raw_char);
+
+        // Get current transformed text
+        let transformed = self.buffer.transformed();
+
+        // Find vowels in transformed text
+        let vowels = extract_vowels(transformed);
+
+        if vowels.is_empty() {
+            // No vowels - just pass through the key
+            self.buffer.push_transformed(raw_char);
+            return self.rebuild_output();
+        }
+
+        // Find tone position
+        let has_final = has_final_consonant(transformed);
+        let pos = find_tone_position(&vowels, has_final);
+
+        if let Some(target_pos) = pos {
+            // Get the vowel at target position
+            if let Some(vowel) = transformed.chars().nth(target_pos) {
+                // Apply tone to the vowel
+                let toned_vowel = apply_tone_to_vowel(vowel, tone_value);
+
+                // Replace the vowel in transformed buffer
+                let new_transformed = replace_char_at(transformed, target_pos, toned_vowel);
+                self.buffer.replace_transformed(&new_transformed);
+
+                self.state.set_has_tone(true);
+                self.state.set_had_transform(true);
+            }
+        } else {
+            // No valid position - pass through the key
+            self.buffer.push_transformed(raw_char);
+        }
 
         self.rebuild_output()
     }
 
     /// Handle mark key (circumflex, horn, breve, stroke)
     fn handle_mark(&mut self, mark: MarkType) -> Result {
-        // Append raw key
+        use super::placement::{
+            apply_breve, apply_circumflex, apply_horn, apply_stroke, replace_char_at,
+        };
+
+        // Determine raw key for buffer
         let raw_char = match mark {
             MarkType::Stroke => 'd',
             MarkType::Circumflex => {
@@ -257,14 +301,34 @@ impl Engine {
         };
         self.buffer.push_raw(raw_char);
 
-        // TODO: Implement proper mark placement
-        // For now, just pass through
-        self.buffer.push_transformed(raw_char);
+        // Get current transformed text
+        let transformed = self.buffer.transformed();
 
-        if mark == MarkType::Stroke {
-            self.state.set_has_stroke(true);
+        // Apply the appropriate mark
+        let result = match mark {
+            MarkType::Stroke => apply_stroke(transformed),
+            MarkType::Circumflex => apply_circumflex(transformed),
+            MarkType::HornOrBreve => {
+                // Try horn first (o→ơ, u→ư), then breve (a→ă)
+                apply_horn(transformed).or_else(|| apply_breve(transformed))
+            }
+        };
+
+        if let Some((pos, new_char)) = result {
+            // Replace the character at position
+            let new_transformed = replace_char_at(transformed, pos, new_char);
+            self.buffer.replace_transformed(&new_transformed);
+
+            if mark == MarkType::Stroke {
+                self.state.set_has_stroke(true);
+            } else {
+                self.state.set_has_mark(true);
+            }
+            self.state.set_had_transform(true);
+        } else {
+            // No valid position for mark - just pass through
+            self.buffer.push_transformed(raw_char);
         }
-        self.state.set_had_transform(true);
 
         self.rebuild_output()
     }
@@ -389,6 +453,11 @@ impl Engine {
     /// Set skip w→ư shortcut
     pub fn set_skip_w_shortcut(&mut self, skip: bool) {
         self.skip_w_shortcut = skip;
+    }
+
+    /// Set bracket shortcuts: ] → ư, [ → ơ
+    pub fn set_bracket_shortcut(&mut self, enabled: bool) {
+        self.bracket_shortcut = enabled;
     }
 
     /// Set ESC restore behavior
