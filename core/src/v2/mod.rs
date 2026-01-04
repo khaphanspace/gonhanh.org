@@ -36,8 +36,9 @@ pub use dispatch::dispatch;
 pub use engine::{Action, Engine, Result, FLAG_KEY_CONSUMED, MAX};
 pub use output::generate_output;
 pub use placement::{
-    apply_breve, apply_circumflex, apply_horn, apply_stroke, apply_tone_to_vowel, extract_vowels,
-    find_tone_position, has_final_consonant, replace_char_at, telex_key_to_tone, VowelInfo,
+    apply_breve, apply_circumflex, apply_horn, apply_stroke, apply_tone_to_vowel, detect_context,
+    extract_vowels, find_tone_position, find_tone_position_with_context, has_final_consonant,
+    replace_char_at, telex_key_to_tone, PlacementContext, VowelInfo,
 };
 pub use precheck::{pre_check, Mode};
 pub use restore::{is_english, should_restore, Decision};

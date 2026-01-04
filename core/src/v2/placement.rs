@@ -1,85 +1,266 @@
 //! Step 3: Tone and Mark Placement
 //!
-//! Implements Vietnamese tone placement rules (Spec Section 6.1):
-//! - Rule 1: Single vowel → place on that vowel
-//! - Rule 2: Diphthong + final consonant → place on FIRST vowel (ái, áo)
-//! - Rule 3: Diphthong + no final → place on SECOND vowel (ia, oà)
-//! - Rule 4: Triphthong → place on MIDDLE vowel (oái, uối)
-//! - Rule 5: oa, oe, uy → place on SECOND vowel (always)
+//! Implements Vietnamese tone placement rules based on phonological patterns.
+//!
+//! ## Pattern-Based Placement (from V1 phonology)
+//!
+//! **Diphthongs with tone on FIRST vowel (main + glide):**
+//! ai, ao, au, ay, eo, êu, ia, iu, oi, ui, ưu
+//!
+//! **Diphthongs with tone on SECOND vowel (medial + main, compound):**
+//! oa, oe, uê, uy, iê, uô/ươ
+//!
+//! **Triphthongs (tone on MIDDLE vowel):**
+//! oai, oay, oeo, uây, uôi, ươi, ươu, iêu, yêu
+//!
+//! **Special triphthongs (tone on LAST vowel):**
+//! uyê (khuyến, quyền)
+//!
+//! ## Context-Aware Handling
+//! - qu-initial: 'u' is part of consonant (quý → tone on y)
+//! - gi-initial: 'i' is part of consonant (già → tone on a)
+//! - ua pattern: open syllable → tone on u (mùa), closed → tone on a (chuẩn)
 //!
 //! Also implements mark placement for circumflex, horn, breve, stroke.
+
+// ============================================================
+// PATTERN TABLES (from V1 phonology)
+// ============================================================
+
+/// Diphthongs with tone on FIRST vowel (main + glide patterns)
+/// These patterns ALWAYS get mark on first vowel regardless of final consonant
+const TONE_FIRST_PATTERNS: &[[char; 2]] = &[
+    ['a', 'i'], // ai: mái, hài
+    ['a', 'o'], // ao: cáo, sào
+    ['a', 'u'], // au: sáu, màu
+    ['a', 'y'], // ay: máy, tày
+    ['e', 'o'], // eo: kéo, trèo
+    ['ê', 'u'], // êu: nếu, kêu (ê already has circumflex)
+    ['i', 'a'], // ia: kìa, mía (NOT after gi-initial)
+    ['i', 'u'], // iu: dịu, kíu
+    ['o', 'i'], // oi: đói, còi
+    ['u', 'i'], // ui: túi, mùi
+    ['ư', 'u'], // ưu: lưu, hưu (ư already has horn)
+];
+
+/// Diphthongs with tone on SECOND vowel (medial + main, compound patterns)
+const TONE_SECOND_PATTERNS: &[[char; 2]] = &[
+    ['o', 'a'], // oa: hoà, toá
+    ['o', 'e'], // oe: khoẻ, xoè
+    ['u', 'ê'], // uê: huế, tuệ
+    ['u', 'y'], // uy: quý, thuỳ
+    ['i', 'ê'], // iê: tiên, biết (compound)
+    ['u', 'ô'], // uô: cuối, muốn (compound)
+    ['ư', 'ơ'], // ươ: được, nước (compound - both have horn)
+];
+
+/// Triphthong patterns with tone position
+/// Position: 0 = first, 1 = middle, 2 = last
+const TRIPHTHONG_PATTERNS: &[([char; 3], usize)] = &[
+    (['i', 'ê', 'u'], 1), // iêu: tiếu (middle = ê)
+    (['y', 'ê', 'u'], 1), // yêu: yếu (middle = ê)
+    (['o', 'a', 'i'], 1), // oai: ngoài (middle = a)
+    (['o', 'a', 'y'], 1), // oay: xoáy (middle = a)
+    (['o', 'e', 'o'], 1), // oeo: khoèo (middle = e)
+    (['u', 'â', 'y'], 1), // uây: khuấy (middle = â)
+    (['u', 'ô', 'i'], 1), // uôi: cuối (middle = ô)
+    (['ư', 'ơ', 'i'], 1), // ươi: mười (middle = ơ)
+    (['ư', 'ơ', 'u'], 1), // ươu: rượu (middle = ơ)
+    (['u', 'y', 'ê'], 2), // uyê: khuyến, quyền (LAST = ê)
+];
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Vowel info for tone placement
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VowelInfo {
     /// Position in the string (char index)
     pub position: usize,
-    /// The vowel character (lowercase)
+    /// The vowel character (lowercase base form)
     pub vowel: char,
     /// Whether this vowel already has a mark (circumflex/horn/breve)
     pub has_modifier: bool,
 }
 
+/// Context for placement decisions
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PlacementContext {
+    /// Whether buffer starts with "qu" (u is part of consonant)
+    pub has_qu_initial: bool,
+    /// Whether buffer starts with "gi" (i is part of consonant)
+    pub has_gi_initial: bool,
+}
+
 /// Find the position where tone should be placed
 ///
-/// Implements the 5 rules from the spec:
+/// Uses pattern-based lookup from TONE_*_PATTERNS and TRIPHTHONG_PATTERNS.
+/// Supports context-aware handling for qu-initial and gi-initial.
+///
+/// ## Rules (in order of priority)
 /// 1. Single vowel → place on it
-/// 2. Diphthong + final → first vowel
-/// 3. Diphthong + no final → second vowel
-/// 4. Triphthong → middle vowel
-/// 5. oa, oe, uy → always second vowel
+/// 2. Triphthong patterns → use TRIPHTHONG_PATTERNS lookup
+/// 3. Diphthong TONE_FIRST_PATTERNS → always first vowel
+/// 4. Modifier preference → vowel with modifier (â, ê, ô, ơ, ư, ă) gets priority
+/// 5. Diphthong TONE_SECOND_PATTERNS → second vowel
+/// 6. Default for diphthong: with final → first, without → second
 pub fn find_tone_position(vowels: &[VowelInfo], has_final: bool) -> Option<usize> {
+    find_tone_position_with_context(vowels, has_final, &PlacementContext::default())
+}
+
+/// Find tone position with context (qu-initial, gi-initial awareness)
+pub fn find_tone_position_with_context(
+    vowels: &[VowelInfo],
+    has_final: bool,
+    ctx: &PlacementContext,
+) -> Option<usize> {
     match vowels.len() {
         0 => None,
 
         // Rule 1: Single vowel
         1 => Some(vowels[0].position),
 
-        // Rules 2, 3, 5: Diphthong
-        2 => {
-            let v1 = vowels[0].vowel;
-            let v2 = vowels[1].vowel;
+        // Diphthong: use pattern tables
+        2 => find_diphthong_position(vowels, has_final, ctx),
 
-            // Rule 5: oa, oe, uy → always on SECOND
-            if is_special_diphthong(v1, v2) {
-                return Some(vowels[1].position);
-            }
+        // Triphthong: use pattern lookup, then fallback to middle
+        3 => find_triphthong_position(vowels),
 
-            // If either vowel has modifier (â, ê, ô, ơ, ư, ă), prefer it
-            if vowels[0].has_modifier && !vowels[1].has_modifier {
-                return Some(vowels[0].position);
+        // 4+ vowels: check triphthong in first 3, else fallback
+        _ => {
+            // Try matching triphthong in first 3 vowels
+            if let Some(pos) = find_triphthong_position(&vowels[0..3]) {
+                return Some(pos);
             }
-            if vowels[1].has_modifier && !vowels[0].has_modifier {
-                return Some(vowels[1].position);
-            }
-
-            // Rule 2: Diphthong + final → FIRST vowel
-            // Rule 3: Diphthong + no final → SECOND vowel
-            if has_final {
-                Some(vowels[0].position)
-            } else {
-                Some(vowels[1].position)
-            }
+            // Fallback: middle vowel
+            Some(vowels[vowels.len() / 2].position)
         }
-
-        // Rule 4: Triphthong → MIDDLE vowel
-        3 => Some(vowels[1].position),
-
-        _ => None,
     }
 }
 
-/// Check for special diphthongs that always place tone on second vowel
-#[inline]
-fn is_special_diphthong(v1: char, v2: char) -> bool {
-    // oa, oe → always on second (a, e)
-    (v1 == 'o' && (v2 == 'a' || v2 == 'e')) ||
-    // uy → always on second (y)
-    (v1 == 'u' && v2 == 'y') ||
-    // ươ → always on ơ (second): được, nước, ướt
-    (v1 == 'ư' && v2 == 'ơ') ||
-    // iê → always on ê (second): tiếng, biết
-    (v1 == 'i' && v2 == 'ê')
+/// Find tone position for diphthongs using pattern tables
+fn find_diphthong_position(
+    vowels: &[VowelInfo],
+    has_final: bool,
+    ctx: &PlacementContext,
+) -> Option<usize> {
+    let v1 = vowels[0].vowel;
+    let v2 = vowels[1].vowel;
+    let pair = [v1, v2];
+
+    // Context: gi-initial makes first 'i' part of consonant
+    // Example: "già" → treat as single vowel 'a', not diphthong "ia"
+    if ctx.has_gi_initial && v1 == 'i' {
+        return Some(vowels[1].position);
+    }
+
+    // Context: qu-initial makes first 'u' part of consonant
+    // Example: "quý" → treat as single vowel 'y', not diphthong "uy"
+    if ctx.has_qu_initial && v1 == 'u' {
+        return Some(vowels[1].position);
+    }
+
+    // Rule: TONE_FIRST_PATTERNS always get mark on first vowel
+    // These are main+glide patterns (ai, ao, au, ay, eo, ia, iu, oi, ui)
+    if TONE_FIRST_PATTERNS
+        .iter()
+        .any(|p| p[0] == pair[0] && p[1] == pair[1])
+    {
+        return Some(vowels[0].position);
+    }
+
+    // Rule: Modifier preference (vowel with diacritic gets priority)
+    if vowels[0].has_modifier && !vowels[1].has_modifier {
+        return Some(vowels[0].position);
+    }
+    if vowels[1].has_modifier && !vowels[0].has_modifier {
+        return Some(vowels[1].position);
+    }
+
+    // Rule: TONE_SECOND_PATTERNS get mark on second vowel
+    if TONE_SECOND_PATTERNS
+        .iter()
+        .any(|p| p[0] == pair[0] && p[1] == pair[1])
+    {
+        return Some(vowels[1].position);
+    }
+
+    // Special: "ua" pattern - context-dependent
+    // Open syllable (mùa): u is main → tone on u
+    // Closed syllable (chuẩn): a is main → tone on a
+    if v1 == 'u' && v2 == 'a' {
+        return if has_final {
+            Some(vowels[1].position) // Closed: tone on 'a'
+        } else {
+            Some(vowels[0].position) // Open: tone on 'u'
+        };
+    }
+
+    // Default: with final → first, without → second
+    if has_final {
+        Some(vowels[0].position)
+    } else {
+        Some(vowels[1].position)
+    }
+}
+
+/// Find tone position for triphthongs using pattern lookup
+fn find_triphthong_position(vowels: &[VowelInfo]) -> Option<usize> {
+    if vowels.len() < 3 {
+        return None;
+    }
+
+    let v1 = vowels[0].vowel;
+    let v2 = vowels[1].vowel;
+    let v3 = vowels[2].vowel;
+    let triple = [v1, v2, v3];
+
+    // Pattern table lookup
+    for (pattern, pos_idx) in TRIPHTHONG_PATTERNS {
+        if pattern[0] == triple[0] && pattern[1] == triple[1] && pattern[2] == triple[2] {
+            return Some(vowels[*pos_idx].position);
+        }
+    }
+
+    // Fallback: check if first two form a TONE_FIRST pattern
+    let pair = [v1, v2];
+    if TONE_FIRST_PATTERNS
+        .iter()
+        .any(|p| p[0] == pair[0] && p[1] == pair[1])
+    {
+        return Some(vowels[0].position);
+    }
+
+    // Fallback: modifier preference
+    if vowels[1].has_modifier {
+        return Some(vowels[1].position);
+    }
+    if vowels[0].has_modifier {
+        return Some(vowels[0].position);
+    }
+
+    // Default: middle vowel
+    Some(vowels[1].position)
+}
+
+/// Detect placement context from buffer (qu-initial, gi-initial)
+///
+/// Call this before `find_tone_position_with_context` to get proper context.
+pub fn detect_context(buffer: &str) -> PlacementContext {
+    let lower = buffer.to_lowercase();
+    let chars: Vec<char> = lower.chars().collect();
+
+    PlacementContext {
+        // "qu" initial: u is part of consonant (quý, quà, quốc)
+        has_qu_initial: chars.len() >= 2 && chars[0] == 'q' && chars[1] == 'u',
+        // "gi" initial: i is part of consonant (già, giờ, giữ)
+        // But NOT "gì" (single vowel), so need vowel after
+        has_gi_initial: chars.len() >= 3
+            && chars[0] == 'g'
+            && chars[1] == 'i'
+            && is_vowel(chars[2]),
+    }
 }
 
 /// Check if character is a base vowel
@@ -528,8 +709,8 @@ mod tests {
     }
 
     #[test]
-    fn test_diphthong_no_final() {
-        // "ia" - tone on second vowel
+    fn test_diphthong_ia_pattern() {
+        // "ia" is a main+glide pattern (kìa, mía) → tone on FIRST vowel (i)
         let vowels = vec![
             VowelInfo {
                 position: 0,
@@ -542,8 +723,33 @@ mod tests {
                 has_modifier: false,
             },
         ];
-        // Without final → second vowel
-        assert_eq!(find_tone_position(&vowels, false), Some(1));
+        // ia pattern → first vowel
+        assert_eq!(find_tone_position(&vowels, false), Some(0));
+    }
+
+    #[test]
+    fn test_diphthong_gi_initial() {
+        // "gia" with gi-initial: 'i' is part of consonant → tone on 'a'
+        let vowels = vec![
+            VowelInfo {
+                position: 1,
+                vowel: 'i',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 2,
+                vowel: 'a',
+                has_modifier: false,
+            },
+        ];
+        let ctx = PlacementContext {
+            has_qu_initial: false,
+            has_gi_initial: true,
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &ctx),
+            Some(2)
+        );
     }
 
     #[test]
@@ -700,5 +906,195 @@ mod tests {
         assert!(is_uo_compound("tuo"));
         assert!(is_uo_compound("TUO"));
         assert!(!is_uo_compound("abc"));
+    }
+
+    // ===== Pattern Table Tests =====
+
+    #[test]
+    fn test_tone_first_patterns() {
+        // ai, ao, au: all FIRST vowel patterns
+        for (v1, v2, desc) in [
+            ('a', 'i', "ai: mái"),
+            ('a', 'o', "ao: cáo"),
+            ('a', 'u', "au: sáu"),
+            ('o', 'i', "oi: đói"),
+            ('u', 'i', "ui: túi"),
+        ] {
+            let vowels = vec![
+                VowelInfo {
+                    position: 0,
+                    vowel: v1,
+                    has_modifier: false,
+                },
+                VowelInfo {
+                    position: 1,
+                    vowel: v2,
+                    has_modifier: false,
+                },
+            ];
+            assert_eq!(
+                find_tone_position(&vowels, false),
+                Some(0),
+                "{} should place tone on first vowel",
+                desc
+            );
+        }
+    }
+
+    #[test]
+    fn test_tone_second_patterns() {
+        // oa, oe: SECOND vowel patterns
+        for (v1, v2, desc) in [('o', 'a', "oa: hoà"), ('o', 'e', "oe: khoẻ")] {
+            let vowels = vec![
+                VowelInfo {
+                    position: 0,
+                    vowel: v1,
+                    has_modifier: false,
+                },
+                VowelInfo {
+                    position: 1,
+                    vowel: v2,
+                    has_modifier: false,
+                },
+            ];
+            assert_eq!(
+                find_tone_position(&vowels, false),
+                Some(1),
+                "{} should place tone on second vowel",
+                desc
+            );
+        }
+    }
+
+    #[test]
+    fn test_ua_context_dependent() {
+        let vowels = vec![
+            VowelInfo {
+                position: 0,
+                vowel: 'u',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 1,
+                vowel: 'a',
+                has_modifier: false,
+            },
+        ];
+
+        // Open syllable (mùa) → tone on u
+        assert_eq!(
+            find_tone_position(&vowels, false),
+            Some(0),
+            "ua open syllable should place on first (mùa)"
+        );
+
+        // Closed syllable (chuẩn) → tone on a
+        assert_eq!(
+            find_tone_position(&vowels, true),
+            Some(1),
+            "ua closed syllable should place on second (chuẩn)"
+        );
+    }
+
+    #[test]
+    fn test_triphthong_patterns() {
+        // oai → middle (a)
+        let vowels = vec![
+            VowelInfo {
+                position: 0,
+                vowel: 'o',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 1,
+                vowel: 'a',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 2,
+                vowel: 'i',
+                has_modifier: false,
+            },
+        ];
+        assert_eq!(find_tone_position(&vowels, false), Some(1), "oai → middle");
+    }
+
+    #[test]
+    fn test_triphthong_uye_last() {
+        // uyê → LAST (ê) - special case
+        let vowels = vec![
+            VowelInfo {
+                position: 0,
+                vowel: 'u',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 1,
+                vowel: 'y',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 2,
+                vowel: 'ê',
+                has_modifier: true,
+            },
+        ];
+        assert_eq!(
+            find_tone_position(&vowels, false),
+            Some(2),
+            "uyê → last (ê)"
+        );
+    }
+
+    #[test]
+    fn test_detect_context_qu() {
+        let ctx = detect_context("qua");
+        assert!(ctx.has_qu_initial);
+        assert!(!ctx.has_gi_initial);
+
+        let ctx = detect_context("quý");
+        assert!(ctx.has_qu_initial);
+    }
+
+    #[test]
+    fn test_detect_context_gi() {
+        // "gia" - gi + a vowel, gi-initial applies
+        let ctx = detect_context("gia");
+        assert!(ctx.has_gi_initial);
+        assert!(!ctx.has_qu_initial);
+
+        // "giau" - gi + au, gi-initial applies
+        let ctx = detect_context("giau");
+        assert!(ctx.has_gi_initial);
+
+        // "gi" only has 2 chars, need 3 for gi-initial
+        let ctx = detect_context("gi");
+        assert!(!ctx.has_gi_initial);
+    }
+
+    #[test]
+    fn test_qu_initial_placement() {
+        // "quý" - u is part of consonant, tone on y
+        let vowels = vec![
+            VowelInfo {
+                position: 1,
+                vowel: 'u',
+                has_modifier: false,
+            },
+            VowelInfo {
+                position: 2,
+                vowel: 'y',
+                has_modifier: false,
+            },
+        ];
+        let ctx = PlacementContext {
+            has_qu_initial: true,
+            has_gi_initial: false,
+        };
+        assert_eq!(
+            find_tone_position_with_context(&vowels, false, &ctx),
+            Some(2),
+            "quý should place tone on y"
+        );
     }
 }
