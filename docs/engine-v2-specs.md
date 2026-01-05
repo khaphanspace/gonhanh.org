@@ -1,4 +1,4 @@
-# V3 Engine Specification
+# Engine v2 Specification
 
 > **Version**: 3.7 | **Status**: Ready for Implementation
 
