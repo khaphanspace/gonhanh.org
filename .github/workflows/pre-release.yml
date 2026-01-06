@@ -14,6 +14,11 @@ on:
           - windows
           - linux
           - all
+      sign:
+        description: 'Code sign with Developer ID (requires secrets)'
+        required: false
+        default: false
+        type: boolean
   # Auto build for PRs
   pull_request:
     branches: [main]
@@ -21,6 +26,11 @@ on:
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  # Apple Developer Configuration (only used if sign=true or for release builds)
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
 
 jobs:
   build-macos:
@@ -36,6 +46,40 @@ jobs:
         with:
           workspaces: core
 
+      # ============================================================
+      # APPLE DEVELOPER CERTIFICATE SETUP (Optional)
+      # ============================================================
+      - name: Install Apple Developer Certificate
+        if: ${{ inputs.sign == true && env.APPLE_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Decode certificate from base64
+          echo -n "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Verify certificate
+          echo "Installed certificates:"
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
+      # ============================================================
+      # BUILD
+      # ============================================================
       - name: Build Rust core (universal)
         run: |
           cd core
@@ -47,11 +91,31 @@ jobs:
             -output ../platforms/macos/libgonhanh_core.a
 
       - name: Build macOS app
+        env:
+          SHOULD_SIGN: ${{ inputs.sign == true && env.APPLE_SIGNING_IDENTITY != '' }}
+          CODE_SIGN_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY || '-' }}
+          DEVELOPMENT_TEAM: ${{ env.APPLE_TEAM_ID }}
         run: |
           cd platforms/macos
-          xcodebuild -scheme GoNhanh -configuration Release \
-            -derivedDataPath build CODE_SIGN_IDENTITY="-"
 
+          if [ "$SHOULD_SIGN" = "true" ]; then
+            echo "Building with Developer ID signing..."
+            xcodebuild -scheme GoNhanh -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
+              DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+              CODE_SIGN_STYLE="Manual" \
+              OTHER_CODE_SIGN_FLAGS="--options=runtime"
+          else
+            echo "Building with ad-hoc signing..."
+            xcodebuild -scheme GoNhanh -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="-"
+          fi
+
+      # ============================================================
+      # PACKAGE (Set version BEFORE signing)
+      # ============================================================
       - name: Get version from latest tag
         id: version
         run: |
@@ -64,17 +128,51 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
 
+      - name: Set version in app
+        run: |
+          cd platforms/macos
+          APP="build/Build/Products/Release/GoNhanh.app"
+          V="${{ steps.version.outputs.version }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $V" "$APP/Contents/Info.plist"
+
+      # ============================================================
+      # CODE SIGNING (After version is set)
+      # ============================================================
+      - name: Sign App with Entitlements
+        env:
+          SHOULD_SIGN: ${{ inputs.sign == true && env.APPLE_SIGNING_IDENTITY != '' }}
+          CODE_SIGN_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY || '-' }}
+        run: |
+          cd platforms/macos
+          APP="build/Build/Products/Release/GoNhanh.app"
+
+          if [ "$SHOULD_SIGN" = "true" ]; then
+            echo "Signing with Developer ID and hardened runtime..."
+            codesign --force --deep --sign "$CODE_SIGN_IDENTITY" \
+              --entitlements GoNhanh.entitlements.production \
+              --options runtime \
+              --timestamp \
+              "$APP"
+          else
+            echo "Signing with ad-hoc identity..."
+            codesign --force --deep --sign - \
+              --entitlements GoNhanh.entitlements \
+              "$APP"
+          fi
+
+          # Verify signature
+          echo "Verifying signature..."
+          codesign -vvv --deep --strict "$APP"
+          echo "Signature verified successfully!"
+
       - name: Create DMG
         run: |
           cd platforms/macos
           APP="build/Build/Products/Release/GoNhanh.app"
           V="${{ steps.version.outputs.version }}"
 
-          # Set version in app
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$APP/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $V" "$APP/Contents/Info.plist"
-
-          # Create DMG
+          # Create DMG (version already set, app already signed)
           ../../scripts/create-dmg.sh "$APP" || {
             # Fallback: simple DMG if script fails
             hdiutil create -volname "GoNhanh" -srcfolder "$APP" -ov -format UDZO "build/GoNhanh-${V}.dmg"
@@ -104,14 +202,14 @@ jobs:
             const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
             const body = [
-              '## 📦 macOS Build Ready',
+              '## macOS Build Ready',
               '',
               '| Commit | Version | Download |',
               '|--------|---------|----------|',
-              `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-macOS.zip**](${artifactUrl}#artifacts) |`,
+              `| \`${shortSha}\` | \`${version}\` | [**GoNhanh-${version}-macOS.zip**](${artifactUrl}#artifacts) |`,
               '',
-              `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
-              `> 📁 Artifact expires in 14 days`
+              `> Build for commit ${process.env.COMMIT_SHA}`,
+              `> Artifact expires in 14 days`
             ].join('\n');
 
             await github.rest.issues.createComment({
@@ -120,6 +218,14 @@ jobs:
               issue_number: parseInt(prNumber),
               body: body
             });
+
+      # ============================================================
+      # CLEANUP
+      # ============================================================
+      - name: Cleanup Keychain
+        if: ${{ always() && inputs.sign == true && env.APPLE_SIGNING_IDENTITY != '' }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
   build-windows:
     # For manual trigger or PR
@@ -246,15 +352,15 @@ jobs:
             const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
             const body = [
-              '## 📦 Windows Build Ready',
+              '## Windows Build Ready',
               '',
               '| Commit | Version | Download |',
               '|--------|---------|----------|',
-              `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-Windows-x64.zip**](${artifactUrl}#artifacts) |`,
+              `| \`${shortSha}\` | \`${version}\` | [**GoNhanh-${version}-Windows-x64.zip**](${artifactUrl}#artifacts) |`,
               '',
-              '> ⚠️ **Requirements:** .NET 8.0 Runtime',
-              `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
-              `> 📁 Artifact expires in 14 days`
+              '> Requirements: .NET 8.0 Runtime',
+              `> Build for commit ${process.env.COMMIT_SHA}`,
+              `> Artifact expires in 14 days`
             ].join('\n');
 
             await github.rest.issues.createComment({

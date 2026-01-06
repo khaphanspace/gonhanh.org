@@ -25,6 +25,7 @@
 		A1000001000000000000010 /* InputSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000010 /* InputSourceManager.swift */; };
 		B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000001 /* KeyboardShortcutTests.swift */; };
 		B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000002 /* LaunchAtLoginTests.swift */; };
+		B1000001000000000000003 /* SoundManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000003 /* SoundManagerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +59,7 @@
 		A1000003000000000000001 /* GoNhanh.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GoNhanh.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1000002000000000000001 /* KeyboardShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutTests.swift; sourceTree = "<group>"; };
 		B1000002000000000000002 /* LaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginTests.swift; sourceTree = "<group>"; };
+		B1000002000000000000003 /* SoundManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManagerTests.swift; sourceTree = "<group>"; };
 		B1000003000000000000002 /* GoNhanhTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GoNhanhTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -119,6 +121,7 @@
 			children = (
 				B1000002000000000000001 /* KeyboardShortcutTests.swift */,
 				B1000002000000000000002 /* LaunchAtLoginTests.swift */,
+				B1000002000000000000003 /* SoundManagerTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -245,6 +248,7 @@
 			files = (
 				B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */,
 				B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */,
+				B1000001000000000000003 /* SoundManagerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

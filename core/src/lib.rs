@@ -153,6 +153,18 @@ pub extern "C" fn ime_skip_w_shortcut(skip: bool) {
     }
 }
 
+/// Set whether bracket shortcuts are enabled: ] → ư, [ → ơ (Issue #159)
+///
+/// When `enabled` is true (default), ] types ư and [ types ơ in Telex mode.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_bracket_shortcut(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_bracket_shortcut(enabled);
+    }
+}
+
 /// Set whether ESC key restores raw ASCII input.
 ///
 /// When `enabled` is true (default), pressing ESC restores original keystrokes.
@@ -324,10 +336,16 @@ pub unsafe extern "C" fn ime_add_shortcut(
 
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
-        e.shortcuts_mut().add(engine::shortcut::Shortcut::new(
-            trigger_str,
-            replacement_str,
-        ));
+        // Auto-detect shortcut type:
+        // - If trigger contains only non-letter chars (like "->", "=>"), use immediate trigger
+        // - Otherwise use word boundary trigger (traditional abbreviations like "vn" → "Việt Nam")
+        let is_symbol_trigger = trigger_str.chars().all(|c| !c.is_alphabetic());
+        let shortcut = if is_symbol_trigger {
+            engine::shortcut::Shortcut::immediate(trigger_str, replacement_str)
+        } else {
+            engine::shortcut::Shortcut::new(trigger_str, replacement_str)
+        };
+        e.shortcuts_mut().add(shortcut);
     }
 }
 
@@ -544,6 +562,126 @@ mod tests {
         }
         drop(guard);
 
+        ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_symbol_trigger_immediate() {
+        // Test that symbol-only triggers (like "->") are created as immediate shortcuts
+        ime_init();
+        ime_clear_shortcuts();
+        ime_method(0); // Telex
+
+        // Add arrow shortcut via FFI - should auto-detect as immediate
+        let trigger = CString::new("->").unwrap();
+        let replacement = CString::new("→").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut was added with immediate trigger
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+            let shortcut = e.shortcuts().lookup("->").unwrap().1;
+            assert_eq!(
+                shortcut.condition,
+                engine::shortcut::TriggerCondition::Immediate,
+                "Symbol-only trigger should be immediate"
+            );
+        }
+        drop(guard);
+
+        ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_letter_trigger_word_boundary() {
+        // Test that letter triggers (like "vn") are created as word boundary shortcuts
+        ime_init();
+        ime_clear_shortcuts();
+        ime_method(0); // Telex
+
+        // Add abbreviation shortcut via FFI - should be word boundary
+        let trigger = CString::new("vn").unwrap();
+        let replacement = CString::new("Việt Nam").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut was added with word boundary trigger
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+            let shortcut = e.shortcuts().lookup("vn").unwrap().1;
+            assert_eq!(
+                shortcut.condition,
+                engine::shortcut::TriggerCondition::OnWordBoundary,
+                "Letter trigger should be word boundary"
+            );
+        }
+        drop(guard);
+
+        ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    /// Issue #161: Test that shortcuts containing numbers work correctly via FFI
+    #[test]
+    #[serial]
+    fn test_shortcut_ffi_with_numbers() {
+        ime_init();
+        ime_clear_shortcuts();
+        ime_method(0); // Telex
+
+        // Add shortcut with number via FFI
+        let trigger = CString::new("f1").unwrap();
+        let replacement = CString::new("formula one").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut was added
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+            let shortcut = e.shortcuts().lookup("f1").unwrap().1;
+            assert_eq!(
+                shortcut.condition,
+                engine::shortcut::TriggerCondition::OnWordBoundary,
+                "Mixed letter+number trigger should be word boundary"
+            );
+        }
+        drop(guard);
+
+        // Type "f1" + space and verify shortcut triggers
+        let _ = ime_key(keys::F, false, false);
+        let _ = ime_key(keys::N1, false, false);
+        let r = ime_key(keys::SPACE, false, false);
+
+        assert!(!r.is_null());
+        let result = unsafe { &*r };
+        assert_eq!(
+            result.action,
+            engine::Action::Send as u8,
+            "Shortcut should trigger"
+        );
+        assert_eq!(result.backspace, 2, "Should backspace 2 chars (f1)");
+
+        // Verify output
+        let output: String = (0..result.count as usize)
+            .filter_map(|i| char::from_u32(result.chars[i]))
+            .collect();
+        assert_eq!(output, "formula one ", "Should output replacement + space");
+
+        unsafe { ime_free(r) };
         ime_clear_shortcuts();
         ime_clear();
     }

@@ -186,11 +186,12 @@ public enum ImeAction : byte
 
 /// <summary>
 /// Native result structure from Rust (must match core/src/lib.rs)
+/// Size: 256 UInt32 chars (1024 bytes) + 4 bytes = 1028 bytes
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct NativeResult
 {
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)]
     public uint[] chars;
     public byte action;
     public byte backspace;

@@ -332,7 +332,8 @@ mod test_utils {
                 // For break keys (punctuation), add the character after auto-restore
                 // The restored text doesn't include the break character
                 // Use is_break_ext to handle shifted symbols like @, !, #, etc.
-                if keys::is_break_ext(key, shift) {
+                // BUT: if key_consumed flag is set (shortcut match), don't add the char
+                if keys::is_break_ext(key, shift) && !r.key_consumed() {
                     screen.push(c);
                 }
             } else {

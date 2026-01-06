@@ -8,14 +8,27 @@ import AppKit
 class SoundManager {
     static let shared = SoundManager()
 
-    private init() {}
+    // Cache sound instances to prevent issues with rapid toggling
+    // Issue #168: sounds not playing when toggling rapidly
+    private let enableSound: NSSound?
+    private let disableSound: NSSound?
+    private var currentSound: NSSound?
+
+    private init() {
+        enableSound = NSSound(named: NSSound.Name("Tink"))
+        disableSound = NSSound(named: NSSound.Name("Pop"))
+    }
 
     func playToggleSound(enabled: Bool) {
         guard AppState.shared.soundEnabled else { return }
-        // Use different system sounds for on/off states
-        // "Tink" for enabling Vietnamese, "Pop" for disabling
-        let soundName = enabled ? "Tink" : "Pop"
-        NSSound(named: NSSound.Name(soundName))?.play()
+
+        // Stop any currently playing sound to handle rapid toggling
+        currentSound?.stop()
+
+        // Use cached sound instances
+        let sound = enabled ? enableSound : disableSound
+        currentSound = sound
+        sound?.play()
     }
 }
 
@@ -85,6 +98,13 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var bracketShortcut: Bool = false {
+        didSet {
+            UserDefaults.standard.set(bracketShortcut, forKey: SettingsKey.bracketShortcut)
+            RustBridge.setBracketShortcut(bracketShortcut)
+        }
+    }
+
     @Published var escRestore: Bool = false {
         didSet {
             UserDefaults.standard.set(escRestore, forKey: SettingsKey.escRestore)
@@ -144,6 +164,7 @@ class AppState: ObservableObject {
         toggleShortcut = KeyboardShortcut.load()
         perAppModeEnabled = defaults.bool(forKey: SettingsKey.perAppMode)
         autoWShortcut = defaults.bool(forKey: SettingsKey.autoWShortcut)
+        bracketShortcut = defaults.bool(forKey: SettingsKey.bracketShortcut)
         escRestore = defaults.bool(forKey: SettingsKey.escRestore)
         modernTone = defaults.bool(forKey: SettingsKey.modernTone)
         englishAutoRestore = defaults.bool(forKey: SettingsKey.englishAutoRestore)
@@ -166,6 +187,7 @@ class AppState: ObservableObject {
         RustBridge.setEnabled(isEnabled)
         RustBridge.setMethod(currentMethod.rawValue)
         RustBridge.setSkipWShortcut(!autoWShortcut)
+        RustBridge.setBracketShortcut(bracketShortcut)
         RustBridge.setEscRestore(escRestore)
         RustBridge.setModernTone(modernTone)
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
@@ -671,6 +693,8 @@ struct SettingsPageView: View {
                 if appState.currentMethod == .telex {
                     Divider().padding(.leading, 12)
                     SettingsToggleRow("Gõ W thành Ư ở đầu từ", isOn: $appState.autoWShortcut)
+                    Divider().padding(.leading, 12)
+                    SettingsToggleRow("Gõ ] thành Ư, [ thành Ơ", isOn: $appState.bracketShortcut)
                 }
             }
             .cardBackground()
@@ -932,24 +956,41 @@ struct ShortcutsSheet: View {
     }
 
     private func importShortcuts() {
-        let panel = NSOpenPanel()
-        panel.title = "Nhập từ viết tắt"
-        panel.allowedContentTypes = [.plainText, .init(filenameExtension: "txt")!]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url,
-           let content = try? String(contentsOf: url, encoding: .utf8) {
-            _ = appState.importShortcuts(from: content)
+        // Dispatch panel creation to next run loop to prevent UI blocking
+        DispatchQueue.main.async { [weak appState] in
+            let panel = NSOpenPanel()
+            panel.title = "Nhập từ viết tắt"
+            panel.allowedContentTypes = [.plainText]
+            panel.allowsMultipleSelection = false
+            panel.canChooseDirectories = false
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                // Read file on background thread
+                DispatchQueue.global(qos: .userInitiated).async {
+                    guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
+                    DispatchQueue.main.async {
+                        _ = appState?.importShortcuts(from: content)
+                    }
+                }
+            }
         }
     }
 
     private func exportShortcuts() {
-        let panel = NSSavePanel()
-        panel.title = "Xuất từ viết tắt"
-        panel.nameFieldStringValue = "gonhanh-shortcuts.txt"
-        panel.allowedContentTypes = [.plainText]
-        if panel.runModal() == .OK, let url = panel.url {
-            try? appState.exportShortcuts().write(to: url, atomically: true, encoding: .utf8)
+        // Dispatch panel creation to next run loop to prevent UI blocking
+        DispatchQueue.main.async { [weak appState] in
+            let panel = NSSavePanel()
+            panel.title = "Xuất từ viết tắt"
+            panel.nameFieldStringValue = "gonhanh-shortcuts.txt"
+            panel.allowedContentTypes = [.plainText]
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                // Write file on background thread
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let content = appState?.exportShortcuts() ?? ""
+                    try? content.write(to: url, atomically: true, encoding: .utf8)
+                }
+            }
         }
     }
 }

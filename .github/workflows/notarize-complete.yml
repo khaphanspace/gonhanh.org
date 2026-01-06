@@ -1,0 +1,121 @@
+name: Complete Notarization
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Release workflow run ID (from release.yml)'
+        required: true
+        type: string
+      tag:
+        description: 'Release tag (e.g., v1.0.91)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+jobs:
+  complete-notarization:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Signed App
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-app
+          path: GoNhanh.app
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Notarization Info
+        uses: actions/download-artifact@v4
+        with:
+          name: notarization-info
+          path: .
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Notarization Status
+        id: check
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          SUBMISSION_ID=$(jq -r '.id' notarization-result.json)
+          echo "Checking submission: $SUBMISSION_ID"
+
+          STATUS_JSON=$(xcrun notarytool info "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --output-format json)
+
+          STATUS=$(echo "$STATUS_JSON" | jq -r '.status')
+          echo "Status: $STATUS"
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "submission_id=$SUBMISSION_ID" >> $GITHUB_OUTPUT
+
+          if [ "$STATUS" = "In Progress" ]; then
+            echo "::error::Notarization still in progress. Try again later."
+            exit 1
+          elif [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+            echo "::error::Notarization was rejected!"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" || true
+            exit 1
+          elif [ "$STATUS" = "Accepted" ]; then
+            echo "✅ Notarization accepted!"
+          else
+            echo "::error::Unknown status: $STATUS"
+            exit 1
+          fi
+
+      - name: Staple Notarization Ticket
+        run: |
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "GoNhanh.app"
+
+          echo "Verifying..."
+          spctl -a -vvv -t install "GoNhanh.app"
+          echo "✅ Stapling successful!"
+
+      - name: Create Notarized DMG
+        run: |
+          # Create output directory (script writes to platforms/macos/build/)
+          mkdir -p platforms/macos/build
+
+          ./scripts/create-dmg.sh "GoNhanh.app"
+          ls -la platforms/macos/build/*.dmg
+
+      - name: Update Release Asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          DMG_FILE=$(ls platforms/macos/build/*.dmg | head -1)
+
+          echo "Updating release $TAG with notarized DMG..."
+
+          # Delete old DMG asset
+          ASSET_ID=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" \
+            --jq '.assets[] | select(.name == "GoNhanh.dmg") | .id' 2>/dev/null || echo "")
+
+          if [ -n "$ASSET_ID" ]; then
+            echo "Deleting old asset: $ASSET_ID"
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          fi
+
+          # Upload new notarized DMG
+          gh release upload "$TAG" "$DMG_FILE" --clobber
+
+          echo "✅ Release updated with notarized DMG!"
+          echo "::notice::Release $TAG now has notarized DMG"

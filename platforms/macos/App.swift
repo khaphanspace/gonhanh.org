@@ -36,6 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.method: InputMode.telex.rawValue,
             SettingsKey.perAppMode: true,
             SettingsKey.autoWShortcut: true,
+            SettingsKey.bracketShortcut: false,
             SettingsKey.escRestore: false,
             SettingsKey.modernTone: true,
             SettingsKey.englishAutoRestore: false,

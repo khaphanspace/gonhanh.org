@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+env:
+  # Apple Developer Configuration
+  # These will be empty if secrets are not set (fallback to ad-hoc signing)
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -16,16 +22,51 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
 
-      - name: Build
+      # ============================================================
+      # APPLE DEVELOPER CERTIFICATE SETUP
+      # ============================================================
+      - name: Install Apple Developer Certificate
+        if: ${{ env.APPLE_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
         run: |
-          # Rust core (universal binary)
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Decode certificate from base64
+          echo -n "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # Verify certificate
+          echo "Installed certificates:"
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
+      # ============================================================
+      # BUILD
+      # ============================================================
+      - name: Build Rust Core (Universal Binary)
+        run: |
           cd core
           cargo build --release --target aarch64-apple-darwin
           cargo build --release --target x86_64-apple-darwin
@@ -34,12 +75,32 @@ jobs:
             target/x86_64-apple-darwin/release/libgonhanh_core.a \
             -output ../platforms/macos/libgonhanh_core.a
 
-          # macOS app
-          cd ../platforms/macos
-          xcodebuild -scheme GoNhanh -configuration Release \
-            -derivedDataPath build CODE_SIGN_IDENTITY="-"
+      - name: Build macOS App
+        env:
+          CODE_SIGN_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY || '-' }}
+          DEVELOPMENT_TEAM: ${{ env.APPLE_TEAM_ID }}
+        run: |
+          cd platforms/macos
 
-      - name: Package
+          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "Building with Developer ID signing..."
+            xcodebuild -scheme GoNhanh -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
+              DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+              CODE_SIGN_STYLE="Manual" \
+              OTHER_CODE_SIGN_FLAGS="--options=runtime"
+          else
+            echo "Building with ad-hoc signing (no Apple Developer secrets configured)..."
+            xcodebuild -scheme GoNhanh -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="-"
+          fi
+
+      # ============================================================
+      # SET VERSION (Before signing)
+      # ============================================================
+      - name: Set Version in App
         run: |
           cd platforms/macos
           V="${GITHUB_REF_NAME#v}"
@@ -47,25 +108,141 @@ jobs:
 
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $V" "$APP/Contents/Info.plist"
+          echo "Version set to: $V"
 
-          # Create beautiful DMG with custom layout
+      # ============================================================
+      # CODE SIGNING & NOTARIZATION
+      # ============================================================
+      - name: Sign App with Entitlements
+        env:
+          CODE_SIGN_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY || '-' }}
+        run: |
+          cd platforms/macos
+          APP="build/Build/Products/Release/GoNhanh.app"
+
+          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "Signing with Developer ID and hardened runtime..."
+            codesign --force --deep --sign "$CODE_SIGN_IDENTITY" \
+              --entitlements GoNhanh.entitlements.production \
+              --options runtime \
+              --timestamp \
+              "$APP"
+          else
+            echo "Signing with ad-hoc identity..."
+            codesign --force --deep --sign - \
+              --entitlements GoNhanh.entitlements \
+              "$APP"
+          fi
+
+          # Verify signature
+          echo "Verifying signature..."
+          codesign -vvv --deep --strict "$APP"
+          echo "Signature verified successfully!"
+
+      - name: Submit Notarization & Wait (30 min timeout)
+        if: ${{ env.APPLE_SIGNING_IDENTITY != '' }}
+        id: notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd platforms/macos
+          APP="build/Build/Products/Release/GoNhanh.app"
+
+          echo "Creating ZIP for notarization..."
+          ditto -c -k --keepParent "$APP" "GoNhanh-notarize.zip"
+
+          echo "Submitting to Apple for notarization..."
+          xcrun notarytool submit "GoNhanh-notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --output-format json \
+            --no-wait > notarization-result.json
+
+          SUBMISSION_ID=$(jq -r '.id' notarization-result.json)
+          echo "submission_id=$SUBMISSION_ID" >> $GITHUB_OUTPUT
+          echo "✅ Submitted: $SUBMISSION_ID"
+
+          # Wait up to 30 minutes for approval
+          echo "Waiting for Apple approval (max 30 min)..."
+          MAX_ATTEMPTS=60  # 60 * 30s = 30 min
+          ATTEMPT=0
+          STAPLED=false
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 30
+
+            STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>/dev/null | jq -r '.status' || echo "error")
+
+            echo "[$ATTEMPT/$MAX_ATTEMPTS] Status: $STATUS"
+
+            case "$STATUS" in
+              "Accepted")
+                echo "✅ Notarization accepted! Stapling..."
+                xcrun stapler staple "$APP"
+                STAPLED=true
+                break
+                ;;
+              "Invalid"|"Rejected")
+                echo "❌ Notarization rejected"
+                break
+                ;;
+              "In Progress")
+                continue
+                ;;
+            esac
+          done
+
+          echo "stapled=$STAPLED" >> $GITHUB_OUTPUT
+
+          if [ "$STAPLED" = "false" ]; then
+            echo "::warning::Notarization not completed within 30 min. Releasing unstapled DMG. Background job will update later."
+          fi
+
+          rm -f "GoNhanh-notarize.zip"
+
+      - name: Upload Notarization Info
+        if: ${{ env.APPLE_SIGNING_IDENTITY != '' && steps.notarize.outputs.stapled == 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: notarization-info
+          path: platforms/macos/notarization-result.json
+          retention-days: 30
+
+      - name: Upload Signed App (for stapling later if needed)
+        if: ${{ env.APPLE_SIGNING_IDENTITY != '' && steps.notarize.outputs.stapled == 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-app
+          path: platforms/macos/build/Build/Products/Release/GoNhanh.app
+          retention-days: 30
+
+      # ============================================================
+      # PACKAGE & RELEASE
+      # ============================================================
+      - name: Create DMG
+        run: |
+          cd platforms/macos
+          APP="build/Build/Products/Release/GoNhanh.app"
           ../../scripts/create-dmg.sh "$APP"
 
-      - name: Get tag message
+      - name: Get Tag Message
         id: tag_message
         run: |
-          # Fetch tag with annotation
           git fetch origin tag ${{ github.ref_name }} --force
-
-          # Get message from annotated tag
           TAG_MSG=$(git for-each-ref --format='%(contents)' refs/tags/${{ github.ref_name }})
 
-          # Debug
           echo "=== Tag message ==="
           echo "$TAG_MSG"
           echo "==================="
 
-          # Output for next step
           {
             echo "message<<EOF"
             echo "$TAG_MSG"
@@ -78,6 +255,105 @@ jobs:
           files: platforms/macos/build/*.dmg
           body: ${{ steps.tag_message.outputs.message }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
+
+      # ============================================================
+      # CLEANUP
+      # ============================================================
+      - name: Cleanup Keychain
+        if: ${{ always() && env.APPLE_SIGNING_IDENTITY != '' }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+    outputs:
+      submission_id: ${{ steps.notarize.outputs.submission_id }}
+      stapled: ${{ steps.notarize.outputs.stapled }}
+
+  # ============================================================
+  # BACKGROUND STAPLING (only if 30 min timeout, notarization pending)
+  # ============================================================
+  staple-notarization:
+    needs: build-macos
+    if: ${{ needs.build-macos.outputs.submission_id != '' && needs.build-macos.outputs.stapled == 'false' }}
+    runs-on: macos-latest
+    continue-on-error: true  # Don't fail the whole workflow if stapling fails
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Signed App
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-app
+          path: GoNhanh.app
+
+      - name: Wait for Notarization & Staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SUBMISSION_ID: ${{ needs.build-macos.outputs.submission_id }}
+        run: |
+          echo "Waiting for notarization: $SUBMISSION_ID"
+          echo "Polling every 30s, max 30 more minutes (already waited 30 min in main job)..."
+
+          MAX_ATTEMPTS=60  # 60 * 30s = 30 min (total 60 min with main job)
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 30
+
+            STATUS=$(xcrun notarytool info "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>/dev/null | jq -r '.status' || echo "error")
+
+            echo "[$ATTEMPT/$MAX_ATTEMPTS] Status: $STATUS"
+
+            case "$STATUS" in
+              "Accepted")
+                echo "✅ Notarization accepted!"
+                xcrun stapler staple "GoNhanh.app"
+                echo "stapled=true" >> $GITHUB_ENV
+                exit 0
+                ;;
+              "Invalid"|"Rejected")
+                echo "❌ Notarization rejected"
+                exit 1
+                ;;
+              "In Progress")
+                continue
+                ;;
+            esac
+          done
+
+          echo "❌ Timeout waiting for notarization"
+          exit 1
+
+      - name: Create Stapled DMG
+        if: ${{ env.stapled == 'true' }}
+        run: |
+          mkdir -p platforms/macos/build
+          ./scripts/create-dmg.sh "GoNhanh.app"
+
+      - name: Update Release with Stapled DMG
+        if: ${{ env.stapled == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          DMG_FILE=$(ls platforms/macos/build/*.dmg | head -1)
+
+          # Delete old asset and upload new one
+          ASSET_ID=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" \
+            --jq '.assets[] | select(.name == "GoNhanh.dmg") | .id' 2>/dev/null || echo "")
+
+          if [ -n "$ASSET_ID" ]; then
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          fi
+
+          gh release upload "$TAG" "$DMG_FILE" --clobber
+          echo "✅ Release updated with stapled DMG!"
 
   build-linux:
     if: false  # Temporarily disabled
@@ -141,7 +417,10 @@ jobs:
         with:
           files: "*.tar.gz"
 
+  # DEPRECATED: Gõ Nhanh now on official Homebrew (https://formulae.brew.sh/cask/gonhanh)
+  # Homebrew autobump bot handles updates via livecheck. Keep for reference only.
   update-homebrew:
+    if: false
     needs: build-macos
     runs-on: ubuntu-latest
     steps:
@@ -173,6 +452,8 @@ jobs:
             desc "High-performance Vietnamese Input Method Engine for macOS"
             homepage "https://github.com/khaphanspace/gonhanh.org"
 
+            auto_updates true
+
             livecheck do
               url :url
               strategy :github_latest
@@ -180,9 +461,22 @@ jobs:
 
             app "GoNhanh.app"
 
+            preflight do
+              system_command "/usr/bin/pkill",
+                             args: ["-x", "GoNhanh"],
+                             sudo: false,
+                             must_succeed: false
+              sleep 1
+            end
+
+            uninstall quit: "org.gonhanh.GoNhanh"
+
             postflight do
               system_command "/usr/bin/xattr",
                              args: ["-cr", "#{appdir}/GoNhanh.app"],
+                             sudo: false
+              system_command "/usr/bin/open",
+                             args: ["-a", "GoNhanh"],
                              sudo: false
             end
 
@@ -203,7 +497,7 @@ jobs:
           git push
 
   build-windows:
-    if: false
+    if: false  # Temporarily disabled
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

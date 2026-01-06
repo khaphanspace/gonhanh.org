@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Disable sandbox for IME functionality (required for keyboard event interception) -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- Required for Apple Events automation -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Allow JIT compilation for performance -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Required for Rust FFI with Swift -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- Disable library validation for Rust dynamic linking -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Hardened Runtime compatibility -->
+    <key>com.apple.security.cs.disable-executable-page-protection</key>
+    <false/>
+</dict>
+</plist>

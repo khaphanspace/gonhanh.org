@@ -251,6 +251,7 @@ fn w_vowel_produces_valid_vietnamese() {
 #[test]
 fn w_final_consonant_produces_valid_vietnamese() {
     telex_auto_restore(&[
+        // ư + single final
         ("wng ", "ưng "),  // ưng is valid Vietnamese (w→ư + ng final)
         ("uwng ", "ưng "), // uwng also produces ưng (redundant u)
         ("wn ", "ưn "),    // ưn is valid Vietnamese
@@ -258,6 +259,13 @@ fn w_final_consonant_produces_valid_vietnamese() {
         ("wc ", "ưc "),    // ưc is valid Vietnamese
         ("wt ", "ưt "),    // ưt is valid Vietnamese
         ("wp ", "ưp "),    // ưp is valid Vietnamese
+        // ươ + finals (w→ư, o→ơ)
+        ("wong ", "ương "), // ương
+        ("won ", "ươn "),   // ươn
+        ("wom ", "ươm "),   // ươm
+        ("woc ", "ươc "),   // ươc
+        ("wot ", "ươt "),   // ươt
+        ("wop ", "ươp "),   // ươp
     ]);
 }
 
@@ -741,6 +749,7 @@ const W_FINAL_WORDS: &[(&str, &str)] = &[
     ("stew ", "stew "),
     ("threw ", "threw "),
     ("view ", "view "),
+    ("queue ", "queue "), // qu + eue = invalid Vietnamese vowel pattern
     // -ow pattern: single valid consonant + ow → cơ (Vietnamese ơ vowel)
     // These form valid Vietnamese syllables (consonant + ơ)
     ("bow ", "bơ "), // bơ = butter
@@ -967,43 +976,66 @@ fn case_sensitivity_restore() {
 // ============================================================
 // DOUBLE MARK KEYS (English words with repeated modifier keys)
 // When same mark key is pressed twice, both appear as letters
-// This allows typing English words like "issue", "bass", "boss"
+// This allows typing English words like "issue", "class", "error"
+// 4-char words with double modifiers keep reverted result (user intended revert)
+// 5+ char words restore to English (user typed English word)
 // ============================================================
 
 #[test]
 fn double_mark_english_words() {
     telex_auto_restore(&[
-        // Words with double 's' (sắc mark key)
+        // Words with double 's' (sắc mark key) - 5+ chars restore to English
         ("issue ", "issue "),
-        ("bass ", "bass "),
-        ("boss ", "boss "),
         ("class ", "class "),
         ("cross ", "cross "),
         ("dress ", "dress "),
         ("glass ", "glass "),
         ("grass ", "grass "),
         ("gross ", "gross "),
-        ("less ", "less "),
+        ("press ", "press "),
+        ("stress ", "stress "),
+        // Words with double 'f' (huyền mark key) - 5+ chars restore to English
+        ("staff ", "staff "),
+        ("stuff ", "stuff "),
+        ("cliff ", "cliff "),
+        ("stiff ", "stiff "),
+        // Words with double 'r' (hỏi mark key) - 5+ chars restore to English
+        ("error ", "error "),
+        ("mirror ", "mirror "),
+        ("horror ", "horror "),
+        ("terror ", "terror "),
+    ]);
+}
+
+#[test]
+fn double_mark_4char_restores_english() {
+    // 4-char words ending with double 'ss' or 'ff': restore to English
+    // 's' and 'f' are NOT valid Vietnamese final consonants
+    // so "bass", "boss", "buff", "cuff", etc. → restore to English
+    telex_auto_restore(&[
+        // Double ss at end: restore to English (not Vietnamese)
+        ("bass ", "bass "),
+        ("boss ", "boss "),
         ("loss ", "loss "),
         ("mass ", "mass "),
         ("mess ", "mess "),
         ("miss ", "miss "),
         ("pass ", "pass "),
-        ("press ", "press "),
-        ("stress ", "stress "),
-        // Words with double 'f' (huyền mark key)
-        // Note: "off" (3 chars) is excluded - short words follow revert_at_end_keeps_result
-        ("staff ", "staff "),
-        ("stuff ", "stuff "),
-        ("cliff ", "cliff "),
-        ("stiff ", "stiff "),
+        ("less ", "less "),
+        // Double ff at end: also restore to English (common English pattern)
         ("buff ", "buff "),
         ("cuff ", "cuff "),
         ("puff ", "puff "),
-        // Words with double 'r' (hỏi mark key)
-        ("error ", "error "),
-        ("mirror ", "mirror "),
-        ("horror ", "horror "),
-        ("terror ", "terror "),
+    ]);
+}
+
+/// Double modifier in MIDDLE of word: user reverted, buffer is valid word
+/// When buffer ends with common suffix (-er, -or) and is valid, keep it
+#[test]
+fn double_mark_middle_keeps_valid_word() {
+    telex_auto_restore(&[
+        // "usser" → first 's' adds sắc to 'u', second 's' reverts
+        // Buffer = "user" (valid 4-char word ending in -er), keep it
+        ("usser ", "user "),
     ]);
 }

@@ -28,7 +28,7 @@
 //! Users should use raw mode (\word) or Esc to restore these manually.
 
 mod common;
-use common::telex_auto_restore;
+use common::{telex, telex_auto_restore};
 
 // =============================================================================
 // PATTERN 1: MODIFIER FOLLOWED BY CONSONANT
@@ -72,10 +72,16 @@ fn pattern1_modifier_then_consonant() {
         ("exclude ", "exclude "),
         ("excuse ", "excuse "),
         ("execute ", "execute "),
-        // NOTE: s + consonant patterns like "test", "rest", "best" form valid Vietnamese words
-        // (tét, rét, bét, etc.) so they are NOT auto-restored.
-        // Users who want English spelling should use ESC or raw mode prefix.
-        // This is a design decision: preserve Vietnamese words over restoring English.
+        // r + consonant (hỏi modifier followed by consonant)
+        ("perfect ", "perfect "),
+        ("hard ", "hard "),
+        ("support ", "support "),
+        // s + consonant: only longer words or invalid VN structure get restored
+        // Short words like "test", "rest" form valid Vietnamese (tét, rét)
+        ("tesla ", "tesla "),
+        ("push ", "push "),
+        // x + u patterns (ngã before vowel, then consonant)
+        ("luxury ", "luxury "),
     ]);
 }
 
@@ -96,7 +102,16 @@ fn pattern2_oo_vowel_pair() {
 
 #[test]
 fn pattern2_ee_vowel_pair() {
-    telex_auto_restore(&[("keep ", "keep ")]);
+    telex_auto_restore(&[
+        // With space - restore to English (invalid VN ending with -êp)
+        ("keep ", "keep "),
+        ("teep ", "teep "),
+        // Without space - keep Vietnamese transform (word not complete)
+        ("keep", "kêp"),  // k + e + e(circumflex) + p → kêp
+        ("keeps", "kếp"), // k + e + e + p + s(sắc) → kếp
+        ("teep", "têp"),  // t + e + e(circumflex) + p → têp
+        ("teepj", "tệp"), // t + e + e + p + j(nặng) → tệp
+    ]);
 }
 
 #[test]
@@ -137,7 +152,14 @@ fn pattern3_ai_with_p_initial() {
 
 #[test]
 fn pattern4_vowel_modifier_vowel() {
-    telex_auto_restore(&[("use ", "use "), ("user ", "user ")]);
+    telex_auto_restore(&[
+        ("use ", "use "),
+        ("user ", "user "),
+        ("users ", "users "),
+        // "ussers" → "users": "u+ss" at word start is very rare in English
+        // (no English words start with "uss"), so collapse double 's' to single
+        ("ussers ", "users "),
+    ]);
 }
 
 // =============================================================================
@@ -152,7 +174,10 @@ fn pattern5_w_start_consonant() {
         ("water ", "water "),
         ("winter ", "winter "),
         ("window ", "window "),
+        ("with ", "with "),
         ("wonder ", "wonder "),
+        ("wonderful ", "wonderful "),
+        ("work ", "work "),
         ("worker ", "worker "),
         ("world ", "world "),
         ("worth ", "worth "),
@@ -235,6 +260,7 @@ fn pattern6_invalid_initial_f() {
         ("fast ", "fast "),
         ("fat ", "fat "),
         ("fear ", "fear "),
+        ("feature ", "feature "),
         ("feed ", "feed "),
         ("feel ", "feel "),
         ("few ", "few "),
@@ -346,6 +372,8 @@ fn vietnamese_single_syllable_preserved() {
         ("laf ", "là "), // là (is)
         ("tas ", "tá "), // tá (dozen)
         ("taf ", "tà "), // tà (side)
+        // Post-tone delayed circumflex
+        ("onro ", "ổn "), // ổn (okay) - o + n + r(hỏi) + o(circumflex)
     ]);
 }
 
@@ -387,6 +415,8 @@ fn vietnamese_complex_words_preserved() {
         ("truwowcs ", "trước "),   // trước (before)
         ("giuwowngf ", "giường "), // giường (bed)
         ("twong ", "tương "),      // tương (mutual) - shorthand telex
+        ("wng ", "ưng "),          // ưng (agree) - w→ư + ng final
+        ("wong ", "ương "),        // ương (foster) - w→ư, o→ơ horn compound
         // Words with circumflex (â, ê, ô)
         ("caaps ", "cấp "), // cấp (level)
         ("taanf ", "tần "), // tần (frequency)
@@ -448,9 +478,14 @@ fn pattern7_vowel_modifier_vowel_with_initial() {
         ("wore ", "wore "), // W initial also triggers Pattern 5
         ("store ", "store "),
         ("score ", "score "),
+        ("goes ", "goes "),   // g + o + e + s → goé (invalid) → restore
+        ("param ", "param "), // p + a + r + a + m → paảm (invalid) → restore
+        ("life ", "life "),   // l + i + f + e → lìe (invalid) → restore
         // Short words: consonant + vowel + modifier (no final vowel)
-        ("per ", "per "),    // p + e + r → pẻ (invalid) → restore "per"
-        ("thiss ", "this "), // t + h + i + s + s → double s reverts → buffer "this" (4 chars)
+        ("per ", "per "),      // p + e + r → pẻ (invalid) → restore "per"
+        ("thiss ", "this "),   // t + h + i + s + s → double s reverts → buffer "this" (4 chars)
+        ("mason ", "mason "),  // m + a + s + o + n → máon (invalid VN) → restore "mason"
+        ("masson ", "mason "), // m + a + s + s + o + n → double s reverts → "mason"
     ]);
 }
 
@@ -578,6 +613,23 @@ fn pattern9_trans_prefix() {
 }
 
 #[test]
+fn pattern9_con_prefix() {
+    // "con-" prefix: double 's' reverts mark, buffer has valid prefix pattern
+    telex_auto_restore(&[
+        ("console ", "console "),  // normal typing
+        ("conssole ", "console "), // double 's' reverts → "console" (con- prefix)
+        ("consscious ", "conscious "),
+        ("conssider ", "consider "),
+        ("conssequence ", "consequence "),
+        ("consstant ", "constant "),
+        ("consstruct ", "construct "),
+        ("conssult ", "consult "),
+        ("conssume ", "consume "),
+        ("context ", "context "), // ext pattern restores (x+t)
+    ]);
+}
+
+#[test]
 fn pattern9_re_prefix() {
     // "re-" prefix: double 's' (sắc) after 'e' triggers revert
     // Pattern: re + ss → "rés" → "res" (revert)
@@ -597,24 +649,17 @@ fn pattern9_re_prefix() {
 #[test]
 fn pattern9_double_mark_no_prefix() {
     // Words with double mark keys but NO matching prefix/suffix pattern
-    // These should use raw_input (preserve double letter)
+    // 5+ char words: restore to English (preserve double letter)
+    // 4-char words: keep reverted result (user explicitly typed double to revert)
     telex_auto_restore(&[
-        // Double 's' without dis-/mis-/trans- prefix
+        // 5+ char words: restore to English
         ("issue ", "issue "),
-        ("bass ", "bass "),
-        ("boss ", "boss "),
         ("class ", "class "),
         ("cross ", "cross "),
         ("dress ", "dress "),
         ("glass ", "glass "),
         ("grass ", "grass "),
         ("gross ", "gross "),
-        ("less ", "less "),
-        ("loss ", "loss "),
-        ("mass ", "mass "),
-        ("mess ", "mess "),
-        ("miss ", "miss "),
-        ("pass ", "pass "),
         ("press ", "press "),
         ("stress ", "stress "),
         ("assess ", "assess "),
@@ -625,6 +670,8 @@ fn pattern9_double_mark_no_prefix() {
         ("process ", "process "),
         ("profess ", "profess "),
         ("progress ", "progress "),
+        ("guess ", "guess "),
+        ("massive ", "massive "),
         // Double 'r' without matching prefix (need vowel before rr)
         ("error ", "error "),
         ("mirror ", "mirror "),
@@ -637,6 +684,35 @@ fn pattern9_double_mark_no_prefix() {
         ("marry ", "marry "),
         ("sorry ", "sorry "),
         ("worry ", "worry "),
+        // -ified suffix pattern
+        ("verified ", "verified "),  // normal typing
+        ("verrified ", "verified "), // double 'r' reverts mark
+        // -ect suffix pattern (s applies sắc mark to e)
+        ("respect ", "respect "),
+        ("respect  ", "respect  "),
+    ]);
+}
+
+#[test]
+fn pattern9_double_ss_english_words() {
+    // English 4-char words ending with -ss should restore to English
+    // 's' is not a valid Vietnamese final consonant
+    // Double 's' reverts tone mark, then auto-restore preserves double 's'
+    telex_auto_restore(&[
+        ("bass ", "bass "),  // bass - fish or music term
+        ("basss ", "bass "), // triple s collapses to double
+        ("boss ", "boss "),  // boss - employer
+        ("fuss ", "fuss "),  // fuss - commotion
+        ("joss ", "joss "),  // joss - Chinese idol
+        ("kiss ", "kiss "),  // kiss - embrace
+        ("less ", "less "),  // less - smaller amount
+        ("loss ", "loss "),  // loss - opposite of gain
+        ("mass ", "mass "),  // mass - quantity
+        ("mess ", "mess "),  // mess - disorder
+        ("miss ", "miss "),  // miss - fail to hit
+        ("moss ", "moss "),  // moss - plant
+        ("pass ", "pass "),  // pass - go by
+        ("toss ", "toss "),  // toss - throw
     ]);
 }
 
@@ -657,10 +733,25 @@ fn pattern9_double_f_words() {
         ("suffer ", "suffer "),
         ("differ ", "differ "),
         ("buffer ", "buffer "),
+        ("bufffer ", "buffer "), // triple 'f' → collapse to double 'f'
         ("affair ", "affair "),
-        ("affair ", "affair "),
+        ("afffair ", "affair "), // triple 'f' in middle → collapse to double 'f'
         ("afford ", "afford "),
+        ("affford ", "afford "), // triple 'f' → collapse to double 'f'
         ("offend ", "offend "),
+        ("offfend ", "offend "), // triple 'f' → collapse to double 'f'
+        // Triple 'r' cases
+        ("error ", "error "),
+        ("errror ", "error "), // triple 'r' → collapse to double 'r'
+        ("mirror ", "mirror "),
+        ("mirrror ", "mirror "), // triple 'r' → collapse to double 'r'
+        ("sorry ", "sorry "),
+        ("sorrry ", "sorry "), // triple 'r' → collapse to double 'r'
+        // Triple 's' cases (middle of word)
+        ("issue ", "issue "),
+        ("isssue ", "issue "), // triple 's' → collapse to double 's'
+        ("assess ", "assess "),
+        ("assssess ", "assess "), // triple 's' in middle → collapse
     ]);
 }
 
@@ -689,5 +780,549 @@ fn ethnic_minority_place_names_not_restored() {
         ("bawts ", "bắt "),   // bắt - catch
         ("mawts ", "mắt "),   // mắt - eye
         ("nawngs ", "nắng "), // nắng - sunny
+    ]);
+}
+
+// =============================================================================
+// ISSUE #26 / #142 - UNFIXED BUGS (TEST CASES FOR PENDING FIXES)
+// =============================================================================
+
+/// Issue #26 - @jackblk: "ủa" with pattern "ura" becomes "ura" instead of "ủa"
+/// Vietnamese word without initial consonant - valid interjection
+#[test]
+fn issue26_ua_with_hook_tone_before_vowel() {
+    telex_auto_restore(&[
+        ("ura ", "ủa "), // u + r(hỏi) + a → ủa (tone before second vowel)
+        ("uar ", "ủa "), // u + a + r → ủa (standard order)
+        ("uxa ", "ũa "), // u + x(ngã) + a → ũa
+        ("uax ", "ũa "), // u + a + x → ũa (standard order)
+        // Similar pattern: a + r + o → ảo (valid Vietnamese)
+        ("aro ", "ảo "), // a + r(hỏi) + o → ảo (valid VN, NOT restored)
+        ("aor ", "ảo "), // a + o + r → ảo (standard order)
+        // Double 'r' reverts hỏi, then restore to raw
+        ("arro ", "aro "), // a + r + r(revert) + o → aro (restore to raw)
+        // Double 's' at start, more letters after - should collapse
+        ("ussers ", "users "), // u + s + s(revert) + e + r + s → users
+    ]);
+}
+
+/// Issue #26 - @npkhang99: "chịu" with pattern "chiuj" becomes "chiju"
+/// Vietnamese diphthong I+U with tone modifier
+#[test]
+fn issue26_chiu_with_tone_before_final_vowel() {
+    telex_auto_restore(&[
+        ("chiuj ", "chịu "), // standard order: ch + i + u + j(nặng)
+        ("chiju ", "chịu "), // alternative: ch + i + j + u (tone before u)
+        ("liuj ", "lịu "),   // l + i + u + j → lịu
+        ("niuj ", "nịu "),   // n + i + u + j → nịu
+    ]);
+}
+
+/// Issue #26 - @jackblk: "thuỷ" with pattern "thury" gets restored incorrectly
+/// Vietnamese diphthong U+Y with tone modifier
+#[test]
+fn issue26_thuy_with_hook_before_y() {
+    telex_auto_restore(&[
+        ("thuyr ", "thuỷ "), // standard: th + u + y + r(hỏi)
+        ("thury ", "thuỷ "), // alternative: th + u + r + y (tone before y)
+        ("quyr ", "quỷ "),   // qu + y + r → quỷ
+        ("qury ", "quỷ "),   // qu + r + y → quỷ (alternative)
+    ]);
+}
+
+/// Issue #142: "sims" becomes "simss" (extra 's' added)
+/// English word should be restored as-is on space
+#[test]
+fn issue142_sims_extra_s() {
+    telex_auto_restore(&[
+        ("sims ", "sims "), // should stay "sims", not "simss" or "sím"
+        ("rims ", "rims "), // rims - similar pattern
+        ("dims ", "dims "), // dims - similar pattern
+        ("gems ", "gems "), // gems - similar pattern
+        ("hems ", "hems "), // hems - similar pattern
+    ]);
+}
+
+/// Test: Vowel-triggered circumflex stays Vietnamese when buffer is valid
+/// Unified logic: only restore when buffer is INVALID Vietnamese
+/// Words with circumflex + non-stop consonant (m, n, ng, nh) are real Vietnamese
+/// Words with circumflex + stop consonant (t, c, p) WITHOUT mark are not real Vietnamese
+#[test]
+fn vowel_triggered_circumflex_stays_vietnamese() {
+    telex_auto_restore(&[
+        // Non-stop consonant finals (m, n, ng, nh) → real Vietnamese words
+        ("homo ", "hôm "), // h+o+m+o → hôm (valid VI: yesterday)
+        ("mama ", "mâm "), // m+a+m+a → mâm (valid VI: tray)
+        // Stop consonant finals (t, c, p) without mark → NOT real Vietnamese
+        ("toto ", "toto "), // t+o+t+o → tôt (no mark, restore to English)
+        ("papa ", "papa "), // p+a+p+a → pâp (no mark, restore to English)
+    ]);
+}
+
+// =============================================================================
+// ISSUE #151 - "mưa" (rain) should NOT be auto-restored
+// Vietnamese word with horn on 'u' pattern
+// =============================================================================
+
+#[test]
+fn issue151_mua_horn_not_restored() {
+    // "mưa" (rain) is a common Vietnamese word - should NOT be auto-restored
+    // Pattern: m + u + w(horn on u) + a → mưa
+    // Or: m + u + a + w(horn on u) → mưa
+    telex_auto_restore(&[
+        ("muwa ", "mưa "), // m + u + w + a → mưa (NOT "mwa")
+        ("muaw ", "mưa "), // m + u + a + w → mưa (NOT "mwa")
+        ("mwa ", "mưa "),  // Issue #151: shorthand m + w + a → mưa (NOT "mwa")
+        // Similar patterns with other initials
+        ("chuwa ", "chưa "), // chưa (not yet)
+        ("chuaw ", "chưa "), // chưa (alternative typing)
+        ("cwa ", "cưa "),    // Issue #151: shorthand c + w + a → cưa
+        ("thuwa ", "thưa "), // thưa (dear/sparse)
+        ("thuaw ", "thưa "), // thưa (alternative)
+        ("luwa ", "lưa "),   // lưa (somewhat valid pattern)
+        ("luaw ", "lưa "),   // lưa (alternative)
+        ("lwa ", "lưa "),    // Issue #151: shorthand l + w + a → lưa
+        // With marks (tones)
+        ("muwas ", "mứa "), // mứa (sắc)
+        ("muwaf ", "mừa "), // mừa (huyền)
+        ("muwar ", "mửa "), // mửa (hỏi) - vomit
+        ("muwax ", "mữa "), // mữa (ngã)
+        ("muwaj ", "mựa "), // mựa (nặng)
+    ]);
+}
+
+// =============================================================================
+// Vietnamese "êu" diphthong patterns - should NOT be auto-restored
+// Pattern: E + tone modifier + U + E → delayed circumflex creates êu
+// =============================================================================
+
+#[test]
+fn vietnamese_eu_diphthong_not_restored() {
+    // "nếu" (if), "kêu" (to call), "nêu" (to state) are valid Vietnamese words
+    // Pattern: consonant + e + tone + u + e → delayed circumflex on e → êu diphthong
+    telex_auto_restore(&[
+        // nếu (if) - common Vietnamese word
+        ("nesue ", "nếu "), // n + e + s(sắc) + u + e → nếu
+        ("neeus ", "nếu "), // n + e + e(circumflex) + u + s(sắc) → nếu (standard)
+        // kêu (to call/cry)
+        ("kesue ", "kếu "), // k + e + s + u + e → kếu
+        ("keeu ", "kêu "),  // k + e + e + u → kêu (no tone)
+        // Similar patterns with valid Vietnamese initials
+        ("lesue ", "lếu "), // l + e + s + u + e → lếu
+        ("tesue ", "tếu "), // t + e + s + u + e → tếu
+        ("mesue ", "mếu "), // m + e + s + u + e → mếu
+        // Issue #183: Flexible order - mark after second vowel trigger
+        // Pattern: C + V1 + V2 + V1 + mark → circumflex on V1 + mark
+        ("neues ", "nếu "), // n + e + u + e + s(sắc) → nếu (mark after vowel trigger)
+        ("neuef ", "nều "), // n + e + u + e + f(huyền) → nều
+        ("keues ", "kếu "), // k + e + u + e + s → kếu
+    ]);
+}
+
+// =============================================================================
+// Vietnamese standalone vowels with circumflex + tone - should NOT be auto-restored
+// Pattern: V + tone_modifier + V (same vowel) → circumflex + tone on single vowel
+// Example: OFO → ồ (o with circumflex + huyền)
+// =============================================================================
+
+#[test]
+fn standalone_vowel_circumflex_with_tone() {
+    // When typing V + modifier + same_V, the circumflex is applied to create
+    // a single vowel with both circumflex (from doubling) and tone (from modifier).
+    // These are valid Vietnamese exclamations/interjections and should NOT be restored.
+    telex_auto_restore(&[
+        // Circumflex vowels with huyền (f)
+        ("ofo ", "ồ "), // ồ - exclamation "oh" (surprised)
+        ("efe ", "ề "), // ề - (less common standalone)
+        ("afa ", "ầ "), // ầ - exclamation sound
+        // Circumflex vowels with sắc (s)
+        ("oso ", "ố "), // ố - exclamation
+        ("ese ", "ế "), // ế - (contextual)
+        ("asa ", "ấ "), // ấ - exclamation
+        // Circumflex vowels with hỏi (r)
+        ("oro ", "ổ "), // ổ - (contextual)
+        ("ere ", "ể "), // ể - (contextual)
+        ("ara ", "ẩ "), // ẩ - (contextual)
+        // Circumflex vowels with ngã (x)
+        ("oxo ", "ỗ "), // ỗ - (contextual)
+        ("exe ", "ễ "), // ễ - (contextual)
+        ("axa ", "ẫ "), // ẫ - (contextual)
+        // Circumflex vowels with nặng (j)
+        ("ojo ", "ộ "), // ộ - (contextual)
+        ("eje ", "ệ "), // ệ - (contextual)
+        ("aja ", "ậ "), // ậ - (contextual)
+    ]);
+}
+
+// =============================================================================
+// PATTERN 10: D+E PATTERN (describe, design, desk...)
+// English words starting with "de" + 's' modifier are auto-restored.
+// Vietnamese word "dép" (slippers) works correctly.
+// =============================================================================
+
+#[test]
+fn pattern10_de_s_english_words() {
+    // English words with D+E pattern are auto-restored when space is typed
+    telex_auto_restore(&[
+        ("describe ", "describe "),
+        ("design ", "design "),
+        ("desk ", "desk "),
+        ("desktop ", "desktop "),
+        ("destroy ", "destroy "),
+        ("desperate ", "desperate "),
+        ("despite ", "despite "),
+        // NOTE: "dessert" becomes "desert" due to double 's' reverting the mark
+        ("destination ", "destination "),
+        ("detail ", "detail "),
+        ("detect ", "detect "),
+        ("develop ", "develop "),
+    ]);
+}
+
+#[test]
+fn pattern10_de_s_vietnamese_words() {
+    // Vietnamese words with D+E pattern should NOT be auto-restored
+    // "dép" (slippers) is valid Vietnamese
+    telex_auto_restore(&[
+        // Without space - Vietnamese transform stays
+        ("desp", "dép"), // dép - slippers (no space)
+        ("desm", "dém"), // dém (no space)
+        ("desn", "dén"), // dén (no space)
+        ("dest", "dét"), // dét (no space)
+        ("desc", "déc"), // déc (no space)
+        // With space - still Vietnamese (valid structure)
+        ("desp ", "dép "), // dép - slippers
+        ("desm ", "dém "), // dém - valid Vietnamese structure
+        ("desn ", "dén "), // dén - valid Vietnamese structure
+        ("dest ", "dét "), // dét - valid Vietnamese structure
+        ("desc ", "déc "), // déc - valid Vietnamese structure (though uncommon)
+    ]);
+}
+
+// =============================================================================
+// PATTERN 11: -ING + TONE MARK = INVALID VIETNAMESE
+// Vietnamese uses -inh (tính, kính), NOT -ing with tone marks.
+// Words like "thíng", "kíng" are invalid → should auto-restore.
+// =============================================================================
+
+#[test]
+fn pattern11_ing_with_tone_invalid() {
+    // -ing + tone mark is NOT valid Vietnamese rhyme
+    // Vietnamese uses -inh for this sound
+    telex_auto_restore(&[
+        // -ings English plural pattern
+        ("things ", "things "), // thíng invalid → restore
+        ("kings ", "kings "),   // kíng invalid → restore
+        ("rings ", "rings "),   // ríng invalid → restore
+        ("sings ", "sings "),   // síng invalid → restore
+        ("wings ", "wings "),   // wíng invalid (also W invalid initial)
+        ("brings ", "brings "), // bríng invalid (also br- cluster)
+        // -ing singular (no 's' at end, but 's' was tone modifier)
+        ("thing ", "thing "), // th + i + n + g + s(modifier) → thíng → restore
+        ("king ", "king "),   // k + i + n + g + s → kíng → restore
+        ("ring ", "ring "),   // r + i + n + g + s → ríng → restore
+        ("sing ", "sing "),   // s + i + n + g + s → síng → restore
+    ]);
+}
+
+#[test]
+fn pattern11_inh_valid_vietnamese() {
+    // -inh WITH tone marks IS valid Vietnamese
+    // These should NOT be restored
+    telex_auto_restore(&[
+        ("tinhs ", "tính "),   // tính (to calculate) - valid
+        ("kinhs ", "kính "),   // kính (glass/respect) - valid
+        ("minhs ", "mính "),   // mính - valid structure
+        ("linhs ", "lính "),   // lính (soldier) - valid
+        ("chinhs ", "chính "), // chính (main/correct) - valid
+        // Single vowel with tone - valid Vietnamese
+        ("ys ", "ý "), // ý (idea/opinion) - valid
+    ]);
+}
+
+#[test]
+fn pattern11_ing_immediate_output() {
+    // -ing + tone mark should output correct result IMMEDIATELY (no space needed)
+    // Engine should detect invalid VN and NOT apply tone mark
+    telex(&[
+        ("things", "things"), // th + i + n + g + s → should stay "things", not "thíng"
+        ("kings", "kings"),   // k + i + n + g + s → should stay "kings"
+        ("rings", "rings"),   // r + i + n + g + s → should stay "rings"
+        ("sings", "sings"),   // s + i + n + g + s → should stay "sings"
+                              // Note: "wings" and "brings" have other invalid patterns (w initial, br cluster)
+                              // so they may be handled by other validation rules
+    ]);
+}
+
+#[test]
+fn pattern11b_v1v2v1_immediate_output() {
+    // V1-V2-V1 vowel pattern should NOT trigger circumflex
+    // Example: "queue" = e-u-e, third 'e' should NOT circumflex first 'e'
+    telex(&[
+        ("queue", "queue"), // qu + e + u + e → should stay "queue", not "quêu"
+    ]);
+}
+
+// =============================================================================
+// PATTERN 12: C + CIRCUMFLEX VOWEL (from ee/oo) + NO FINAL = INVALID
+// When double vowel creates circumflex but no final consonant,
+// and the result is not a common Vietnamese word → restore.
+// Examples: "see" → "sê" (invalid), "fee" → "fê" (F invalid anyway)
+// Exceptions: "bê" (calf), "mê" (obsessed) - real Vietnamese words
+// =============================================================================
+
+#[test]
+fn pattern12_circumflex_no_final_invalid() {
+    // C + ê/ô (from ee/oo) + no final consonant → likely English
+    telex_auto_restore(&[
+        // "see" → "sê" - not a common Vietnamese word
+        ("see ", "see "),
+        // "fee" → "fê" - F is invalid initial anyway
+        ("fee ", "fee "),
+        // "tee" → "tê" - not common (though "tê" = numb exists, it's rare standalone)
+        ("tee ", "tee "),
+        // "pee" → "pê" - not Vietnamese
+        ("pee ", "pee "),
+        // "lee" → "lê" - this IS valid Vietnamese (pear) - should NOT restore
+        // ("lee ", "lê "), // Skip - lê is valid
+        // "gee" → "gê" - not Vietnamese
+        ("gee ", "gee "),
+    ]);
+}
+
+#[test]
+fn pattern12_circumflex_no_final_valid_vietnamese() {
+    // Some C + ê/ô are valid Vietnamese words - should NOT restore
+    telex_auto_restore(&[
+        ("bee ", "bê "),   // bê (calf) - valid Vietnamese
+        ("mee ", "mê "),   // mê (obsessed) - valid Vietnamese
+        ("lee ", "lê "),   // lê (pear) - valid Vietnamese
+        ("ddee ", "đê "),  // đê (dike) - valid Vietnamese
+        ("khee ", "khê "), // khê (hoarse) - valid Vietnamese
+    ]);
+}
+
+// =============================================================================
+// PATTERN 13: DOUBLE-F PRESERVATION (off, offline, offensive)
+// When user types double 'f', preserve both 'f's in output.
+// Current bug: "off" → "of", "offline" → "ofline" (loses one 'f')
+// =============================================================================
+
+#[test]
+fn pattern13_double_f_in_middle_preserve() {
+    // Double 'f' in the MIDDLE of words should trigger restore
+    // Note: "off" alone is skipped - keeps current behavior (buffer "o")
+    telex_auto_restore(&[
+        // Words starting with off- (ff in middle followed by more letters)
+        ("offline ", "offline "),
+        ("offset ", "offset "),
+        ("offend ", "offend "),
+        ("offer ", "offer "),
+        ("office ", "office "),
+        ("officer ", "officer "),
+        ("official ", "official "),
+        ("offshore ", "offshore "),
+        // Words with ff in middle
+        ("effect ", "effect "),
+        ("effort ", "effort "),
+        ("afford ", "afford "),
+        ("differ ", "differ "),
+        ("suffer ", "suffer "),
+        ("buffer ", "buffer "),
+        ("coffee ", "coffee "),
+        ("traffic ", "traffic "),
+        ("stuff ", "stuff "),
+        ("staff ", "staff "),
+    ]);
+}
+
+// =============================================================================
+// PATTERN 14: SINGLE VOWEL WITH TONES - VALID VIETNAMESE INTERJECTIONS
+// Short vowel patterns like "of" → "ò", "if" → "ì" are SKIPPED (keep current behavior)
+// Common interjections like "à", "ồ" should NOT restore
+// =============================================================================
+
+#[test]
+fn pattern14_single_vowel_valid_vietnamese() {
+    // Single vowel + tone that ARE valid Vietnamese interjections
+    // These should NOT restore
+    telex_auto_restore(&[
+        // Common Vietnamese interjections - keep as Vietnamese
+        ("af ", "à "), // à (ah, I see) - very common
+        ("ax ", "ã "), // ã - interjection
+        ("ofo ", "ồ "), // ồ (oh!) - common exclamation (o + f + o = circumflex + huyền)
+                       // Note: "of" → "ò" and "if" → "ì" are skipped
+                       // We keep current behavior for these short patterns
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15: DELAYED CIRCUMFLEX WITH TONE BEFORE VOWEL
+// Pattern: C + V1 + E + U + E + tone → C + iêu + tone (valid Vietnamese)
+// Tone modifier (r/s/f/x/j) comes BEFORE the second 'e' that triggers circumflex
+// Example: "hieuer" = h + i + e + u + e(hỏi) + r → hiểu
+// =============================================================================
+
+#[test]
+fn pattern15_delayed_circumflex_with_tone() {
+    // When typing Vietnamese words with delayed circumflex pattern,
+    // the tone modifier comes before the second vowel that triggers circumflex.
+    // Pattern: C + ie + u + e + tone → C + iêu + tone (with ê getting the tone)
+    telex_auto_restore(&[
+        // hiểu (to understand) - very common Vietnamese word
+        // h + i + e + u + e(circumflex) + r(hỏi) → hiểu
+        ("hieuer ", "hiểu "),
+        // viết (to write) - very common Vietnamese word
+        // v + i + e + t + e(circumflex) + s(sắc) → viết
+        ("vietes ", "viết "),
+        // Similar patterns with other tones
+        ("hieues ", "hiếu "), // hiếu (filial piety) - sắc
+        ("hieuef ", "hiều "), // hiều - huyền
+        ("hieuex ", "hiễu "), // hiễu - ngã
+        ("hieuej ", "hiệu "), // hiệu (effect/shop) - nặng
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15b: IÊU TRIPHTHONG WITH DIFFERENT INITIALS
+// Common Vietnamese words with iêu triphthong pattern
+// =============================================================================
+
+#[test]
+fn pattern15b_ieu_triphthong_various_initials() {
+    telex_auto_restore(&[
+        // Different initials with iêu triphthong
+        ("lieues ", "liếu "),   // liếu (willow)
+        ("dieuer ", "diểu "),   // diểu
+        ("kieues ", "kiếu "),   // kiếu
+        ("nieues ", "niếu "),   // niếu
+        ("tieues ", "tiếu "),   // tiếu (laugh - Sino-Viet)
+        ("mieues ", "miếu "),   // miếu (temple)
+        ("bieues ", "biếu "),   // biếu (to give as gift)
+        ("chieues ", "chiếu "), // chiếu (mat/to shine)
+        ("nhieues ", "nhiếu "), // nhiếu
+        ("trieues ", "triếu "), // triều (dynasty) - note: triếu variant
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15c: IÊ DIPHTHONG + CONSONANT FINALS
+// Vietnamese words: viết, tiết, miếng, điểm, etc.
+// =============================================================================
+
+#[test]
+fn pattern15c_ie_diphthong_with_finals() {
+    telex_auto_restore(&[
+        // iê + t final (delayed circumflex: e after t)
+        ("vietes ", "viết "),   // viết (to write)
+        ("tietes ", "tiết "),   // tiết (section/blood)
+        ("kietes ", "kiết "),   // kiết (dysentery)
+        ("nietes ", "niết "),   // niết (nirvana)
+        ("thietes ", "thiết "), // thiết (iron/essential)
+        // iê + c final (double e for circumflex since no delayed trigger after c)
+        ("vieecj ", "việc "), // việc (work/job)
+        ("tieecj ", "tiệc "), // tiệc (party/feast)
+        // iê + m final (double e for circumflex)
+        ("ddieemr ", "điểm "), // điểm (point) - standard dd
+        ("tieemf ", "tiềm "),  // tiềm (latent)
+        ("kieemr ", "kiểm "),  // kiểm (to check)
+        // iê + n final (double e for circumflex)
+        ("tieens ", "tiến "),  // tiến (to advance)
+        ("vieenj ", "viện "),  // viện (institute)
+        ("ddieenj ", "điện "), // điện - standard dd
+        // iê + p final (double e for circumflex)
+        ("tieeps ", "tiếp "),   // tiếp (to continue/receive)
+        ("nhieeps ", "nhiếp "), // nhiếp (photography)
+        // iê + ng final (double e for circumflex)
+        ("tieengs ", "tiếng "), // tiếng (sound/language) - double e
+        ("mieengs ", "miếng "), // miếng (piece) - double e
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15d: UÊ DIPHTHONG PATTERNS
+// Vietnamese words with uê diphthong
+// =============================================================================
+
+#[test]
+fn pattern15d_ue_diphthong_patterns() {
+    telex_auto_restore(&[
+        // uê standalone/with tones (double e for circumflex)
+        ("tueef ", "tuề "), // tuề
+        ("hueef ", "huề "), // huề (even/draw)
+        ("xueef ", "xuề "), // xuề
+        // uê + consonant finals (double e for circumflex)
+        ("tueechs ", "tuếch "),   // tuếch (wide open)
+        ("thueechs ", "thuếch "), // thuếch
+        // uê + n final (double e for circumflex)
+        ("thueens ", "thuến "), // valid pattern
+        ("queens ", "quến "),   // quến (to attract)
+        ("quyeens ", "quyến "), // quyến (to attract) - quy pattern
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15e: YÊU TRIPHTHONG (standalone Y initial)
+// Vietnamese words starting with Y + êu
+// =============================================================================
+
+#[test]
+fn pattern15e_yeu_triphthong() {
+    telex_auto_restore(&[
+        // yêu patterns - both double e and delayed circumflex are valid
+        // Double e method (standard)
+        ("yeeu ", "yêu "),  // yêu (to love)
+        ("yeeus ", "yếu "), // yếu (weak)
+        ("yeeuf ", "yều "), // yều
+        ("yeeur ", "yểu "), // yểu
+        // Delayed circumflex method (e-u-e pattern)
+        ("yeue ", "yêu "),  // yêu (to love)
+        ("yeues ", "yếu "), // yếu (weak)
+        ("yeuef ", "yều "), // yều
+        ("yeuer ", "yểu "), // yểu
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15f: UÔ DIPHTHONG PATTERNS (V2_CIRCUMFLEX_REQUIRED)
+// Vietnamese words with uô diphthong
+// =============================================================================
+
+#[test]
+fn pattern15f_uo_diphthong_patterns() {
+    telex_auto_restore(&[
+        // uô + consonant finals (double o for circumflex)
+        ("cuoocs ", "cuốc "),   // cuốc (hoe)
+        ("chuoots ", "chuốt "), // chuốt (to sharpen)
+        ("muoons ", "muốn "),   // muốn (to want)
+        ("tuooir ", "tuổi "),   // tuổi (age)
+        ("buooir ", "buổi "),   // buổi (session/half-day)
+    ]);
+}
+
+// =============================================================================
+// PATTERN 15g: COMMON VIETNAMESE WORDS - COMPREHENSIVE TEST
+// Real-world Vietnamese words with delayed circumflex
+// =============================================================================
+
+#[test]
+fn pattern15g_common_vietnamese_words() {
+    telex_auto_restore(&[
+        // Education/learning - iêu triphthong (delayed circumflex works)
+        ("hieuer ", "hiểu "),  // hiểu (understand)
+        ("vietes ", "viết "),  // viết (write) - delayed circumflex after t
+        ("ddieemr ", "điểm "), // điểm (point/score) - double e
+        ("kieemr ", "kiểm "),  // kiểm (to check) - double e
+        // Work/business - double e for circumflex
+        ("vieecj ", "việc "), // việc (work)
+        ("tieecj ", "tiệc "), // tiệc (party)
+        ("tieeps ", "tiếp "), // tiếp (continue)
+        // Daily life - double e for circumflex
+        ("tieengs ", "tiếng "), // tiếng (sound)
+        ("mieengs ", "miếng "), // miếng (piece)
+        ("chieues ", "chiếu "), // chiếu (mat) - iêu triphthong
+        ("bieues ", "biếu "),   // biếu (gift) - iêu triphthong
+        // Technology - double e for circumflex
+        ("ddieenj ", "điện "), // điện (electricity)
     ]);
 }

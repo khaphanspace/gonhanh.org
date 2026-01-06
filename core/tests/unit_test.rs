@@ -151,6 +151,9 @@ const TELEX_DELAYED: &[(&str, &str)] = &[
     ("truwowng", "trương"),
     // Issue: twong shorthand for tương
     ("twong", "tương"),
+    // Standalone w-initial patterns
+    ("wng", "ưng"),   // w → ư + ng final
+    ("wong", "ương"), // w → ư, o → ơ (horn compound) + ng final
 ];
 
 // ============================================================
@@ -304,6 +307,12 @@ const TELEX_WORDS: &[(&str, &str)] = &[
     ("thwr", "thử"),
     ("nhw", "như"),
     ("tuwj", "tự"),
+    // w as ư shortcut with marks (delayed mark application)
+    ("wf", "ừ"),   // w→ư, f→huyền on ư
+    ("Wf", "Ừ"),   // W→Ư, f→huyền on Ư
+    ("ws", "ứ"),   // w→ư, s→sắc on ư
+    ("wmf", "ừm"), // w→ư, m (consonant), f→huyền on ư
+    ("wms", "ứm"), // w→ư, m (consonant), s→sắc on ư
     // Two vowels - closed syllable
     ("toans", "toán"),
     ("hoanf", "hoàn"),

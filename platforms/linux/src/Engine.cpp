@@ -87,9 +87,14 @@ void GoNhanhEngine::keyEvent(const fcitx::InputMethodEntry& entry,
         return;
     }
 
-    // Skip modifier-only events (Ctrl, Alt, Shift alone)
+    // Handle modifier-only events
     auto key = keyEvent.key();
     if (key.isModifier()) {
+        // Issue #150: Control key alone clears buffer (rhythm break like EVKey)
+        uint32_t keysym = key.sym();
+        if (keysym == XKB_KEY_Control_L || keysym == XKB_KEY_Control_R) {
+            RustBridge::clear();
+        }
         return;
     }
 

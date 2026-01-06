@@ -75,6 +75,7 @@ enum SettingsKey {
     static let perAppModes = "gonhanh.perAppModes"
     static let shortcuts = "gonhanh.shortcuts"
     static let autoWShortcut = "gonhanh.autoWShortcut"
+    static let bracketShortcut = "gonhanh.bracketShortcut"
     static let escRestore = "gonhanh.escRestore"
     static let modernTone = "gonhanh.modernTone"
     static let englishAutoRestore = "gonhanh.englishAutoRestore"
@@ -95,6 +96,7 @@ struct KeyboardShortcut: Codable, Equatable {
     var displayParts: [String] {
         var parts: [String] = []
         let flags = CGEventFlags(rawValue: modifiers)
+        if flags.contains(.maskSecondaryFn) { parts.append("fn") }
         if flags.contains(.maskControl) { parts.append("⌃") }
         if flags.contains(.maskAlternate) { parts.append("⌥") }
         if flags.contains(.maskShift) { parts.append("⇧") }
@@ -184,8 +186,8 @@ struct KeyboardShortcut: Codable, Equatable {
     /// Check if this shortcut is modifier-only (no character key)
     var isModifierOnly: Bool { keyCode == 0xFFFF }
 
-    /// Modifier mask for matching shortcuts
-    private static let modifierMask: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
+    /// Modifier mask for matching shortcuts (includes fn key)
+    private static let modifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .maskAlternate, .maskShift, .maskCommand]
 
     /// Check if given key event matches this shortcut
     /// - Parameters:
