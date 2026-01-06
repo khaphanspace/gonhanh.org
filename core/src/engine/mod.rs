@@ -901,15 +901,20 @@ impl Engine {
                 // We want: [..., revert_key, current_key]
                 // So we pop current, pop revert, pop mark, push revert, push current
                 //
-                // EXCEPTION: Double 'f' should NOT pop because 'ff' is common in English
-                // (offline, offer, office, coffee, effect, etc.)
+                // EXCEPTION: Double tone modifiers should NOT pop because they're common in English:
+                // - 'ff': offline, offer, office, coffee, effect, staff, stuff, etc.
+                // - 'ss': harassment, mississippi, class, miss, pass, boss, etc.
+                // - 'rr': diarrhea, arrhythmia, error, mirror, horror, terror, etc.
+                // Auto-restore at word-end will handle these correctly by checking whitelist.
                 if self.raw_input.len() >= 3 {
                     let len = self.raw_input.len();
                     let (revert_key, _, _) = self.raw_input[len - 2];
                     let (mark_key, _, _) = self.raw_input[len - 3];
                     let is_double_f = revert_key == keys::F && mark_key == keys::F;
+                    let is_double_s = revert_key == keys::S && mark_key == keys::S;
+                    let is_double_r = revert_key == keys::R && mark_key == keys::R;
 
-                    if !is_double_f {
+                    if !is_double_f && !is_double_s && !is_double_r {
                         let current = self.raw_input.pop(); // current key (just added)
                         let revert = self.raw_input.pop(); // revert key
                         self.raw_input.pop(); // mark key (consumed, discard)
@@ -2170,8 +2175,20 @@ impl Engine {
                 let (pos2, key2) = vowel_positions[1];
                 let is_circumflex_vowel = matches!(key1, keys::A | keys::E | keys::O);
 
-                // Must be same vowel, must have consonant(s) between them
-                if key1 == key2 && is_circumflex_vowel && pos2 > pos1 + 1 {
+                // Check if first vowel already has circumflex - skip delayed circumflex if so
+                // This prevents "deeper" from being corrupted: after "dee" → "dê", then "deepe"
+                // should NOT trigger delayed circumflex since first 'e' already has circumflex
+                let first_vowel_already_has_circumflex = self
+                    .buf
+                    .get(pos1)
+                    .is_some_and(|c| c.tone == tone::CIRCUMFLEX);
+
+                // Must be same vowel, must have consonant(s) between them, first vowel must not already have circumflex
+                if key1 == key2
+                    && is_circumflex_vowel
+                    && pos2 > pos1 + 1
+                    && !first_vowel_already_has_circumflex
+                {
                     // Check for consonants between the two vowels
                     let consonants_between: Vec<u16> = (pos1 + 1..pos2)
                         .filter_map(|j| {
@@ -2710,7 +2727,14 @@ impl Engine {
         // Pattern: After "data" → "dât" (delayed circumflex), typing 'a' again should revert to "data"
         // Buffer ends with: vowel-with-circumflex + non-extending-final (t, m, p)
         // Typed key matches the base of the circumflex vowel (a→â, e→ê, o→ô)
-        if self.method == 0 && matches!(key, keys::A | keys::E | keys::O) && self.buf.len() >= 2 {
+        // IMPORTANT: Only apply this revert for DELAYED circumflex (V+C+V pattern), not for
+        // immediate circumflex (VV pattern like "deep" → "dêp"). For immediate circumflex,
+        // typing another vowel should NOT revert (allows words like "deeper").
+        if self.method == 0
+            && self.had_vowel_triggered_circumflex
+            && matches!(key, keys::A | keys::E | keys::O)
+            && self.buf.len() >= 2
+        {
             let last_idx = self.buf.len() - 1;
             let vowel_idx = self.buf.len() - 2;
 
@@ -3251,19 +3275,12 @@ impl Engine {
             return None;
         }
 
-        // If user typed double TONE modifier (r, x, j) at END of SHORT word, keep reverted form
-        // But longer words like "assess" (6 chars, ends with ss) should still restore
-        // EXCEPTION: Double 'ss' and 'ff' should restore because:
-        // - 's' is NOT a valid Vietnamese final consonant
-        // - 'f' is NOT a valid Vietnamese final consonant
-        // Words like bass, pass, buff, cuff are valid English → restore
+        // If user typed double TONE modifier (rr) at END of SHORT word, keep reverted form
         if self.had_mark_revert && self.raw_input.len() >= 2 && self.raw_input.len() <= 4 {
             let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
             let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
-            // Double tone modifier at end (rr, xx, jj) - but NOT 'ss' or 'ff'
-            // 'ss' and 'ff' should restore because 's' and 'f' are not valid Vietnamese finals
-            if last_key == second_last_key && matches!(last_key, keys::R | keys::X | keys::J) {
-                // Keep reverted form for rr, xx, jj
+            // Double 'rr' at end of short word → keep reverted form
+            if last_key == second_last_key && last_key == keys::R {
                 return None;
             }
         }
@@ -3307,6 +3324,121 @@ impl Engine {
 
             if is_double_ss || is_double_ff {
                 return self.build_raw_chars();
+            }
+        }
+
+        // SPECIAL CASE: Double vowel (oo, ee, aa) transformed to circumflex
+        // English words like "room", "been", "door" have double vowels that Telex transforms to circumflex
+        // "room" → "rôm" (buffer is valid VN structure, but raw is valid English with double vowel)
+        // Restore to English if:
+        // 1. Raw has double vowel (oo, ee, aa)
+        // 2. Buffer has circumflex (the double vowel was transformed)
+        // 3. Raw is in English WHITELIST (not just structurally valid)
+        // 4. Buffer is NOT a common Vietnamese word (bê, mê, lê, etc.)
+        // NOTE: Must check whitelist, not just is_raw_input_valid_english, to avoid restoring
+        // Vietnamese words like "Nông" (typed as "Noong") to "Noong"
+        let double_vowels = [(keys::O, keys::O), (keys::E, keys::E), (keys::A, keys::A)];
+        let has_double_vowel = self.raw_input.windows(2).any(|w| {
+            let (k1, _, _) = w[0];
+            let (k2, _, _) = w[1];
+            double_vowels.contains(&(k1, k2))
+        });
+
+        if has_double_vowel {
+            let has_circumflex = self.buf.iter().any(|c| c.tone == tone::CIRCUMFLEX);
+            let raw_str: String = self
+                .raw_input
+                .iter()
+                .filter_map(|&(key, _, _)| utils::key_to_char(key, false))
+                .collect();
+            let is_in_whitelist = crate::data::english_whitelist::contains(&raw_str);
+
+            // Exception: Common Vietnamese words that use circumflex
+            // These are actual Vietnamese words, not English words with double vowels
+            // Open syllables: bê (calf), mê (obsessed), lê (pear), cô (aunt), etc.
+            // Closed syllables: quến (attract), quyến (attract), etc.
+            // These should NOT restore to English even if raw is in whitelist
+            // Use to_full_string() to include diacritics (tone + mark)
+            let buf_str = self.buf.to_full_string().to_lowercase();
+
+            // Check for common Vietnamese circumflex patterns:
+            // 1. Simple open syllables (C + ê/ô)
+            // 2. Words with uê/uyê diphthong (all tone variants: ế/ề/ể/ễ/ệ)
+            // 3. Words ending with -ên/-ết/-ênh (common Vietnamese patterns)
+
+            // Check for uê diphthong with any tone mark (quến→uế, quyến→uyế)
+            let has_ue_diphthong = buf_str.contains("uê")
+                || buf_str.contains("uế")
+                || buf_str.contains("uề")
+                || buf_str.contains("uể")
+                || buf_str.contains("uễ")
+                || buf_str.contains("uệ")
+                || buf_str.contains("uyê")
+                || buf_str.contains("uyế")
+                || buf_str.contains("uyề")
+                || buf_str.contains("uyể")
+                || buf_str.contains("uyễ")
+                || buf_str.contains("uyệ");
+
+            let is_common_vn_circumflex = matches!(
+                buf_str.as_str(),
+                "bê" | "mê"
+                    | "lê"
+                    | "đê"
+                    | "khê"
+                    | "cô"
+                    | "bô"
+                    | "hô"
+                    | "lô"
+                    | "nô"
+                    | "tô"
+                    | "vô"
+                    | "xô"
+                    | "sô"
+                    | "ngô"
+                    | "trê"
+                    | "thê"
+                    | "chê"
+            ) || has_ue_diphthong;
+
+            // Check if circumflex vowel has mark AND is followed by consonant
+            // This indicates Vietnamese intent: "toots" → "tốt" (t + ố + t)
+            // Compare with "room" → "rôm" (r + ô + m) which has NO mark
+            let has_marked_circumflex_before_consonant = {
+                let mut found = false;
+                for (i, c) in self.buf.iter().enumerate() {
+                    // Found circumflex vowel with mark
+                    if c.tone == tone::CIRCUMFLEX && c.mark > 0 {
+                        // Check if there's a consonant after this position
+                        if let Some(next) = self.buf.get(i + 1) {
+                            if keys::is_consonant(next.key) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                found
+            };
+
+            // Only restore if:
+            // - Has circumflex
+            // - Raw is in English whitelist
+            // - NOT a common Vietnamese circumflex word
+            // - NOT marked circumflex followed by consonant (Vietnamese intent like tốt)
+            if has_circumflex
+                && is_in_whitelist
+                && !is_common_vn_circumflex
+                && !has_marked_circumflex_before_consonant
+            {
+                // Return raw chars directly WITHOUT collapsing double vowels
+                // (build_raw_chars would collapse "maas" → "mas")
+                let raw_chars: Vec<char> = self
+                    .raw_input
+                    .iter()
+                    .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+                    .collect();
+                return Some(raw_chars);
             }
         }
 
@@ -3362,10 +3494,31 @@ impl Engine {
                     first_key == keys::W && self.buf.get(0).map(|c| c.key) != Some(keys::W)
                 };
 
-                if !is_at_end && !is_after_initial_vowel && is_telex_pattern && !w_converted_to_horn
+                // Check if raw word is in English whitelist AND buffer is NOT
+                // This distinguishes:
+                // - "giraffe" (raw in whitelist, buffer "giafe" NOT in whitelist) → keep raw
+                // - "carre" (raw in whitelist, buffer "care" ALSO in whitelist) → keep buffer
+                let raw_str: String = self
+                    .raw_input
+                    .iter()
+                    .filter_map(|&(key, _, _)| utils::key_to_char(key, false))
+                    .collect();
+                let buffer_str = self.buf.to_lowercase_string();
+                let is_raw_english = crate::data::english_whitelist::contains(&raw_str);
+                let is_buffer_english = crate::data::english_whitelist::contains(&buffer_str);
+                // Only skip the Telex pattern handling if raw is English but buffer is NOT
+                // (buffer being non-English means the collapsed form like "giafe" is not a real word)
+                let skip_telex_for_english = is_raw_english && !is_buffer_english;
+
+                if !is_at_end
+                    && !is_after_initial_vowel
+                    && is_telex_pattern
+                    && !w_converted_to_horn
+                    && !skip_telex_for_english
                 {
-                    // Pattern like "carre" (C + V + rr + single_char) → keep buffer
+                    // Pattern like "carre" (C + V + rr + single_char) → keep buffer "care"
                     // Buffer already has the collapsed result from Telex revert
+                    // But NOT if raw is English word and buffer is not (like "giraffe" → "giafe")
                     return None;
                 }
             }
@@ -3374,6 +3527,37 @@ impl Engine {
         // UNIFIED: Restore only when buffer is invalid Vietnamese AND raw_input is valid English
         if buffer_invalid_vn && raw_input_valid_en {
             return self.build_raw_chars();
+        }
+
+        // OW PATTERN CHECK: raw_input has 'ow' but buffer has ơ/ở/ờ/ớ/ỡ/ợ (horn-o)
+        // English words: power, tower, down, town, etc.
+        // Telex 'w' converts 'o' to 'ơ' (horn mark), which is wrong for English
+        // Example: "power" → buffer "pởe" (wrong), should restore to "power"
+        // BUT: "bow" → buffer "bơ" (valid Vietnamese), keep it
+        // Only restore when buffer is INVALID Vietnamese
+        if is_word_complete && buffer_invalid_vn && raw_input_valid_en {
+            let has_ow_in_raw = self.raw_input.windows(2).any(|w| {
+                let (k1, _, _) = w[0];
+                let (k2, _, _) = w[1];
+                k1 == keys::O && k2 == keys::W
+            });
+            let has_horn_o_in_buffer = self
+                .buf
+                .iter()
+                .any(|c| c.key == keys::O && c.tone == tone::HORN);
+            if has_ow_in_raw && has_horn_o_in_buffer {
+                return self.build_raw_chars();
+            }
+        }
+
+        // W-START CHECK: If raw input starts with 'w' (becomes 'ư') AND buffer is invalid VN, restore
+        // Vietnamese doesn't have 'w', so words like "wmd", "wtf" with invalid structure should restore
+        // This is simpler than maintaining a 3000-word whitelist
+        if is_word_complete && buffer_invalid_vn && !self.raw_input.is_empty() {
+            let (first_key, _, _) = self.raw_input[0];
+            if first_key == keys::W {
+                return self.build_raw_chars();
+            }
         }
 
         // Additional check: English patterns in raw_input even when buffer appears valid
@@ -3739,6 +3923,18 @@ impl Engine {
             }
         }
 
+        // Check 6: HORN-O + E pattern is INVALID Vietnamese
+        // "oe" is valid diphthong (xoe, hoe), but "ơe" / "ởe" doesn't exist
+        // This catches English words like "power" → "pởe", "tower" → "tởe"
+        for i in 0..buffer_keys.len().saturating_sub(1) {
+            if buffer_keys[i] == keys::O
+                && buffer_tones[i] == tone::HORN
+                && buffer_keys[i + 1] == keys::E
+            {
+                return true; // ơe is invalid Vietnamese
+            }
+        }
+
         false
     }
 
@@ -3813,8 +4009,11 @@ impl Engine {
             // Check if double vowel is immediately followed by tone modifier at end
             // Example: "saax" (s-aa-x) → double 'a' at index 1-2, 'x' at index 3 (end)
             // Counter-example: "looks" (l-oo-k-s) → double 'o' at index 1-2, 'k' at index 3 (NOT modifier)
+            // Counter-example: "career" (c-a-r-ee-r) → double 'e' but 'r' is part of English word
+            // IMPORTANT: Only collapse for SHORT words (<=4 chars) which are clearly Telex patterns
+            // Longer words like "career", "beer", "peer" should keep their double vowels
             let tone_modifiers = ['s', 'f', 'r', 'x', 'j'];
-            let has_double_vowel_at_end = chars.len() >= 3 && {
+            let has_double_vowel_at_end = chars.len() >= 3 && chars.len() <= 4 && {
                 let last = chars[chars.len() - 1].to_ascii_lowercase();
                 let second_last = chars[chars.len() - 2].to_ascii_lowercase();
                 let third_last = chars[chars.len() - 3].to_ascii_lowercase();
@@ -4034,6 +4233,94 @@ impl Engine {
     /// - "error" → err + or pattern (double + multiple chars) → use raw_input "error"
     fn should_use_buffer_for_revert(&self) -> bool {
         let buf_str = self.buf.to_lowercase_string();
+
+        // DOUBLE LETTER CHECK: If raw_input has any double letter AND is valid English → use raw_input
+        // Telex transforms double letters:
+        // - Vowels: aa→â, ee→ê, oo→ô (circumflex)
+        // - Consonants: ss→revert sắc, ff→revert huyền, rr→revert hỏi, xx→revert ngã, jj→revert nặng
+        // - Special: dd→đ (stroke), ww→w (collapse)
+        // English words with double letters should preserve them: "room", "been", "mission", "off"
+        // Example: "mission" → buffer "mision" → should use raw "mission"
+        // BUT: "soffa" (not English) → buffer "sofa" (valid English) → use buffer
+        let raw_str: String = self
+            .raw_input
+            .iter()
+            .filter_map(|&(key, _, _)| utils::key_to_char(key, false))
+            .collect();
+
+        // Check if raw has any double letters (ss, rr, ff, oo, ee, aa, dd, ww, xx, jj)
+        let has_double_in_raw = self.raw_input.windows(2).any(|w| {
+            let (k1, _, _) = w[0];
+            let (k2, _, _) = w[1];
+            k1 == k2
+        });
+
+        // Check if double was collapsed (raw longer than buffer means some char was removed)
+        let has_collapsed_double = has_double_in_raw && raw_str.len() > buf_str.len();
+
+        let is_raw_in_whitelist = crate::data::english_whitelist::contains(&raw_str);
+        if has_collapsed_double && is_raw_in_whitelist {
+            // Exception: If buffer ends with common single-consonant endings like "-son", "-ton"
+            // these are more common than double-consonant versions (mason vs masson)
+            // so we prefer buffer (Telex revert convention) for these cases
+            let common_single_consonant_endings = ["son", "ton", "ron", "non", "mon"];
+            let use_buffer_for_ending = common_single_consonant_endings
+                .iter()
+                .any(|ending| buf_str.ends_with(ending));
+
+            if !use_buffer_for_ending {
+                return false; // Raw is valid English with double letter, use raw_input
+            }
+            // Has -son/-ton/-ron ending, continue to later checks which will use buffer
+        }
+
+        // LONG WORDS (6+ chars) with collapsed double letters → use raw_input IF in whitelist
+        // English words like "mississippi", "arrhythmia", "powerlessness" have double letters
+        // that should be preserved. Non-English words like "sarrah" should use buffer.
+        // Exception: buffer ends with -son/-ton/-ron (common single-consonant patterns)
+        #[cfg(test)]
+        eprintln!(
+            "DEBUG: has_collapsed_double={}, raw_str='{}' ({}), buf_str='{}' ({})",
+            has_collapsed_double,
+            raw_str,
+            raw_str.len(),
+            buf_str,
+            buf_str.len()
+        );
+        if has_collapsed_double
+            && raw_str.len() >= 6
+            && crate::data::english_whitelist::contains(&raw_str)
+        {
+            let common_single_consonant_endings = ["son", "ton", "ron", "non", "mon"];
+            let use_buffer_for_ending = common_single_consonant_endings
+                .iter()
+                .any(|ending| buf_str.ends_with(ending));
+
+            #[cfg(test)]
+            eprintln!(
+                "DEBUG: use_buffer_for_ending={}, returning false for long word",
+                use_buffer_for_ending
+            );
+            // Only prefer buffer if BOTH conditions are true:
+            // 1. Buffer ends with common single-consonant ending (-son, -ton, -ron, etc.)
+            // 2. Buffer is ALSO a valid English word (mason vs masson)
+            // If raw is valid but buffer is not (saffron vs safron), use raw.
+            if !use_buffer_for_ending || !crate::data::english_whitelist::contains(&buf_str) {
+                return false; // Long English word with double letter, use raw_input
+            }
+        }
+
+        // If raw has collapsed double letter BUT is NOT in whitelist:
+        // - Use buffer if buffer IS in whitelist (Telex revert to English word like "tesst" → "test")
+        // - Use raw if buffer is NOT in whitelist (like "SOSS" → buffer "SOS" not a word)
+        // This preserves intentional Telex reverts that produce valid English words.
+        if has_collapsed_double && !crate::data::english_whitelist::contains(&raw_str) {
+            // Check if buffer is a valid English word
+            if crate::data::english_whitelist::contains(&buf_str) {
+                return true; // Buffer is valid English, use it (Telex revert result)
+            }
+            // Buffer is not a known English word, continue to later checks
+        }
 
         // Common English prefixes that suggest intentional revert
         const PREFIXES: &[&str] = &[
@@ -5533,5 +5820,104 @@ mod tests {
                 input, result, expected
             );
         }
+    }
+
+    #[test]
+    fn debug_harassment_auto_restore() {
+        use crate::utils::{telex_auto_restore, type_word};
+
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+        let result = type_word(&mut e, "harassment ");
+        eprintln!("Result: '{}'", result);
+        assert_eq!(result, "harassment ", "Should restore to harassment");
+    }
+
+    #[test]
+    fn debug_tesst_auto_restore() {
+        use crate::utils::type_word;
+
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+        let result = type_word(&mut e, "tesst ");
+        eprintln!("Result: '{}'", result);
+        assert_eq!(result, "test ", "tesst should become test (Telex revert)");
+    }
+
+    #[test]
+    fn debug_saffron_auto_restore() {
+        use crate::utils::type_word;
+
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+
+        // Type saffron character by character to see raw_input
+        let input = "saffron ";
+        let result = type_word(&mut e, input);
+        eprintln!("Input: '{}' → Result: '{}'", input, result);
+        assert_eq!(result, "saffron ", "Should restore to saffron");
+    }
+
+    #[test]
+    fn debug_giraffe_auto_restore() {
+        use crate::data::keys;
+        use crate::utils::type_word;
+
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+
+        // Type giraffe step by step to see buffer state
+        let chars = ['g', 'i', 'r', 'a', 'f', 'f', 'e'];
+        let mut screen = String::new();
+
+        for c in chars.iter() {
+            let key = match c {
+                'g' => keys::G,
+                'i' => keys::I,
+                'r' => keys::R,
+                'a' => keys::A,
+                'f' => keys::F,
+                'e' => keys::E,
+                _ => continue,
+            };
+            let r = e.on_key_ext(key, false, false, false);
+            if r.action == 1 {
+                for _ in 0..r.backspace {
+                    screen.pop();
+                }
+                for i in 0..r.count as usize {
+                    if let Some(ch) = char::from_u32(r.chars[i]) {
+                        screen.push(ch);
+                    }
+                }
+            } else {
+                screen.push(*c);
+            }
+            eprintln!("After '{}': screen='{}'", c, screen);
+        }
+
+        // Now press space
+        eprintln!("\nBefore space: '{}'", screen);
+        let r = e.on_key_ext(keys::SPACE, false, false, false);
+        eprintln!(
+            "Space: action={}, bs={}, count={}",
+            r.action, r.backspace, r.count
+        );
+
+        if r.action == 1 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(' ');
+        }
+
+        eprintln!("Final: '{}'", screen);
+        assert_eq!(screen, "giraffe ", "Should restore to giraffe");
     }
 }

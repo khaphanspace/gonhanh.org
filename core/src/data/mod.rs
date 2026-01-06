@@ -4,9 +4,11 @@
 //! - `keys`: Virtual keycode definitions (platform-specific)
 //! - `chars`: Unicode character conversion (includes tone/mark constants)
 //! - `vowel`: Vietnamese vowel phonology system
+//! - `english_whitelist`: English words that need explicit auto-restore
 
 pub mod chars;
 pub mod constants;
+pub mod english_whitelist;
 pub mod keys;
 pub mod vowel;
 

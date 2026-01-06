@@ -252,13 +252,13 @@ fn w_vowel_produces_valid_vietnamese() {
 fn w_final_consonant_produces_valid_vietnamese() {
     telex_auto_restore(&[
         // ư + single final
-        ("wng ", "ưng "),   // ưng is valid Vietnamese (w→ư + ng final)
-        ("uwng ", "ưng "),  // uwng also produces ưng (redundant u)
-        ("wn ", "ưn "),     // ưn is valid Vietnamese
-        ("wm ", "ưm "),     // ưm is valid Vietnamese
-        ("wc ", "ưc "),     // ưc is valid Vietnamese
-        ("wt ", "ưt "),     // ưt is valid Vietnamese
-        ("wp ", "ưp "),     // ưp is valid Vietnamese
+        ("wng ", "ưng "),  // ưng is valid Vietnamese (w→ư + ng final)
+        ("uwng ", "ưng "), // uwng also produces ưng (redundant u)
+        ("wn ", "ưn "),    // ưn is valid Vietnamese
+        ("wm ", "ưm "),    // ưm is valid Vietnamese
+        ("wc ", "ưc "),    // ưc is valid Vietnamese
+        ("wt ", "ưt "),    // ưt is valid Vietnamese
+        ("wp ", "ưp "),    // ưp is valid Vietnamese
         // ươ + finals (w→ư, o→ơ)
         ("wong ", "ương "), // ương
         ("won ", "ươn "),   // ươn

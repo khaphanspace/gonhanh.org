@@ -54,27 +54,28 @@ fn revert_at_end_short_words() {
 #[test]
 fn revert_at_end_restores_or_keeps_4char() {
     // 4-char raw with double modifiers:
-    // - 'ss' and 'ff' → restore to English (s/f not valid VN finals)
-    // - 'rr', 'xx', 'jj' → keep reverted form
+    // - If raw is in whitelist → restore to raw (preserve double letter)
+    // - If buffer is in whitelist → use buffer (Telex revert result)
+    // - Otherwise → use raw
     telex_auto_restore(&[
-        // Double ss: restore to English (s not valid VN final)
-        ("SOSS ", "SOSS "), // S-O-S-S → SOSS
-        ("BOSS ", "BOSS "), // B-O-S-S → BOSS
-        ("LOSS ", "LOSS "), // L-O-S-S → LOSS
-        ("MOSS ", "MOSS "), // M-O-S-S → MOSS
+        // Double ss: raw in whitelist → restore to raw
+        ("SOSS ", "SOS "), // S-O-S-S: raw "soss" NOT in whitelist, buffer "sos" IS → use buffer
+        ("BOSS ", "BOSS "), // B-O-S-S: raw "boss" IS in whitelist → use raw
+        ("LOSS ", "LOSS "), // L-O-S-S: raw "loss" IS in whitelist → use raw
+        ("MOSS ", "MOSS "), // M-O-S-S: raw "moss" IS in whitelist → use raw
         ("boss ", "boss "), // lowercase also works
-        // Double ff: restore to English (f not valid VN final)
-        ("buff ", "buff "), // b-u-f-f → buff
-        ("cuff ", "cuff "), // c-u-f-f → cuff
-        ("puff ", "puff "), // p-u-f-f → puff
-        // Double r: keep reverted (programming keywords)
-        ("varr ", "var "), // v-a-r-r → var (JS keyword)
-        ("VARR ", "VAR "), // V-A-R-R → VAR
-        ("norr ", "nor "), // n-o-r-r → nor
-        // Double x: keep reverted
-        ("boxx ", "box "), // b-o-x-x → box
-        // Double j: keep reverted
-        ("hajj ", "haj "), // h-a-j-j → haj
+        // Double ff: raw in whitelist → restore to raw
+        ("buff ", "buff "), // b-u-f-f: raw "buff" IS in whitelist → use raw
+        ("cuff ", "cuff "), // c-u-f-f: raw "cuff" IS in whitelist → use raw
+        ("puff ", "puff "), // p-u-f-f: raw "puff" IS in whitelist → use raw
+        // Double r: raw NOT in whitelist, buffer IS → use buffer
+        ("varr ", "var "), // v-a-r-r: raw "varr" NOT, buffer "var" IS → use buffer
+        ("VARR ", "VAR "), // V-A-R-R: same logic uppercase
+        ("norr ", "nor "), // n-o-r-r: raw "norr" NOT, buffer "nor" IS → use buffer
+        // Double x: raw NOT in whitelist, buffer IS → use buffer
+        ("boxx ", "box "), // b-o-x-x: raw "boxx" NOT, buffer "box" IS → use buffer
+        // Double j: raw NOT in whitelist, buffer IS → use buffer
+        ("hajj ", "haj "), // h-a-j-j: raw "hajj" NOT, buffer "haj" IS → use buffer
     ]);
 }
 
@@ -125,11 +126,10 @@ fn revert_at_end_restores_long_english_words() {
 
 #[test]
 fn double_vowel_with_mark() {
-    telex_auto_restore(&[
-        // "maas" → "ma" + 'a' (circumflex) + 's' (sắc) = "mấ"
-        // In Telex, double 'a' = circumflex, then 's' = sắc mark on top
-        ("maas ", "mấ "),
-    ]);
+    // With English auto-restore, words with double vowels that are in the
+    // English whitelist should restore to raw even if they have marks.
+    // "maas" is in whitelist → restore to "maas"
+    telex_auto_restore(&[("maas ", "maas ")]);
 }
 
 // =============================================================================
@@ -230,4 +230,32 @@ fn delayed_stroke_with_vowel_between() {
         // didnrh → đỉnh (peak) - delayed stroke with vowel between
         ("didnrh ", "đỉnh "),
     ]);
+}
+
+// =============================================================================
+// LONG WORDS WITH DOUBLE LETTERS
+// =============================================================================
+
+#[test]
+fn long_words_preserve_double_letters() {
+    // Long English words (6+ chars) with double letters should preserve them
+    telex_auto_restore(&[
+        // SS words
+        ("harassment ", "harassment "),
+        ("password ", "password "),
+        ("guesswork ", "guesswork "),
+        ("powerlessness ", "powerlessness "),
+        // RR words
+        ("diarrhea ", "diarrhea "),
+        ("arrhythmia ", "arrhythmia "),
+        // FF words
+        ("saffron ", "saffron "),
+        ("giraffe ", "giraffe "),
+    ]);
+}
+
+#[test]
+fn debug_deeper_issue() {
+    // This test checks the "deeper" → "ddeeper" bug
+    telex_auto_restore(&[("deeper ", "deeper "), ("keeper ", "keeper ")]);
 }
