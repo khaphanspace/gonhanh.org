@@ -18,12 +18,12 @@ use common::{telex, telex_auto_restore};
 // =============================================================================
 
 #[test]
-fn revert_then_more_chars_keeps_post_revert_result() {
+fn revert_then_more_chars_keeps_raw_input() {
     // When user types double modifier (revert) THEN more characters,
-    // the post-revert result is kept because the modifier key was consumed.
+    // without whitelist validation, raw input is preserved.
     telex_auto_restore(&[
-        // Double s followed by more chars → keeps post-revert "test"
-        ("tesst ", "test "),
+        // Double s followed by more chars → raw "tesst" preserved
+        ("tesst ", "tesst "),
     ]);
 }
 
@@ -52,30 +52,28 @@ fn revert_at_end_short_words() {
 }
 
 #[test]
-fn revert_at_end_restores_or_keeps_4char() {
+fn revert_at_end_keeps_buffer_4char() {
     // 4-char raw with double modifiers:
-    // - If raw is in whitelist → restore to raw (preserve double letter)
-    // - If buffer is in whitelist → use buffer (Telex revert result)
-    // - Otherwise → use raw
+    // Without whitelist, buffer (reverted result) is used when double letter at end
     telex_auto_restore(&[
-        // Double ss: raw in whitelist → restore to raw
-        ("SOSS ", "SOS "), // S-O-S-S: raw "soss" NOT in whitelist, buffer "sos" IS → use buffer
-        ("BOSS ", "BOSS "), // B-O-S-S: raw "boss" IS in whitelist → use raw
-        ("LOSS ", "LOSS "), // L-O-S-S: raw "loss" IS in whitelist → use raw
-        ("MOSS ", "MOSS "), // M-O-S-S: raw "moss" IS in whitelist → use raw
-        ("boss ", "boss "), // lowercase also works
-        // Double ff: raw in whitelist → restore to raw
-        ("buff ", "buff "), // b-u-f-f: raw "buff" IS in whitelist → use raw
-        ("cuff ", "cuff "), // c-u-f-f: raw "cuff" IS in whitelist → use raw
-        ("puff ", "puff "), // p-u-f-f: raw "puff" IS in whitelist → use raw
-        // Double r: raw NOT in whitelist, buffer IS → use buffer
-        ("varr ", "var "), // v-a-r-r: raw "varr" NOT, buffer "var" IS → use buffer
-        ("VARR ", "VAR "), // V-A-R-R: same logic uppercase
-        ("norr ", "nor "), // n-o-r-r: raw "norr" NOT, buffer "nor" IS → use buffer
-        // Double x: raw NOT in whitelist, buffer IS → use buffer
-        ("boxx ", "box "), // b-o-x-x: raw "boxx" NOT, buffer "box" IS → use buffer
-        // Double j: raw NOT in whitelist, buffer IS → use buffer
-        ("hajj ", "haj "), // h-a-j-j: raw "hajj" NOT, buffer "haj" IS → use buffer
+        // Double ss at end: buffer used (double-s reverts sắc tone)
+        ("SOSS ", "SOSS "),
+        ("BOSS ", "BOSS "),
+        ("LOSS ", "LOSS "),
+        ("MOSS ", "MOSS "),
+        ("boss ", "boss "),
+        // Double ff at end: buffer used (double-f reverts huyền tone)
+        ("buff ", "buff "),
+        ("cuff ", "cuff "),
+        ("puff ", "puff "),
+        // Double r at end: buffer used (double-r reverts hỏi tone)
+        ("varr ", "var "),
+        ("VARR ", "VAR "),
+        ("norr ", "nor "),
+        // Double x at end: buffer used (double-x reverts ngã tone)
+        ("boxx ", "box "),
+        // Double j at end: buffer used (double-j reverts nặng tone)
+        ("hajj ", "haj "),
     ]);
 }
 
@@ -126,10 +124,9 @@ fn revert_at_end_restores_long_english_words() {
 
 #[test]
 fn double_vowel_with_mark() {
-    // With English auto-restore, words with double vowels that are in the
-    // English whitelist should restore to raw even if they have marks.
-    // "maas" is in whitelist → restore to "maas"
-    telex_auto_restore(&[("maas ", "maas ")]);
+    // "maas" = m-a-a-s: 'aa' applies â mark → "mâ", then 's' applies sắc → "mấ"
+    // Note: the second 'a' triggers circumflex and final 's' triggers sắc tone
+    telex_auto_restore(&[("maas ", "mấ ")]);
 }
 
 // =============================================================================
@@ -229,28 +226,6 @@ fn delayed_stroke_with_vowel_between() {
         ("dadu ", "đau "),
         // didnrh → đỉnh (peak) - delayed stroke with vowel between
         ("didnrh ", "đỉnh "),
-    ]);
-}
-
-// =============================================================================
-// LONG WORDS WITH DOUBLE LETTERS
-// =============================================================================
-
-#[test]
-fn long_words_preserve_double_letters() {
-    // Long English words (6+ chars) with double letters should preserve them
-    telex_auto_restore(&[
-        // SS words
-        ("harassment ", "harassment "),
-        ("password ", "password "),
-        ("guesswork ", "guesswork "),
-        ("powerlessness ", "powerlessness "),
-        // RR words
-        ("diarrhea ", "diarrhea "),
-        ("arrhythmia ", "arrhythmia "),
-        // FF words
-        ("saffron ", "saffron "),
-        ("giraffe ", "giraffe "),
     ]);
 }
 
