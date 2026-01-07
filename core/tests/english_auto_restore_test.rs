@@ -1327,3 +1327,27 @@ fn pattern15g_common_vietnamese_words() {
         ("ddieenj ", "điện "), // điện (electricity)
     ]);
 }
+
+// =============================================================================
+// OE DIPHTHONG TYPING ORDER CONSISTENCY
+// Both "xoef" and "xofe" should produce same result (using modern tone placement)
+// Modern: tone on second vowel (xoè), Traditional: tone on first vowel (xòe)
+// =============================================================================
+
+#[test]
+fn oe_diphthong_typing_orders() {
+    // Engine uses modern tone placement by default (tone on second vowel for OE)
+    telex_auto_restore(&[
+        // xòe (modern: xoè) - both typing orders should work
+        ("xoef ", "xoè "), // tone after 'e' - standard typing
+        ("xofe ", "xoè "), // tone after 'o' - alternative typing order
+        // hòe (modern: hoè)
+        ("hoef ", "hoè "),
+        ("hofe ", "hoè "),
+        // loè
+        ("loef ", "loè "),
+        // tóe (modern: toé)
+        ("toes ", "toé "),
+        ("tose ", "toé "),
+    ]);
+}

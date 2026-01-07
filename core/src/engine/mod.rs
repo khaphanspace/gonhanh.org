@@ -5242,12 +5242,30 @@ impl Engine {
                         // - A + modifier + I: ải, ái, ài (interjections)
                         // - A + modifier + Y: ảy, áy, ày (cảy, máy when no initial)
                         // - O + modifier + I: ỏi, ói, òi (interjections)
+                        // - O + modifier + E: oẻ, oẹ, oé (interjections)
                         // - E + modifier + O: ẻo, ẹo, éo (interjections)
                         let is_vietnamese_no_initial = first_vowel == next_key // Same vowel = Telex circumflex
                             || (first_vowel == keys::U && (next_key == keys::A || next_key == keys::I || next_key == keys::Y))
                             || (first_vowel == keys::A && (next_key == keys::O || next_key == keys::I || next_key == keys::Y))
-                            || (first_vowel == keys::O && next_key == keys::I)
+                            || (first_vowel == keys::O && (next_key == keys::I || next_key == keys::E))
                             || (first_vowel == keys::E && next_key == keys::O);
+
+                        // Special case: no-initial O + modifier + E
+                        // "ore" is common English word, should restore
+                        // "oer", "oje" are not English, keep Vietnamese (oẻ, oẹ)
+                        if first_vowel == keys::O && next_key == keys::E {
+                            let raw_str: String = self
+                                .raw_input
+                                .iter()
+                                .filter_map(|&(k, c, s)| utils::key_to_char_ext(k, c, s))
+                                .collect();
+                            if english_dict::is_english_word(&raw_str) {
+                                return true; // Restore to English
+                            }
+                            // Not English word, keep Vietnamese
+                            continue;
+                        }
+
                         if !is_vietnamese_no_initial {
                             return true;
                         }
@@ -5303,7 +5321,12 @@ impl Engine {
                                     || next_key == keys::O
                                     || next_key == keys::U
                             }
-                            k if k == keys::O => next_key == keys::I || next_key == keys::A,
+                            k if k == keys::O => {
+                                // oi: bói, hói; oa: hoá, toá
+                                // oe: NOT included here - handled separately via English dict check
+                                // Words like "lore", "bore", "core" are common English
+                                next_key == keys::I || next_key == keys::A
+                            }
                             k if k == keys::E => {
                                 // eo: đeo, kẹo, mèo
                                 // eu: nếu, kêu (êu diphthong with tone on ê)
@@ -5313,6 +5336,47 @@ impl Engine {
                             _ => false,
                         };
                         if !is_vietnamese_pattern {
+                            // Special case: O + modifier + E
+                            // Vietnamese-first for specific patterns, English otherwise
+                            // "chose" → "choé" (CH is Vietnamese digraph, keep VN)
+                            // "lore", "bore" → English (single initial + raw in EN dict)
+                            // "xofe", "hofe" → Vietnamese (raw not in EN dict)
+                            if prev_vowel == keys::O && next_key == keys::E {
+                                // Check for Vietnamese digraph initials (CH, KH, GH, TH, PH, NH, NG, TR)
+                                // These are Vietnamese-specific, so keep Vietnamese for OE words
+                                let has_vn_digraph = if self.raw_input.len() >= 2 {
+                                    let (c1, _, _) = self.raw_input[0];
+                                    let (c2, _, _) = self.raw_input[1];
+                                    // Digraphs ending with H: CH, KH, GH, TH, PH, NH
+                                    let ends_with_h = c2 == keys::H
+                                        && matches!(
+                                            c1,
+                                            keys::C | keys::K | keys::G | keys::T | keys::P | keys::N
+                                        );
+                                    // Other digraphs: NG, TR
+                                    let is_ng = c1 == keys::N && c2 == keys::G;
+                                    let is_tr = c1 == keys::T && c2 == keys::R;
+                                    ends_with_h || is_ng || is_tr
+                                } else {
+                                    false
+                                };
+
+                                if has_vn_digraph {
+                                    // Vietnamese digraph + OE → keep Vietnamese
+                                    continue;
+                                }
+
+                                // For single initial + OE: only restore if raw is English word
+                                let raw_str: String = self
+                                    .raw_input
+                                    .iter()
+                                    .filter_map(|&(k, c, s)| utils::key_to_char_ext(k, c, s))
+                                    .collect();
+                                if !english_dict::is_english_word(&raw_str) {
+                                    // Not a common English word, keep Vietnamese
+                                    continue;
+                                }
+                            }
                             return true;
                         }
                     }

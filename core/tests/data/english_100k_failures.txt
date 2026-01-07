@@ -16,6 +16,7 @@ see	sê
 most	mót
 did	đi
 how	hơ
+those	thoé
 now	nơ
 must	mút
 own	ơn
@@ -85,6 +86,7 @@ les	lé
 arm	ảm
 bar	bả
 coast	coát
+chosen	choén
 lies	lié
 sets	sét
 troops	trốp
@@ -132,6 +134,7 @@ hero	hẻo
 roof	rồ
 wars	ứa
 verse	vế
+chose	choé
 loose	lốe
 loop	lôp
 est	ét
@@ -186,6 +189,7 @@ burn	bủn
 cuts	cút
 peer	pể
 chiefs	chié
+doses	doé
 dense	dến
 pays	páy
 guys	guý
@@ -244,6 +248,7 @@ photos	phốt
 aa	â
 sits	sít
 cows	cớ
+loses	loé
 gaps	gáp
 ir	ỉ
 lest	lét
@@ -300,6 +305,7 @@ nasa	nấ
 rosa	roá
 choir	chỏi
 hips	híp
+poses	poé
 lust	lút
 reef	rề
 donors	dốn
@@ -322,6 +328,7 @@ mais	mái
 esp	ép
 caps	cáp
 worm	ưởm
+tore	toẻ
 thief	thiè
 xix	xĩ
 goats	goát
@@ -383,8 +390,11 @@ gangs	gáng
 ere	ể
 ax	ã
 dues	dué
+cores	coé
 huts	hút
 rust	rút
+pores	poé
+chores	choé
 wm	ưm
 dana	dân
 boast	boát
@@ -401,6 +411,7 @@ surf	sù
 sw	sư
 rene	rên
 ef	è
+lorenzo	lôen
 nw	nư
 hangs	háng
 bois	bói
@@ -426,6 +437,7 @@ dee	dê
 charms	chám
 vows	vớ
 gujarat	guẩt
+rosen	roén
 dist	dít
 boris	bói
 laos	láo
@@ -435,6 +447,7 @@ oats	oát
 thorn	thỏn
 chef	chè
 doris	dói
+oxen	oẽn
 ther	thẻ
 quart	quảt
 sow	sơ
@@ -447,6 +460,7 @@ loom	lôm
 sus	sú
 gis	gí
 cons	cón
+ores	oé
 piers	pié
 majors	máo
 loaf	loà
@@ -470,6 +484,7 @@ diese	diế
 liar	lỉa
 deduce	đêuc
 boer	boẻ
+noses	noé
 wc	ưc
 postscript	potscript
 paso	páo
@@ -492,6 +507,7 @@ trays	tráy
 taxa	tẫ
 cw	cư
 barnard	barnrd
+mores	moé
 mus	mú
 bas	bá
 guts	gút
@@ -510,6 +526,7 @@ poisons	poisos
 chaps	cháp
 moran	moản
 muir	mủi
+losers	loé
 looms	lốm
 dieser	diể
 moors	mố
@@ -519,6 +536,7 @@ ws	ứ
 beech	bêch
 hawks	hắk
 dyed	đye
+bose	boé
 afar	ẩ
 mos	mó
 beet	bêt
@@ -532,6 +550,7 @@ bern	bẻn
 yer	yẻ
 ddt	đt
 hens	hén
+boxer	boẻ
 tres	tré
 err	er
 cary	cảy
@@ -545,6 +564,7 @@ def	dè
 hermes	hếm
 townships	townshis
 lawns	lắn
+loser	loẻ
 beers	bế
 pies	pié
 ama	âm
@@ -563,6 +583,7 @@ gasp	gáp
 trois	trói
 bur	bủ
 voor	vổ
+lorenz	loen
 haas	hấ
 barns	bán
 airs	ái
@@ -593,6 +614,7 @@ gowns	gớn
 cora	coả
 vas	vá
 liszt	lit
+sores	soé
 deems	dếm
 yrs	ý
 misc	míc
@@ -681,6 +703,7 @@ rams	rám
 sys	sý
 wj	ự
 denser	dển
+chore	choẻ
 lori	lỏi
 causa	cấu
 ow	ơ
@@ -774,6 +797,7 @@ laps	láp
 rasa	rấ
 hasta	hất
 tern	tẻn
+moser	moẻ
 terse	tế
 reps	rép
 syst	sýt
@@ -798,9 +822,9 @@ nis	ní
 moro	mổ
 tarn	tản
 kris	krí
+hoses	hoé
 postsecondary	potsecondary
 samaj	sậm
-rosario	rôải
 ast	át
 loco	lôc
 lans	lán
@@ -881,6 +905,8 @@ lynx	lỹn
 soo	sô
 dias	día
 eos	éo
+dore	doẻ
+loren	loẻn
 dwyer	dưyẻ
 hos	hó
 serf	sè
@@ -901,6 +927,7 @@ hirst	hít
 doran	doản
 urns	ún
 loon	lôn
+choses	choé
 lusaka	luấk
 huns	hún
 lw	lư
@@ -927,6 +954,7 @@ puranas	puấn
 toro	tổ
 quits	quít
 nots	nót
+boxers	boé
 noaa	noâ
 afm	àm
 maj	mạ
@@ -956,7 +984,9 @@ tur	tủ
 ner	nẻ
 rajya	rậy
 otros	ốt
+bores	boé
 afr	ả
+borer	boẻ
 dorado	đoảo
 veer	vể
 puis	púi
@@ -1190,6 +1220,7 @@ asr	ả
 pierces	piếc
 tus	tú
 termes	tếm
+doren	doẻn
 soars	soá
 thurs	thú
 ques	qué
@@ -1209,6 +1240,7 @@ deuce	dêuc
 gats	gát
 purists	puits
 rips	ríp
+cose	coé
 meerut	mểut
 risc	ríc
 monro	mổn
@@ -1255,7 +1287,9 @@ kiefer	kiể
 casi	cái
 haar	hẩ
 mayas	mấy
+hofer	hoẻ
 vajra	vẩ
+mose	moé
 mesures	mếu
 luxor	luỏ
 fddi	fđi
@@ -1294,6 +1328,7 @@ ddc	đc
 neem	nêm
 tir	tỉ
 urs	ú
+coxe	coẽ
 ters	té
 soir	sỏi
 tama	tâm
@@ -1332,11 +1367,13 @@ viene	viên
 choix	chõi
 inr	ỉn
 dosed	đoé
+soren	soẻn
 doesn	doén
 rots	rót
 tojo	tộ
 aarp	ẩp
 giri	gỉi
+oren	oẻn
 menger	mểng
 corns	cón
 bers	bé
@@ -1388,6 +1425,7 @@ raps	ráp
 gora	goả
 naf	nà
 saks	sák
+borers	boé
 dda	đa
 acr	ảc
 aar	ẩ
@@ -1478,9 +1516,11 @@ pwm	pưm
 biens	bién
 sary	sảy
 pense	pến
+posen	poén
 dowson	dốn
 noirs	nói
 isn	ín
+coser	coẻ
 lef	lè
 lus	lú
 boor	bổ
@@ -1532,6 +1572,7 @@ lief	liè
 trow	trơ
 haps	háp
 loams	loám
+nore	noẻ
 suri	sủi
 arai	ẩi
 guar	gủa
@@ -1555,6 +1596,7 @@ lox	lõ
 ranga	râng
 mowat	mơat
 tisza	tia
+ose	oé
 muons	muón
 bons	bón
 bana	bân
@@ -1594,6 +1636,7 @@ rast	rát
 mif	mì
 siete	siêt
 busi	búi
+poser	poẻ
 aws	ắ
 rar	rả
 daya	dây
@@ -1735,6 +1778,7 @@ mims	mím
 jeter	jjeter
 erec	ểc
 gowan	gơan
+hore	hoẻ
 tanga	tâng
 erne	ển
 nasw	nắ
@@ -1868,6 +1912,7 @@ basi	bái
 wx	ữ
 cama	câm
 peeps	pếp
+rosenstein	roenstein
 quiere	quiể
 lawbreakers	lawbreakrs
 dois	dói
@@ -1932,6 +1977,7 @@ danda	đân
 tanah	tânh
 chora	choả
 chur	chủ
+boren	boẻn
 roark	roảk
 lese	lế
 bots	bót
@@ -2029,9 +2075,11 @@ borno	bổn
 iasc	íac
 hoon	hôn
 kins	kín
+gorer	goẻ
 vias	vía
 saro	sảo
 moana	moân
+orem	oẻm
 quires	quié
 quar	quả
 pana	pân
@@ -2070,6 +2118,8 @@ dard	đả
 itf	ìt
 gaor	gảo
 ofs	ó
+rosenstock	roenstock
+goren	goẻn
 wcs	ức
 tari	tải
 berns	bén
@@ -2162,6 +2212,7 @@ chowk	chơk
 postseason	potseason
 marwan	mẩn
 ojt	ọt
+sofer	soẻ
 suraj	sụa
 ganj	gạn
 chamar	chẩm
@@ -2208,6 +2259,7 @@ marsyas	mấy
 asan	ấn
 naja	nậ
 sems	sém
+cofer	coẻ
 lene	lên
 paros	páo
 dese	dế
@@ -2285,8 +2337,10 @@ aua	âu
 paro	pảo
 coots	cốt
 rur	rủ
+thorez	thoe
 dosa	doá
 doest	doét
+vose	voé
 lins	lín
 rej	rẹ
 vues	vué
@@ -2350,6 +2404,7 @@ bost	bót
 heuer	hểu
 barnardo	barnrdo
 pooch	pôch
+moret	moẻt
 choosers	chốe
 gyr	gỷ
 usf	ù

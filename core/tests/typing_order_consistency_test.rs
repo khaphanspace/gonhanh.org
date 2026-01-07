@@ -164,7 +164,7 @@ fn generate_typing_orders(word: &str) -> Vec<String> {
             let second_has_mark = parts[vowel_indices[1]].1.is_some();
 
             // Diphthongs where FIRST vowel is main (can put tone after first):
-            // ai, ay, ao, au, oi, oy, ui, uy, ei, eo, eu
+            // ai, ay, ao, au, oi, oy, oe, ui, uy, ei, eo, eu
             let first_is_main = matches!(
                 (first, second),
                 ('a', 'i')
@@ -173,6 +173,7 @@ fn generate_typing_orders(word: &str) -> Vec<String> {
                     | ('a', 'u')
                     | ('o', 'i')
                     | ('o', 'y')
+                    | ('o', 'e') // xòe, hòe, lòe, tóe - tone on first vowel
                     | ('u', 'i')
                     | ('u', 'y')
                     | ('e', 'i')
