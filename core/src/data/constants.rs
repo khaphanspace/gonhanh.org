@@ -248,7 +248,7 @@ pub const COMMON_CIRCUMFLEX_NO_FINAL: &[u16] = &[
     keys::L, // lê - pear
     keys::D, // đê - dike (with stroke)
     keys::K, // kê - to list/declare
-             // Note: sê, tê, pê, gê are NOT common Vietnamese → restore to English
+             // Note: sê, tê, pê, gê removed - keep as Vietnamese (Vietnamese-first principle)
 ];
 
 /// Initials that are UNCOMMON with circumflex vowel + no final
