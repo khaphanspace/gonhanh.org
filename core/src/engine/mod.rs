@@ -3423,11 +3423,19 @@ impl Engine {
                 // "teen" has double-e pattern and is in English dict.
                 // User escapes to English by typing double modifier (tesst → test)
                 let has_w_pattern = self.raw_input.iter().any(|(key, _, _)| *key == keys::W);
+                let w_at_end = self
+                    .raw_input
+                    .last()
+                    .map(|(k, _, _)| *k == keys::W)
+                    .unwrap_or(false);
 
                 if has_stroke && !raw_in_english_dict {
                     // Skip restore - Vietnamese abbreviation like đc, đt
-                } else if has_w_pattern && raw_in_english_dict {
-                    // W pattern + English dict → restore (moscow, warsaw, saw, law)
+                } else if has_w_pattern && raw_in_english_dict && (w_at_end || buffer_invalid_vn) {
+                    // W pattern + English dict + (W at end OR invalid VN) → restore
+                    // - W at end: foreign word pattern (saw, law, moscow, warsaw)
+                    // - Buffer invalid: W in middle but invalid syllable (west, wait)
+                    // - W in middle + valid buffer: keep Vietnamese (owns → ớn)
                     return self.build_raw_chars_exact();
                 } else if !buffer_invalid_vn {
                     // Valid Vietnamese buffer + no W pattern → keep Vietnamese (tên, tét, dóc, bít, etc.)
@@ -5127,12 +5135,13 @@ impl Engine {
                     // EXCEPTION: Vietnamese-specific initials (kh, gh, ngh, tr, ph, etc.) + oe + modifier
                     //            Example: "khoer" → "khoẻ" (healthy), "nhoer" → "nhoẻ"
                     if v1 == keys::O && v2 == keys::E && total_vowels == 2 {
-                        // Check for Vietnamese-specific initial consonant clusters
-                        let is_vietnamese_initial = self.raw_input.len() >= 2 && {
+                        // Check for Vietnamese-specific initials (both digraphs and single consonants)
+                        // Vietnamese OE words from dictionary: hòe, loè, tóe, xòe, khoẻ, ngoé...
+                        let is_vietnamese_oe_initial = if self.raw_input.len() >= 2 {
                             let (c1, _, _) = self.raw_input[0];
                             let (c2, _, _) = self.raw_input[1];
-                            // Vietnamese digraphs: kh, gh, ph, ch, th, nh (end with H)
-                            //                     tr (T+R), ng/ngh (N+G)
+
+                            // Vietnamese digraphs: kh, gh, ph, ch, th, nh (end with H), tr, ng
                             let ends_with_h = c2 == keys::H
                                 && matches!(
                                     c1,
@@ -5145,14 +5154,26 @@ impl Engine {
                                 );
                             let is_tr = c1 == keys::T && c2 == keys::R;
                             let is_ng = c1 == keys::N && c2 == keys::G;
-                            ends_with_h || is_tr || is_ng
+
+                            // Single consonant + OE: check if c2 is O (meaning c1 is single initial)
+                            // Valid Vietnamese single initials for OE: H, L, T, X, B, S
+                            // Dictionary: hòe, loè, tóe, xòe, boe (boẻ), soé
+                            let is_single_initial_oe = c2 == keys::O
+                                && matches!(
+                                    c1,
+                                    keys::H | keys::L | keys::T | keys::X | keys::B | keys::S
+                                );
+
+                            ends_with_h || is_tr || is_ng || is_single_initial_oe
+                        } else {
+                            false
                         };
 
-                        if is_vietnamese_initial {
+                        if is_vietnamese_oe_initial {
                             continue; // Vietnamese word, don't restore
                         }
 
-                        // Only return true if there's an initial consonant (goes, does, toes)
+                        // Only return true if there's an initial consonant (goes, does, foes, woes)
                         // Words without initial like "oes" → "oé" should stay Vietnamese
                         let has_initial =
                             !self.raw_input.is_empty() && keys::is_consonant(self.raw_input[0].0);
@@ -5215,10 +5236,18 @@ impl Engine {
                         // Vietnamese no-initial patterns:
                         // - Same vowel doubling: OFO → ồ, EFE → ề, AFA → ầ (circumflex + tone)
                         // - U + modifier + A: ủa, ùa, úa (interjections)
+                        // - U + modifier + I: ủi, ùi, úi (ủi quần, úi chà)
+                        // - U + modifier + Y: ủy, ùy, úy, uỵ (uy tín, uỵch - valid Vietnamese)
                         // - A + modifier + O: ảo, ào, áo (ảo giác, ảo tưởng)
+                        // - A + modifier + I: ải, ái, ài (interjections)
+                        // - A + modifier + Y: ảy, áy, ày (cảy, máy when no initial)
+                        // - O + modifier + I: ỏi, ói, òi (interjections)
+                        // - E + modifier + O: ẻo, ẹo, éo (interjections)
                         let is_vietnamese_no_initial = first_vowel == next_key // Same vowel = Telex circumflex
-                            || (first_vowel == keys::U && next_key == keys::A)
-                            || (first_vowel == keys::A && next_key == keys::O);
+                            || (first_vowel == keys::U && (next_key == keys::A || next_key == keys::I || next_key == keys::Y))
+                            || (first_vowel == keys::A && (next_key == keys::O || next_key == keys::I || next_key == keys::Y))
+                            || (first_vowel == keys::O && next_key == keys::I)
+                            || (first_vowel == keys::E && next_key == keys::O);
                         if !is_vietnamese_no_initial {
                             return true;
                         }
@@ -5380,7 +5409,8 @@ impl Engine {
         // Example: "saax" = s + aa + x → S initial + double 'a' + tone modifier 'x' → English
         // Counter-example: "leex" = l + ee + x → L is common Vietnamese initial → keep "lễ"
         // Counter-example: "meex" = m + ee + x → M is common Vietnamese initial → keep "mễ"
-        // Counter-example: "soos" = s + oo + s → "số" (Vietnamese for "number") - O vowel is common
+        // Counter-example: "soos" = s + oo + s → "số" (Vietnamese for "number")
+        // Counter-example: "seef" = s + ee + f → "sề" (valid Vietnamese word)
         let tone_modifiers = [keys::S, keys::F, keys::R, keys::X, keys::J];
         if self.raw_input.len() >= 4 {
             let (first, _, _) = self.raw_input[0];
@@ -5392,10 +5422,11 @@ impl Engine {
                 let (v1, _, _) = self.raw_input[self.raw_input.len() - 3];
                 let (v2, _, _) = self.raw_input[self.raw_input.len() - 2];
                 if keys::is_vowel(v1) && v1 == v2 {
-                    // Exception: S/F + OO + modifier → Vietnamese (số, sở, fố are common)
-                    // S/F + AA/EE + modifier → English (SaaS, FaaS patterns)
-                    // The 'ô' sound is very common in Vietnamese words starting with S/F
-                    if v1 != keys::O {
+                    // Exception: S/F + OO/EE + modifier → Vietnamese
+                    // - số, sở, sỗ, sổ (number-related words)
+                    // - sề, sể, sễ, sệ (valid Vietnamese words)
+                    // S/F + AA + modifier → English (SaaS, FaaS patterns)
+                    if v1 != keys::O && v1 != keys::E {
                         return true;
                     }
                 }
@@ -5502,13 +5533,15 @@ impl Engine {
         }
 
         // Pattern 9: C + V + M + S at end → English plural pattern (-ms)
-        // Example: "sims" = s + i + m + s → English (The Sims, rims, dims)
+        // Example: "sims" = s + i + m + s → English (The Sims, rims)
         // Example: "gems" = g + e + m + s → English plural
-        // Counter-example: "làm" = l + a + m + s → "làm" is common Vietnamese
-        // Key insight: short syllables ending in -ms with uncommon vowel patterns
-        // are likely English. Check if the vowel is 'i' which is rare before 'm' in Vietnamese.
-        // Vietnamese words with -im: kim (needle), lim (ironwood), chim (bird), tìm (find)
-        // But "sim" alone is a loanword (SIM card), adding tone makes no sense
+        // Counter-example: "dims" = d + i + m + s → "dím" is valid Vietnamese (to press/push down)
+        // Counter-example: "sems" = s + e + m + s → "sém" is valid Vietnamese (burnt/scorched)
+        // Counter-example: "hems" = h + e + m + s → "hẻm" is valid Vietnamese (alley)
+        //
+        // KEY INSIGHT: If buffer has a TONE MARK applied, the 's' was consumed as Vietnamese tone
+        // modifier (sắc), not as English plural suffix. Keep Vietnamese in this case.
+        // Words that DON'T get tone mark applied are true English plurals.
         if self.raw_input.len() == 4 {
             let (c0, _, _) = self.raw_input[0];
             let (c1, _, _) = self.raw_input[1];
@@ -5516,24 +5549,26 @@ impl Engine {
             let (c3, _, _) = self.raw_input[3];
 
             // Pattern: single consonant + i/e + m + s (tone modifier)
-            // This catches: sims, gems, rims, dims, hems
-            // But not: làms, tìms (which have different vowels or are actual Vietnamese)
             if keys::is_consonant(c0)
                 && (c1 == keys::I || c1 == keys::E)
                 && c2 == keys::M
                 && c3 == keys::S
             {
-                // Extra check: initial consonant should be common in English but
-                // not commonly combined with -im/-em in Vietnamese
-                // s, r, d, g, h before -im are more likely English: sims, rims, dims, gems, hems
-                let english_initial = c0 == keys::S
-                    || c0 == keys::R
-                    || c0 == keys::D
-                    || c0 == keys::G
-                    || c0 == keys::H;
-                if english_initial {
+                // Check if this C+ÍM/ÉM combination is a real Vietnamese word.
+                // Vietnamese dictionary 22k contains these C+ÍM/ÉM words:
+                // - *ím: bím, dím, mím, tím (initials: B, D, M, T)
+                // - *ém: kém, lém, ném, sém, tém (initials: K, L, N, S, T)
+                // English plurals: sims, rims, gems, hems (NOT Vietnamese words)
+                let is_vietnamese_cim_word = (c1 == keys::I
+                    && matches!(c0, keys::B | keys::D | keys::M | keys::T))
+                    || (c1 == keys::E
+                        && matches!(c0, keys::K | keys::L | keys::N | keys::S | keys::T));
+
+                if !is_vietnamese_cim_word {
+                    // Not a known Vietnamese word → English plural pattern
                     return true;
                 }
+                // Vietnamese word → don't trigger English pattern
             }
         }
 

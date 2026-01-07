@@ -20,6 +20,7 @@ now	nơ
 must	mút
 own	ơn
 us	ú
+down	dơn
 here	hể
 too	tô
 thus	thú
@@ -49,6 +50,7 @@ says	sáy
 tax	tã
 poor	pổ
 lost	lót
+town	tơn
 seem	sêm
 door	dổ
 rest	rét
@@ -57,6 +59,7 @@ yes	yé
 ask	ák
 persons	peons
 post	pót
+laws	lắ
 meet	mêt
 chief	chiè
 sir	sỉ
@@ -103,10 +106,13 @@ vary	vảy
 rooms	rốm
 moon	môn
 turns	tún
+axis	ái
+towns	tớn
 roots	rốt
 poems	poém
 usa	úa
 ex	ẽ
+sees	sế
 chest	chét
 aircraft	aicraft
 lips	líp
@@ -118,11 +124,13 @@ songs	sóng
 bus	bú
 virus	víu
 loans	loán
+worst	ướt
 dust	dút
 busy	buý
 doors	dố
 hero	hẻo
 roof	rồ
+wars	ứa
 verse	vế
 loose	lốe
 loop	lôp
@@ -148,6 +156,7 @@ norms	nóm
 phys	phý
 thee	thê
 moore	mổe
+worn	ưởn
 sur	sủ
 lots	lót
 beer	bể
@@ -163,12 +172,14 @@ ix	ĩ
 bits	bít
 rats	rát
 boats	boát
+dawn	dăn
 para	pẩ
 thereof	thềo
 susan	suán
 burst	bút
 bow	bơ
 guest	guét
+rows	rớ
 buyer	buyẻ
 tries	trié
 burn	bủn
@@ -203,6 +214,7 @@ verses	vế
 disc	díc
 lungs	lúng
 tense	tến
+norway	nơảy
 nest	nét
 deed	đê
 keen	kên
@@ -251,6 +263,7 @@ ups	úp
 chips	chíp
 aus	áu
 wa	ưa
+lawn	lăn
 chooses	chốe
 cox	cõ
 nos	nó
@@ -263,6 +276,7 @@ poorer	pổe
 boot	bôt
 diana	diân
 maya	mây
+toes	toé
 var	vả
 tops	tóp
 loops	lốp
@@ -270,6 +284,7 @@ sara	sẩ
 luis	lúi
 hits	hít
 congo	công
+owns	ớn
 mist	mít
 tor	tỏ
 cor	cỏ
@@ -300,11 +315,13 @@ thirst	thít
 diets	diét
 dots	dót
 worms	ướm
+hawk	hăk
 traps	tráp
 sofa	soà
 mais	mái
 esp	ép
 caps	cáp
+worm	ưởm
 thief	thiè
 xix	xĩ
 goats	goát
@@ -452,6 +469,7 @@ asa	ấ
 diese	diế
 liar	lỉa
 deduce	đêuc
+boer	boẻ
 wc	ưc
 postscript	potscript
 paso	páo
@@ -486,6 +504,7 @@ nee	nê
 tara	tẩ
 inf	ìn
 aaa	aa
+eros	éo
 thorax	thoã
 poisons	poisos
 chaps	cháp
@@ -551,7 +570,7 @@ tiers	tié
 gums	gúm
 ars	á
 kern	kẻn
-seer	ser
+seer	sể
 dod	đo
 twists	twiss
 berne	bển
@@ -700,7 +719,9 @@ peso	péo
 vans	ván
 lees	lế
 oro	ổ
+ari	ải
 nara	nẩ
+osi	ói
 pee	pê
 busch	búch
 horst	hót
@@ -727,6 +748,7 @@ aix	ãi
 hereof	hềo
 saws	sắ
 estes	éestes
+uri	ủi
 dif	dì
 caro	cảo
 lamar	lẩm
@@ -796,6 +818,7 @@ roost	rốt
 hoax	hoã
 mins	mín
 basingstoke	baingstoke
+lows	lớ
 aps	áp
 epr	ẻp
 nurs	nú
@@ -817,6 +840,7 @@ uaw	ưa
 hoofs	hố
 mow	mơ
 porn	pỏn
+asi	ái
 dais	dái
 ono	ôn
 tas	tá
@@ -865,6 +889,7 @@ darn	dản
 meer	mể
 aan	ân
 ajar	ẩ
+ary	ảy
 coco	côc
 disadvantageous	điavantageous
 thorac	thoảc
@@ -964,6 +989,7 @@ buns	bún
 rungs	rúng
 lif	lì
 tues	tué
+soes	soé
 husayn	huáyn
 mesons	meons
 roars	roá
@@ -1036,6 +1062,7 @@ aswan	ấn
 sams	sám
 vax	vã
 theor	thẻo
+eso	éo
 defuse	dếu
 doers	doé
 sufis	súi
@@ -1043,7 +1070,6 @@ cura	của
 mois	mói
 gaya	gây
 uw	ư
-mems	mém
 bestselling	betselling
 maru	mảu
 ris	rí
@@ -1065,6 +1091,7 @@ dara	dẩ
 ler	lẻ
 tana	tân
 cosmo	cốm
+hoes	hoé
 aro	ảo
 monogr	mổng
 maura	mẩu
@@ -1106,6 +1133,7 @@ trams	trám
 ocs	óc
 varus	váu
 wot	ươt
+ori	ỏi
 dari	dải
 dawns	dắn
 varma	vẩm
@@ -1314,6 +1342,7 @@ corns	cón
 bers	bé
 sana	sân
 sarai	sẩi
+aris	ái
 gongs	góng
 aja	ậ
 tans	tán
@@ -1389,6 +1418,7 @@ taa	tâ
 sejm	sẹm
 saris	sái
 taux	tãu
+exo	ẽo
 tanf	tàn
 yj	ỵ
 acf	àc
@@ -1425,6 +1455,7 @@ hwa	hưa
 cust	cút
 eeo	êo
 daf	dà
+oris	ói
 ifr	ỉ
 haa	hâ
 ura	ủa
@@ -1476,6 +1507,7 @@ aat	ât
 veces	vếc
 iaf	ìa
 hefner	hển
+arif	ài
 hoists	hoits
 noms	nóm
 kronor	krổn
@@ -1696,6 +1728,7 @@ chooser	chổe
 maja	mậ
 tows	tớ
 roams	roám
+ero	ẻo
 horan	hoản
 heros	héo
 mims	mím
@@ -1742,6 +1775,7 @@ meech	mêch
 osc	óc
 gast	gát
 esops	eops
+asis	ái
 maff	maf
 gaur	gảu
 tosa	toá
@@ -1752,6 +1786,7 @@ misr	mỉ
 tono	tôn
 vwf	vừ
 cwc	cưc
+afi	ài
 chars	chá
 lusk	lúk
 eet	êt
@@ -1823,6 +1858,7 @@ vips	víp
 aai	âi
 truax	trũa
 tisch	tích
+ury	uỷ
 dooms	dốm
 pwd	pưd
 marfa	mầ
@@ -1850,6 +1886,7 @@ giese	giế
 awk	ăk
 chara	chẩ
 heeft	hềt
+ariz	ai
 hest	hét
 hooch	hôch
 therm	thẻm
@@ -1885,6 +1922,7 @@ laa	lâ
 vois	vói
 chama	châm
 safa	sầ
+uris	úi
 oon	ôn
 imr	ỉm
 lais	lái
@@ -1917,6 +1955,7 @@ moriscos	moriscs
 oaf	oà
 langs	láng
 kreps	krép
+ofi	òi
 hasa	hấ
 nux	nũ
 bere	bể
@@ -1926,6 +1965,7 @@ ansa	ấn
 loris	lói
 rans	rán
 chere	chể
+dims	dím
 exerc	ểc
 sachar	sẩch
 lochs	lóch
@@ -2033,6 +2073,7 @@ ofs	ó
 wcs	ức
 tari	tải
 berns	bén
+usi	úi
 oaa	oâ
 mene	mên
 uart	uảt
@@ -2051,6 +2092,7 @@ paysans	paysas
 demes	dếm
 miers	mié
 bori	bỏi
+esos	éo
 costo	cốt
 turan	tuản
 usk	úk
@@ -2091,6 +2133,7 @@ bwv	bưv
 gies	gié
 causas	cấu
 duer	duẻ
+usis	úi
 nanga	nâng
 osf	ò
 ofr	ỏ
@@ -2106,6 +2149,7 @@ yx	ỹ
 miserere	miseree
 ufw	ừ
 qwl	qưl
+uji	ụi
 gierke	giểk
 sasa	sấ
 nars	ná
@@ -2163,6 +2207,7 @@ aras	ấ
 marsyas	mấy
 asan	ấn
 naja	nậ
+sems	sém
 lene	lên
 paros	páo
 dese	dế
@@ -2235,6 +2280,7 @@ somos	sốm
 osp	óp
 daru	dảu
 vins	vín
+aji	ại
 aua	âu
 paro	pảo
 coots	cốt

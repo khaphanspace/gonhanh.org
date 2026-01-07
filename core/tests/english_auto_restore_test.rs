@@ -832,14 +832,16 @@ fn issue26_thuy_with_hook_before_y() {
 
 /// Issue #142: "sims" becomes "simss" (extra 's' added)
 /// English word should be restored as-is on space
+/// Vietnamese-first: "dím" and "sém" are valid Vietnamese words (in 22k dictionary)
 #[test]
 fn issue142_sims_extra_s() {
     telex_auto_restore(&[
-        ("sims ", "sims "), // should stay "sims", not "simss" or "sím"
-        ("rims ", "rims "), // rims - similar pattern
-        ("dims ", "dims "), // dims - similar pattern
-        ("gems ", "gems "), // gems - similar pattern
-        ("hems ", "hems "), // hems - similar pattern
+        ("sims ", "sims "), // should stay "sims" (sím not in VN dictionary)
+        ("rims ", "rims "), // rims (rím not in VN dictionary)
+        ("dims ", "dím "),  // dím IS in VN dictionary (to press down)
+        ("gems ", "gems "), // gems (gém not in VN dictionary)
+        ("hems ", "hems "), // hems (hém not in VN dictionary)
+        ("sems ", "sém "),  // sém IS in VN dictionary (scorched)
     ]);
 }
 
