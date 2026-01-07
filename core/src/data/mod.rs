@@ -4,10 +4,12 @@
 //! - `keys`: Virtual keycode definitions (platform-specific)
 //! - `chars`: Unicode character conversion (includes tone/mark constants)
 //! - `vowel`: Vietnamese vowel phonology system
+//! - `telex_doubles`: English words with Telex double patterns for auto-restore
 
 pub mod chars;
 pub mod constants;
 pub mod keys;
+pub mod telex_doubles;
 pub mod vowel;
 
 pub use chars::{get_d, mark, to_char, tone};

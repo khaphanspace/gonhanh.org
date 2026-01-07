@@ -877,24 +877,22 @@ fn tech_terms_comprehensive() {
 // Users should use ESC or raw mode for these
 // ============================================================
 
-/// These words form structurally valid Vietnamese and are NOT auto-restored.
-/// This test documents the expected behavior.
+/// Common English words in whitelist are auto-restored even if they'd form valid Vietnamese.
+/// Whitelist takes precedence over Vietnamese structure validation.
 #[test]
-fn valid_vietnamese_structure_not_restored() {
+fn whitelist_overrides_valid_vietnamese() {
     telex_auto_restore(&[
-        // -est pattern produces valid Vietnamese with é + t final
-        ("test ", "tét "), // tét is valid Vietnamese
-        ("best ", "bét "), // bét is valid Vietnamese
-        ("rest ", "rét "), // rét (cold) is a real word
-        ("nest ", "nét "), // nét (stroke/feature) is a real word
-        // -ost pattern produces valid Vietnamese with ó + t final
-        ("cost ", "cót "), // cót is valid Vietnamese structure
-        ("host ", "hót "), // hót (to sing/chirp) is a real word
-        ("lost ", "lót "), // lót (to line/pad) is a real word
-        ("most ", "mót "), // mót (to glean) is a real word
-        ("post ", "pót "), // pót is valid Vietnamese structure
-                           // Short words with x producing valid Vietnamese
-                           // mix → mĩ, box → bõ, six → sĩ (valid Vietnamese)
+        // Common English -est words: whitelist overrides Vietnamese structure
+        ("test ", "test "), // test in whitelist → restored
+        ("best ", "best "), // best in whitelist → restored
+        ("rest ", "rest "), // rest in whitelist → restored
+        ("nest ", "nest "), // nest in whitelist → restored
+        // Common English -ost words: whitelist overrides Vietnamese structure
+        ("cost ", "cost "), // cost in whitelist → restored
+        ("host ", "host "), // host in whitelist → restored
+        ("lost ", "lost "), // lost in whitelist → restored
+        ("most ", "most "), // most in whitelist → restored
+        ("post ", "post "), // post in whitelist → restored
     ]);
 }
 

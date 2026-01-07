@@ -18,12 +18,13 @@ use common::{telex, telex_auto_restore};
 // =============================================================================
 
 #[test]
-fn revert_then_more_chars_keeps_raw_input() {
+fn revert_then_more_chars_keeps_buffer() {
     // When user types double modifier (revert) THEN more characters,
-    // without whitelist validation, raw input is preserved.
+    // if buffer is in whitelist, keep buffer instead of raw.
+    // Example: "tesst" → buffer "test" is in whitelist → keep "test"
     telex_auto_restore(&[
-        // Double s followed by more chars → raw "tesst" preserved
-        ("tesst ", "tesst "),
+        // Double s followed by more chars → buffer "test" in whitelist → keep "test"
+        ("tesst ", "test "),
     ]);
 }
 
@@ -54,25 +55,23 @@ fn revert_at_end_short_words() {
 #[test]
 fn revert_at_end_keeps_buffer_4char() {
     // 4-char raw with double modifiers:
-    // Without whitelist, buffer (reverted result) is used when double letter at end
+    // - Words IN whitelist → restore to raw (boss, buff, cuff, loss, moss, puff)
+    // - Words NOT in whitelist → keep buffer (soss → sos, varr → var, etc.)
     telex_auto_restore(&[
-        // Double ss at end: buffer used (double-s reverts sắc tone)
-        ("SOSS ", "SOSS "),
+        // IN whitelist → restore to raw
         ("BOSS ", "BOSS "),
         ("LOSS ", "LOSS "),
         ("MOSS ", "MOSS "),
         ("boss ", "boss "),
-        // Double ff at end: buffer used (double-f reverts huyền tone)
         ("buff ", "buff "),
         ("cuff ", "cuff "),
         ("puff ", "puff "),
-        // Double r at end: buffer used (double-r reverts hỏi tone)
+        // NOT in whitelist → keep buffer (clean, no marks)
+        ("SOSS ", "SOS "), // soss not in whitelist → keep buffer SOS
         ("varr ", "var "),
         ("VARR ", "VAR "),
         ("norr ", "nor "),
-        // Double x at end: buffer used (double-x reverts ngã tone)
         ("boxx ", "box "),
-        // Double j at end: buffer used (double-j reverts nặng tone)
         ("hajj ", "haj "),
     ]);
 }

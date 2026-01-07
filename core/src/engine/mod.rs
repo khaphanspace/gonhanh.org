@@ -18,7 +18,7 @@ pub mod validation;
 
 use crate::data::{
     chars::{self, mark, tone},
-    constants, keys,
+    constants, keys, telex_doubles,
     vowel::{Phonology, Vowel},
 };
 use crate::input::{self, ToneType};
@@ -311,6 +311,16 @@ pub struct Engine {
     /// Example: "dataa" → "dât" (after 4th key), typing 5th 'a' reverts to "data"
     /// Used in build_raw_chars to collapse double vowel at end for restore
     had_circumflex_revert: bool,
+    /// Tracks if ANY Telex transform was applied (tone, mark, or stroke)
+    /// Used for whitelist-based auto-restore to English words
+    had_telex_transform: bool,
+    /// Stores raw_input string when telex double pattern is detected (BEFORE modification)
+    /// For stroke revert (ddd→dd), raw_input is modified to remove one 'd', but we need
+    /// the original for whitelist lookup (e.g., "daddy" not "dady")
+    telex_double_raw: Option<String>,
+    /// Stores length of raw_input at time telex_double_raw was stored
+    /// Used to append subsequent chars typed after revert
+    telex_double_raw_len: usize,
     /// Issue #107: Special character prefix for shortcut matching
     /// When a shifted symbol (like #, @, $) is typed first, store it here
     /// so shortcuts like "#fne" can match even though # is normally a break char
@@ -361,6 +371,9 @@ impl Engine {
             had_any_transform: false,
             had_vowel_triggered_circumflex: false,
             had_circumflex_revert: false,
+            had_telex_transform: false,
+            telex_double_raw: None,
+            telex_double_raw_len: 0,
             shortcut_prefix: String::new(),
             restored_pending_clear: false,
             auto_capitalize: false, // Default: OFF
@@ -1126,6 +1139,10 @@ impl Engine {
         // Preserve original case: Ww → W, wW → w
         if let Some(Transform::WAsVowel) = self.last_transform {
             self.last_transform = Some(Transform::WShortcutSkipped);
+            // Track ww pattern for whitelist-based restore
+            self.had_telex_transform = true;
+            // Store raw_input BEFORE modification for whitelist lookup
+            self.telex_double_raw = Some(self.get_raw_input_string_preserve_case());
             // Get original case from buffer before popping
             let original_caps = self.buf.last().map(|c| c.caps).unwrap_or(caps);
             self.buf.pop();
@@ -1141,6 +1158,8 @@ impl Engine {
                     self.raw_input.push(c);
                 }
             }
+            // Store length AFTER modification
+            self.telex_double_raw_len = self.raw_input.len();
             let w = if original_caps { 'W' } else { 'w' };
             return Some(Result::send(1, &[w]));
         }
@@ -1203,6 +1222,11 @@ impl Engine {
                     self.last_transform = None;
                     // Mark that stroke was reverted - subsequent 'd' keys will be normal letters
                     self.stroke_reverted = true;
+                    // Track dd pattern for whitelist-based restore
+                    self.had_telex_transform = true;
+                    // Store raw_input BEFORE modification for whitelist lookup
+                    // For "daddy": raw_input = [d,a,d,d] → store "dadd"
+                    self.telex_double_raw = Some(self.get_raw_input_string_preserve_case());
                     // Fix raw_input: "ddd" typed → raw has [d,d,d] but buffer is "dd"
                     // Remove the stroke-triggering 'd' from raw_input so restore works correctly
                     // raw_input: [d, d, d] → [d, d] (remove middle 'd' that triggered stroke)
@@ -1214,6 +1238,9 @@ impl Engine {
                             self.raw_input.push(c);
                         }
                     }
+                    // Store length AFTER modification - for "daddy": [d,a,d] → len=3
+                    // Subsequent chars (y) start at position 3
+                    self.telex_double_raw_len = self.raw_input.len();
                     // Use rebuild_from_after_insert because the new 'd' was just pushed
                     // and hasn't been displayed on screen yet
                     return Some(self.rebuild_from_after_insert(pos));
@@ -1237,6 +1264,10 @@ impl Engine {
                     self.last_transform = None;
                     // Mark that stroke was reverted - subsequent 'd' keys will be normal letters
                     self.stroke_reverted = true;
+                    // Track dd pattern for whitelist-based restore
+                    self.had_telex_transform = true;
+                    // Store raw_input BEFORE modification for whitelist lookup
+                    self.telex_double_raw = Some(self.get_raw_input_string_preserve_case());
                     // Fix raw_input same as above
                     if self.raw_input.len() >= 2 {
                         let current = self.raw_input.pop();
@@ -1245,6 +1276,8 @@ impl Engine {
                             self.raw_input.push(c);
                         }
                     }
+                    // Store length AFTER modification
+                    self.telex_double_raw_len = self.raw_input.len();
                     // Use rebuild_from_after_insert because the new 'd' was just pushed
                     // and hasn't been displayed on screen yet
                     return Some(self.rebuild_from_after_insert(pos));
@@ -1351,6 +1384,7 @@ impl Engine {
             Some(Transform::Stroke(key))
         };
         self.had_any_transform = true;
+        self.had_telex_transform = true; // dd pattern detected
         Some(self.rebuild_from(pos))
     }
 
@@ -1872,7 +1906,6 @@ impl Engine {
 
         if target_positions.is_empty() {
             // Check if any target vowels already have the requested tone
-            // If so, absorb the key (no-op) instead of falling through
             // This handles redundant tone keys like "u7o7" → "ươ" (second 7 absorbed)
             //
             // EXCEPTION: Don't absorb 'w' if last_transform was WAsVowel
@@ -1885,7 +1918,7 @@ impl Engine {
                 .iter()
                 .any(|c| targets.contains(&c.key) && c.tone == tone_val);
             if has_tone_already && !is_w_revert_pending {
-                // Return empty Send to absorb key without passthrough
+                // Absorb the key (no-op)
                 return Some(Result::send(0, &[]));
             }
             return None;
@@ -2072,6 +2105,7 @@ impl Engine {
 
         self.last_transform = Some(Transform::Tone(key, tone_val));
         self.had_any_transform = true;
+        self.had_telex_transform = true; // Track for whitelist-based auto-restore
 
         // Reposition tone mark if vowel pattern changed
         let mut rebuild_pos = earliest_pos;
@@ -2337,11 +2371,44 @@ impl Engine {
         let pos =
             Phonology::find_tone_position(&vowels, has_final, self.modern_tone, has_qu, has_gi);
 
+        // Check if target vowel already has the same mark
+        // This handles two cases:
+        //
+        // 1. "lists" pattern: After mark, user typed CONSONANT then same mark key
+        //    - Buffer: [L, í, T] → has consonant after marked vowel
+        //    - User wants to REVERT the mark → "lits"
+        //
+        // 2. "roofif" pattern: After mark, user typed VOWEL then same mark key
+        //    - Buffer: [R, ồ, I] → only vowels after marked vowel (diphthong)
+        //    - User is still in same syllable, second 'f' is likely accidental
+        //    - Absorb → "rồi"
+        if let Some(c) = self.buf.get(pos) {
+            if c.mark == mark_val {
+                // Check if there's a consonant after the marked vowel position
+                let has_consonant_after = self
+                    .buf
+                    .iter()
+                    .skip(pos + 1)
+                    .any(|ch| !keys::is_vowel(ch.key));
+
+                if has_consonant_after {
+                    // Consonant after: REVERT the mark (remove dấu)
+                    // "lists" → "lits", user typed s twice to undo the mark
+                    return Some(self.revert_mark(key, caps));
+                } else {
+                    // Only vowels after: absorb (user double-tapped in same syllable)
+                    // "roofif" → "rồi"
+                    return Some(Result::send(0, &[]));
+                }
+            }
+        }
+
         if let Some(c) = self.buf.get_mut(pos) {
             c.mark = mark_val;
             self.last_transform = Some(Transform::Mark(key, mark_val));
             self.had_any_transform = true;
-            // Rebuild from the earlier position if compound was formed
+            self.had_telex_transform = true; // Track for whitelist-based auto-restore
+                                             // Rebuild from the earlier position if compound was formed
             let mut rebuild_pos = rebuild_from_compound.map_or(pos, |cp| cp.min(pos));
 
             // If delayed stroke was applied, rebuild from position 0
@@ -2610,6 +2677,10 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
+                    // Track ww pattern for whitelist-based restore
+                    self.had_telex_transform = true;
+                    // Store raw_input BEFORE modification for whitelist lookup
+                    self.telex_double_raw = Some(self.get_raw_input_string_preserve_case());
                     // Fix raw_input: "ww" typed → raw has [w,w] but buffer is "w"
                     // Remove the tone-triggering key from raw_input so restore works correctly
                     // raw_input: [a, w, w] → [a, w] (remove first 'w' that triggered tone)
@@ -2621,6 +2692,8 @@ impl Engine {
                             self.raw_input.push(c);
                         }
                     }
+                    // Store length AFTER modification
+                    self.telex_double_raw_len = self.raw_input.len();
                     return self.revert_and_rebuild(pos, key, caps);
                 }
             }
@@ -2635,6 +2708,12 @@ impl Engine {
     fn revert_mark(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
         self.had_mark_revert = true; // Track for auto-restore
+                                     // Set had_telex_transform for whitelist-based auto-restore
+                                     // This allows "taxxi" → "taxi" (not in whitelist → keep buffer)
+        self.had_telex_transform = true;
+        // Store raw_input for whitelist lookup
+        self.telex_double_raw = Some(self.get_raw_input_string_preserve_case());
+        self.telex_double_raw_len = self.raw_input.len();
 
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
@@ -3156,6 +3235,9 @@ impl Engine {
         self.had_any_transform = false;
         self.had_vowel_triggered_circumflex = false;
         self.had_circumflex_revert = false;
+        self.had_telex_transform = false;
+        self.telex_double_raw = None;
+        self.telex_double_raw_len = 0;
         self.restored_pending_clear = false;
         self.shortcut_prefix.clear();
     }
@@ -3232,6 +3314,99 @@ impl Engine {
         if !self.had_any_transform {
             return None;
         }
+
+        // VIETNAMESE PRIORITY: Only keep Vietnamese when buffer has Vietnamese-SPECIFIC marks
+        // Vietnamese-specific: circumflex (ô,â,ê), horn (ơ,ư), breve (ă), stroke (đ)
+        // These marks indicate intentional Vietnamese typing
+        // Plain tone marks (sắc/huyền/hỏi/ngã/nặng) alone are NOT enough - could be English typo
+        // EXCEPTIONS that skip Vietnamese priority:
+        //   - W patterns: produce HORN but clearly English (law, saw, west)
+        //   - Telex doubles (oo, ee, aa, dd): let whitelist logic handle them (poor, bees, add)
+        // Examples:
+        //   "boos" → "bố" (oo = circumflex, in whitelist) → let whitelist handle
+        //   "bore" → "boẻ" (only hỏi tone, no VN-specific mark) → check other logic
+        //   "law" → "lă" (W produces breve/HORN) → skip priority, let W restore handle it
+        let has_w_in_raw = self.raw_input.iter().any(|(key, _, _)| *key == keys::W);
+        // Check for telex double patterns:
+        // 1. Consecutive same vowels (oo, ee, aa) or dd
+        // 2. VCV patterns with same vowel (oto→ôt, ata→ât, ete→êt) - delayed circumflex
+        let has_telex_double = self.raw_input.windows(2).any(|pair| {
+            let (k1, _, _) = pair[0];
+            let (k2, _, _) = pair[1];
+            k1 == k2 && (k1 == keys::O || k1 == keys::E || k1 == keys::A || k1 == keys::D)
+        }) || self.raw_input.windows(3).any(|triple| {
+            let (k1, _, _) = triple[0];
+            let (k2, _, _) = triple[1];
+            let (k3, _, _) = triple[2];
+            // VCV pattern: same vowel with consonant in between (delayed circumflex)
+            k1 == k3 && keys::is_vowel(k1) && !keys::is_vowel(k2)
+        });
+        let has_vn_specific_mark = self.buf.iter().any(|c| {
+            c.tone == tone::CIRCUMFLEX  // ô, â, ê
+                || c.tone == tone::HORN // ơ, ư, ă (breve uses HORN value)
+                || c.stroke // đ
+        });
+        // Only apply Vietnamese priority if NO W pattern AND NO telex double
+        if has_vn_specific_mark
+            && !has_w_in_raw
+            && !has_telex_double
+            && !self.is_buffer_invalid_vietnamese()
+        {
+            return None;
+        }
+
+        // TELEX DOUBLES WHITELIST CHECK
+        // Check whitelist for words with telex patterns (s/f/r/x/j tones, aa/ee/oo marks, dd stroke)
+        if self.had_telex_transform {
+            // Build raw string for whitelist lookup
+            let raw_str = if let Some(ref stored) = self.telex_double_raw {
+                // Double revert pattern occurred (xx, ss, dd, etc.)
+                // Build full raw string including subsequent chars typed after revert
+                let subsequent_start = if self.raw_input.len() < self.telex_double_raw_len {
+                    self.telex_double_raw_len.saturating_sub(1)
+                } else {
+                    self.telex_double_raw_len
+                };
+                let subsequent: String = self
+                    .raw_input
+                    .iter()
+                    .skip(subsequent_start)
+                    .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+                    .collect();
+                format!("{}{}", stored.to_lowercase(), subsequent.to_lowercase())
+            } else {
+                self.get_raw_input_string()
+            };
+
+            if telex_doubles::contains(&raw_str) {
+                // Word is in English telex doubles whitelist → restore to EXACT English word
+                return self.build_raw_chars_exact();
+            }
+
+            // Word NOT in whitelist:
+            // If double revert pattern occurred AND buffer has NO Vietnamese marks,
+            // AND buffer doesn't have repeated consonants (indicating incomplete collapse),
+            // keep buffer (user intentionally typed double to get clean result).
+            // Example: "taxxi" → buffer "taxi" (no marks, no repeats) → keep "taxi"
+            // Example: "reff" → buffer "ref" (no marks, no repeats) → keep "ref"
+            // But: "assssess" → buffer "asssess" (has repeated 's') → continue to collapse
+            // But: "prooff" → buffer "prôf" (has mark ô) → continue to other logic
+            if self.telex_double_raw.is_some() {
+                let has_marks = self.buf.iter().any(|c| c.tone > 0 || c.mark > 0);
+                let has_stroke = self.buf.iter().any(|c| c.stroke);
+                let buffer_str = self.get_buffer_string();
+                // Check for repeated consonants (ss, ff, rr, etc.) in buffer
+                let has_repeated_consonant = buffer_str
+                    .as_bytes()
+                    .windows(2)
+                    .any(|w| w[0] == w[1] && matches!(w[0], b's' | b'f' | b'r' | b'x' | b'j'));
+                if !has_marks && !has_stroke && !has_repeated_consonant {
+                    return None; // Keep buffer (clean, no Vietnamese transforms)
+                }
+            }
+        }
+
+        // No telex double pattern → continue with existing logic for other cases
 
         // Check if any transforms remain in buffer
         // - Marks (sắc, huyền, hỏi, ngã, nặng): indicate Vietnamese typing intent
@@ -3699,6 +3874,23 @@ impl Engine {
         }
     }
 
+    /// Get raw_input as lowercase ASCII string
+    fn get_raw_input_string(&self) -> String {
+        self.raw_input
+            .iter()
+            .filter_map(|&(key, caps, _)| utils::key_to_char(key, caps))
+            .collect::<String>()
+            .to_lowercase()
+    }
+
+    /// Get raw_input as ASCII string preserving original case
+    fn get_raw_input_string_preserve_case(&self) -> String {
+        self.raw_input
+            .iter()
+            .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+            .collect()
+    }
+
     /// Check if buffer is NOT valid Vietnamese (for unified auto-restore logic)
     ///
     /// Uses full validation including tone requirements (circumflex for êu, etc.)
@@ -3834,6 +4026,51 @@ impl Engine {
         }
 
         has_vowel
+    }
+
+    /// Build raw chars from raw_input EXACTLY as typed (no collapsing)
+    /// Used for whitelist-based restore where we want the exact English word.
+    fn build_raw_chars_exact(&self) -> Option<Vec<char>> {
+        // If telex_double_raw is stored (original input before modification), use it
+        // plus any subsequent chars typed after the revert
+        // Example: "daddy" → telex_double_raw="dadd", subsequent="y" → "daddy"
+        if let Some(ref raw_str) = self.telex_double_raw {
+            if !raw_str.is_empty() && self.telex_double_raw_len > 0 {
+                let mut result: Vec<char> = raw_str.chars().collect();
+                // Append subsequent chars from raw_input
+                // For stroke revert (dd): raw_input was modified (1 char removed)
+                //   → subsequent_start = stored_len - 1
+                // For mark revert (ss): raw_input was NOT modified (deferred pop)
+                //   → subsequent_start = stored_len
+                // Detect by comparing current length with stored length
+                let subsequent_start = if self.raw_input.len() < self.telex_double_raw_len {
+                    // raw_input was modified (1 char removed)
+                    self.telex_double_raw_len.saturating_sub(1)
+                } else {
+                    // raw_input was NOT modified
+                    self.telex_double_raw_len
+                };
+                for i in subsequent_start..self.raw_input.len() {
+                    if let Some(&(key, caps, shift)) = self.raw_input.get(i) {
+                        if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
+                            result.push(ch);
+                        }
+                    }
+                }
+                return Some(result);
+            }
+        }
+        // Fallback to current raw_input
+        let chars: Vec<char> = self
+            .raw_input
+            .iter()
+            .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+            .collect();
+        if chars.is_empty() {
+            None
+        } else {
+            Some(chars)
+        }
     }
 
     /// Build raw chars from raw_input for restore

@@ -252,11 +252,9 @@ pub const COMMON_CIRCUMFLEX_NO_FINAL: &[u16] = &[
 ];
 
 /// Initials that are UNCOMMON with circumflex vowel + no final
-/// Words like "sê", "tê", "pê", "gê" should restore to English
+/// VIETNAMESE PRIORITY: Keep this list minimal to maximize Vietnamese pass rate
+/// Words like "tê" (numb), "bô" (uncle), etc. ARE valid Vietnamese
+/// Only F is truly invalid as Vietnamese initial
 pub const UNCOMMON_CIRCUMFLEX_NO_FINAL: &[u16] = &[
-    keys::S, // sê - not a word
-    keys::T, // tê - "numb" exists but rare standalone
-    keys::P, // pê - not a word
-    keys::G, // gê - not a word
     keys::F, // fê - F is invalid initial anyway
 ];
