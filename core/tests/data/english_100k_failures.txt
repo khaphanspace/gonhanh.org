@@ -778,6 +778,7 @@ tarn	tản
 kris	krí
 postsecondary	potsecondary
 samaj	sậm
+rosario	rôải
 ast	át
 loco	lôc
 lans	lán

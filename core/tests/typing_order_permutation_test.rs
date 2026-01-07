@@ -276,11 +276,11 @@ fn parse_syllable(word: &str) -> Option<SyllableParts> {
 /// Generate ALL valid Telex typing orders for a Vietnamese syllable
 ///
 /// Valid positions for modifiers:
-/// - Tone (s/f/r/x/j): after any vowel, or after final consonant
-/// - Circumflex (aa/ee/oo): immediately after the vowel, or delayed (split by final)
-/// - Horn/Breve (w): after the vowel it modifies, can appear multiple times for ươ
+/// - Tone (s/f/r/x/j): after the vowel nucleus (all vowels + marks), or after final consonant
+/// - Circumflex (aa/ee/oo): immediately after the vowel it modifies
+/// - Horn/Breve (w): after the vowel it modifies
 ///
-/// This function generates all mathematically valid permutations.
+/// For diphthongs (2 vowels) without final consonant, tone can also appear between vowels.
 fn generate_all_telex_variants(word: &str) -> Vec<String> {
     let parts = match parse_syllable(word) {
         Some(p) => p,
@@ -289,62 +289,18 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
 
     let mut variants: HashSet<String> = HashSet::new();
 
-    // Build the base components
     let initial = &parts.initial;
     let vowels = &parts.vowels;
     let final_cons = &parts.final_cons;
     let tone = parts.tone;
 
-    // Determine which vowels need marks
-    let mut vowel_marks: Vec<Option<char>> = vowels.iter().map(|(_, m)| *m).collect();
-
-    // For ươ (horn on both u and o), we can type:
-    // - uow (w after o)
-    // - uwo (w between, interpreted as horn on u, then o gets horn from context)
-    // - uwow (explicit w on both)
-
-    // Generate tone positions
-    // Tone can appear: after each vowel, before final, after final
-    let mut tone_positions: Vec<usize> = Vec::new();
-    if tone.is_some() {
-        // After each vowel
-        for i in 0..vowels.len() {
-            tone_positions.push(i);
-        }
-        // "After final" is represented by vowels.len()
-        if !final_cons.is_empty() {
-            tone_positions.push(vowels.len());
-        }
-    }
-
-    // Generate mark positions for circumflex (can be split)
-    // For each vowel with circumflex mark, it can appear:
-    // - Immediately after the vowel (adjacent: aa)
-    // - After the final consonant (split: ana → ân if we type "ana" then backtrack - not valid)
-    // Actually in Telex, circumflex must be adjacent (aa, ee, oo)
-    // Horn (w) can appear after the vowel it modifies
-
-    // For ươ patterns, w can appear in multiple ways:
-    // - After u only: uw... → ư...
-    // - After o only: ...ow → ...ơ
-    // - After both: uwow or uow (context-dependent)
-
-    // Simplify: generate variants by enumerating:
-    // 1. Vowel sequence with marks inserted at valid positions
-    // 2. Tone inserted at valid positions
-
-    let has_horn_u = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
-    let has_horn_o = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
-    let has_uwo = has_horn_u && has_horn_o; // ươ pattern
-
-    // Generate vowel typing patterns
+    // Generate vowel typing patterns (with marks in correct positions)
     let vowel_patterns = generate_vowel_patterns(&parts);
 
-    // For each vowel pattern, generate tone position variants
     for vowel_pattern in &vowel_patterns {
-        if tone.is_some() {
-            let t = tone.unwrap();
-            // Tone after the vowel section (before final)
+        if let Some(t) = tone {
+            // Pattern 1: Tone after all vowels (before final)
+            // Example: "nào" → "naof"
             {
                 let mut v = initial.clone();
                 v.push_str(vowel_pattern);
@@ -352,7 +308,9 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
                 v.push_str(final_cons);
                 variants.insert(v);
             }
-            // Tone after final consonant
+
+            // Pattern 2: Tone after final consonant
+            // Example: "nám" → "nasm"
             if !final_cons.is_empty() {
                 let mut v = initial.clone();
                 v.push_str(vowel_pattern);
@@ -360,31 +318,36 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
                 v.push(t);
                 variants.insert(v);
             }
-            // Tone between vowels (for diphthongs/triphthongs)
-            if vowels.len() >= 2 {
-                // Insert tone after first vowel
+
+            // Pattern 3: For diphthongs WITHOUT final consonant, tone between vowels
+            // Example: "nào" → "nafo" (tone after first vowel, before second)
+            // This is ONLY valid when:
+            // - There are exactly 2 vowels (diphthong)
+            // - There is no final consonant (open syllable)
+            if vowels.len() == 2 && final_cons.is_empty() {
+                // Find first vowel end position (including its mark if any)
                 let vowel_chars: Vec<char> = vowel_pattern.chars().collect();
-                // Find first vowel position
                 let mut first_vowel_end = 0;
+                let mut found_first_vowel = false;
+
                 for (i, c) in vowel_chars.iter().enumerate() {
                     if is_vowel(*c) {
-                        first_vowel_end = i + 1;
-                        // Include any mark right after
-                        if i + 1 < vowel_chars.len() {
-                            let next = vowel_chars[i + 1];
-                            if !is_vowel(next) && next != t {
+                        if !found_first_vowel {
+                            found_first_vowel = true;
+                            first_vowel_end = i + 1;
+                            // Include any mark right after the first vowel
+                            if i + 1 < vowel_chars.len() && !is_vowel(vowel_chars[i + 1]) {
                                 first_vowel_end = i + 2;
                             }
                         }
-                        break;
                     }
                 }
+
                 if first_vowel_end > 0 && first_vowel_end < vowel_chars.len() {
                     let mut v = initial.clone();
                     v.extend(&vowel_chars[..first_vowel_end]);
                     v.push(t);
                     v.extend(&vowel_chars[first_vowel_end..]);
-                    v.push_str(final_cons);
                     variants.insert(v);
                 }
             }
@@ -394,20 +357,6 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
             v.push_str(vowel_pattern);
             v.push_str(final_cons);
             variants.insert(v);
-        }
-    }
-
-    // Also generate split circumflex patterns (mark after first char of final)
-    for vowel_pattern in &vowel_patterns {
-        if !final_cons.is_empty() && final_cons.len() >= 1 {
-            // Check if there's a circumflex mark in the vowels
-            let has_circumflex = vowels.iter().any(|(_, m)| matches!(m, Some('a') | Some('e') | Some('o')));
-            if has_circumflex {
-                // For patterns like "riêng" → could type "rieeng" or "rieneg"
-                // The second e (circumflex marker) can come after first char of final
-                // This is less common but valid in some implementations
-                // Skip for now as it complicates things
-            }
         }
     }
 
@@ -424,8 +373,12 @@ fn generate_vowel_patterns(parts: &SyllableParts) -> Vec<String> {
     }
 
     // Check for special patterns
-    let has_horn_u = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
-    let has_horn_o = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+    let has_horn_u = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
+    let has_horn_o = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
     let has_uwo = has_horn_u && has_horn_o;
 
     // Generate base pattern: vowels with their marks immediately after
@@ -480,7 +433,10 @@ fn generate_vowel_patterns(parts: &SyllableParts) -> Vec<String> {
 }
 
 /// Test a single word with all its valid typing variants
-fn test_word_all_variants(word: &str, use_auto_restore: bool) -> (bool, Vec<(String, String)>, usize) {
+fn test_word_all_variants(
+    word: &str,
+    use_auto_restore: bool,
+) -> (bool, Vec<(String, String)>, usize) {
     let variants = generate_all_telex_variants(word);
     let mut failures: Vec<(String, String)> = Vec::new();
     let total = variants.len();
@@ -512,13 +468,10 @@ fn test_word_all_variants(word: &str, use_auto_restore: bool) -> (bool, Vec<(Str
 fn common_words_all_orders() {
     let words = [
         // Diphthongs with tones
-        "nào", "sao", "cao", "bảo", "gái", "mái", "tài", "bài", "hỏi", "bói",
-        "của", "múa", "bùa", "tụi", "mủi", "núi", "cúi",
-        // With final consonants
-        "tầng", "bền", "tấn", "lắm", "nắng",
-        // Complex vowels
-        "riêng", "tiếng", "nước", "được", "bước", "mười", "người",
-        // Common words
+        "nào", "sao", "cao", "bảo", "gái", "mái", "tài", "bài", "hỏi", "bói", "của", "múa", "bùa",
+        "tụi", "mủi", "núi", "cúi", // With final consonants
+        "tầng", "bền", "tấn", "lắm", "nắng", // Complex vowels
+        "riêng", "tiếng", "nước", "được", "bước", "mười", "người", // Common words
         "không", "những", "cũng", "trong", "này", "với", "đến", "còn", "theo", "trên",
         // More diphthongs
         "chào", "kêu", "đều", "mèo", "kéo",
@@ -535,7 +488,12 @@ fn common_words_all_orders() {
         if !passed {
             all_passed = false;
             failed_count += failures.len();
-            println!("\n'{}' FAILED ({} of {} variants):", word, failures.len(), count);
+            println!(
+                "\n'{}' FAILED ({} of {} variants):",
+                word,
+                failures.len(),
+                count
+            );
             for (variant, actual) in failures.iter().take(5) {
                 println!("  '{}' → '{}' (expected '{}')", variant, actual, word);
             }
@@ -559,12 +517,8 @@ fn common_words_all_orders() {
 fn common_words_auto_restore() {
     let words = [
         // UI diphthong (was buggy - tuji → tuji instead of tụi)
-        "tụi", "mủi", "núi", "cúi", "đùi", "vùi", "bụi",
-        // Other diphthongs
-        "của", "múa", "bùa", "mùa",
-        "nào", "sao", "bảo",
-        "gái", "mái", "tài",
-        "hỏi", "bói", "tối",
+        "tụi", "mủi", "núi", "cúi", "đùi", "vùi", "bụi", // Other diphthongs
+        "của", "múa", "bùa", "mùa", "nào", "sao", "bảo", "gái", "mái", "tài", "hỏi", "bói", "tối",
         // With stroke
         "đi", "đến", "được", "đều",
     ];
@@ -580,7 +534,12 @@ fn common_words_auto_restore() {
         if !passed {
             all_passed = false;
             failed_count += failures.len();
-            println!("\n'{}' FAILED ({} of {} variants):", word, failures.len(), count);
+            println!(
+                "\n'{}' FAILED ({} of {} variants):",
+                word,
+                failures.len(),
+                count
+            );
             for (variant, actual) in failures.iter().take(5) {
                 println!("  '{}' → '{}' (expected '{}')", variant, actual, word);
             }
@@ -849,7 +808,11 @@ fn test_22k_all_variants() {
 
     println!("\n=== Vietnamese 22k All Variants Test ===");
     println!("Total words: {}", total_words);
-    println!("Words passed: {} ({:.2}%)", words_passed, words_passed as f64 / total_words as f64 * 100.0);
+    println!(
+        "Words passed: {} ({:.2}%)",
+        words_passed,
+        words_passed as f64 / total_words as f64 * 100.0
+    );
     println!("Words failed: {}", words_failed);
     println!("Total variants tested: {}", total_variants);
     println!("Failed variants: {}", failed_variants);
@@ -909,6 +872,9 @@ fn generate_22k_typing_orders() {
         }
     }
 
-    println!("Generated typing orders for {} words ({} total variants)", total_words, total_variants);
+    println!(
+        "Generated typing orders for {} words ({} total variants)",
+        total_words, total_variants
+    );
     println!("Output: tests/data/vietnamese_22k_typing_orders.txt");
 }
