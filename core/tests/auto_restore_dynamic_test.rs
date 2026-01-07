@@ -877,22 +877,38 @@ fn tech_terms_comprehensive() {
 // Users should use ESC or raw mode for these
 // ============================================================
 
-/// Common English words in whitelist are auto-restored even if they'd form valid Vietnamese.
-/// Whitelist takes precedence over Vietnamese structure validation.
+/// Vietnamese-first: valid Vietnamese buffer stays Vietnamese.
+/// User can type double modifier to escape to English (tesst → test).
 #[test]
-fn whitelist_overrides_valid_vietnamese() {
+fn vietnamese_first_valid_buffer() {
     telex_auto_restore(&[
-        // Common English -est words: whitelist overrides Vietnamese structure
-        ("test ", "test "), // test in whitelist → restored
-        ("best ", "best "), // best in whitelist → restored
-        ("rest ", "rest "), // rest in whitelist → restored
-        ("nest ", "nest "), // nest in whitelist → restored
-        // Common English -ost words: whitelist overrides Vietnamese structure
-        ("cost ", "cost "), // cost in whitelist → restored
-        ("host ", "host "), // host in whitelist → restored
-        ("lost ", "lost "), // lost in whitelist → restored
-        ("most ", "most "), // most in whitelist → restored
-        ("post ", "post "), // post in whitelist → restored
+        // Single modifier: Vietnamese-first (buffer is valid Vietnamese)
+        ("test ", "tét "), // tét is valid Vietnamese → keep
+        ("best ", "bét "), // bét is valid Vietnamese → keep
+        ("rest ", "rét "), // rét (cold) is valid Vietnamese → keep
+        ("nest ", "nét "), // nét (stroke) is valid Vietnamese → keep
+        ("cost ", "cót "), // cót is valid Vietnamese → keep
+        ("host ", "hót "), // hót (sing) is valid Vietnamese → keep
+        ("lost ", "lót "), // lót (line) is valid Vietnamese → keep
+        ("most ", "mót "), // mót is valid Vietnamese → keep
+        ("post ", "pót "), // pót is valid Vietnamese → keep
+        ("docs ", "dóc "), // dóc is valid Vietnamese → keep
+    ]);
+}
+
+#[test]
+fn double_modifier_restores_english() {
+    telex_auto_restore(&[
+        // Double modifier: reverts tone → English restore
+        ("tesst ", "test "), // double s reverts → test in whitelist → restored
+        ("besst ", "best "), // double s reverts → best in whitelist → restored
+        ("resst ", "rest "), // double s reverts → rest in whitelist → restored
+        ("nesst ", "nest "), // double s reverts → nest in whitelist → restored
+        ("cosst ", "cost "), // double s reverts → cost in whitelist → restored
+        ("hosst ", "host "), // double s reverts → host in whitelist → restored
+        ("losst ", "lost "), // double s reverts → lost in whitelist → restored
+        ("mosst ", "most "), // double s reverts → most in whitelist → restored
+        ("posst ", "post "), // double s reverts → post in whitelist → restored
     ]);
 }
 

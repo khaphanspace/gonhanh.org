@@ -3382,20 +3382,49 @@ impl Engine {
 
             if telex_doubles::contains(&raw_str) {
                 // Word is in English telex doubles whitelist
-                // STROKE (đ) EXCEPTION: If buffer has stroke (đ from dd), check English dictionary.
-                // Vietnamese abbreviations like "đc" (được), "đt" (điện thoại) should stay Vietnamese.
-                // English words like "daddy", "add", "odd" should restore to English.
-                // Logic: đ + NOT in English dict → keep Vietnamese (abbreviation)
-                //        đ + in English dict → restore to English
+                // Decision logic with Vietnamese-first principle:
+                //
+                // 1. Double vowel patterns (oo, ee, aa) + in English dict → RESTORE to English
+                //    These are distinctive English patterns (poor, beer, teen)
+                // 2. Stroke (đ) + NOT in English dict → keep Vietnamese (abbreviation)
+                // 3. Buffer is VALID Vietnamese + NOT double vowel → keep Vietnamese
+                // 4. Buffer is INVALID Vietnamese → restore to English
+                //
+                // Examples:
+                //   "poor" → has "oo" pattern + in dict → restore "poor"
+                //   "bits" → no double vowel, buffer "bít" valid VN → keep "bít"
+                //   "chir" → no double vowel, buffer "chỉ" valid VN → keep "chỉ"
+                //   "daddy" → buffer "đady" invalid VN, in dict → restore "daddy"
+                //   "ddc" → has stroke, not in dict → keep "đc"
+
                 let has_stroke = self.buf.iter().any(|c| c.stroke);
-                if has_stroke {
-                    // Check if raw_str is in English dictionary
-                    if english_dict::is_english_word(&raw_str) {
-                        return self.build_raw_chars_exact();
-                    }
-                    // Not in dictionary → keep Vietnamese abbreviation (skip restore)
+                let buffer_invalid_vn = self.is_buffer_invalid_vietnamese();
+                let raw_in_english_dict = english_dict::is_english_word(&raw_str);
+
+                // Check for double vowel pattern (oo, ee, aa) - distinctive English patterns
+                let has_double_vowel = self.raw_input.windows(2).any(|pair| {
+                    let (k1, _, _) = pair[0];
+                    let (k2, _, _) = pair[1];
+                    k1 == k2 && (k1 == keys::O || k1 == keys::E || k1 == keys::A)
+                });
+
+                // Double vowel + in English dict → restore to English (poor, beer, teen)
+                if has_double_vowel && raw_in_english_dict {
+                    return self.build_raw_chars_exact();
+                }
+
+                // Vietnamese-first principle:
+                // 1. Stroke (đ) + not in dict → Vietnamese abbreviation → skip restore
+                // 2. Valid Vietnamese buffer → keep Vietnamese
+                // 3. Invalid Vietnamese → restore to English
+                //
+                // User escapes to English by typing double modifier (tesst → test)
+                if has_stroke && !raw_in_english_dict {
+                    // Skip restore - Vietnamese abbreviation like đc, đt
+                } else if !buffer_invalid_vn {
+                    // Valid Vietnamese buffer → keep Vietnamese (tét, dóc, bít, etc.)
                 } else {
-                    // No stroke → restore to English
+                    // Invalid Vietnamese → restore to English
                     return self.build_raw_chars_exact();
                 }
             }

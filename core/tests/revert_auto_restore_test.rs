@@ -233,3 +233,58 @@ fn debug_deeper_issue() {
     // This test checks the "deeper" → "ddeeper" bug
     telex_auto_restore(&[("deeper ", "deeper "), ("keeper ", "keeper ")]);
 }
+
+// =============================================================================
+// STROKE (đ) + DICTIONARY CHECK
+// =============================================================================
+// When buffer has stroke (đ from dd), use English dictionary to decide:
+// - đ + in English dict → restore to English (daddy, add, odd)
+// - đ + NOT in English dict → keep Vietnamese (đc, đt, đi)
+
+#[test]
+fn stroke_vietnamese_abbreviations() {
+    // Vietnamese abbreviations with đ should stay Vietnamese
+    // These are NOT in English dictionary
+    telex_auto_restore(&[
+        ("ddc ", "đc "),   // đc - được (common abbreviation)
+        ("ddcs ", "đcs "), // đcs - đảng cộng sản
+        ("ddt ", "đt "),   // đt - điện thoại (phone)
+    ]);
+}
+
+#[test]
+fn stroke_valid_vietnamese_words() {
+    // Valid Vietnamese words with đ should stay Vietnamese
+    telex_auto_restore(&[
+        ("dde ", "đe "), // đe - to threaten
+        ("ddi ", "đi "), // đi - to go
+        ("ddo ", "đo "), // đo - to measure
+        ("ddu ", "đu "), // đu - to swing
+        ("dda ", "đa "), // đa - many/much
+    ]);
+}
+
+#[test]
+fn stroke_english_words_restore() {
+    // English words with dd should restore to English
+    // These ARE in English dictionary
+    telex_auto_restore(&[
+        ("daddy ", "daddy "),   // daddy - father
+        ("add ", "add "),       // add - addition
+        ("odd ", "odd "),       // odd - strange
+        ("ladder ", "ladder "), // ladder - stairs
+    ]);
+}
+
+#[test]
+fn common_vietnamese_words_with_tone() {
+    // Common Vietnamese words with tone marks should stay Vietnamese
+    // These should NOT be in telex_doubles whitelist
+    telex_auto_restore(&[
+        ("chir ", "chỉ "), // chỉ - only/just (hỏi tone)
+        ("chis ", "chí "), // chí - will/spirit (sắc tone)
+        ("chij ", "chị "), // chị - older sister (nặng tone)
+        ("thir ", "thỉ "), // thỉ - rare (hỏi tone)
+        ("nhir ", "nhỉ "), // nhỉ - right? (hỏi tone)
+    ]);
+}
