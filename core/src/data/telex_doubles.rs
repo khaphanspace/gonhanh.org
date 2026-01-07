@@ -1,7 +1,7 @@
 //! English words containing Telex patterns that should auto-restore.
 //! Binary search O(log n) lookup.
 
-pub static WORDS: [&str; 10040] = [
+pub static WORDS: [&str; 10022] = [
     "aa",
     "aaaa",
     "aaai",
@@ -461,7 +461,6 @@ pub static WORDS: [&str; 10040] = [
     "assembly",
     "assemblyman",
     "assemblymen",
-    "assemblée",
     "assen",
     "assent",
     "assented",
@@ -1956,7 +1955,6 @@ pub static WORDS: [&str; 10040] = [
     "coops",
     "cooptation",
     "coopted",
-    "coopération",
     "coord",
     "coordinate",
     "coordinated",
@@ -2331,7 +2329,6 @@ pub static WORDS: [&str; 10040] = [
     "dbmss",
     "dd",
     "dda",
-    "ddc",
     "ddd",
     "dde",
     "ddi",
@@ -2563,10 +2560,6 @@ pub static WORDS: [&str; 10040] = [
     "diffusive",
     "diffusivities",
     "diffusivity",
-    "différence",
-    "différences",
-    "différentes",
-    "différents",
     "diglossia",
     "digress",
     "digression",
@@ -2896,7 +2889,6 @@ pub static WORDS: [&str; 10040] = [
     "dyestuff",
     "dyestuffs",
     "dysmenorrhea",
-    "düsseldorf",
     "eaa",
     "eagerness",
     "earnestness",
@@ -4064,7 +4056,6 @@ pub static WORDS: [&str; 10040] = [
     "gustafsson",
     "gusts",
     "gutierrez",
-    "gutiérrez",
     "guts",
     "guyer",
     "guys",
@@ -5420,7 +5411,6 @@ pub static WORDS: [&str; 10040] = [
     "lycee",
     "lydda",
     "lynx",
-    "lässt",
     "maa",
     "maanen",
     "maar",
@@ -5531,7 +5521,6 @@ pub static WORDS: [&str; 10040] = [
     "masai",
     "masao",
     "masood",
-    "mass",
     "massa",
     "massachusetts",
     "massacre",
@@ -6026,7 +6015,6 @@ pub static WORDS: [&str; 10040] = [
     "myer",
     "myers",
     "myrrh",
-    "müssen",
     "naa",
     "naacp",
     "naaman",
@@ -6292,9 +6280,6 @@ pub static WORDS: [&str; 10040] = [
     "nuys",
     "nwfp",
     "nyssa",
-    "nécessaire",
-    "nécessaires",
-    "nécessité",
     "oaa",
     "oakwood",
     "oars",
@@ -6674,7 +6659,6 @@ pub static WORDS: [&str; 10040] = [
     "password",
     "passwords",
     "passy",
-    "passé",
     "past",
     "pasta",
     "pastas",
@@ -6920,7 +6904,6 @@ pub static WORDS: [&str; 10040] = [
     "possibile",
     "possibilities",
     "possibility",
-    "possibilité",
     "possible",
     "possibles",
     "possibly",
@@ -10041,10 +10024,9 @@ pub static WORDS: [&str; 10040] = [
     "zoot",
     "zorro",
     "zusammenfassung",
-    "établissement",
 ];
 
-/// Binary search for word in the sorted whitelist
+/// Check if word contains Telex patterns that should auto-restore
 pub fn contains(word: &str) -> bool {
     WORDS.binary_search(&word).is_ok()
 }

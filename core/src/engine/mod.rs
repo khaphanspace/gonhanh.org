@@ -18,7 +18,7 @@ pub mod validation;
 
 use crate::data::{
     chars::{self, mark, tone},
-    constants, keys, telex_doubles,
+    constants, english_dict, keys, telex_doubles,
     vowel::{Phonology, Vowel},
 };
 use crate::input::{self, ToneType};
@@ -2677,6 +2677,8 @@ impl Engine {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
                     c.tone = tone::NONE;
+                    // Track for auto-restore logic (double ss/ff detection)
+                    self.had_mark_revert = true;
                     // Track ww pattern for whitelist-based restore
                     self.had_telex_transform = true;
                     // Store raw_input BEFORE modification for whitelist lookup
@@ -3383,6 +3385,49 @@ impl Engine {
                 return self.build_raw_chars_exact();
             }
 
+            // DOUBLE SS/FF DICTIONARY CHECK (before "keep clean buffer" logic)
+            // Words ending with ss/ff that are in dictionary should restore to English.
+            // Examples: mass, bass, pass, buff, cuff → restore to English
+            // This check must come BEFORE "keep clean buffer" logic because buffer "mas"
+            // looks clean but should restore to "mass" if "mass" is in dictionary.
+            // IMPORTANT: Only apply when ss/ff is at END of complete word (no subsequent chars)
+            // For "masson" (ss in middle), let normal collapse logic handle it → "mason"
+            if let Some(ref stored) = self.telex_double_raw {
+                // Check if any chars were typed AFTER the double pattern
+                let has_subsequent_chars = self.raw_input.len() > self.telex_double_raw_len;
+
+                // Only apply this check when ss/ff is at the END of the word
+                if !has_subsequent_chars {
+                    let chars: Vec<char> = stored.chars().collect();
+                    if chars.len() >= 2 {
+                        let last = chars[chars.len() - 1].to_ascii_lowercase();
+                        let second_last = chars[chars.len() - 2].to_ascii_lowercase();
+                        let is_double_ss = last == 's' && second_last == 's';
+                        let is_double_ff = last == 'f' && second_last == 'f';
+
+                        if is_double_ss || is_double_ff {
+                            let original_lower = stored.to_lowercase();
+                            if english_dict::is_english_word(&original_lower) {
+                                // EXCEPTIONS: "off", "iff", "ass" should keep reverted form
+                                let is_exception = if chars.len() == 3 {
+                                    let first = chars[0].to_ascii_lowercase();
+                                    let is_off = first == 'o' && is_double_ff;
+                                    let is_iff = first == 'i' && is_double_ff;
+                                    let is_ass = first == 'a' && is_double_ss;
+                                    is_off || is_iff || is_ass
+                                } else {
+                                    false
+                                };
+
+                                if !is_exception {
+                                    return self.build_raw_chars_exact();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Word NOT in whitelist:
             // If double revert pattern occurred AND buffer has NO Vietnamese marks,
             // AND buffer doesn't have repeated consonants (indicating incomplete collapse),
@@ -3463,44 +3508,8 @@ impl Engine {
         // Second check: Is raw_input valid English?
         let raw_input_valid_en = self.is_raw_input_valid_english();
 
-        // SPECIAL CASE: Double 'ss' or 'ff' at end should ALWAYS restore to English
-        // because 's' and 'f' are NOT valid Vietnamese final consonants.
-        // Examples: bass, pass, boss, less, mess, miss, buff, cuff, puff → restore to English
-        // This check must come BEFORE buffer_invalid_vn check since buffer may be valid ("ba")
-        // but raw_input "bass" should still restore to English.
-        //
-        // EXCEPTIONS: "off" and "iff" should NOT auto-restore because:
-        // - "off" → "of" (reverted form "of" is a very common English word)
-        // - "iff" → "if" (reverted form "if" is a very common English word)
-        if self.had_mark_revert && self.raw_input.len() >= 2 && raw_input_valid_en {
-            let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
-            let (second_last_key, _, _) = self.raw_input[self.raw_input.len() - 2];
-            let is_double_ss = last_key == keys::S && second_last_key == keys::S;
-            let is_double_ff = last_key == keys::F && second_last_key == keys::F;
-
-            // Check for exceptions: "off", "iff", "ass" should keep reverted form
-            let is_exception = if self.raw_input.len() == 3 {
-                let (first_key, _, _) = self.raw_input[0];
-                // "off" (O-F-F) → keep "of"
-                let is_off = first_key == keys::O && is_double_ff;
-                // "iff" (I-F-F) → keep "if"
-                let is_iff = first_key == keys::I && is_double_ff;
-                // "ass" (A-S-S) → keep "as"
-                let is_ass = first_key == keys::A && is_double_ss;
-                is_off || is_iff || is_ass
-            } else {
-                false
-            };
-
-            // Exceptions: return None to keep buffer (reverted form)
-            if is_exception {
-                return None;
-            }
-
-            if is_double_ss || is_double_ff {
-                return self.build_raw_chars();
-            }
-        }
+        // NOTE: Double ss/ff dictionary check is handled earlier (lines 3388-3421)
+        // in the telex_doubles section, BEFORE the "keep clean buffer" logic.
 
         // SPECIAL CASE: Doubled modifier pattern handling
         // Distinguish between:
@@ -3590,13 +3599,28 @@ impl Engine {
             }
         }
 
-        // W-START CHECK: If raw input starts with 'w' (becomes 'ư') AND buffer is invalid VN, restore
-        // Vietnamese doesn't have 'w', so words like "wmd", "wtf" with invalid structure should restore
-        // This is simpler than maintaining a 3000-word whitelist
-        if is_word_complete && buffer_invalid_vn && !self.raw_input.is_empty() {
+        // W-START CHECK: If raw input starts with 'w', restore in specific cases
+        // Vietnamese doesn't have 'w', so words starting with 'w' are likely English
+        if is_word_complete && !self.raw_input.is_empty() {
             let (first_key, _, _) = self.raw_input[0];
             if first_key == keys::W {
-                return self.build_raw_chars();
+                // Case 1: English consonant cluster at start (wr, wh) - ALWAYS restore
+                // These are English-only clusters that don't exist in Vietnamese
+                // Examples: wra, wri, wro (wr-), whi, who (wh-)
+                // But NOT: wng, wn, wm (these are w→ư + final consonant = valid Vietnamese)
+                if self.raw_input.len() >= 2 {
+                    let (second_key, _, _) = self.raw_input[1];
+                    // Only restore for English consonant clusters: wr, wh
+                    // (r and h after w form English onset clusters)
+                    if second_key == keys::R || second_key == keys::H {
+                        return self.build_raw_chars();
+                    }
+                }
+                // Case 2: W+vowel with invalid VN buffer - restore
+                // Examples: "wmd", "wtf" with invalid structure
+                if buffer_invalid_vn {
+                    return self.build_raw_chars();
+                }
             }
         }
 
