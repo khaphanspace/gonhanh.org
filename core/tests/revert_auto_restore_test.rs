@@ -231,7 +231,13 @@ fn delayed_stroke_with_vowel_between() {
 #[test]
 fn debug_deeper_issue() {
     // This test checks the "deeper" → "ddeeper" bug
-    telex_auto_restore(&[("deeper ", "deeper "), ("keeper ", "keeper ")]);
+    // Words with double 'ee' pattern should restore correctly
+    telex_auto_restore(&[
+        ("deeper ", "deeper "),
+        ("keeper ", "keeper "),
+        ("teen ", "teen "),
+        ("between ", "between "),
+    ]);
 }
 
 // =============================================================================
