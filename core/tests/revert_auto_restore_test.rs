@@ -231,12 +231,14 @@ fn delayed_stroke_with_vowel_between() {
 #[test]
 fn debug_deeper_issue() {
     // This test checks the "deeper" → "ddeeper" bug
-    // Words with double 'ee' pattern should restore correctly
+    // Words with double 'ee' pattern:
+    // - Invalid Vietnamese buffer → restore to English (deeper, keeper, between)
+    // - Valid Vietnamese buffer → keep Vietnamese (teen → tên)
     telex_auto_restore(&[
-        ("deeper ", "deeper "),
-        ("keeper ", "keeper "),
-        ("teen ", "teen "),
-        ("between ", "between "),
+        ("deeper ", "deeper "),   // Invalid VN → restore
+        ("keeper ", "keeper "),   // Invalid VN → restore
+        ("teen ", "tên "),        // Valid VN "tên" → keep Vietnamese
+        ("between ", "between "), // Invalid VN → restore
     ]);
 }
 

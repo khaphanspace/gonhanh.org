@@ -97,7 +97,6 @@ fn type_word_with_space(engine: &mut Engine, word: &str) -> String {
 }
 
 #[test]
-#[ignore] // Run with: cargo test english_100k_failures -- --ignored --nocapture
 fn english_100k_failures() {
     let content =
         fs::read_to_string("tests/data/english_100k.txt").expect("Failed to read english_100k.txt");
@@ -171,6 +170,13 @@ fn english_100k_failures() {
         println!("\nFull list written to: tests/data/english_100k_failures.txt");
     }
 
-    // Don't assert - just report
-    // assert!(failures.is_empty(), "{} words failed", failures.len());
+    // CI threshold: fail if pass rate drops below 97%
+    let pass_rate = (words.len() - failures.len()) as f64 / words.len() as f64 * 100.0;
+    const MIN_PASS_RATE: f64 = 97.0;
+    assert!(
+        pass_rate >= MIN_PASS_RATE,
+        "English 100k pass rate {:.2}% is below threshold {:.1}%",
+        pass_rate,
+        MIN_PASS_RATE
+    );
 }

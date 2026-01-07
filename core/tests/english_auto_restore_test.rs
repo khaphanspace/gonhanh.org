@@ -1073,32 +1073,31 @@ fn pattern11b_v1v2v1_immediate_output() {
 
 #[test]
 fn pattern12_circumflex_no_final_invalid() {
-    // C + ê/ô (from ee/oo) + no final consonant → likely English
+    // Only F initial is invalid Vietnamese → restore to English
+    // Vietnamese-first: keep all other C+ê patterns as Vietnamese
     telex_auto_restore(&[
-        // "see" → "sê" - not a common Vietnamese word
-        ("see ", "see "),
-        // "fee" → "fê" - F is invalid initial anyway
+        // "fee" → "fê" - F is invalid Vietnamese initial → restore
         ("fee ", "fee "),
-        // "tee" → "tê" - not common (though "tê" = numb exists, it's rare standalone)
-        ("tee ", "tee "),
-        // "pee" → "pê" - not Vietnamese
-        ("pee ", "pee "),
-        // "lee" → "lê" - this IS valid Vietnamese (pear) - should NOT restore
-        // ("lee ", "lê "), // Skip - lê is valid
-        // "gee" → "gê" - not Vietnamese
-        ("gee ", "gee "),
     ]);
 }
 
 #[test]
 fn pattern12_circumflex_no_final_valid_vietnamese() {
-    // Some C + ê/ô are valid Vietnamese words - should NOT restore
+    // Vietnamese-first: C + ê/ô are valid Vietnamese → keep Vietnamese
+    // Exceptions that restore to English:
+    // - F initial is invalid (fee → fee)
+    // - G before E is invalid (gee → gee, should use GH)
     telex_auto_restore(&[
         ("bee ", "bê "),   // bê (calf) - valid Vietnamese
         ("mee ", "mê "),   // mê (obsessed) - valid Vietnamese
         ("lee ", "lê "),   // lê (pear) - valid Vietnamese
         ("ddee ", "đê "),  // đê (dike) - valid Vietnamese
         ("khee ", "khê "), // khê (hoarse) - valid Vietnamese
+        ("see ", "sê "),   // sê - valid Vietnamese (Vietnamese-first)
+        ("tee ", "tê "),   // tê (numb) - valid Vietnamese
+        ("pee ", "pê "),   // pê - valid Vietnamese (Vietnamese-first)
+        ("ghee ", "ghê "), // ghê (terrifying) - valid Vietnamese (GH before E)
+        ("gee ", "gee "),  // gê - invalid (G before E), restore to English
     ]);
 }
 

@@ -1199,3 +1199,104 @@ fn telex_double_not_in_whitelist_keeps_buffer() {
                            // Note: "buss", "gass", "carr", "starr" ARE in whitelist, so they restore to raw
     ]);
 }
+
+/// Test "tên" (name) - Vietnamese-first principle
+/// "teen" has double-e pattern but "tên" is valid Vietnamese → keep Vietnamese
+#[test]
+fn vietnamese_first_ten() {
+    use common::telex_auto_restore;
+    telex_auto_restore(&[
+        ("teen ", "tên "),  // "tên" = name, valid Vietnamese → keep
+        ("teens ", "tến "), // with tone (s = sắc)
+        ("teenf ", "tền "), // with huyền tone
+    ]);
+}
+
+#[test]
+fn debug_moscow() {
+    use gonhanh_core::engine::Engine;
+    use gonhanh_core::utils::type_word;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "moscow ");
+    assert_eq!(result, "moscow ");
+}
+
+#[test]
+fn debug_writer() {
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    // Type char by char and trace
+    let chars = ['w', 'r', 'i', 't', 'e', 'r', ' '];
+    let mut output = String::new();
+
+    for ch in chars {
+        let key = match ch.to_ascii_lowercase() {
+            'w' => 13,
+            'r' => 15,
+            'i' => 34,
+            't' => 17,
+            'e' => 14,
+            ' ' => 49,
+            _ => 255,
+        };
+        let result = e.on_key(key, false, false);
+
+        if result.action == 1 {
+            let bs = result.backspace as usize;
+            for _ in 0..bs.min(output.len()) {
+                output.pop();
+            }
+            for i in 0..result.count as usize {
+                if let Some(c) = char::from_u32(result.chars[i]) {
+                    output.push(c);
+                }
+            }
+        } else {
+            output.push(ch);
+        }
+
+        println!(
+            "After '{}': buffer='{}', raw_len={}, is_raw_english={}",
+            ch,
+            e.get_buffer_string(),
+            e.raw_input_len(),
+            e.is_raw_english()
+        );
+    }
+
+    println!("\nFinal output: '{}'", output);
+    assert_eq!(output, "writer ");
+}
+
+/// Test: UI diphthong typing order should produce same result
+/// Bug: "tuji" was incorrectly auto-restored to English, while "tuij" worked
+/// Fix: Added keys::I to UI diphthong pattern in has_english_modifier_pattern()
+#[test]
+fn ui_diphthong_typing_order() {
+    use common::{telex, telex_auto_restore};
+
+    // Without auto-restore: both orders should work
+    telex(&[
+        ("tuji", "tụi"), // mark before final vowel
+        ("tuij", "tụi"), // mark after final vowel
+        ("muri", "mủi"),
+        ("muir", "mủi"),
+        ("nusi", "núi"),
+        ("nuis", "núi"),
+    ]);
+
+    // With auto-restore: should not restore valid Vietnamese UI diphthong
+    telex_auto_restore(&[
+        ("tuji ", "tụi "),
+        ("tuij ", "tụi "),
+        ("muri ", "mủi "),
+        ("muir ", "mủi "),
+        ("nusi ", "núi "),
+        ("nuis ", "núi "),
+    ]);
+}

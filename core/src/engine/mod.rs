@@ -2382,8 +2382,19 @@ impl Engine {
         //    - Buffer: [R, ồ, I] → only vowels after marked vowel (diphthong)
         //    - User is still in same syllable, second 'f' is likely accidental
         //    - Absorb → "rồi"
+        //
+        // EXCEPTION: Words starting with W are English - don't apply revert logic.
+        // W is not a valid Vietnamese initial, so "writer", "wrong", "wrap" etc.
+        // should NOT trigger delayed revert even if same mark key is pressed.
+        // Auto-restore will handle these at word boundary.
+        let starts_with_w = self
+            .raw_input
+            .first()
+            .map(|(k, _, _)| *k == keys::W)
+            .unwrap_or(false);
+
         if let Some(c) = self.buf.get(pos) {
-            if c.mark == mark_val {
+            if c.mark == mark_val && !starts_with_w {
                 // Check if there's a consonant after the marked vowel position
                 let has_consonant_after = self
                     .buf
@@ -3401,29 +3412,37 @@ impl Engine {
                 let buffer_invalid_vn = self.is_buffer_invalid_vietnamese();
                 let raw_in_english_dict = english_dict::is_english_word(&raw_str);
 
-                // Check for double vowel pattern (oo, ee, aa) - distinctive English patterns
-                let has_double_vowel = self.raw_input.windows(2).any(|pair| {
-                    let (k1, _, _) = pair[0];
-                    let (k2, _, _) = pair[1];
-                    k1 == k2 && (k1 == keys::O || k1 == keys::E || k1 == keys::A)
-                });
-
-                // Double vowel + in English dict → restore to English (poor, beer, teen)
-                if has_double_vowel && raw_in_english_dict {
-                    return self.build_raw_chars_exact();
-                }
-
                 // Vietnamese-first principle:
                 // 1. Stroke (đ) + not in dict → Vietnamese abbreviation → skip restore
-                // 2. Valid Vietnamese buffer → keep Vietnamese
-                // 3. Invalid Vietnamese → restore to English
+                // 2. W pattern + in English dict → restore (moscow, warsaw, saw, law)
+                // 3. Valid Vietnamese buffer + NOT W pattern → keep Vietnamese (tên, tét, dóc, etc.)
+                // 4. Invalid Vietnamese + double vowel (oo/ee/aa) + English dict → restore
+                // 5. Invalid Vietnamese → restore to English
                 //
+                // This order ensures valid VN words like "tên" are kept even though
+                // "teen" has double-e pattern and is in English dict.
                 // User escapes to English by typing double modifier (tesst → test)
+                let has_w_pattern = self.raw_input.iter().any(|(key, _, _)| *key == keys::W);
+
                 if has_stroke && !raw_in_english_dict {
                     // Skip restore - Vietnamese abbreviation like đc, đt
+                } else if has_w_pattern && raw_in_english_dict {
+                    // W pattern + English dict → restore (moscow, warsaw, saw, law)
+                    return self.build_raw_chars_exact();
                 } else if !buffer_invalid_vn {
-                    // Valid Vietnamese buffer → keep Vietnamese (tét, dóc, bít, etc.)
+                    // Valid Vietnamese buffer + no W pattern → keep Vietnamese (tên, tét, dóc, bít, etc.)
                 } else {
+                    // Invalid Vietnamese → check for double vowel pattern
+                    let has_double_vowel = self.raw_input.windows(2).any(|pair| {
+                        let (k1, _, _) = pair[0];
+                        let (k2, _, _) = pair[1];
+                        k1 == k2 && (k1 == keys::O || k1 == keys::E || k1 == keys::A)
+                    });
+
+                    if has_double_vowel && raw_in_english_dict {
+                        // Double vowel + English dict → restore (poor, beer, deeper)
+                        return self.build_raw_chars_exact();
+                    }
                     // Invalid Vietnamese → restore to English
                     return self.build_raw_chars_exact();
                 }
@@ -5242,8 +5261,11 @@ impl Engine {
                         // Vietnamese exceptions: diphthongs with tone modifier in middle
                         let is_vietnamese_pattern = match prev_vowel {
                             k if k == keys::U => {
-                                // ua: của, mủa; uo: được; uy: thuỷ, quỷ
-                                next_key == keys::A || next_key == keys::O || next_key == keys::Y
+                                // ua: của, mủa; uo: được; uy: thuỷ, quỷ; ui: tụi, mủi, cúi, núi
+                                next_key == keys::A
+                                    || next_key == keys::O
+                                    || next_key == keys::Y
+                                    || next_key == keys::I
                             }
                             k if k == keys::A => {
                                 // au: màu, náu, cau, lau, etc.

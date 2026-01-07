@@ -253,7 +253,6 @@ fn matches_either_style(expected: &str, actual: &str) -> bool {
 }
 
 #[test]
-#[ignore] // Run with: cargo test vietnamese_22k_coverage -- --ignored --nocapture
 fn vietnamese_22k_coverage() {
     let content = include_str!("data/vietnamese_22k.txt");
     let mut passed = 0;
@@ -342,10 +341,18 @@ fn vietnamese_22k_coverage() {
         }
         println!("\nFailures written to tests/data/vietnamese_failures.txt");
     }
+
+    // CI threshold: fail if pass rate drops below 99.5%
+    const MIN_PASS_RATE: f64 = 99.5;
+    assert!(
+        pass_rate >= MIN_PASS_RATE,
+        "Vietnamese single syllable pass rate {:.2}% is below threshold {:.1}%",
+        pass_rate,
+        MIN_PASS_RATE
+    );
 }
 
 #[test]
-#[ignore] // Run with: cargo test vietnamese_22k_compound -- --ignored --nocapture
 fn vietnamese_22k_compound() {
     let content = include_str!("data/vietnamese_22k.txt");
     let mut passed = 0;
@@ -415,4 +422,13 @@ fn vietnamese_22k_compound() {
             );
         }
     }
+
+    // CI threshold: fail if pass rate drops below 99.0%
+    const MIN_PASS_RATE: f64 = 99.0;
+    assert!(
+        pass_rate >= MIN_PASS_RATE,
+        "Vietnamese compound words pass rate {:.2}% is below threshold {:.1}%",
+        pass_rate,
+        MIN_PASS_RATE
+    );
 }
