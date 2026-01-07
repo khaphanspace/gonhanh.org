@@ -5351,7 +5351,12 @@ impl Engine {
                                     let ends_with_h = c2 == keys::H
                                         && matches!(
                                             c1,
-                                            keys::C | keys::K | keys::G | keys::T | keys::P | keys::N
+                                            keys::C
+                                                | keys::K
+                                                | keys::G
+                                                | keys::T
+                                                | keys::P
+                                                | keys::N
                                         );
                                     // Other digraphs: NG, TR
                                     let is_ng = c1 == keys::N && c2 == keys::G;
