@@ -29,6 +29,7 @@ public partial class SettingsWindow : Window
         EnabledToggle.IsChecked = _settings.IsEnabled;
         MethodCombo.SelectedIndex = (int)_settings.CurrentMethod;
         WShortcutToggle.IsChecked = _settings.AutoWShortcut;
+        BracketShortcutToggle.IsChecked = _settings.BracketShortcut;
         AutoStartToggle.IsChecked = _settings.AutoStart;
         PerAppModeToggle.IsChecked = _settings.PerAppModeEnabled;
         EnglishAutoRestoreToggle.IsChecked = _settings.EnglishAutoRestore;
@@ -80,6 +81,13 @@ public partial class SettingsWindow : Window
     {
         if (_isLoading) return;
         _settings.AutoWShortcut = WShortcutToggle.IsChecked == true;
+        SaveAndNotify();
+    }
+
+    private void BracketShortcutToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoading) return;
+        _settings.BracketShortcut = BracketShortcutToggle.IsChecked == true;
         SaveAndNotify();
     }
 

@@ -28,6 +28,7 @@ public class SettingsService
     private const string KeyAutoCapitalize = "AutoCapitalize";
     private const string KeySoundEnabled = "SoundEnabled";
     private const string KeyPerAppModeEnabled = "PerAppModeEnabled";
+    private const string KeyBracketShortcut = "BracketShortcut";
 
     #endregion
 
@@ -69,6 +70,11 @@ public class SettingsService
     /// </summary>
     public bool PerAppModeEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Bracket shortcut: [ → Ơ, ] → Ư
+    /// </summary>
+    public bool BracketShortcut { get; set; } = false;
+
     #endregion
 
     #region Public Methods
@@ -99,6 +105,7 @@ public class SettingsService
             AutoCapitalize = GetBoolValue(key, KeyAutoCapitalize, false);
             SoundEnabled = GetBoolValue(key, KeySoundEnabled, false);
             PerAppModeEnabled = GetBoolValue(key, KeyPerAppModeEnabled, true);
+            BracketShortcut = GetBoolValue(key, KeyBracketShortcut, false);
         }
         catch (Exception ex)
         {
@@ -127,6 +134,7 @@ public class SettingsService
                 key.SetValue(KeyAutoCapitalize, AutoCapitalize ? 1 : 0, RegistryValueKind.DWord);
                 key.SetValue(KeySoundEnabled, SoundEnabled ? 1 : 0, RegistryValueKind.DWord);
                 key.SetValue(KeyPerAppModeEnabled, PerAppModeEnabled ? 1 : 0, RegistryValueKind.DWord);
+                key.SetValue(KeyBracketShortcut, BracketShortcut ? 1 : 0, RegistryValueKind.DWord);
             }
 
             // Update auto-start registry
@@ -150,6 +158,7 @@ public class SettingsService
         RustBridge.SetEscRestore(EscRestore);
         RustBridge.SetEnglishAutoRestore(EnglishAutoRestore);
         RustBridge.SetAutoCapitalize(AutoCapitalize);
+        RustBridge.SetBracketShortcut(BracketShortcut);
     }
 
     /// <summary>
@@ -251,6 +260,7 @@ public class SettingsService
         AutoCapitalize = false;
         SoundEnabled = false;
         PerAppModeEnabled = true;
+        BracketShortcut = false;
         Save();
     }
 

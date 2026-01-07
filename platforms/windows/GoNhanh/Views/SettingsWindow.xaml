@@ -2,13 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Cài đặt - GoNhanh"
-        Height="580" Width="500"
+        Height="640" Width="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="{StaticResource BackgroundBrush}">
 
     <Window.Resources>
-        <!-- Toggle Switch Style (like macOS) -->
+        <!-- Toggle Switch Style (Apple style - clean, no shadow) -->
         <Style x:Key="ToggleSwitch" TargetType="CheckBox">
             <Setter Property="Template">
                 <Setter.Value>
@@ -24,11 +24,9 @@
                                     CornerRadius="10"
                                     Background="White"
                                     HorizontalAlignment="Left"
-                                    Margin="2,0,0,0">
-                                <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="1" BlurRadius="3" Opacity="0.2"/>
-                                </Border.Effect>
-                            </Border>
+                                    Margin="2,0,0,0"
+                                    BorderBrush="#00000010"
+                                    BorderThickness="0.5"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -147,6 +145,32 @@
                                       Style="{StaticResource ToggleSwitch}"
                                       Checked="WShortcutToggle_Changed"
                                       Unchecked="WShortcutToggle_Changed"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource RowSeparator}"/>
+
+                    <!-- Bracket Shortcut -->
+                    <Border Style="{StaticResource SettingsRow}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Gõ ] thành Ư, [ thành Ơ"
+                                           FontSize="13"
+                                           Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Text="Phím tắt ngoặc vuông"
+                                           FontSize="11"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <CheckBox x:Name="BracketShortcutToggle"
+                                      Grid.Column="1"
+                                      Style="{StaticResource ToggleSwitch}"
+                                      Checked="BracketShortcutToggle_Changed"
+                                      Unchecked="BracketShortcutToggle_Changed"/>
                         </Grid>
                     </Border>
                 </StackPanel>
