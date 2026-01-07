@@ -3381,8 +3381,23 @@ impl Engine {
             };
 
             if telex_doubles::contains(&raw_str) {
-                // Word is in English telex doubles whitelist → restore to EXACT English word
-                return self.build_raw_chars_exact();
+                // Word is in English telex doubles whitelist
+                // STROKE (đ) EXCEPTION: If buffer has stroke (đ from dd), check English dictionary.
+                // Vietnamese abbreviations like "đc" (được), "đt" (điện thoại) should stay Vietnamese.
+                // English words like "daddy", "add", "odd" should restore to English.
+                // Logic: đ + NOT in English dict → keep Vietnamese (abbreviation)
+                //        đ + in English dict → restore to English
+                let has_stroke = self.buf.iter().any(|c| c.stroke);
+                if has_stroke {
+                    // Check if raw_str is in English dictionary
+                    if english_dict::is_english_word(&raw_str) {
+                        return self.build_raw_chars_exact();
+                    }
+                    // Not in dictionary → keep Vietnamese abbreviation (skip restore)
+                } else {
+                    // No stroke → restore to English
+                    return self.build_raw_chars_exact();
+                }
             }
 
             // DOUBLE SS/FF DICTIONARY CHECK (before "keep clean buffer" logic)
