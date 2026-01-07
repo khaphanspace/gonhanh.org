@@ -1,13 +1,13 @@
 //! English dictionary for auto-restore detection
 //!
-//! Uses Google's 10,000 most common English words.
+//! Uses merged dictionary: 10k common words + words with double telex chars.
 //! Only restores to English when raw_input is a known English word.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-/// Embedded English word list (10k most common words)
-const ENGLISH_WORDS: &str = include_str!("english_10k.txt");
+/// Embedded English word list (10k + double telex patterns)
+const ENGLISH_WORDS: &str = include_str!("english_dict_merged.txt");
 
 /// HashSet for O(1) lookup
 static DICT: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -44,14 +44,14 @@ mod tests {
 
     #[test]
     fn test_not_english() {
-        assert!(!is_english_word("ddc"));
+        assert!(!is_english_word("qqq"));
         assert!(!is_english_word("nesu"));
-        assert!(!is_english_word("xyz"));
+        assert!(!is_english_word("zzzz"));
         assert!(!is_english_word("đc"));
     }
 
     #[test]
     fn test_dict_size() {
-        assert!(DICT.len() >= 9000); // Should have ~10k words
+        assert!(DICT.len() >= 17000); // Should have ~18k words (10k + double telex)
     }
 }

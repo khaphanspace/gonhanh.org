@@ -35,16 +35,14 @@ fn revert_then_more_chars_keeps_buffer() {
 #[test]
 fn revert_at_end_short_words() {
     // Short words (3 chars raw) with double modifiers
-    // EXCEPTIONS: "off", "iff", "ass" keep reverted form
-    // Other -ss/-ff words restore to English
+    // Only restore if raw is in dict, otherwise keep buffer
     telex_auto_restore(&[
-        // Double ss: "ass" is exception, keeps reverted "as"
-        ("ass ", "as "), // EXCEPTION: a-s-s → as
-        // Double ff: exceptions keep reverted, others restore
-        ("off ", "of "),  // EXCEPTION: o-f-f → of (common English word)
-        ("iff ", "if "),  // EXCEPTION: i-f-f → if (common English word)
-        ("eff ", "eff "), // e-f-f → eff (restore to English)
-        ("aff ", "aff "), // a-f-f → aff (restore to English)
+        // Double ss/ff: keep buffer (not in dict)
+        ("ass ", "as "), // a-s-s → as (not in dict)
+        ("off ", "of "), // o-f-f → of (not in dict)
+        ("iff ", "if "), // i-f-f → if (not in dict)
+        ("eff ", "ef "), // e-f-f → ef (not in dict)
+        ("aff ", "af "), // a-f-f → af (not in dict)
         // Other modifiers (rr, xx, jj) keep reverted form
         ("err ", "er "), // e-r-r → er
         ("ajj ", "aj "), // a-j-j → aj

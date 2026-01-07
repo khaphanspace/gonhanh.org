@@ -3440,19 +3440,13 @@ impl Engine {
                 } else if !buffer_invalid_vn {
                     // Valid Vietnamese buffer + no W pattern → keep Vietnamese (tên, tét, dóc, bít, etc.)
                 } else {
-                    // Invalid Vietnamese → check for double vowel pattern
-                    let has_double_vowel = self.raw_input.windows(2).any(|pair| {
-                        let (k1, _, _) = pair[0];
-                        let (k2, _, _) = pair[1];
-                        k1 == k2 && (k1 == keys::O || k1 == keys::E || k1 == keys::A)
-                    });
-
-                    if has_double_vowel && raw_in_english_dict {
-                        // Double vowel + English dict → restore (poor, beer, deeper)
+                    // Invalid Vietnamese buffer → only restore if raw_input is in English dict
+                    // Case 1: raw in dict → restore to raw ("mass" → "mass")
+                    // Case 2: raw not in dict → keep buffer ("ress" → "res", "taxx" → "tax")
+                    if raw_in_english_dict {
                         return self.build_raw_chars_exact();
                     }
-                    // Invalid Vietnamese → restore to English
-                    return self.build_raw_chars_exact();
+                    // Not in dict → keep buffer (user's intentional double-key result)
                 }
             }
 

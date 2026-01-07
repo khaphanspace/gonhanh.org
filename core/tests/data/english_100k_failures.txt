@@ -159,6 +159,7 @@ norms	nóm
 phys	phý
 thee	thê
 moore	mổe
+senses	sens
 worn	ưởn
 sur	sủ
 lots	lót
@@ -215,6 +216,7 @@ hers	hé
 norm	nỏm
 vis	ví
 verses	vế
+rests	rets
 disc	díc
 lungs	lúng
 tense	tến
@@ -350,6 +352,7 @@ lays	láy
 como	côm
 honors	hốn
 tier	tiẻ
+cosmos	cosms
 roofs	rố
 roar	roả
 sans	sán
@@ -359,6 +362,7 @@ sworn	sưởn
 homo	hôm
 pest	pét
 eec	êc
+lasts	lats
 tar	tả
 mis	mí
 ox	õ
@@ -367,8 +371,10 @@ pier	piẻ
 buys	buý
 cos	có
 nuns	nún
+casts	cats
 hast	hát
 cheer	chể
+nests	nets
 aura	ẩu
 dwarf	dừa
 toast	toát
@@ -397,12 +403,14 @@ pores	poé
 chores	choé
 wm	ưm
 dana	dân
+coasts	coats
 boast	boát
 wo	ươ
 pests	pets
 mw	mư
 doom	dôm
 ee	ê
+bursts	buts
 rex	rẽ
 bust	bút
 niece	niêc
@@ -548,6 +556,7 @@ dyer	dyẻ
 thorns	thón
 bern	bẻn
 yer	yẻ
+uss	us
 ddt	đt
 hens	hén
 boxer	boẻ
@@ -557,16 +566,19 @@ cary	cảy
 lax	lã
 lex	lẽ
 hays	háy
+lerner	lernr
 taps	táp
 boar	boả
 kits	kít
 def	dè
 hermes	hếm
 townships	townshis
+chests	chets
 lawns	lắn
 loser	loẻ
 beers	bế
 pies	pié
+testes	tests
 ama	âm
 vers	vé
 rees	rế
@@ -580,6 +592,7 @@ hier	hiẻ
 trojan	troạn
 rw	rư
 gasp	gáp
+boasts	boats
 trois	trói
 bur	bủ
 voor	vổ
@@ -659,6 +672,7 @@ gist	gít
 boers	boé
 liens	lién
 ics	íc
+orr	or
 ij	ị
 boas	boá
 meme	mêm
@@ -674,7 +688,9 @@ dwarfs	dứa
 pow	pơ
 loo	lô
 ecr	ẻc
+masts	mats
 loot	lôt
+mists	mits
 durand	đuản
 heme	hêm
 uf	ù
@@ -744,6 +760,7 @@ lees	lế
 oro	ổ
 ari	ải
 nara	nẩ
+oss	os
 osi	ói
 pee	pê
 busch	búch
@@ -757,6 +774,7 @@ pari	pải
 gar	gả
 mans	mán
 hex	hẽ
+ess	es
 suns	sún
 trier	triẻ
 tw	tư
@@ -770,10 +788,11 @@ swarms	sưám
 aix	ãi
 hereof	hềo
 saws	sắ
-estes	éestes
+estes	éests
 uri	ủi
 dif	dì
 caro	cảo
+tenses	tens
 lamar	lẩm
 bari	bải
 dude	đue
@@ -900,12 +919,14 @@ usaf	ùa
 resp	rép
 ens	én
 tics	tíc
+iss	is
 moms	móm
 lynx	lỹn
 soo	sô
 dias	día
 eos	éo
 dore	doẻ
+busts	buts
 loren	loẻn
 dwyer	dưyẻ
 hos	hó
@@ -913,6 +934,7 @@ serf	sè
 ecj	ẹc
 darn	dản
 meer	mể
+vests	vets
 aan	ân
 ajar	ẩ
 ary	ảy
@@ -927,6 +949,7 @@ hirst	hít
 doran	doản
 urns	ún
 loon	lôn
+eff	ef
 choses	choé
 lusaka	luấk
 huns	hún
@@ -945,8 +968,10 @@ ese	ế
 hoo	hô
 kee	kê
 congr	cỏng
+irr	ir
 rostow	rớt
 corso	cố
+gusts	guts
 cetera	ccetera
 dade	đae
 hamas	hấm
@@ -959,6 +984,7 @@ noaa	noâ
 afm	àm
 maj	mạ
 taj	tạ
+cusps	cups
 didn	đin
 ost	ót
 poco	pôc
@@ -981,6 +1007,7 @@ trojans	troán
 duran	duản
 lias	lía
 tur	tủ
+menses	mens
 ner	nẻ
 rajya	rậy
 otros	ốt
@@ -992,6 +1019,7 @@ veer	vể
 puis	púi
 uj	ụ
 dorn	dỏn
+gasps	gaps
 moo	mô
 haus	háu
 moray	moảy
@@ -1000,6 +1028,7 @@ ust	út
 ghee	ghê
 chas	chá
 churn	chủn
+lusts	luts
 ius	íu
 mair	mải
 aia	âi
@@ -1011,6 +1040,7 @@ hus	hú
 meso	méo
 aca	âc
 thar	thả
+wwii	wii
 nyerere	nyeree
 terns	tén
 nasir	nải
@@ -1077,6 +1107,7 @@ roos	rố
 byers	byé
 hams	hám
 borax	boã
+dusts	duts
 loos	lố
 thais	thái
 vats	vát
@@ -1085,6 +1116,7 @@ ais	ái
 chats	chát
 bestseller	betseller
 hor	hỏ
+toasts	toats
 dodson	đốn
 ocr	ỏc
 sama	sâm
@@ -1092,6 +1124,7 @@ aswan	ấn
 sams	sám
 vax	vã
 theor	thẻo
+aff	af
 eso	éo
 defuse	dếu
 doers	doé
@@ -1100,6 +1133,7 @@ cura	của
 mois	mói
 gaya	gây
 uw	ư
+iww	iw
 bestselling	betselling
 maru	mảu
 ris	rí
@@ -1116,6 +1150,7 @@ vasa	vấ
 garza	gâ
 duns	dún
 ors	ó
+arr	ar
 sips	síp
 dara	dẩ
 ler	lẻ
@@ -1180,6 +1215,7 @@ vara	vẩ
 casings	caings
 naps	náp
 poststructuralist	potstructuralist
+quests	quets
 ipx	ĩp
 dowd	đơ
 roo	rô
@@ -1193,6 +1229,7 @@ norsk	nók
 ajr	ả
 secs	séc
 sais	sái
+isps	ips
 naca	nâc
 dijk	dịk
 lors	ló
@@ -1214,6 +1251,7 @@ chakras	chấk
 pues	pué
 phasor	phảo
 bara	bẩ
+wwf	wf
 dde	đe
 gooch	gôch
 asr	ả
@@ -1277,6 +1315,7 @@ heer	hể
 bax	bã
 raya	rây
 haya	hây
+isms	ims
 aac	âc
 cosas	coá
 heures	hếu
@@ -1292,7 +1331,6 @@ vajra	vẩ
 mose	moé
 mesures	mếu
 luxor	luỏ
-fddi	fđi
 myer	myẻ
 nies	nié
 oops	ốp
@@ -1393,6 +1431,7 @@ manx	mãn
 hurons	huón
 chiasm	chíam
 toot	tôt
+kerner	kernr
 yf	ỳ
 dds	đs
 ees	ế
@@ -1418,7 +1457,6 @@ memes	mếm
 gow	gơ
 eez	e
 ded	đe
-tcdd	tcđ
 khasi	khái
 orf	ò
 raps	ráp
@@ -1492,6 +1530,7 @@ cosi	cói
 hwa	hưa
 cust	cút
 eeo	êo
+ddd	dd
 daf	dà
 oris	ói
 ifr	ỉ
@@ -1521,12 +1560,14 @@ dowson	dốn
 noirs	nói
 isn	ín
 coser	coẻ
+chasms	chams
 lef	lè
 lus	lú
 boor	bổ
 doj	dọ
 ojos	ố
 porno	pổn
+eee	ee
 dede	đê
 escher	ểch
 deen	dên
@@ -1548,6 +1589,7 @@ veces	vếc
 iaf	ìa
 hefner	hển
 arif	ài
+verner	vernr
 hoists	hoits
 noms	nóm
 kronor	krổn
@@ -1605,6 +1647,7 @@ hangars	hấng
 liana	liân
 rais	rái
 dword	đưở
+wwi	wi
 twp	tưp
 omo	ôm
 musics	muics
@@ -1619,13 +1662,16 @@ wch	ưch
 emr	ẻm
 khans	khán
 leche	lêch
+roasts	roats
 damas	dấm
 erf	è
 bix	bĩ
 thats	thát
+berner	bernr
 hansa	hấn
 treks	trék
 baas	bấ
+powwow	powow
 cocos	cốc
 caja	cậ
 rojo	rộ
@@ -1638,6 +1684,7 @@ siete	siêt
 busi	búi
 poser	poẻ
 aws	ắ
+ists	its
 rar	rả
 daya	dây
 inj	ịn
@@ -1694,7 +1741,7 @@ exner	ển
 oozes	oé
 toots	tốt
 goons	gốn
-berners	berner
+berners	bernrs
 hoots	hốt
 wfp	ừp
 seest	sết
@@ -1732,6 +1779,7 @@ oes	oé
 oot	ôt
 auras	ấu
 barnhart	barnhrt
+pastas	pasts
 chary	chảy
 afa	ầ
 rijn	rịn
@@ -1773,6 +1821,7 @@ tows	tớ
 roams	roám
 ero	ẻo
 horan	hoản
+rusts	ruts
 heros	héo
 mims	mím
 jeter	jjeter
@@ -1820,7 +1869,6 @@ osc	óc
 gast	gát
 esops	eops
 asis	ái
-maff	maf
 gaur	gảu
 tosa	toá
 owi	ơi
@@ -1896,6 +1944,7 @@ doxa	doã
 oom	ôm
 vix	vĩ
 haro	hảo
+ests	ets
 lujan	luạn
 lier	liẻ
 vips	víp
@@ -2092,6 +2141,7 @@ nwp	nưp
 maro	mảo
 acas	ấc
 booz	bo
+versts	vets
 morais	moái
 raa	râ
 marwar	mẩ
@@ -2135,6 +2185,7 @@ mojo	mộ
 duas	dúa
 qur	qủ
 mees	mế
+uscs	ucs
 haart	hẩt
 afsc	ác
 buri	bủi
@@ -2197,7 +2248,9 @@ transf	tràn
 puro	puỏ
 yx	ỹ
 miserere	miseree
+musts	muts
 ufw	ừ
+awwa	awa
 qwl	qưl
 uji	ụi
 gierke	giểk
@@ -2211,6 +2264,7 @@ pauw	paư
 chowk	chơk
 postseason	potseason
 marwan	mẩn
+thirsts	thits
 ojt	ọt
 sofer	soẻ
 suraj	sụa
@@ -2303,7 +2357,6 @@ minx	mĩn
 hojo	hộ
 goest	goét
 oer	oẻ
-doddridge	dodridge
 langa	lâng
 enfer	ển
 hongo	hông
@@ -2319,6 +2372,7 @@ kamaraj	kkamaraj
 unf	ùn
 demers	dếm
 maur	mảu
+parmar	parmr
 basa	bấ
 powis	pới
 mero	mẻo
@@ -2330,6 +2384,7 @@ coms	cóm
 wos	ướ
 somos	sốm
 osp	óp
+asps	aps
 daru	dảu
 vins	vín
 aji	ại
