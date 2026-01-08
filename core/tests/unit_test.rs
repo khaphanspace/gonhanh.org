@@ -402,6 +402,28 @@ const TELEX_WORDS: &[(&str, &str)] = &[
     ("Vieetj", "Việt"),
     ("DDaats", "Đất"),
     ("DDAATS", "ĐẤT"),
+    // Delayed circumflex with tone (a-j-a-n pattern)
+    ("vajan", "vận"),
+    ("hajan", "hận"),
+    ("cajan", "cận"),
+    // Tone override patterns (second modifier overrides first)
+    // j (nặng) → other tones
+    ("chajfo", "chào"), // j→f: nặng → huyền
+    ("chajso", "cháo"), // j→s: nặng → sắc
+    ("chajro", "chảo"), // j→r: nặng → hỏi
+    ("chajxo", "chão"), // j→x: nặng → ngã
+    // f (huyền) → other tones
+    ("chafso", "cháo"), // f→s: huyền → sắc
+    ("chafjo", "chạo"), // f→j: huyền → nặng
+    // s (sắc) → other tones
+    ("chasfo", "chào"), // s→f: sắc → huyền
+    ("chasjo", "chạo"), // s→j: sắc → nặng
+    // r (hỏi) → other tones
+    ("charfo", "chào"), // r→f: hỏi → huyền
+    ("charso", "cháo"), // r→s: hỏi → sắc
+    // x (ngã) → other tones
+    ("chaxfo", "chào"), // x→f: ngã → huyền
+    ("chaxjo", "chạo"), // x→j: ngã → nặng
 ];
 
 const VNI_WORDS: &[(&str, &str)] = &[

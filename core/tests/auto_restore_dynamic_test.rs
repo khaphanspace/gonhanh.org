@@ -1053,3 +1053,42 @@ fn double_mark_middle_keeps_valid_word() {
         ("usser ", "user "),
     ]);
 }
+
+// ============================================================
+// TEST: Tone override patterns should stay Vietnamese
+// ============================================================
+
+#[test]
+fn tone_override_stays_vietnamese() {
+    telex_auto_restore(&[
+        // Tone override: j (nặng) → other tones
+        ("chajfo ", "chào "), // j→f: nặng → huyền
+        ("chajso ", "cháo "), // j→s: nặng → sắc
+        ("chajro ", "chảo "), // j→r: nặng → hỏi
+        ("chajxo ", "chão "), // j→x: nặng → ngã
+        // Tone override: f (huyền) → other tones
+        ("chafso ", "cháo "), // f→s: huyền → sắc
+        ("chafro ", "chảo "), // f→r: huyền → hỏi
+        ("chafxo ", "chão "), // f→x: huyền → ngã
+        ("chafjo ", "chạo "), // f→j: huyền → nặng
+        // Tone override: s (sắc) → other tones
+        ("chasfo ", "chào "), // s→f: sắc → huyền
+        ("chasro ", "chảo "), // s→r: sắc → hỏi
+        ("chasxo ", "chão "), // s→x: sắc → ngã
+        ("chasjo ", "chạo "), // s→j: sắc → nặng
+        // Tone override: r (hỏi) → other tones
+        ("charfo ", "chào "), // r→f: hỏi → huyền
+        ("charso ", "cháo "), // r→s: hỏi → sắc
+        ("charxo ", "chão "), // r→x: hỏi → ngã
+        ("charjo ", "chạo "), // r→j: hỏi → nặng
+        // Tone override: x (ngã) → other tones
+        ("chaxfo ", "chào "), // x→f: ngã → huyền
+        ("chaxso ", "cháo "), // x→s: ngã → sắc
+        ("chaxro ", "chảo "), // x→r: ngã → hỏi
+        ("chaxjo ", "chạo "), // x→j: ngã → nặng
+        // Delayed circumflex with tone (from previous fix)
+        ("vajan ", "vận "), // a→j→a→n pattern
+        ("hajan ", "hận "),
+        ("cajan ", "cận "),
+    ]);
+}
