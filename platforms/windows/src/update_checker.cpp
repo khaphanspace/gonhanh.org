@@ -1,5 +1,4 @@
 #include "update_checker.h"
-#include "rust_bridge.h"
 #include "logger.h"
 #include <Windows.h>
 #include <winhttp.h>
@@ -18,7 +17,7 @@ UpdateChecker& UpdateChecker::instance() {
 void UpdateChecker::check_for_updates(CheckCallback callback) {
     // Run in background thread
     std::thread([this, callback]() {
-        Logger::info(L"Checking for updates...");
+        Logger::info("Checking for updates...");
 
         HINTERNET hSession = nullptr;
         HINTERNET hConnect = nullptr;
@@ -291,7 +290,7 @@ void UpdateChecker::parse_response(const std::string& json, CheckCallback callba
     info.published_at = std::wstring(best_published.begin(), best_published.end());
     info.file_size = best_size;
 
-    Logger::info(L"Update available: " + info.version);
+    Logger::info("Update available: %ls", info.version.c_str());
     callback(UpdateCheckResult::Available, info, L"");
 }
 
@@ -340,12 +339,7 @@ bool UpdateChecker::extract_json_bool(const std::string& json, const std::string
 }
 
 int UpdateChecker::compare_versions(const std::string& v1, const std::string& v2) {
-    auto& bridge = RustBridge::instance();
-    if (bridge.is_loaded()) {
-        return bridge.version_compare(v1.c_str(), v2.c_str());
-    }
-
-    // Fallback: simple comparison
+    // Simple version comparison (no Rust dependency needed for this)
     auto parse_version = [](const std::string& v) -> std::tuple<int, int, int> {
         int major = 0, minor = 0, patch = 0;
         sscanf_s(v.c_str(), "%d.%d.%d", &major, &minor, &patch);

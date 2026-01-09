@@ -15,11 +15,11 @@ void HotkeyPicker::draw(
     auto& renderer = D2DRenderer::instance();
 
     // Background color based on state
-    D2D1::ColorF bg_color = recording
-        ? D2D1::ColorF(0.96f, 0.98f, 1.0f)  // Light blue when recording
-        : (hover ? D2D1::ColorF(0.97f, 0.97f, 0.98f) : D2D1::ColorF(0.96f, 0.96f, 0.97f));
+    D2D1_COLOR_F bg_color = recording
+        ? D2D1_COLOR_F{0.96f, 0.98f, 1.0f, 1.0f}  // Light blue when recording
+        : (hover ? D2D1_COLOR_F{0.97f, 0.97f, 0.98f, 1.0f} : D2D1_COLOR_F{0.96f, 0.96f, 0.97f, 1.0f});
 
-    D2D1::ColorF border_color = recording
+    D2D1_COLOR_F border_color = recording
         ? Colors::Primary  // Blue border when recording
         : Colors::Border;
 
@@ -34,7 +34,7 @@ void HotkeyPicker::draw(
 
     // Text
     std::wstring text;
-    D2D1::ColorF text_color;
+    D2D1_COLOR_F text_color = Colors::Text;
 
     if (recording) {
         auto& recorder = HotkeyRecorder::instance();

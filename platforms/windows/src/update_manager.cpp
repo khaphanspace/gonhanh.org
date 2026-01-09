@@ -137,7 +137,7 @@ void UpdateManager::download_update() {
 
 void UpdateManager::download_file(const std::wstring& url) {
     std::thread([this, url]() {
-        Logger::info(L"Downloading update: " + url);
+        Logger::info("Downloading update: %ls", url.c_str());
 
         HINTERNET hSession = nullptr;
         HINTERNET hConnect = nullptr;
@@ -287,14 +287,14 @@ void UpdateManager::download_file(const std::wstring& url) {
             return;
         }
 
-        Logger::info(L"Download complete: " + file_path);
+        Logger::info("Download complete: %ls", file_path.c_str());
         install_update(file_path);
     }).detach();
 }
 
 void UpdateManager::install_update(const std::wstring& file_path) {
     set_state(UpdateState::Installing);
-    Logger::info(L"Installing update from: " + file_path);
+    Logger::info("Installing update from: %ls", file_path.c_str());
 
     // For ZIP: Extract and run installer/updater
     // For EXE: Run directly

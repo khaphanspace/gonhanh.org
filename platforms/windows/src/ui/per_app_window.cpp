@@ -234,7 +234,7 @@ void PerAppWindow::render() {
         D2D1::RectF(padding, y, WIDTH - padding, y + list_height),
         8.0f, 8.0f
     };
-    auto card_brush = create_brush(render_target_.Get(), Colors::CardBackground);
+    auto card_brush = create_brush(render_target_.Get(), Colors::CardBg);
     render_target_->FillRoundedRectangle(list_bg, card_brush.Get());
     render_target_->DrawRoundedRectangle(list_bg, border_brush.Get(), 1.0f);
 
