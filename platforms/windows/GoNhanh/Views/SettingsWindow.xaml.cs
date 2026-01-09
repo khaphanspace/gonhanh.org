@@ -37,7 +37,7 @@ public partial class SettingsWindow : Window
     {
         if (_hotKeyService?.UpdateShortcut(newShortcut) == true)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 $"Đã đặt phím tắt: {newShortcut.DisplayString}",
                 "Thành công",
                 MessageBoxButton.OK,
@@ -45,7 +45,7 @@ public partial class SettingsWindow : Window
         }
         else
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 "Không thể đặt phím tắt này.\nCó thể đã được sử dụng bởi ứng dụng khác.",
                 "Lỗi",
                 MessageBoxButton.OK,
@@ -208,7 +208,7 @@ public partial class SettingsWindow : Window
             switch (result)
             {
                 case UpdateCheckResult.Available:
-                    var response = MessageBox.Show(
+                    var response = System.Windows.MessageBox.Show(
                         $"Đã có phiên bản mới: {updateService.LatestUpdate?.Version}\n\nBạn có muốn tải về không?",
                         "Cập nhật có sẵn",
                         MessageBoxButton.YesNo,
@@ -221,7 +221,7 @@ public partial class SettingsWindow : Window
                     break;
 
                 case UpdateCheckResult.UpToDate:
-                    MessageBox.Show(
+                    System.Windows.MessageBox.Show(
                         $"Bạn đang sử dụng phiên bản mới nhất ({AppMetadata.Version}).",
                         "Không có cập nhật",
                         MessageBoxButton.OK,
@@ -229,7 +229,7 @@ public partial class SettingsWindow : Window
                     break;
 
                 case UpdateCheckResult.Error:
-                    MessageBox.Show(
+                    System.Windows.MessageBox.Show(
                         $"Không thể kiểm tra cập nhật:\n{updateService.ErrorMessage}",
                         "Lỗi",
                         MessageBoxButton.OK,
@@ -239,7 +239,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 $"Lỗi: {ex.Message}",
                 "Lỗi",
                 MessageBoxButton.OK,

@@ -21,14 +21,14 @@ public partial class ShortcutEditDialog : Window
     {
         if (string.IsNullOrWhiteSpace(ShortcutKey))
         {
-            MessageBox.Show("Vui lòng nhập viết tắt.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("Vui lòng nhập viết tắt.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
             KeyInput.Focus();
             return;
         }
 
         if (string.IsNullOrWhiteSpace(ShortcutValue))
         {
-            MessageBox.Show("Vui lòng nhập nội dung thay thế.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("Vui lòng nhập nội dung thay thế.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
             ValueInput.Focus();
             return;
         }

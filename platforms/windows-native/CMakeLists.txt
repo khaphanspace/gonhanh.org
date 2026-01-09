@@ -86,10 +86,7 @@ if(MSVC)
     target_compile_options(GoNhanh PRIVATE /W4 /WX-)
 endif()
 
-# DPI awareness manifest
-set_target_properties(GoNhanh PROPERTIES
-    VS_DPI_AWARE "PerMonitor"
-)
+# Note: DPI awareness is set via app.manifest in app.rc (not via VS_DPI_AWARE to avoid duplicate manifest)
 
 # Output directory
 set_target_properties(GoNhanh PROPERTIES

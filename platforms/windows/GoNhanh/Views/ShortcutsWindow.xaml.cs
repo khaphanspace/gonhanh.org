@@ -53,7 +53,7 @@ public partial class ShortcutsWindow : Window
     {
         if (ShortcutsGrid.SelectedItem is ShortcutItem item)
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.System.Windows.MessageBox.Show(
                 $"Xóa viết tắt \"{item.Key}\"?",
                 "Xác nhận",
                 MessageBoxButton.YesNo,
@@ -69,7 +69,7 @@ public partial class ShortcutsWindow : Window
 
     private void Import_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog
+        var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
             Title = "Nhập viết tắt"
@@ -82,11 +82,11 @@ public partial class ShortcutsWindow : Window
                 var content = System.IO.File.ReadAllText(dialog.FileName);
                 var count = _shortcuts.Import(content);
                 RefreshList();
-                MessageBox.Show($"Đã nhập {count} viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show($"Đã nhập {count} viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Không thể nhập file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Không thể nhập file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -95,11 +95,11 @@ public partial class ShortcutsWindow : Window
     {
         if (_shortcuts.TotalCount == 0)
         {
-            MessageBox.Show("Chưa có viết tắt nào để xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show("Chưa có viết tắt nào để xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var dialog = new SaveFileDialog
+        var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "Text files (*.txt)|*.txt",
             FileName = "gonhanh-shortcuts.txt",
@@ -111,11 +111,11 @@ public partial class ShortcutsWindow : Window
             try
             {
                 System.IO.File.WriteAllText(dialog.FileName, _shortcuts.Export());
-                MessageBox.Show("Đã xuất viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show("Đã xuất viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Không thể xuất file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Không thể xuất file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -132,7 +132,7 @@ public partial class ShortcutsWindow : Window
 
     private void ToggleEnabled_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is CheckBox { DataContext: ShortcutItem item })
+        if (sender is System.Windows.Controls.CheckBox { DataContext: ShortcutItem item })
         {
             _shortcuts.Update(item.Id, item.Key, item.Value, item.IsEnabled);
             UpdateCount();
