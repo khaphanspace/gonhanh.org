@@ -4,14 +4,18 @@
 
 namespace gonhanh::ui {
 
-// Apple-style toggle switch control
-// Dimensions: 44x24 with pill shape
+// Windows 11 style toggle switch control
+// Based on WinUI 3 ToggleSwitch component
+// Dimensions: 40x20 with pill shape
 class Toggle {
 public:
-    static constexpr float WIDTH = 44.0f;
-    static constexpr float HEIGHT = 24.0f;
-    static constexpr float THUMB_SIZE = 20.0f;
-    static constexpr float THUMB_MARGIN = 2.0f;
+    // Windows 11 ToggleSwitch dimensions
+    static constexpr float WIDTH = 40.0f;
+    static constexpr float HEIGHT = 20.0f;
+    static constexpr float THUMB_SIZE_OFF = 12.0f;   // Thumb when off
+    static constexpr float THUMB_SIZE_ON = 14.0f;    // Thumb when on (slightly larger)
+    static constexpr float THUMB_MARGIN = 4.0f;
+    static constexpr float BORDER_WIDTH = 1.0f;
 
     // Draw toggle at position
     static void draw(

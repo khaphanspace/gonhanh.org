@@ -3,6 +3,13 @@
 
 namespace gonhanh::ui {
 
+// Windows 11 NavigationView colors
+namespace NavColors {
+    constexpr D2D1_COLOR_F ItemSelected = {0.918f, 0.918f, 0.918f, 1.0f};     // #EAEAEA (subtle fill)
+    constexpr D2D1_COLOR_F ItemHover = {0.949f, 0.949f, 0.949f, 1.0f};        // #F2F2F2
+    constexpr D2D1_COLOR_F Indicator = {0.0f, 0.471f, 0.831f, 1.0f};          // #0078D4 (accent)
+}
+
 void Sidebar::draw_item(
     ID2D1RenderTarget* rt,
     float x, float y,
@@ -17,21 +24,32 @@ void Sidebar::draw_item(
         CORNER_RADIUS
     };
 
-    // Background
-    if (selected) {
-        auto bg_brush = create_brush(rt, D2D1::ColorF(0.9f, 0.9f, 0.92f));
-        rt->FillRoundedRectangle(rect, bg_brush.Get());
-    } else if (hovered) {
-        auto bg_brush = create_brush(rt, D2D1::ColorF(0.93f, 0.93f, 0.95f, 0.5f));
+    // Background (Windows 11 subtle fill style)
+    if (selected || hovered) {
+        auto bg_color = selected ? NavColors::ItemSelected : NavColors::ItemHover;
+        auto bg_brush = create_brush(rt, bg_color);
         rt->FillRoundedRectangle(rect, bg_brush.Get());
     }
 
+    // Selection indicator (Windows 11 pill bar on left)
+    if (selected) {
+        float indicator_y = y + (ITEM_HEIGHT - INDICATOR_HEIGHT) / 2.0f;
+        D2D1_ROUNDED_RECT indicator = {
+            {x + 4, indicator_y, x + 4 + INDICATOR_WIDTH, indicator_y + INDICATOR_HEIGHT},
+            INDICATOR_WIDTH / 2.0f,  // Pill shape
+            INDICATOR_WIDTH / 2.0f
+        };
+        auto indicator_brush = create_brush(rt, NavColors::Indicator);
+        rt->FillRoundedRectangle(indicator, indicator_brush.Get());
+    }
+
     // Text
-    auto text_brush = create_brush(rt, selected ? Colors::Text : Colors::TextSecondary);
+    auto text_color = selected ? Colors::Text : Colors::TextSecondary;
+    auto text_brush = create_brush(rt, text_color);
     auto& renderer = D2DRenderer::instance();
 
     D2D1_RECT_F text_rect = {
-        x + ITEM_PADDING,
+        x + ITEM_PADDING + (selected ? 4 : 0),  // Indent text when selected (after indicator)
         y,
         x + width - ITEM_PADDING,
         y + ITEM_HEIGHT

@@ -4,13 +4,16 @@
 
 namespace gonhanh::ui {
 
-// Rounded card container with optional border
+// Windows 11 style card container (similar to WinUI 3 Card/Expander)
+// Uses 8px corner radius and subtle elevation
 class Card {
 public:
-    static constexpr float CORNER_RADIUS = 10.0f;
+    // Windows 11 design tokens
+    static constexpr float CORNER_RADIUS = 8.0f;    // WinUI 3 uses 8px for cards
     static constexpr float PADDING = 16.0f;
+    static constexpr float BORDER_WIDTH = 1.0f;
 
-    // Draw card background
+    // Draw card background with subtle shadow
     static void draw(
         ID2D1RenderTarget* rt,
         float x, float y,

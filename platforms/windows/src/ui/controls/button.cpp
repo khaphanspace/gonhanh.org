@@ -3,6 +3,19 @@
 
 namespace gonhanh::ui {
 
+// Windows 11 button colors
+namespace ButtonColors {
+    // Primary button (AccentButton in WinUI 3)
+    constexpr D2D1_COLOR_F PrimaryBg = {0.0f, 0.471f, 0.831f, 1.0f};         // #0078D4
+    constexpr D2D1_COLOR_F PrimaryBgHover = {0.035f, 0.424f, 0.784f, 1.0f};  // #096CC8
+    constexpr D2D1_COLOR_F PrimaryBgPressed = {0.067f, 0.380f, 0.733f, 1.0f}; // #1161BB
+    // Secondary button (standard Button in WinUI 3)
+    constexpr D2D1_COLOR_F SecondaryBg = {1.0f, 1.0f, 1.0f, 0.7f};           // Translucent white
+    constexpr D2D1_COLOR_F SecondaryBgHover = {0.969f, 0.969f, 0.969f, 0.9f}; // #F7F7F7
+    constexpr D2D1_COLOR_F SecondaryBgPressed = {0.949f, 0.949f, 0.949f, 1.0f}; // #F2F2F2
+    constexpr D2D1_COLOR_F SecondaryBorder = {0.820f, 0.820f, 0.820f, 1.0f}; // #D1D1D1
+}
+
 void Button::draw(
     ID2D1RenderTarget* rt,
     float x, float y,
@@ -12,7 +25,8 @@ void Button::draw(
     bool hovered,
     bool pressed
 ) {
-    constexpr float corner_radius = 6.0f;
+    // Windows 11 uses 4px corner radius for buttons
+    constexpr float corner_radius = 4.0f;
 
     D2D1_ROUNDED_RECT rect = {
         {x, y, x + width, y + height},
@@ -20,29 +34,32 @@ void Button::draw(
         corner_radius
     };
 
-    // Background
+    // Background and text colors based on style
     D2D1_COLOR_F bg_color;
     D2D1_COLOR_F text_color;
-    D2D1_COLOR_F border_color = Colors::Border;
+    D2D1_COLOR_F border_color = ButtonColors::SecondaryBorder;
 
     switch (style) {
         case ButtonStyle::Primary:
-            bg_color = pressed ? D2D1::ColorF(0.1f, 0.3f, 0.8f) :
-                      hovered ? D2D1::ColorF(0.12f, 0.35f, 0.85f) :
-                      Colors::Primary;
-            text_color = Colors::CardBg;
+            // AccentButton style - solid accent color
+            bg_color = pressed ? ButtonColors::PrimaryBgPressed :
+                      hovered ? ButtonColors::PrimaryBgHover :
+                      ButtonColors::PrimaryBg;
+            text_color = {1.0f, 1.0f, 1.0f, 1.0f};  // White text
             border_color = bg_color;
             break;
 
         case ButtonStyle::Secondary:
-            bg_color = pressed ? D2D1::ColorF(0.93f, 0.93f, 0.93f) :
-                      hovered ? D2D1::ColorF(0.97f, 0.97f, 0.98f) :
-                      Colors::CardBg;
+            // Standard button - subtle fill with border
+            bg_color = pressed ? ButtonColors::SecondaryBgPressed :
+                      hovered ? ButtonColors::SecondaryBgHover :
+                      ButtonColors::SecondaryBg;
             text_color = Colors::Text;
             break;
 
         case ButtonStyle::Text:
-            bg_color = hovered ? D2D1::ColorF(0.95f, 0.95f, 0.96f, 0.5f) :
+            // HyperlinkButton style - transparent background
+            bg_color = hovered ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.04f) :
                        D2D1::ColorF(0, 0, 0, 0);
             text_color = Colors::Primary;
             border_color = D2D1::ColorF(0, 0, 0, 0);

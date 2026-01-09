@@ -9,19 +9,31 @@ using Microsoft::WRL::ComPtr;
 
 namespace gonhanh::ui {
 
-// Color palette matching macOS design
+// Windows 11 Fluent Design color palette
+// Based on WinUI 3 Light Theme tokens
 namespace Colors {
-    constexpr D2D1_COLOR_F Primary = {0.145f, 0.388f, 0.922f, 1.0f};      // #2563EB
-    constexpr D2D1_COLOR_F Text = {0.122f, 0.161f, 0.216f, 1.0f};         // #1F2937
-    constexpr D2D1_COLOR_F TextSecondary = {0.420f, 0.451f, 0.502f, 1.0f}; // #6B7280
-    constexpr D2D1_COLOR_F TextTertiary = {0.612f, 0.639f, 0.686f, 1.0f};  // #9CA3AF
-    constexpr D2D1_COLOR_F Border = {0.898f, 0.906f, 0.922f, 1.0f};        // #E5E7EB
-    constexpr D2D1_COLOR_F Background = {0.980f, 0.980f, 0.980f, 1.0f};    // #FAFAFA
-    constexpr D2D1_COLOR_F CardBg = {1.0f, 1.0f, 1.0f, 1.0f};             // White
+    // Accent color (Windows default blue)
+    constexpr D2D1_COLOR_F Primary = {0.0f, 0.471f, 0.831f, 1.0f};        // #0078D4 (Windows accent)
+
+    // Text colors
+    constexpr D2D1_COLOR_F Text = {0.102f, 0.102f, 0.102f, 1.0f};         // #1A1A1A (TextFillColorPrimary)
+    constexpr D2D1_COLOR_F TextSecondary = {0.380f, 0.380f, 0.380f, 1.0f}; // #616161 (TextFillColorSecondary)
+    constexpr D2D1_COLOR_F TextTertiary = {0.545f, 0.545f, 0.545f, 1.0f};  // #8B8B8B (TextFillColorTertiary)
+    constexpr D2D1_COLOR_F TextDisabled = {0.678f, 0.678f, 0.678f, 1.0f};  // #ADADAD (TextFillColorDisabled)
+
+    // Surface colors
+    constexpr D2D1_COLOR_F Background = {0.953f, 0.953f, 0.953f, 1.0f};   // #F3F3F3 (SolidBackgroundFillColorBase)
+    constexpr D2D1_COLOR_F CardBg = {1.0f, 1.0f, 1.0f, 1.0f};             // #FFFFFF (CardBackgroundFillColorDefault)
+    constexpr D2D1_COLOR_F Border = {0.820f, 0.820f, 0.820f, 1.0f};       // #D1D1D1 (CardStrokeColorDefault)
+
+    // Control colors
     constexpr D2D1_COLOR_F ToggleOn = Primary;
-    constexpr D2D1_COLOR_F ToggleOff = {0.898f, 0.906f, 0.922f, 1.0f};    // #E5E7EB
-    constexpr D2D1_COLOR_F Orange = {0.976f, 0.451f, 0.086f, 1.0f};       // #F97316 (Beta badge)
-    constexpr D2D1_COLOR_F Green = {0.133f, 0.773f, 0.369f, 1.0f};        // #22C55E (Success)
+    constexpr D2D1_COLOR_F ToggleOff = {0.678f, 0.678f, 0.678f, 1.0f};    // #ADADAD (ControlStrongStrokeColorDefault)
+
+    // Semantic colors
+    constexpr D2D1_COLOR_F Orange = {0.976f, 0.451f, 0.086f, 1.0f};       // #F97316 (Caution/Beta badge)
+    constexpr D2D1_COLOR_F Green = {0.106f, 0.620f, 0.286f, 1.0f};        // #1B9E49 (Success)
+    constexpr D2D1_COLOR_F Red = {0.784f, 0.188f, 0.188f, 1.0f};          // #C83030 (Error)
 }
 
 // Direct2D renderer singleton
