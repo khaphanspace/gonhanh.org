@@ -7,6 +7,7 @@
 #include "../app.h"
 #include "../settings.h"
 #include <shellapi.h>
+#include <windowsx.h>
 
 namespace gonhanh::ui {
 

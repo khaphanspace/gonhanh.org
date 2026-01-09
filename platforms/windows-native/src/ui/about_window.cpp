@@ -330,7 +330,7 @@ void AboutWindow::render() {
     renderer.dwrite_factory()->CreateTextFormat(
         L"Segoe UI",
         nullptr,
-        DWRITE_FONT_WEIGHT_SEMIBOLD,
+        static_cast<DWRITE_FONT_WEIGHT>(600),  // SEMIBOLD
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
         13.0f,

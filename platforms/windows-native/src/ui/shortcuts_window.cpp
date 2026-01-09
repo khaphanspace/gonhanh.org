@@ -4,9 +4,12 @@
 #include "../settings.h"
 #include "../rust_bridge.h"
 #include <shlobj.h>
+#include <commdlg.h>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+
+#pragma comment(lib, "comdlg32.lib")
 
 namespace gonhanh::ui {
 
@@ -146,7 +149,7 @@ void ShortcutsWindow::render() {
 
     // Key input field
     D2D1_RECT_F key_input_rect = {PADDING + 12, y + 32, WIDTH / 2 - 12, y + 60};
-    render_target_->FillRectangle(key_input_rect, Colors::CardBg);
+    render_target_->FillRectangle(key_input_rect, card_brush.Get());
     render_target_->DrawRectangle(key_input_rect, border_brush.Get(), 1.0f);
     if (!key_input_.empty()) {
         D2D1_RECT_F key_text_rect = {key_input_rect.left + 8, key_input_rect.top + 4,
@@ -172,7 +175,7 @@ void ShortcutsWindow::render() {
 
     // Value input field
     D2D1_RECT_F value_input_rect = {WIDTH / 2 + 12, y + 32, WIDTH - PADDING - 12 - 80, y + 60};
-    render_target_->FillRectangle(value_input_rect, Colors::CardBg);
+    render_target_->FillRectangle(value_input_rect, card_brush.Get());
     render_target_->DrawRectangle(value_input_rect, border_brush.Get(), 1.0f);
     if (!value_input_.empty()) {
         D2D1_RECT_F value_text_rect = {value_input_rect.left + 8, value_input_rect.top + 4,

@@ -1,5 +1,9 @@
 #include <windows.h>
+#include <objbase.h>
+#include <commctrl.h>
 #include "app.h"
+
+#pragma comment(lib, "comctl32.lib")
 
 int WINAPI wWinMain(
     _In_ HINSTANCE hInstance,
