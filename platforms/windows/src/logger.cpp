@@ -88,10 +88,10 @@ void Logger::log(LogLevel level, const char* format, va_list args) {
     // Level string
     const char* level_str = "";
     switch (level) {
-        case LogLevel::DEBUG: level_str = "DEBUG"; break;
-        case LogLevel::INFO:  level_str = "INFO "; break;
-        case LogLevel::WARN:  level_str = "WARN "; break;
-        case LogLevel::ERROR: level_str = "ERROR"; break;
+        case LogLevel::LOG_DEBUG: level_str = "DEBUG"; break;
+        case LogLevel::LOG_INFO:  level_str = "INFO "; break;
+        case LogLevel::LOG_WARN:  level_str = "WARN "; break;
+        case LogLevel::LOG_ERROR: level_str = "ERROR"; break;
     }
 
     // Format message
@@ -107,7 +107,7 @@ void Logger::debug(const char* format, ...) {
 #ifdef _DEBUG
     va_list args;
     va_start(args, format);
-    log(LogLevel::DEBUG, format, args);
+    log(LogLevel::LOG_DEBUG, format, args);
     va_end(args);
 #else
     (void)format;
@@ -117,21 +117,21 @@ void Logger::debug(const char* format, ...) {
 void Logger::info(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    log(LogLevel::INFO, format, args);
+    log(LogLevel::LOG_INFO, format, args);
     va_end(args);
 }
 
 void Logger::warn(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    log(LogLevel::WARN, format, args);
+    log(LogLevel::LOG_WARN, format, args);
     va_end(args);
 }
 
 void Logger::error(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    log(LogLevel::ERROR, format, args);
+    log(LogLevel::LOG_ERROR, format, args);
     va_end(args);
 }
 

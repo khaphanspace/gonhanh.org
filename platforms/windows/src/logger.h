@@ -8,7 +8,8 @@
 
 namespace gonhanh {
 
-enum class LogLevel { DEBUG, INFO, WARN, ERROR };
+// Note: Avoid using ERROR as it conflicts with Windows wingdi.h macro
+enum class LogLevel { LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR };
 
 class Logger {
 public:
