@@ -14,9 +14,8 @@ TrayIcon::~TrayIcon() {
 bool TrayIcon::initialize(HWND parent_hwnd) {
     hwnd_ = parent_hwnd;
 
-    // Create icons
-    icon_enabled_ = create_icon(true);
-    icon_disabled_ = create_icon(false);
+    // Create initial icon (enabled, Telex by default)
+    current_icon_ = create_icon(true, 0);
 
     // Setup notify icon data
     nid_.cbSize = sizeof(NOTIFYICONDATAW);
@@ -24,7 +23,7 @@ bool TrayIcon::initialize(HWND parent_hwnd) {
     nid_.uID = 1;
     nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid_.uCallbackMessage = WM_TRAY_ICON;
-    nid_.hIcon = icon_enabled_;
+    nid_.hIcon = current_icon_;
     wcscpy_s(nid_.szTip, L"GoNhanh - Telex [ON]");
 
     // Add icon to tray
@@ -49,21 +48,22 @@ void TrayIcon::shutdown() {
         menu_ = nullptr;
     }
 
-    if (icon_enabled_) {
-        DestroyIcon(icon_enabled_);
-        icon_enabled_ = nullptr;
-    }
+    destroy_current_icon();
+}
 
-    if (icon_disabled_) {
-        DestroyIcon(icon_disabled_);
-        icon_disabled_ = nullptr;
+void TrayIcon::destroy_current_icon() {
+    if (current_icon_) {
+        DestroyIcon(current_icon_);
+        current_icon_ = nullptr;
     }
 }
 
-HICON TrayIcon::create_icon(bool enabled) {
-    // Create a simple 16x16 icon
-    // Blue "V" when enabled, gray "E" when disabled
+HICON TrayIcon::create_icon(bool enabled, int method) {
+    // Create a 16x16 icon with rounded rect background
+    // Blue background with white "V" (Telex) or "N" (VNI) when enabled
+    // Gray background with white "E" when disabled
     const int size = 16;
+    const int radius = 3;
 
     HDC screen_dc = GetDC(nullptr);
     HDC mem_dc = CreateCompatibleDC(screen_dc);
@@ -80,32 +80,74 @@ HICON TrayIcon::create_icon(bool enabled) {
     HBITMAP color_bmp = CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
     HBITMAP mask_bmp = CreateBitmap(size, size, 1, 1, nullptr);
 
-    SelectObject(mem_dc, color_bmp);
+    HGDIOBJ old_bmp = SelectObject(mem_dc, color_bmp);
 
-    // Fill with rounded rect background
-    HBRUSH bg_brush = CreateSolidBrush(RGB(255, 255, 255));
-    RECT rect = {0, 0, size, size};
-    FillRect(mem_dc, &rect, bg_brush);
+    // Clear with transparent (black with alpha=0 - but we're using mask for transparency)
+    HBRUSH clear_brush = CreateSolidBrush(RGB(0, 0, 0));
+    RECT full_rect = {0, 0, size, size};
+    FillRect(mem_dc, &full_rect, clear_brush);
+    DeleteObject(clear_brush);
+
+    // Background color: blue when enabled, gray when disabled
+    COLORREF bg_color = enabled ? RGB(37, 99, 235) : RGB(107, 114, 128);
+    HBRUSH bg_brush = CreateSolidBrush(bg_color);
+    HPEN bg_pen = CreatePen(PS_SOLID, 1, bg_color);
+    HGDIOBJ old_brush = SelectObject(mem_dc, bg_brush);
+    HGDIOBJ old_pen = SelectObject(mem_dc, bg_pen);
+
+    // Draw rounded rectangle background
+    RoundRect(mem_dc, 0, 0, size, size, radius * 2, radius * 2);
+
+    SelectObject(mem_dc, old_brush);
+    SelectObject(mem_dc, old_pen);
     DeleteObject(bg_brush);
+    DeleteObject(bg_pen);
 
-    // Draw text
-    COLORREF text_color = enabled ? RGB(37, 99, 235) : RGB(156, 163, 175);  // Blue or gray
-    const wchar_t* text = enabled ? L"V" : L"E";
+    // Select text character based on state
+    const wchar_t* text;
+    if (enabled) {
+        text = (method == 0) ? L"V" : L"N";  // V for Telex, N for VNI
+    } else {
+        text = L"E";  // E for English/disabled
+    }
 
+    // Draw white text
     SetBkMode(mem_dc, TRANSPARENT);
-    SetTextColor(mem_dc, text_color);
+    SetTextColor(mem_dc, RGB(255, 255, 255));
 
     HFONT font = CreateFontW(
-        12, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
     );
     HFONT old_font = (HFONT)SelectObject(mem_dc, font);
 
-    DrawTextW(mem_dc, text, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    RECT text_rect = {0, 1, size, size};  // Slight offset for vertical centering
+    DrawTextW(mem_dc, text, -1, &text_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     SelectObject(mem_dc, old_font);
     DeleteObject(font);
+
+    // Create mask bitmap (black = opaque, white = transparent)
+    HDC mask_dc = CreateCompatibleDC(screen_dc);
+    SelectObject(mask_dc, mask_bmp);
+
+    // Fill with white (transparent)
+    HBRUSH white_brush = CreateSolidBrush(RGB(255, 255, 255));
+    FillRect(mask_dc, &full_rect, white_brush);
+    DeleteObject(white_brush);
+
+    // Draw black rounded rect (opaque area)
+    HBRUSH black_brush = CreateSolidBrush(RGB(0, 0, 0));
+    HPEN black_pen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+    SelectObject(mask_dc, black_brush);
+    SelectObject(mask_dc, black_pen);
+    RoundRect(mask_dc, 0, 0, size, size, radius * 2, radius * 2);
+    DeleteObject(black_brush);
+    DeleteObject(black_pen);
+    DeleteDC(mask_dc);
+
+    SelectObject(mem_dc, old_bmp);
 
     // Create icon
     ICONINFO icon_info = {};
@@ -138,6 +180,7 @@ void TrayIcon::create_context_menu() {
     // Settings & About
     AppendMenuW(menu_, MF_STRING, static_cast<UINT>(TrayMenuId::Settings), L"Cài đặt...");
     AppendMenuW(menu_, MF_STRING, static_cast<UINT>(TrayMenuId::About), L"Giới thiệu");
+    AppendMenuW(menu_, MF_STRING, static_cast<UINT>(TrayMenuId::CheckForUpdates), L"Kiểm tra cập nhật...");
     AppendMenuW(menu_, MF_SEPARATOR, 0, nullptr);
 
     // Exit
@@ -148,7 +191,10 @@ void TrayIcon::update_icon(bool enabled, int method) {
     enabled_ = enabled;
     method_ = method;
 
-    nid_.hIcon = enabled ? icon_enabled_ : icon_disabled_;
+    // Recreate icon with new state (shows V/N for Telex/VNI when enabled, E when disabled)
+    destroy_current_icon();
+    current_icon_ = create_icon(enabled, method);
+    nid_.hIcon = current_icon_;
 
     // Update tooltip
     const wchar_t* method_name = (method == 0) ? L"Telex" : L"VNI";

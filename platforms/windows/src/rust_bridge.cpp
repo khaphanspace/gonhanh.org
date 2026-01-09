@@ -74,6 +74,7 @@ void RustBridge::shutdown() {
     fn_ime_add_shortcut_ = nullptr;
     fn_ime_remove_shortcut_ = nullptr;
     fn_ime_clear_shortcuts_ = nullptr;
+    fn_ime_get_buffer_ = nullptr;
     fn_version_compare_ = nullptr;
     fn_version_has_update_ = nullptr;
     clear_error();
@@ -109,6 +110,7 @@ void RustBridge::load_functions() {
     LOAD_FN(ime_add_shortcut);
     LOAD_FN(ime_remove_shortcut);
     LOAD_FN(ime_clear_shortcuts);
+    LOAD_FN(ime_get_buffer);
     LOAD_FN(version_compare);
     LOAD_FN(version_has_update);
 
@@ -212,6 +214,40 @@ ImeResult RustBridge::process_key(uint16_t keycode, bool shift, bool capslock) {
 
     fn_ime_free_(native);
     clear_error();
+    return result;
+}
+
+std::wstring RustBridge::get_buffer() {
+    if (!fn_ime_get_buffer_) {
+        return L"";
+    }
+
+    // Buffer for UTF-32 codepoints (max 256 characters)
+    uint32_t buffer[256] = {0};
+    int64_t len = fn_ime_get_buffer_(buffer, 256);
+
+    if (len <= 0) {
+        return L"";
+    }
+
+    // Convert UTF-32 to wstring (UTF-16)
+    std::wstring result;
+    result.reserve(static_cast<size_t>(len) * 2);
+
+    for (int64_t i = 0; i < len; ++i) {
+        uint32_t cp = buffer[i];
+        if (cp == 0) break;
+
+        if (cp <= 0xFFFF) {
+            result += static_cast<wchar_t>(cp);
+        } else {
+            // Surrogate pair for codepoints > 0xFFFF
+            cp -= 0x10000;
+            result += static_cast<wchar_t>(0xD800 + (cp >> 10));
+            result += static_cast<wchar_t>(0xDC00 + (cp & 0x3FF));
+        }
+    }
+
     return result;
 }
 

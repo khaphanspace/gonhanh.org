@@ -78,6 +78,9 @@ public:
     // Process keystroke
     ImeResult process_key(uint16_t keycode, bool shift, bool capslock);
 
+    // Get current buffer content for composition display
+    std::wstring get_buffer();
+
     // Text abbreviations
     void add_shortcut(const std::string& trigger, const std::string& replacement);
     void remove_shortcut(const std::string& trigger);
@@ -130,6 +133,7 @@ private:
     void (*fn_ime_add_shortcut_)(const char*, const char*) = nullptr;
     void (*fn_ime_remove_shortcut_)(const char*) = nullptr;
     void (*fn_ime_clear_shortcuts_)() = nullptr;
+    int64_t (*fn_ime_get_buffer_)(uint32_t*, int64_t) = nullptr;
     int (*fn_version_compare_)(const char*, const char*) = nullptr;
     int (*fn_version_has_update_)(const char*, const char*) = nullptr;
 };

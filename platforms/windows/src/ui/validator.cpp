@@ -1,7 +1,10 @@
 #include "validator.h"
+#include "shortcuts_window.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cwctype>
+
+using gonhanh::ui::ShortcutItem;
 
 namespace gonhanh {
 
@@ -42,12 +45,12 @@ ValidationResult Validator::validate_shortcut_value(const std::wstring& value) {
 
 ValidationResult Validator::check_duplicate_key(
     const std::wstring& key,
-    const std::vector<std::pair<std::wstring, std::wstring>>& existing,
+    const std::vector<ShortcutItem>& existing,
     int exclude_index) {
 
     for (size_t i = 0; i < existing.size(); i++) {
         if (static_cast<int>(i) == exclude_index) continue;
-        if (_wcsicmp(existing[i].first.c_str(), key.c_str()) == 0) {
+        if (_wcsicmp(existing[i].key.c_str(), key.c_str()) == 0) {
             return {false, L"Từ viết tắt đã tồn tại"};
         }
     }

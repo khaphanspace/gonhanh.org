@@ -6,8 +6,16 @@
 #include "settings.h"
 #include "tray_icon.h"
 #include "hotkey.h"
+#include "update_manager.h"
+#include "sound_manager.h"
+#include "ui/composition_window.h"
+#include "ui/update_window.h"
 
 namespace gonhanh {
+
+App::~App() {
+    composition_window_.reset();
+}
 
 App& App::instance() {
     static App instance;
@@ -50,6 +58,7 @@ bool App::initialize(HINSTANCE hinstance) {
     setup_tray_icon();
     setup_keyboard_hook();
     setup_hotkey();
+    setup_composition_window();
 
     running_ = true;
     Logger::info("GoNhanh initialized successfully");
@@ -68,6 +77,9 @@ int App::run() {
 void App::shutdown() {
     Logger::info("GoNhanh shutting down");
     running_ = false;
+
+    hide_composition();
+    composition_window_.reset();
 
     KeyboardHook::instance().stop();
     HotKey::instance().shutdown();
@@ -157,6 +169,9 @@ void App::setup_tray_icon() {
             case TrayMenuId::About:
                 show_about();
                 break;
+            case TrayMenuId::CheckForUpdates:
+                show_update();
+                break;
             case TrayMenuId::Exit:
                 PostQuitMessage(0);
                 break;
@@ -180,6 +195,14 @@ void App::setup_hotkey() {
     }
 }
 
+void App::setup_composition_window() {
+    composition_window_ = std::make_unique<CompositionWindow>();
+    if (!composition_window_->create(hinstance_)) {
+        Logger::warn("Failed to create composition window - continuing without it");
+        composition_window_.reset();
+    }
+}
+
 void App::on_key_pressed(KeyPressEvent& event) {
     auto& settings = Settings::instance();
 
@@ -191,6 +214,7 @@ void App::on_key_pressed(KeyPressEvent& event) {
     // Clear buffer on Ctrl/Alt key combinations
     if (event.ctrl || event.alt) {
         RustBridge::instance().clear();
+        hide_composition();
         return;
     }
 
@@ -204,6 +228,9 @@ void App::on_key_pressed(KeyPressEvent& event) {
             TextSender::instance().send_text(result.text, result.backspace);
         }
     }
+
+    // Update composition window display
+    update_composition_display();
 }
 
 void App::toggle_enabled() {
@@ -214,7 +241,15 @@ void App::toggle_enabled() {
     RustBridge::instance().set_enabled(new_state);
     RustBridge::instance().clear();
 
+    // Hide composition when IME is disabled
+    if (!new_state) {
+        hide_composition();
+    }
+
     TrayIcon::instance().update_icon(new_state, settings.input_method());
+
+    // Play toggle sound feedback
+    SoundManager::instance().play_toggle_sound(new_state);
 }
 
 void App::set_method(int method) {
@@ -239,6 +274,17 @@ void App::show_about() {
     MessageBoxW(hwnd_, msg.c_str(), L"About GoNhanh", MB_ICONINFORMATION);
 }
 
+void App::show_update() {
+    auto& update_window = ui::UpdateWindow::instance();
+    update_window.show();
+
+    // Trigger check if in idle state
+    auto& manager = UpdateManager::instance();
+    if (manager.state() == UpdateState::Idle) {
+        manager.check_for_updates_manual();
+    }
+}
+
 void App::apply_settings_to_engine() {
     auto& settings = Settings::instance();
     auto& bridge = RustBridge::instance();
@@ -251,6 +297,26 @@ void App::apply_settings_to_engine() {
     bridge.set_english_auto_restore(settings.english_auto_restore());
     bridge.set_auto_capitalize(settings.auto_capitalize());
     bridge.set_bracket_shortcut(settings.bracket_shortcut());
+}
+
+void App::update_composition_display() {
+    if (!composition_window_) return;
+
+    auto buffer = RustBridge::instance().get_buffer();
+    if (buffer.empty()) {
+        hide_composition();
+    } else {
+        auto caret = KeyboardHook::get_caret_position();
+        if (caret.valid) {
+            composition_window_->show(buffer, caret.x, caret.y);
+        }
+    }
+}
+
+void App::hide_composition() {
+    if (composition_window_) {
+        composition_window_->hide();
+    }
 }
 
 LRESULT CALLBACK App::wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {

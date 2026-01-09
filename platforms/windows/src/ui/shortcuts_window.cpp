@@ -1,5 +1,6 @@
 #include "shortcuts_window.h"
 #include "d2d_renderer.h"
+#include "validator.h"
 #include "../app.h"
 #include "../settings.h"
 #include "../rust_bridge.h"
@@ -461,9 +462,45 @@ void ShortcutsWindow::sync_to_engine() {
 }
 
 void ShortcutsWindow::add_shortcut(const std::wstring& key, const std::wstring& value) {
-    if (key.empty() || value.empty()) return;
+    // Validate key
+    auto key_result = Validator::validate_shortcut_key(key);
+    if (!key_result.valid) {
+        MessageBoxW(hwnd_, key_result.error_message.c_str(), L"Lỗi", MB_ICONWARNING);
+        return;
+    }
 
-    // Check for duplicate key
+    // Validate value
+    auto value_result = Validator::validate_shortcut_value(value);
+    if (!value_result.valid) {
+        MessageBoxW(hwnd_, value_result.error_message.c_str(), L"Lỗi", MB_ICONWARNING);
+        return;
+    }
+
+    // Check for duplicate key (when adding new, not updating)
+    if (selected_index_ < 0) {
+        auto dup_result = Validator::check_duplicate_key(key, shortcuts_, selected_index_);
+        if (!dup_result.valid) {
+            // Ask if user wants to update existing
+            int result = MessageBoxW(hwnd_, dup_result.error_message.c_str(), L"Xác nhận", MB_YESNO | MB_ICONQUESTION);
+            if (result != IDYES) {
+                return;
+            }
+            // Find and update existing entry
+            auto it = std::find_if(shortcuts_.begin(), shortcuts_.end(),
+                                  [&key](const ShortcutItem& item) { return item.key == key; });
+            if (it != shortcuts_.end()) {
+                it->value = value;
+                save_shortcuts();
+                key_input_.clear();
+                value_input_.clear();
+                selected_index_ = -1;
+                InvalidateRect(hwnd_, nullptr, FALSE);
+                return;
+            }
+        }
+    }
+
+    // Check for duplicate key (allow if updating same item)
     auto it = std::find_if(shortcuts_.begin(), shortcuts_.end(),
                           [&key](const ShortcutItem& item) { return item.key == key; });
 
@@ -483,7 +520,28 @@ void ShortcutsWindow::add_shortcut(const std::wstring& key, const std::wstring& 
 }
 
 void ShortcutsWindow::update_shortcut(size_t index, const std::wstring& key, const std::wstring& value) {
-    if (index >= shortcuts_.size() || key.empty() || value.empty()) return;
+    if (index >= shortcuts_.size()) return;
+
+    // Validate key
+    auto key_result = Validator::validate_shortcut_key(key);
+    if (!key_result.valid) {
+        MessageBoxW(hwnd_, key_result.error_message.c_str(), L"Lỗi", MB_ICONWARNING);
+        return;
+    }
+
+    // Validate value
+    auto value_result = Validator::validate_shortcut_value(value);
+    if (!value_result.valid) {
+        MessageBoxW(hwnd_, value_result.error_message.c_str(), L"Lỗi", MB_ICONWARNING);
+        return;
+    }
+
+    // Check for duplicate key (exclude current index)
+    auto dup_result = Validator::check_duplicate_key(key, shortcuts_, static_cast<int>(index));
+    if (!dup_result.valid) {
+        MessageBoxW(hwnd_, dup_result.error_message.c_str(), L"Lỗi", MB_ICONWARNING);
+        return;
+    }
 
     shortcuts_[index].key = key;
     shortcuts_[index].value = value;

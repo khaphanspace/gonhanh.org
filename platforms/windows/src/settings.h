@@ -64,6 +64,8 @@ public:
     // Per-app mode states
     bool is_app_disabled(const std::wstring& app_name) const;
     void set_app_disabled(const std::wstring& app_name, bool disabled);
+    std::vector<std::wstring> get_disabled_apps() const;
+    void remove_disabled_app(const std::wstring& app_name);
 
     // Registry paths
     static constexpr const wchar_t* REG_PATH = L"SOFTWARE\\GoNhanh";

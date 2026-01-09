@@ -151,4 +151,29 @@ void Settings::set_app_disabled(const std::wstring& app_name, bool disabled) {
     }
 }
 
+std::vector<std::wstring> Settings::get_disabled_apps() const {
+    std::vector<std::wstring> apps;
+    HKEY key;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_PER_APP_PATH, 0, KEY_READ, &key) == ERROR_SUCCESS) {
+        DWORD index = 0;
+        wchar_t name[256];
+        DWORD name_len = 256;
+
+        while (RegEnumValueW(key, index++, name, &name_len, nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
+            apps.emplace_back(name);
+            name_len = 256;  // Reset for next iteration
+        }
+        RegCloseKey(key);
+    }
+    return apps;
+}
+
+void Settings::remove_disabled_app(const std::wstring& app_name) {
+    HKEY key;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_PER_APP_PATH, 0, KEY_WRITE, &key) == ERROR_SUCCESS) {
+        RegDeleteValueW(key, app_name.c_str());
+        RegCloseKey(key);
+    }
+}
+
 } // namespace gonhanh

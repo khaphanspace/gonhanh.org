@@ -4,8 +4,12 @@
 #include "controls/toggle.h"
 #include "controls/sidebar.h"
 #include "controls/button.h"
+#include "controls/hotkey_picker.h"
+#include "shortcuts_window.h"
+#include "per_app_window.h"
 #include "../app.h"
 #include "../settings.h"
+#include "../hotkey.h"
 #include <shellapi.h>
 #include <windowsx.h>
 
@@ -280,19 +284,23 @@ void SettingsWindow::render_settings_page() {
         float row_y = content_y + Card::PADDING;
 
         // Row 1: Phím tắt bật/tắt
-        D2D1_RECT_F text_rect = {row_x, row_y + 12, toggle_x - 120, row_y + 32};
+        D2D1_RECT_F text_rect = {row_x, row_y + 12, toggle_x - 130, row_y + 32};
         render_target_->DrawText(L"Phím tắt bật/tắt", 16, renderer.text_format_body(), text_rect, text_brush.Get());
 
-        // Display hotkey (Ctrl+Shift+V as example)
-        float hotkey_x = toggle_x - 110;
-        D2D1_RECT_F hotkey_rect = {hotkey_x, row_y + 10, hotkey_x + 100, row_y + 34};
-        auto hotkey_bg = create_brush(render_target_.Get(), D2D1::ColorF(0.95f, 0.95f, 0.96f));
-        D2D1_ROUNDED_RECT rounded_hotkey = {hotkey_rect, 6.0f, 6.0f};
-        render_target_->FillRoundedRectangle(rounded_hotkey, hotkey_bg.Get());
-
-        D2D1_RECT_F hotkey_text_rect = {hotkey_x + 8, row_y + 10, hotkey_x + 92, row_y + 34};
-        auto hotkey_text_brush = create_brush(render_target_.Get(), Colors::TextSecondary);
-        render_target_->DrawText(L"Ctrl+Shift+V", 12, renderer.text_format_small(), hotkey_text_rect, hotkey_text_brush.Get());
+        // Hotkey picker control
+        float hotkey_x = toggle_x - 120;
+        float hotkey_width = 130.0f;
+        uint32_t shortcut = settings.toggle_shortcut();
+        uint32_t modifiers = (shortcut >> 16) & 0xFFFF;
+        uint32_t vk = shortcut & 0xFFFF;
+        HotkeyPicker::draw(
+            render_target_.Get(),
+            hotkey_x, row_y + 8,
+            hotkey_width,
+            modifiers, vk,
+            recording_hotkey_,
+            hover_hotkey_picker_
+        );
 
         row_y += ROW_HEIGHT;
 
@@ -300,12 +308,19 @@ void SettingsWindow::render_settings_page() {
         Card::draw_separator(render_target_.Get(), content_x + Card::PADDING, row_y - 1, card_width - (Card::PADDING * 2));
 
         // Row 2: Bảng gõ tắt (clickable)
+        // Highlight row if hovered
+        if (hover_shortcuts_row_) {
+            auto hover_brush = create_brush(render_target_.Get(), D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.03f));
+            D2D1_RECT_F hover_rect = {content_x + Card::PADDING, row_y, content_x + card_width - Card::PADDING, row_y + ROW_HEIGHT - 1};
+            render_target_->FillRectangle(hover_rect, hover_brush.Get());
+        }
+
         text_rect = {row_x, row_y + 12, toggle_x - 40, row_y + 32};
         render_target_->DrawText(L"Bảng gõ tắt", 11, renderer.text_format_body(), text_rect, text_brush.Get());
 
         // Chevron
         float chevron_x = content_x + card_width - Card::PADDING - 16;
-        auto chevron_brush = create_brush(render_target_.Get(), Colors::TextTertiary);
+        auto chevron_brush = create_brush(render_target_.Get(), hover_shortcuts_row_ ? Colors::Primary : Colors::TextTertiary);
         D2D1_POINT_2F p1 = {chevron_x, row_y + 18};
         D2D1_POINT_2F p2 = {chevron_x + 6, row_y + 22};
         D2D1_POINT_2F p3 = {chevron_x, row_y + 26};
@@ -317,7 +332,8 @@ void SettingsWindow::render_settings_page() {
 
     // Card 3: System
     {
-        float card_height = (ROW_HEIGHT * 3) + (Card::PADDING * 2) - 1;
+        int num_rows = settings.per_app_mode() ? 4 : 3;  // Extra row for "Quản lý ứng dụng" when per-app mode enabled
+        float card_height = (ROW_HEIGHT * num_rows) + (Card::PADDING * 2) - 1;
         Card::draw(render_target_.Get(), content_x, content_y, card_width, card_height);
 
         float row_y = content_y + Card::PADDING;
@@ -336,6 +352,32 @@ void SettingsWindow::render_settings_page() {
         render_target_->DrawText(L"Tự chuyển chế độ theo ứng dụng", 30, renderer.text_format_body(), text_rect, text_brush.Get());
         Toggle::draw(render_target_.Get(), toggle_x, row_y + 10, settings.per_app_mode(), hover_toggle_index_ == 4);
         row_y += ROW_HEIGHT;
+
+        // Row 2.5: Quản lý ứng dụng (only show when per-app mode enabled)
+        if (settings.per_app_mode()) {
+            Card::draw_separator(render_target_.Get(), content_x + Card::PADDING, row_y - 1, card_width - (Card::PADDING * 2));
+
+            // Highlight row if hovered
+            if (hover_per_app_row_) {
+                auto hover_brush = create_brush(render_target_.Get(), D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.03f));
+                D2D1_RECT_F hover_rect = {content_x + Card::PADDING, row_y, content_x + card_width - Card::PADDING, row_y + ROW_HEIGHT - 1};
+                render_target_->FillRectangle(hover_rect, hover_brush.Get());
+            }
+
+            text_rect = {row_x, row_y + 12, toggle_x - 40, row_y + 32};
+            render_target_->DrawText(L"Quản lý ứng dụng", 16, renderer.text_format_body(), text_rect, text_brush.Get());
+
+            // Chevron
+            float chevron_x = content_x + card_width - Card::PADDING - 16;
+            auto chevron_brush = create_brush(render_target_.Get(), hover_per_app_row_ ? Colors::Primary : Colors::TextTertiary);
+            D2D1_POINT_2F p1 = {chevron_x, row_y + 18};
+            D2D1_POINT_2F p2 = {chevron_x + 6, row_y + 22};
+            D2D1_POINT_2F p3 = {chevron_x, row_y + 26};
+            render_target_->DrawLine(p1, p2, chevron_brush.Get(), 2.0f);
+            render_target_->DrawLine(p2, p3, chevron_brush.Get(), 2.0f);
+
+            row_y += ROW_HEIGHT;
+        }
 
         // Separator
         Card::draw_separator(render_target_.Get(), content_x + Card::PADDING, row_y - 1, card_width - (Card::PADDING * 2));
@@ -484,10 +526,14 @@ void SettingsWindow::handle_mouse_move(int x, int y) {
     int old_sidebar_item = hover_sidebar_item_;
     int old_toggle_index = hover_toggle_index_;
     bool old_shortcuts_hover = hover_shortcuts_row_;
+    bool old_per_app_hover = hover_per_app_row_;
+    bool old_hotkey_hover = hover_hotkey_picker_;
 
     hover_sidebar_item_ = -1;
     hover_toggle_index_ = -1;
     hover_shortcuts_row_ = false;
+    hover_per_app_row_ = false;
+    hover_hotkey_picker_ = false;
 
     // Check sidebar items
     if (x < SIDEBAR_WIDTH) {
@@ -531,20 +577,53 @@ void SettingsWindow::handle_mouse_move(int x, int y) {
 
         content_y += card_height + CARD_SPACING;
 
-        // Skip Card 2 (shortcuts)
+        // Card 2: Shortcuts - check hotkey picker and shortcuts row
         card_height = (ROW_HEIGHT * 2) + (Card::PADDING * 2) - 1;
+        row_y = content_y + Card::PADDING;
+        float hotkey_x = toggle_x - 120;
+        float hotkey_width = 130.0f;
+        if (HotkeyPicker::hit_test(hotkey_x, row_y + 8, hotkey_width, static_cast<float>(x), static_cast<float>(y))) {
+            hover_hotkey_picker_ = true;
+        }
+        row_y += ROW_HEIGHT;
+        // Shortcuts row hit test
+        if (static_cast<float>(x) >= content_x + Card::PADDING &&
+            static_cast<float>(x) <= content_x + card_width - Card::PADDING &&
+            static_cast<float>(y) >= row_y && static_cast<float>(y) < row_y + ROW_HEIGHT) {
+            hover_shortcuts_row_ = true;
+        }
         content_y += card_height + CARD_SPACING;
 
         // Card 3: System (toggles at index 3, 4, 5)
-        card_height = (ROW_HEIGHT * 3) + (Card::PADDING * 2) - 1;
+        int num_rows_card3 = settings.per_app_mode() ? 4 : 3;
+        card_height = (ROW_HEIGHT * num_rows_card3) + (Card::PADDING * 2) - 1;
         row_y = content_y + Card::PADDING;
 
-        for (int i = 3; i <= 5; i++) {
-            if (Toggle::hit_test(toggle_x, row_y + 10, static_cast<float>(x), static_cast<float>(y))) {
-                hover_toggle_index_ = i;
-                break;
+        // Toggle 3: Auto-start
+        if (Toggle::hit_test(toggle_x, row_y + 10, static_cast<float>(x), static_cast<float>(y))) {
+            hover_toggle_index_ = 3;
+        }
+        row_y += ROW_HEIGHT;
+
+        // Toggle 4: Per-app mode
+        if (Toggle::hit_test(toggle_x, row_y + 10, static_cast<float>(x), static_cast<float>(y))) {
+            hover_toggle_index_ = 4;
+        }
+        row_y += ROW_HEIGHT;
+
+        // Per-app row (only if per-app mode is enabled)
+        if (settings.per_app_mode()) {
+            if (static_cast<float>(x) >= content_x + Card::PADDING &&
+                static_cast<float>(x) <= content_x + card_width - Card::PADDING &&
+                static_cast<float>(y) >= row_y && static_cast<float>(y) < row_y + ROW_HEIGHT) {
+                hover_per_app_row_ = true;
             }
             row_y += ROW_HEIGHT;
+        }
+
+        // Toggle 5: English auto-restore
+        if (Toggle::hit_test(toggle_x, row_y + 10, static_cast<float>(x), static_cast<float>(y))) {
+            hover_toggle_index_ = 5;
         }
 
         content_y += card_height + CARD_SPACING;
@@ -563,7 +642,9 @@ void SettingsWindow::handle_mouse_move(int x, int y) {
     // Redraw if hover state changed
     if (old_sidebar_item != hover_sidebar_item_ ||
         old_toggle_index != hover_toggle_index_ ||
-        old_shortcuts_hover != hover_shortcuts_row_) {
+        old_shortcuts_hover != hover_shortcuts_row_ ||
+        old_per_app_hover != hover_per_app_row_ ||
+        old_hotkey_hover != hover_hotkey_picker_) {
         InvalidateRect(hwnd_, nullptr, FALSE);
     }
 }
@@ -578,6 +659,43 @@ void SettingsWindow::handle_mouse_down(int x, int y) {
             current_page_ = Page::About;
             InvalidateRect(hwnd_, nullptr, FALSE);
         }
+        return;
+    }
+
+    // Handle hotkey picker click
+    if (current_page_ == Page::Settings && hover_hotkey_picker_) {
+        if (!recording_hotkey_) {
+            recording_hotkey_ = true;
+            HotkeyRecorder::instance().start_recording([this](uint32_t modifiers, uint32_t vk) {
+                // Save the new hotkey
+                auto& settings = gonhanh::Settings::instance();
+                uint32_t encoded = (modifiers << 16) | vk;
+                settings.set_toggle_shortcut(encoded);
+
+                // Re-register the hotkey
+                auto& hotkey = gonhanh::HotKey::instance();
+                hotkey.unregister_toggle();
+                if (vk != 0) {
+                    hotkey.register_toggle(modifiers, vk);
+                }
+
+                recording_hotkey_ = false;
+                InvalidateRect(hwnd_, nullptr, FALSE);
+            });
+            InvalidateRect(hwnd_, nullptr, FALSE);
+        }
+        return;
+    }
+
+    // Handle shortcuts row click
+    if (current_page_ == Page::Settings && hover_shortcuts_row_) {
+        ShortcutsWindow::instance().show();
+        return;
+    }
+
+    // Handle per-app row click
+    if (current_page_ == Page::Settings && hover_per_app_row_) {
+        PerAppWindow::instance().show();
         return;
     }
 
@@ -656,6 +774,37 @@ LRESULT CALLBACK SettingsWindow::wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LP
                 self->handle_mouse_up(x, y);
             }
             return 0;
+
+        case WM_KEYDOWN:
+            if (self && self->recording_hotkey_) {
+                if (HotkeyRecorder::instance().process_key(static_cast<uint32_t>(wparam), true)) {
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                    return 0;
+                }
+            }
+            break;
+
+        case WM_KEYUP:
+            if (self && self->recording_hotkey_) {
+                if (HotkeyRecorder::instance().process_key(static_cast<uint32_t>(wparam), false)) {
+                    // Check if recording completed
+                    if (!HotkeyRecorder::instance().is_recording()) {
+                        self->recording_hotkey_ = false;
+                    }
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                    return 0;
+                }
+            }
+            break;
+
+        case WM_KILLFOCUS:
+            // Cancel recording if window loses focus
+            if (self && self->recording_hotkey_) {
+                HotkeyRecorder::instance().cancel();
+                self->recording_hotkey_ = false;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            break;
 
         case WM_CLOSE:
             ShowWindow(hwnd, SW_HIDE);

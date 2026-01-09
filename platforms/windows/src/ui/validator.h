@@ -13,6 +13,14 @@ struct ValidationResult {
     operator bool() const { return valid; }
 };
 
+} // namespace gonhanh
+
+namespace gonhanh::ui {
+struct ShortcutItem;  // Forward declaration
+}
+
+namespace gonhanh {
+
 class Validator {
 public:
     // Shortcut validation
@@ -20,7 +28,7 @@ public:
     static ValidationResult validate_shortcut_value(const std::wstring& value);
     static ValidationResult check_duplicate_key(
         const std::wstring& key,
-        const std::vector<std::pair<std::wstring, std::wstring>>& existing,
+        const std::vector<ui::ShortcutItem>& existing,
         int exclude_index = -1);
 
     // Hotkey validation

@@ -1,4 +1,6 @@
 #include "keyboard_hook.h"
+#include "settings.h"
+#include <psapi.h>
 
 namespace gonhanh {
 
@@ -91,6 +93,15 @@ LRESULT KeyboardHook::process_key(int code, WPARAM wparam, LPARAM lparam) {
         return CallNextHookEx(hook_, code, wparam, lparam);
     }
 
+    // Check per-app mode - if enabled and current app is disabled, skip processing
+    auto& settings = Settings::instance();
+    if (settings.per_app_mode()) {
+        std::wstring app_name = get_foreground_app_name();
+        if (!app_name.empty() && settings.is_app_disabled(app_name)) {
+            return CallNextHookEx(hook_, code, wparam, lparam);
+        }
+    }
+
     // Fire callback if set
     if (callback_) {
         is_processing_ = true;
@@ -170,6 +181,81 @@ bool KeyboardHook::is_buffer_clearing_key(uint16_t vk) {
         default:
             return false;
     }
+}
+
+KeyboardHook::CaretPosition KeyboardHook::get_caret_position() {
+    CaretPosition result = {0, 0, false};
+
+    // Get foreground window
+    HWND fg = GetForegroundWindow();
+    if (!fg) {
+        // Fallback to cursor position
+        POINT cursor;
+        if (GetCursorPos(&cursor)) {
+            return {cursor.x, cursor.y + 20, true};
+        }
+        return result;
+    }
+
+    DWORD thread_id = GetWindowThreadProcessId(fg, nullptr);
+    DWORD current_thread = GetCurrentThreadId();
+
+    // Attach to target thread to access caret
+    bool attached = false;
+    if (thread_id != current_thread) {
+        attached = AttachThreadInput(current_thread, thread_id, TRUE) != 0;
+    }
+
+    // Try to get caret position from focused window
+    HWND focus = GetFocus();
+    if (focus) {
+        POINT pt;
+        if (GetCaretPos(&pt)) {
+            ClientToScreen(focus, &pt);
+            result = {pt.x, pt.y, true};
+        }
+    }
+
+    // Detach from thread
+    if (attached) {
+        AttachThreadInput(current_thread, thread_id, FALSE);
+    }
+
+    // Fallback to cursor position if caret not found
+    if (!result.valid) {
+        POINT cursor;
+        if (GetCursorPos(&cursor)) {
+            result = {cursor.x, cursor.y + 20, true};
+        }
+    }
+
+    return result;
+}
+
+std::wstring KeyboardHook::get_foreground_app_name() {
+    HWND fg = GetForegroundWindow();
+    if (!fg) return L"";
+
+    DWORD process_id = 0;
+    GetWindowThreadProcessId(fg, &process_id);
+    if (!process_id) return L"";
+
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
+    if (!process) return L"";
+
+    wchar_t path[MAX_PATH] = {};
+    DWORD size = MAX_PATH;
+    std::wstring result;
+
+    if (QueryFullProcessImageNameW(process, 0, path, &size)) {
+        // Extract filename from path
+        std::wstring full_path = path;
+        size_t pos = full_path.find_last_of(L"\\/");
+        result = (pos != std::wstring::npos) ? full_path.substr(pos + 1) : full_path;
+    }
+
+    CloseHandle(process);
+    return result;
 }
 
 } // namespace gonhanh

@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <functional>
 #include <cstdint>
+#include <string>
 
 namespace gonhanh {
 
@@ -42,6 +43,18 @@ public:
     static bool is_number_key(uint16_t vk);
     static bool is_punctuation_key(uint16_t vk);
     static bool is_buffer_clearing_key(uint16_t vk);
+
+    // Caret position tracking
+    struct CaretPosition {
+        int x;
+        int y;
+        bool valid;
+    };
+
+    static CaretPosition get_caret_position();
+
+    // Get foreground app executable name
+    static std::wstring get_foreground_app_name();
 
 private:
     KeyboardHook() = default;

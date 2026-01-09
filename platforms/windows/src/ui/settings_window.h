@@ -58,10 +58,15 @@ private:
     int hover_sidebar_item_ = -1;  // -1=none, 0=settings, 1=about
     int hover_toggle_index_ = -1;   // Which toggle is hovered
     bool hover_shortcuts_row_ = false;
+    bool hover_per_app_row_ = false;
+    bool hover_hotkey_picker_ = false;
 
     // Track mouse position
     int mouse_x_ = 0;
     int mouse_y_ = 0;
+
+    // Hotkey recording state
+    bool recording_hotkey_ = false;
 };
 
 } // namespace gonhanh::ui

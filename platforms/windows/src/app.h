@@ -2,8 +2,11 @@
 
 #include <windows.h>
 #include <string>
+#include <memory>
 
 namespace gonhanh {
+
+class CompositionWindow;
 
 // Application class - manages lifecycle and message loop
 class App {
@@ -37,6 +40,9 @@ public:
     // Show about window
     void show_about();
 
+    // Show update window
+    void show_update();
+
     // Apply settings to Rust engine
     void apply_settings_to_engine();
 
@@ -48,7 +54,7 @@ public:
 
 private:
     App() = default;
-    ~App() = default;
+    ~App();
     App(const App&) = delete;
     App& operator=(const App&) = delete;
 
@@ -57,7 +63,10 @@ private:
     void setup_keyboard_hook();
     void setup_tray_icon();
     void setup_hotkey();
+    void setup_composition_window();
     void on_key_pressed(struct KeyPressEvent& event);
+    void update_composition_display();
+    void hide_composition();
 
     static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
@@ -65,6 +74,7 @@ private:
     HWND hwnd_ = nullptr;
     HANDLE mutex_ = nullptr;
     bool running_ = false;
+    std::unique_ptr<CompositionWindow> composition_window_;
 };
 
 } // namespace gonhanh

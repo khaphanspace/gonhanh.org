@@ -14,7 +14,8 @@ enum class TrayMenuId : UINT {
     VNI = 1003,
     Settings = 1004,
     About = 1005,
-    Exit = 1006,
+    CheckForUpdates = 1006,
+    Exit = 1007,
 };
 
 // System tray icon management
@@ -49,14 +50,14 @@ private:
     TrayIcon(const TrayIcon&) = delete;
     TrayIcon& operator=(const TrayIcon&) = delete;
 
-    HICON create_icon(bool enabled);
+    HICON create_icon(bool enabled, int method = 0);
     void create_context_menu();
+    void destroy_current_icon();
 
     HWND hwnd_ = nullptr;
     NOTIFYICONDATAW nid_ = {};
     HMENU menu_ = nullptr;
-    HICON icon_enabled_ = nullptr;
-    HICON icon_disabled_ = nullptr;
+    HICON current_icon_ = nullptr;  // Single icon, recreated on state change
     MenuCallback menu_callback_;
     bool enabled_ = true;
     int method_ = 0;
