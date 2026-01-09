@@ -48,7 +48,7 @@ public partial class ShortcutRecorderControl : System.Windows.Controls.UserContr
     private void StartRecording()
     {
         _isRecording = true;
-        RecorderBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)); // Blue
+        RecorderBorder.BorderBrush = new SolidColorBrush(global::System.Windows.Media.Color.FromRgb(59, 130, 246)); // Blue
         ShortcutText.Visibility = Visibility.Collapsed;
         RecordingText.Visibility = Visibility.Visible;
         Focusable = true;
@@ -58,7 +58,7 @@ public partial class ShortcutRecorderControl : System.Windows.Controls.UserContr
     private void StopRecording()
     {
         _isRecording = false;
-        RecorderBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(209, 213, 219)); // Gray
+        RecorderBorder.BorderBrush = new SolidColorBrush(global::System.Windows.Media.Color.FromRgb(209, 213, 219)); // Gray
         ShortcutText.Visibility = Visibility.Visible;
         RecordingText.Visibility = Visibility.Collapsed;
         Focusable = false;

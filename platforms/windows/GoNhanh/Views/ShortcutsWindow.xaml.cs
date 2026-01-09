@@ -53,7 +53,7 @@ public partial class ShortcutsWindow : Window
     {
         if (ShortcutsGrid.SelectedItem is ShortcutItem item)
         {
-            var result = System.Windows.System.Windows.MessageBox.Show(
+            var result = System.Windows.global::System.Windows.MessageBox.Show(
                 $"Xóa viết tắt \"{item.Key}\"?",
                 "Xác nhận",
                 MessageBoxButton.YesNo,
@@ -82,11 +82,11 @@ public partial class ShortcutsWindow : Window
                 var content = System.IO.File.ReadAllText(dialog.FileName);
                 var count = _shortcuts.Import(content);
                 RefreshList();
-                System.Windows.MessageBox.Show($"Đã nhập {count} viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+                global::System.Windows.MessageBox.Show($"Đã nhập {count} viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Không thể nhập file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                global::System.Windows.MessageBox.Show($"Không thể nhập file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -95,7 +95,7 @@ public partial class ShortcutsWindow : Window
     {
         if (_shortcuts.TotalCount == 0)
         {
-            System.Windows.MessageBox.Show("Chưa có viết tắt nào để xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            global::System.Windows.MessageBox.Show("Chưa có viết tắt nào để xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -111,11 +111,11 @@ public partial class ShortcutsWindow : Window
             try
             {
                 System.IO.File.WriteAllText(dialog.FileName, _shortcuts.Export());
-                System.Windows.MessageBox.Show("Đã xuất viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+                global::System.Windows.MessageBox.Show("Đã xuất viết tắt.", "Thành công", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Không thể xuất file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                global::System.Windows.MessageBox.Show($"Không thể xuất file: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -132,7 +132,7 @@ public partial class ShortcutsWindow : Window
 
     private void ToggleEnabled_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is System.Windows.Controls.CheckBox { DataContext: ShortcutItem item })
+        if (sender is global::System.Windows.Controls.CheckBox { DataContext: ShortcutItem item })
         {
             _shortcuts.Update(item.Id, item.Key, item.Value, item.IsEnabled);
             UpdateCount();

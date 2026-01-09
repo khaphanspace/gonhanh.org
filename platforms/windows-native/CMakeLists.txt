@@ -86,7 +86,11 @@ if(MSVC)
     target_compile_options(GoNhanh PRIVATE /W4 /WX-)
 endif()
 
-# Note: DPI awareness is set via app.manifest in app.rc (not via VS_DPI_AWARE to avoid duplicate manifest)
+# Note: DPI awareness is set via app.manifest in app.rc
+# Disable automatic manifest generation to avoid duplicate with app.rc
+if(MSVC)
+    set_target_properties(GoNhanh PROPERTIES LINK_FLAGS "/MANIFEST:NO")
+endif()
 
 # Output directory
 set_target_properties(GoNhanh PROPERTIES
