@@ -68,16 +68,47 @@ inline ComPtr<ID2D1SolidColorBrush> create_brush(ID2D1RenderTarget* rt, D2D1_COL
     return brush;
 }
 
-// Helper to ensure window has exact client area size
-// Call this after CreateWindowEx to fix DPI scaling issues
+// Get DPI scale factor for the system (Windows 11 style scaling)
+// Returns scale factor (1.0 = 96 DPI, 1.25 = 120 DPI, 1.5 = 144 DPI, 2.0 = 192 DPI)
+inline float get_dpi_scale() {
+    HDC hdc = GetDC(nullptr);
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(nullptr, hdc);
+    return static_cast<float>(dpi) / 96.0f;
+}
+
+// Get DPI scale factor for a specific window (per-monitor aware)
+inline float get_dpi_scale(HWND hwnd) {
+    // Use GetDpiForWindow for per-monitor DPI (Windows 10 1607+)
+    typedef UINT (WINAPI *GetDpiForWindowFn)(HWND);
+    static auto fn = reinterpret_cast<GetDpiForWindowFn>(
+        GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
+    if (fn && hwnd) {
+        UINT dpi = fn(hwnd);
+        if (dpi > 0) return static_cast<float>(dpi) / 96.0f;
+    }
+    return get_dpi_scale();
+}
+
+// Scale a value by DPI factor
+inline int scale_by_dpi(int value, float dpi_scale) {
+    return static_cast<int>(value * dpi_scale + 0.5f);
+}
+
+// Helper to ensure window has exact client area size (scaled for DPI)
+// target_width/height are logical sizes, will be scaled by DPI internally
 inline void ensure_client_area(HWND hwnd, int target_width, int target_height) {
+    float scale = get_dpi_scale(hwnd);
+    int scaled_width = scale_by_dpi(target_width, scale);
+    int scaled_height = scale_by_dpi(target_height, scale);
+
     RECT client_rc;
     GetClientRect(hwnd, &client_rc);
-    if (client_rc.right != target_width || client_rc.bottom != target_height) {
+    if (client_rc.right != scaled_width || client_rc.bottom != scaled_height) {
         RECT window_rc;
         GetWindowRect(hwnd, &window_rc);
-        int extra_width = target_width - client_rc.right;
-        int extra_height = target_height - client_rc.bottom;
+        int extra_width = scaled_width - client_rc.right;
+        int extra_height = scaled_height - client_rc.bottom;
         SetWindowPos(hwnd, nullptr, 0, 0,
                      (window_rc.right - window_rc.left) + extra_width,
                      (window_rc.bottom - window_rc.top) + extra_height,

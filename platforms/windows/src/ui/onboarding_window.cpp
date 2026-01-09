@@ -65,15 +65,20 @@ bool OnboardingWindow::create_window() {
         RegisterClassExW(&wc);
     }
 
+    // Get DPI scale factor for proper Windows 11 style scaling
+    float dpi_scale = get_dpi_scale();
+    int scaled_width = scale_by_dpi(WIDTH, dpi_scale);
+    int scaled_height = scale_by_dpi(HEIGHT, dpi_scale);
+
+    // Adjust for window chrome
+    RECT rc = {0, 0, scaled_width, scaled_height};
+    AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME & ~WS_MINIMIZEBOX, FALSE, 0);
+
     // Calculate window position (center screen)
     int screen_width = GetSystemMetrics(SM_CXSCREEN);
     int screen_height = GetSystemMetrics(SM_CYSCREEN);
-    int x = (screen_width - WIDTH) / 2;
-    int y = (screen_height - HEIGHT) / 2;
-
-    // Adjust for window chrome
-    RECT rc = {0, 0, WIDTH, HEIGHT};
-    AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME & ~WS_MINIMIZEBOX, FALSE, 0);
+    int x = (screen_width - (rc.right - rc.left)) / 2;
+    int y = (screen_height - (rc.bottom - rc.top)) / 2;
 
     hwnd_ = CreateWindowExW(
         0,

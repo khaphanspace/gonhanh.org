@@ -72,8 +72,13 @@ bool SettingsWindow::create_window() {
 
     DWORD style = WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME;
 
-    // Calculate window rect to get exact client area of WIDTH x HEIGHT
-    RECT rc = {0, 0, WIDTH, HEIGHT};
+    // Get DPI scale factor for proper Windows 11 style scaling
+    float dpi_scale = get_dpi_scale();
+    int scaled_width = scale_by_dpi(WIDTH, dpi_scale);
+    int scaled_height = scale_by_dpi(HEIGHT, dpi_scale);
+
+    // Calculate window rect to get exact client area of scaled dimensions
+    RECT rc = {0, 0, scaled_width, scaled_height};
     AdjustWindowRectEx(&rc, style, FALSE, 0);
     int window_width = rc.right - rc.left;
     int window_height = rc.bottom - rc.top;

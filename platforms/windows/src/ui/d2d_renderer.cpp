@@ -50,13 +50,13 @@ ID2D1HwndRenderTarget* D2DRenderer::create_render_target(HWND hwnd) {
 
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
-    // Use 96 DPI explicitly to make 1 logical unit = 1 pixel
-    // This prevents DPI scaling issues where D2D coordinates don't match window pixels
+    // Use 0.0f DPI to let D2D use system DPI automatically
+    // This enables proper DPI scaling like native Windows 11 apps
     D2D1_RENDER_TARGET_PROPERTIES rt_props = D2D1::RenderTargetProperties(
         D2D1_RENDER_TARGET_TYPE_DEFAULT,
         D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_UNKNOWN),
-        96.0f,  // dpiX - force 96 DPI
-        96.0f   // dpiY - force 96 DPI
+        0.0f,   // dpiX - use system DPI
+        0.0f    // dpiY - use system DPI
     );
     D2D1_HWND_RENDER_TARGET_PROPERTIES hwnd_props = D2D1::HwndRenderTargetProperties(hwnd, size);
 
