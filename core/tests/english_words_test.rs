@@ -45,6 +45,57 @@ fn assert_no_transform(words: &[&str]) {
     }
 }
 
+/// Test with auto-restore enabled - types word + space, expects "word " output
+fn assert_auto_restore(words: &[&str]) {
+    let mut telex = Engine::new();
+    telex.set_method(0);
+    telex.set_english_auto_restore(true); // Enable auto-restore
+
+    for word in words {
+        telex.clear();
+        let mut output = String::new();
+
+        // Type the word
+        for ch in word.chars() {
+            let key = char_to_key(ch);
+            let result = telex.on_key(key, ch.is_uppercase(), false);
+
+            if result.action == 1 {
+                let bs = result.backspace as usize;
+                for _ in 0..bs.min(output.len()) {
+                    output.pop();
+                }
+                for i in 0..result.count as usize {
+                    if let Some(c) = char::from_u32(result.chars[i]) {
+                        output.push(c);
+                    }
+                }
+            } else {
+                output.push(ch);
+            }
+        }
+
+        // Type space to trigger auto-restore
+        let result = telex.on_key(49, false, false); // 49 = SPACE key
+        if result.action == 1 {
+            let bs = result.backspace as usize;
+            for _ in 0..bs.min(output.len()) {
+                output.pop();
+            }
+            for i in 0..result.count as usize {
+                if let Some(c) = char::from_u32(result.chars[i]) {
+                    output.push(c);
+                }
+            }
+        } else {
+            output.push(' ');
+        }
+
+        let expected = format!("{} ", word);
+        assert_eq!(output, expected, "'{}' → '{}'", word, output);
+    }
+}
+
 fn char_to_key(c: char) -> u16 {
     match c.to_ascii_lowercase() {
         'a' => 0,
@@ -142,18 +193,19 @@ const INVALID_YO_PATTERN: &[&str] = &[
 
 // =============================================================================
 // INVALID FINAL CLUSTERS - T+R, C+R patterns (detected by is_foreign_word_pattern)
+// NOTE: "describe" removed - now handled via auto-restore (D+E pattern)
 // =============================================================================
 
 const INVALID_FINAL_CLUSTERS: &[&str] = &[
     "metric", "matrix", "electric", "spectrum", "control", "central", "abstract", "contract",
-    "describe",
 ];
 
 // =============================================================================
 // DE + S pattern (describe, design...)
+// These words are auto-restored when space is typed
 // =============================================================================
 
-const INVALID_DE_S: &[&str] = &[
+const AUTO_RESTORE_DE_S: &[&str] = &[
     "describe",
     "design",
     "desk",
@@ -236,7 +288,8 @@ fn protect_final_clusters() {
 
 #[test]
 fn protect_de_s_pattern() {
-    assert_no_transform(INVALID_DE_S);
+    // DE + S pattern uses auto-restore when space is typed
+    assert_auto_restore(AUTO_RESTORE_DE_S);
 }
 
 #[test]
@@ -246,20 +299,24 @@ fn protect_tech_terms() {
 
 #[test]
 fn all_protected_words() {
-    let all: Vec<&str> = [
+    // Words that are protected without transformation (invalid Vietnamese structure)
+    let no_transform: Vec<&str> = [
         INVALID_INITIALS,
         INVALID_OU_PATTERN,
         INVALID_YO_PATTERN,
         INVALID_FINAL_CLUSTERS,
-        INVALID_DE_S,
         TECH_TERMS,
     ]
     .concat();
 
-    let mut unique: Vec<&str> = all.clone();
+    let mut unique: Vec<&str> = no_transform.clone();
     unique.sort();
     unique.dedup();
 
-    println!("Testing {} unique words", unique.len());
+    println!("Testing {} unique words (no transform)", unique.len());
     assert_no_transform(&unique);
+
+    // Words that are restored via auto-restore (D+E pattern)
+    println!("Testing {} words (auto-restore)", AUTO_RESTORE_DE_S.len());
+    assert_auto_restore(AUTO_RESTORE_DE_S);
 }

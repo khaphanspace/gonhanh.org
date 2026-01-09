@@ -151,6 +151,9 @@ const TELEX_DELAYED: &[(&str, &str)] = &[
     ("truwowng", "trương"),
     // Issue: twong shorthand for tương
     ("twong", "tương"),
+    // Standalone w-initial patterns
+    ("wng", "ưng"),   // w → ư + ng final
+    ("wong", "ương"), // w → ư, o → ơ (horn compound) + ng final
 ];
 
 // ============================================================
@@ -304,6 +307,12 @@ const TELEX_WORDS: &[(&str, &str)] = &[
     ("thwr", "thử"),
     ("nhw", "như"),
     ("tuwj", "tự"),
+    // w as ư shortcut with marks (delayed mark application)
+    ("wf", "ừ"),   // w→ư, f→huyền on ư
+    ("Wf", "Ừ"),   // W→Ư, f→huyền on Ư
+    ("ws", "ứ"),   // w→ư, s→sắc on ư
+    ("wmf", "ừm"), // w→ư, m (consonant), f→huyền on ư
+    ("wms", "ứm"), // w→ư, m (consonant), s→sắc on ư
     // Two vowels - closed syllable
     ("toans", "toán"),
     ("hoanf", "hoàn"),
@@ -393,6 +402,28 @@ const TELEX_WORDS: &[(&str, &str)] = &[
     ("Vieetj", "Việt"),
     ("DDaats", "Đất"),
     ("DDAATS", "ĐẤT"),
+    // Delayed circumflex with tone (a-j-a-n pattern)
+    ("vajan", "vận"),
+    ("hajan", "hận"),
+    ("cajan", "cận"),
+    // Tone override patterns (second modifier overrides first)
+    // j (nặng) → other tones
+    ("chajfo", "chào"), // j→f: nặng → huyền
+    ("chajso", "cháo"), // j→s: nặng → sắc
+    ("chajro", "chảo"), // j→r: nặng → hỏi
+    ("chajxo", "chão"), // j→x: nặng → ngã
+    // f (huyền) → other tones
+    ("chafso", "cháo"), // f→s: huyền → sắc
+    ("chafjo", "chạo"), // f→j: huyền → nặng
+    // s (sắc) → other tones
+    ("chasfo", "chào"), // s→f: sắc → huyền
+    ("chasjo", "chạo"), // s→j: sắc → nặng
+    // r (hỏi) → other tones
+    ("charfo", "chào"), // r→f: hỏi → huyền
+    ("charso", "cháo"), // r→s: hỏi → sắc
+    // x (ngã) → other tones
+    ("chaxfo", "chào"), // x→f: ngã → huyền
+    ("chaxjo", "chạo"), // x→j: ngã → nặng
 ];
 
 const VNI_WORDS: &[(&str, &str)] = &[

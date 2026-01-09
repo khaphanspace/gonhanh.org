@@ -1,3 +1,7 @@
+# Environment
+.env
+.env.local
+
 # Rust
 target/
 Cargo.lock

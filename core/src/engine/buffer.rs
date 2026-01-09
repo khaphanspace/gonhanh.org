@@ -1,6 +1,6 @@
 //! Typing buffer
 
-pub const MAX: usize = 64;
+pub const MAX: usize = 256;
 
 use crate::utils;
 

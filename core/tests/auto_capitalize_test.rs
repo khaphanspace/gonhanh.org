@@ -220,11 +220,23 @@ fn dot_at_start() {
 }
 
 #[test]
-fn abbreviations_known_tradeoff() {
-    // Abbreviations like "v.v." - this is a known trade-off
-    // The feature will capitalize after each dot
+fn no_space_no_capitalize() {
+    // Issue #185: No space after punctuation = no capitalize
+    // This fixes "google.Com" problem
+    // Note: Using inputs that don't trigger Vietnamese transforms (no vowel combos)
     telex_auto_capitalize(&[
-        ("v.v. tieeps", "v.V. Tiếp"), // Trade-off: V is capitalized, 'ee' for ê + 's' for sắc
+        ("x.y", "x.y"),                 // Simple: no capitalize without space
+        ("192.168.1.1", "192.168.1.1"), // IP address stays lowercase
+        ("a.b.c", "a.b.c"),             // Multiple dots without spaces
+    ]);
+}
+
+#[test]
+fn abbreviations_known_tradeoff() {
+    // Issue #185: Abbreviations like "v.v." should NOT auto-capitalize
+    // Previously this was a known trade-off, but now fixed
+    telex_auto_capitalize(&[
+        ("v.v. tieeps", "v.v. Tiếp"), // Fixed: no capitalize without space
     ]);
 }
 
@@ -332,14 +344,16 @@ fn enter_delete_retype_restores_capitalize() {
 #[test]
 fn arrow_keys_preserve_pending() {
     // Arrow keys should NOT reset pending_capitalize
+    // Issue #185: Need space after punctuation for capitalize
     let mut e = Engine::new();
     e.set_auto_capitalize(true);
 
-    // Type "ok."
+    // Type "ok." + space (to set pending_capitalize)
     for &key in &[keys::O, keys::K] {
         e.on_key_ext(key, false, false, false);
     }
     e.on_key_ext(keys::DOT, false, false, false);
+    e.on_key_ext(keys::SPACE, false, false, false); // Need space for pending_capitalize
 
     // Press arrow keys - should NOT reset pending
     e.on_key_ext(keys::LEFT, false, false, false);
@@ -380,14 +394,16 @@ fn tab_preserves_pending() {
 #[test]
 fn clear_restores_pending_capitalize() {
     // When user selects text and deletes, clear() should restore pending_capitalize
+    // Issue #185: Need space after punctuation for capitalize
     let mut e = Engine::new();
     e.set_auto_capitalize(true);
 
-    // Type "ok."
+    // Type "ok." + space (to set pending_capitalize)
     for &key in &[keys::O, keys::K] {
         e.on_key_ext(key, false, false, false);
     }
     e.on_key_ext(keys::DOT, false, false, false);
+    e.on_key_ext(keys::SPACE, false, false, false); // Need space for pending_capitalize
 
     // Type "ban" - 'b' becomes 'B' due to auto-capitalize
     let r = e.on_key_ext(keys::B, false, false, false);

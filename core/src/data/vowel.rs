@@ -156,6 +156,7 @@ pub const TONE_FIRST_PATTERNS: &[[u16; 2]] = &[
     [keys::A, keys::U], // au: sáu, màu
     [keys::A, keys::Y], // ay: máy, tày
     [keys::E, keys::O], // eo: kéo, trèo
+    [keys::E, keys::U], // êu: nếu, kêu (circumflex on e, tone on e)
     [keys::I, keys::A], // ia: kìa, mía (not after gi)
     [keys::I, keys::U], // iu: dịu, kíu
     [keys::O, keys::I], // oi: đói, còi

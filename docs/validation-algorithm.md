@@ -341,7 +341,70 @@ on_key(key)
 
 ---
 
+## 10. Auto-Restore Rules
+
+Ngoài validation (chặn transform), engine còn có auto-restore (khôi phục English khi space):
+
+### 10.1 Invalid Rhyme Patterns
+
+| Rhyme | Valid? | Reason |
+|-------|--------|--------|
+| `-inh` + tone | ✅ | tính, kính, lính |
+| `-ing` + tone | ❌ | thíng, kíng không tồn tại |
+| `-ưng` + tone | ✅ | hứng, dựng, bừng |
+| `-ung` + tone | ✅ | húng, bùng, cùng |
+
+**Rule:** `-ing` + tone mark → invalid Vietnamese → auto-restore
+
+```
+things → thíng → restore "things"
+kings  → kíng  → restore "kings"
+tính   → tính  → keep Vietnamese ✓
+```
+
+### 10.2 Uncommon Single-Vowel Words
+
+| Buffer | Common VN? | Action |
+|--------|------------|--------|
+| `ò` | ❌ | restore → "of" |
+| `ì` | ❌ | restore → "if" |
+| `à` | ✅ | keep Vietnamese |
+| `ồ` | ✅ | keep Vietnamese |
+
+**Rule:** Single vowel + tone (no final) → check if common Vietnamese interjection
+
+### 10.3 Circumflex Without Final
+
+| Buffer | Real VN word? | Action |
+|--------|---------------|--------|
+| `sê` | ❌ | restore → "see" |
+| `tê` | ⚠️ (rare) | restore → "tee" |
+| `bê` | ✅ (calf) | keep Vietnamese |
+| `mê` | ✅ (obsessed) | keep Vietnamese |
+| `lê` | ✅ (pear) | keep Vietnamese |
+
+**Rule:** C + circumflex (from double vowel) + no final → restore unless common VN word
+
+### 10.4 Double-F Preservation
+
+Khi user gõ double 'f', giữ nguyên cả 2 'f' trong output:
+
+```
+off     → of  (bug)  → nên là "off"
+offline → ofline     → nên là "offline"
+```
+
+**Rule:** Raw input có `ff` → output phải có `ff` (không collapse)
+
+---
+
 ## Changelog
+
+- **2025-12-31**: Thêm Auto-Restore Rules section
+  - Rule 10.1: `-ing` + tone = invalid Vietnamese
+  - Rule 10.2: Uncommon single-vowel words (ò, ì) restore
+  - Rule 10.3: Circumflex without final (sê, tê) restore
+  - Rule 10.4: Double-f preservation (off, offline)
 
 - **2025-12-17**: Chuyển sang Inclusion approach với VALID_VOWEL_PAIRS
   - Thay đổi từ Exclusion (INVALID_VOWEL_PATTERNS) sang Inclusion (VALID_VOWEL_PAIRS)

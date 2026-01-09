@@ -1,0 +1,43 @@
+name: Reopen Issue on External Comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  reopen-if-closed:
+    runs-on: ubuntu-latest
+    if: github.event.issue.state == 'closed' && github.event.comment.user.login != github.repository_owner
+
+    steps:
+      - name: Reopen issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const comment = context.payload.comment;
+            const owner = context.repo.owner;
+
+            // Skip if commenter is repo owner
+            if (comment.user.login === owner) {
+              console.log('Comment from repo owner, skipping...');
+              return;
+            }
+
+            // Reopen the issue
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'open'
+            });
+
+            // Add a comment explaining why
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `🔄 Issue reopened automatically due to new comment from @${comment.user.login}.\n\ncc @${owner}`
+            });
+
+            console.log(`Issue #${issue.number} reopened due to comment from ${comment.user.login}`);

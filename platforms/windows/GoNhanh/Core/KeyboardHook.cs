@@ -146,6 +146,13 @@ public class KeyboardHook : IDisposable
 
             ushort keyCode = (ushort)hookStruct.vkCode;
 
+            // Issue #150: Control key alone clears buffer (rhythm break like EVKey)
+            if (keyCode == KeyCodes.VK_CONTROL)
+            {
+                RustBridge.Clear();
+                return CallNextHookEx(_hookId, nCode, wParam, lParam);
+            }
+
             // Only process relevant keys for Vietnamese input
             if (KeyCodes.IsRelevantKey(keyCode))
             {

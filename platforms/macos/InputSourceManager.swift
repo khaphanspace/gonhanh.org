@@ -1,21 +1,22 @@
 import Foundation
 import Carbon.HIToolbox
 
-private let kAppleKeyLayoutPrefix = "com.apple.keylayout."
-
-/// Input sources that show V/E icon (Latin-based keyboards)
-private let allowedInputSources: Set<String> = Set([
-    // ABC variants
-    "ABC", "ABC-AZERTY", "ABC-India", "ABC-QWERTZ",
-    // US variants
-    "US", "USExtended", "USInternational-PC",
-    // UK variants
-    "British", "British-PC", "Australian", "Irish", "IrishExtended",
-    // Canadian
-    "Canadian", "Canadian-CSA", "CanadianFrench-PC",
-    // Alternative layouts
-    "Colemak", "Dvorak", "Dvorak-Left", "Dvorak-Right", "DVORAK-QWERTYCMD",
-].map { kAppleKeyLayoutPrefix + $0 })
+/// Non-Latin language codes that require disabling Gõ Nhanh
+/// These languages use scripts incompatible with Vietnamese input
+private let nonLatinLanguages: Set<String> = [
+    // East Asian
+    "ja", "zh", "zh-Hans", "zh-Hant", "ko",
+    // Southeast Asian (non-Latin scripts)
+    "th", "km", "lo", "my",
+    // South Asian
+    "hi", "mr", "ne", "sa", "bn", "ta", "te", "kn", "ml", "gu", "pa", "or", "si",
+    // Middle Eastern
+    "ar", "he", "fa", "ur",
+    // Other non-Latin
+    "ru", "uk", "be", "bg", "mk", "sr", "el", "ka", "hy", "am", "ti",
+    // Vietnamese IME (user already has Vietnamese input method)
+    "vi",
+]
 
 // MARK: - Input Source Observer
 
@@ -76,7 +77,7 @@ final class InputSourceObserver {
 
         // Get display character from input source
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
-        isAllowedInputSource = isInputSourceAllowed(currentId)
+        isAllowedInputSource = isInputSourceAllowed(source: source)
 
         if isAllowedInputSource {
             // Restore user preference
@@ -91,8 +92,19 @@ final class InputSourceObserver {
         NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
     }
 
-    private func isInputSourceAllowed(_ id: String) -> Bool {
-        allowedInputSources.contains(id)
+    private func isInputSourceAllowed(source: TISInputSource) -> Bool {
+        // Get primary language of the input source
+        guard let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages),
+              let langs = Unmanaged<CFArray>.fromOpaque(langsPtr).takeUnretainedValue() as? [String],
+              let lang = langs.first else {
+            // No language info → assume Latin (allow)
+            return true
+        }
+
+        // Block if language is in non-Latin set
+        // Also check base language code (e.g., "zh-Hans" → "zh")
+        let baseLang = lang.split(separator: "-").first.map(String.init) ?? lang
+        return !nonLatinLanguages.contains(lang) && !nonLatinLanguages.contains(baseLang)
     }
 
     private func getDisplayChar(from source: TISInputSource, id: String) -> String {

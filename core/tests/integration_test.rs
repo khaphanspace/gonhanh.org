@@ -605,11 +605,13 @@ fn foreign_word_spectrum_no_mark() {
 }
 
 #[test]
-fn foreign_word_describe_no_mark() {
+fn foreign_word_describe_auto_restore() {
+    // D+E pattern: now uses auto-restore when space is typed
+    // "describe" is restored to original form via auto-restore
     let mut e = Engine::new();
-    // c+r pattern
-    let result = type_word(&mut e, "describe");
-    assert_eq!(result, "describe", "describe should stay unchanged");
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "describe ");
+    assert_eq!(result, "describe ", "describe should be auto-restored");
 }
 
 #[test]
@@ -848,33 +850,41 @@ fn shortcut_multiple_shortcuts() {
 }
 
 #[test]
-fn shortcut_case_sensitive_no_match() {
+fn shortcut_smart_case_uppercase_to_uppercase() {
+    // Issue #86: Smart case-aware shortcuts
     let mut e = Engine::new();
 
-    // Add lowercase shortcut "vn"
+    // Add shortcut "vn" (stored as lowercase)
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Typing uppercase "VN" does NOT match lowercase "vn" (case-sensitive)
+    // Typing uppercase "VN" → "VIỆT NAM" (smart case: all uppercase)
     let result = type_word(&mut e, "VN ");
-    assert_eq!(result, "VN ", "VN should NOT match lowercase 'vn' shortcut");
+    assert_eq!(result, "VIỆT NAM ", "VN should match and output uppercase");
 }
 
 #[test]
-fn shortcut_case_sensitive_exact_match() {
+fn shortcut_smart_case_all_variants() {
+    // Issue #86: Smart case-aware shortcuts
     let mut e = Engine::new();
 
-    // Add uppercase shortcut "VN"
+    // Add shortcut "vn" (trigger is stored lowercase regardless of input)
     e.shortcuts_mut().add(Shortcut::new("VN", "Việt Nam"));
 
-    // Typing "VN" matches exactly
+    // Typing "VN" → "VIỆT NAM" (all uppercase)
     let result = type_word(&mut e, "VN ");
-    assert_eq!(result, "Việt Nam ", "VN should match 'VN' shortcut exactly");
+    assert_eq!(result, "VIỆT NAM ", "VN should output uppercase");
 
     e.clear();
 
-    // Typing "vn" does NOT match uppercase "VN"
+    // Typing "vn" → "Việt Nam" (lowercase → as-is)
     let result = type_word(&mut e, "vn ");
-    assert_eq!(result, "vn ", "vn should NOT match uppercase 'VN' shortcut");
+    assert_eq!(result, "Việt Nam ", "vn should output as-is");
+
+    e.clear();
+
+    // Typing "Vn" → "Việt Nam" (title case → capitalize first)
+    let result = type_word(&mut e, "Vn ");
+    assert_eq!(result, "Việt Nam ", "Vn should output title case");
 }
 
 #[test]
@@ -988,38 +998,135 @@ fn shortcut_not_triggered_by_tone_marked_vowel() {
     assert_eq!(result2, "được ", "plain 'duoc' should match shortcut");
 }
 
+/// Issue #167: Shortcuts should trigger on punctuation (not just space)
+/// Example: "ko." → "không." when "ko" → "không" shortcut is defined
 #[test]
-fn shortcut_only_triggers_on_space_not_punctuation() {
+fn shortcut_triggers_on_period() {
     let mut e = Engine::new();
 
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Type "vn" + period - should NOT trigger shortcut
-    // Just type "vn" then clear buffer on period
+    // Type "vn" + period - SHOULD trigger shortcut
     e.on_key(keys::V, false, false);
     e.on_key(keys::N, false, false);
     let r = e.on_key(keys::DOT, false, false);
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "period should not trigger shortcut"
+        Action::Send as u8,
+        "period should trigger shortcut"
+    );
+    // Verify output is "Việt Nam" (without period - platform layer types it)
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "Việt Nam",
+        "output should NOT include period (typed by platform)"
     );
 }
 
+/// Issue #167: Shortcut triggers on comma
 #[test]
-fn shortcut_not_triggered_by_comma() {
+fn shortcut_triggers_on_comma() {
     let mut e = Engine::new();
 
     e.shortcuts_mut().add(Shortcut::new("vn", "Việt Nam"));
 
-    // Type "vn" + comma - should NOT trigger shortcut
+    // Type "vn" + comma - SHOULD trigger shortcut
     e.on_key(keys::V, false, false);
     e.on_key(keys::N, false, false);
     let r = e.on_key(keys::COMMA, false, false);
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "comma should not trigger shortcut"
+        Action::Send as u8,
+        "comma should trigger shortcut"
+    );
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "Việt Nam",
+        "output should NOT include comma (typed by platform)"
+    );
+}
+
+/// Issue #167: Shortcut triggers on various punctuation marks
+#[test]
+fn shortcut_triggers_on_various_punctuation() {
+    // Test with question mark
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("ko", "không"));
+
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::SLASH, false, false, true); // ? = Shift+/
+    assert_eq!(r.action, Action::Send as u8, "? should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ? (typed by platform)"
+    );
+
+    // Test with exclamation mark
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::N1, false, false, true); // ! = Shift+1
+    assert_eq!(r.action, Action::Send as u8, "! should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ! (typed by platform)"
+    );
+
+    // Test with colon
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key_ext(keys::SEMICOLON, false, false, true); // : = Shift+;
+    assert_eq!(r.action, Action::Send as u8, ": should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include : (typed by platform)"
+    );
+
+    // Test with semicolon
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key(keys::SEMICOLON, false, false); // ;
+    assert_eq!(r.action, Action::Send as u8, "; should trigger shortcut");
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include ; (typed by platform)"
+    );
+
+    // Test with ENTER key
+    e.clear();
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r = e.on_key(keys::RETURN, false, false);
+    assert_eq!(
+        r.action,
+        Action::Send as u8,
+        "ENTER should trigger shortcut"
+    );
+    let chars: String = (0..r.count as usize)
+        .map(|i| char::from_u32(r.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(
+        chars, "không",
+        "output should NOT include newline (typed by platform)"
     );
 }
 
@@ -2076,6 +2183,8 @@ fn backspace_after_space_restore_apply_vowel_mark() {
 
 /// EDGE CASE: Type number after space, delete, restore
 /// "một" + " " + "123" + 3 backspaces + 1 backspace → restore
+/// Issue #162 fix: Numbers are now added to buffer in Telex mode for proper tracking.
+/// This means after deleting all numbers and the space, restore DOES work correctly.
 #[test]
 fn backspace_after_space_type_numbers_delete() {
     let mut e = Engine::new();
@@ -2083,17 +2192,17 @@ fn backspace_after_space_type_numbers_delete() {
     e.on_key(keys::N1, false, false);
     e.on_key(keys::N2, false, false);
     e.on_key(keys::N3, false, false);
-    // Delete numbers (numbers don't go to buffer, but we track them)
+    // Delete numbers (Issue #162: numbers are now tracked in buffer)
     e.on_key(keys::DELETE, false, false);
     e.on_key(keys::DELETE, false, false);
     e.on_key(keys::DELETE, false, false);
-    // Delete space
+    // Delete space - now triggers restore because buffer is empty and spaces_after_commit > 0
     let r = e.on_key(keys::DELETE, false, false);
-    // Note: numbers after space clear spaces_after_commit, so restore won't work
+    // Issue #162 fix: With numbers in buffer, restore works correctly after deleting all
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "Numbers break the restore chain"
+        Action::Send as u8,
+        "After deleting numbers and space, restore should trigger"
     );
 }
 
