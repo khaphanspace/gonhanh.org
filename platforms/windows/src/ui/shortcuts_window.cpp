@@ -92,6 +92,9 @@ bool ShortcutsWindow::create_window() {
 
     if (!hwnd_) return false;
 
+    // Ensure client area matches expected dimensions (fixes DPI scaling issues)
+    ensure_client_area(hwnd_, WIDTH, HEIGHT);
+
     // Create render target
     auto& renderer = D2DRenderer::instance();
     if (!renderer.is_initialized()) {

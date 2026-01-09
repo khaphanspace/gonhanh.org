@@ -70,24 +70,28 @@ bool SettingsWindow::create_window() {
         RegisterClassExW(&wc);
     }
 
+    DWORD style = WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME;
+
+    // Calculate window rect to get exact client area of WIDTH x HEIGHT
+    RECT rc = {0, 0, WIDTH, HEIGHT};
+    AdjustWindowRectEx(&rc, style, FALSE, 0);
+    int window_width = rc.right - rc.left;
+    int window_height = rc.bottom - rc.top;
+
     // Calculate window position (center screen)
     int screen_width = GetSystemMetrics(SM_CXSCREEN);
     int screen_height = GetSystemMetrics(SM_CYSCREEN);
-    int x = (screen_width - WIDTH) / 2;
-    int y = (screen_height - HEIGHT) / 2;
-
-    // Adjust for window chrome
-    RECT rc = {0, 0, WIDTH, HEIGHT};
-    AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME, FALSE, 0);
+    int x = (screen_width - window_width) / 2;
+    int y = (screen_height - window_height) / 2;
 
     hwnd_ = CreateWindowExW(
         0,
         SETTINGS_WINDOW_CLASS,
         L"GoNhanh Cài đặt",
-        (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME),
+        style,
         x, y,
-        rc.right - rc.left,
-        rc.bottom - rc.top,
+        window_width,
+        window_height,
         nullptr,
         nullptr,
         app.hinstance(),
@@ -95,6 +99,9 @@ bool SettingsWindow::create_window() {
     );
 
     if (!hwnd_) return false;
+
+    // Ensure client area matches expected dimensions (fixes DPI scaling issues)
+    ensure_client_area(hwnd_, WIDTH, HEIGHT);
 
     // Create render target
     auto& renderer = D2DRenderer::instance();

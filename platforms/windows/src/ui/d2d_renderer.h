@@ -68,4 +68,21 @@ inline ComPtr<ID2D1SolidColorBrush> create_brush(ID2D1RenderTarget* rt, D2D1_COL
     return brush;
 }
 
+// Helper to ensure window has exact client area size
+// Call this after CreateWindowEx to fix DPI scaling issues
+inline void ensure_client_area(HWND hwnd, int target_width, int target_height) {
+    RECT client_rc;
+    GetClientRect(hwnd, &client_rc);
+    if (client_rc.right != target_width || client_rc.bottom != target_height) {
+        RECT window_rc;
+        GetWindowRect(hwnd, &window_rc);
+        int extra_width = target_width - client_rc.right;
+        int extra_height = target_height - client_rc.bottom;
+        SetWindowPos(hwnd, nullptr, 0, 0,
+                     (window_rc.right - window_rc.left) + extra_width,
+                     (window_rc.bottom - window_rc.top) + extra_height,
+                     SWP_NOMOVE | SWP_NOZORDER);
+    }
+}
+
 } // namespace gonhanh::ui
