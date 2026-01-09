@@ -341,7 +341,7 @@ void PerAppWindow::render() {
 
     // Running apps dropdown (if showing)
     if (show_running_apps_ && !running_apps_.empty()) {
-        const float dropdown_height = min(200.0f, running_apps_.size() * item_height + 8);
+        const float dropdown_height = (std::min)(200.0f, running_apps_.size() * item_height + 8);
 
         D2D1_ROUNDED_RECT dropdown_bg = {
             D2D1::RectF(padding, y, WIDTH - padding, y + dropdown_height),
@@ -441,7 +441,7 @@ void PerAppWindow::handle_mouse_move(int x, int y) {
     // Check running apps dropdown
     if (show_running_apps_) {
         float dropdown_y = btn_y + 36.0f + 16.0f;
-        float dropdown_height = min(200.0f, running_apps_.size() * item_height + 8);
+        float dropdown_height = (std::min)(200.0f, running_apps_.size() * item_height + 8);
 
         if (fx >= padding && fx <= WIDTH - padding &&
             fy >= dropdown_y && fy <= dropdown_y + dropdown_height) {
@@ -513,10 +513,10 @@ void PerAppWindow::handle_scroll(int delta) {
 
     const float item_height = 40.0f;
     const float list_height = 200.0f;
-    float max_scroll = max(0.0f, disabled_apps_.size() * item_height - list_height + 8);
+    float max_scroll = (std::max)(0.0f, disabled_apps_.size() * item_height - list_height + 8);
 
     scroll_offset_ -= delta / 3;
-    scroll_offset_ = max(0, min(scroll_offset_, static_cast<int>(max_scroll)));
+    scroll_offset_ = (std::max)(0, (std::min)(scroll_offset_, static_cast<int>(max_scroll)));
 
     InvalidateRect(hwnd_, nullptr, FALSE);
 }
