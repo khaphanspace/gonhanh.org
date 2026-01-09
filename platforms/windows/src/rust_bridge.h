@@ -7,6 +7,25 @@
 
 namespace gonhanh {
 
+// FFI error codes
+enum class FfiError {
+    SUCCESS = 0,
+    DLL_NOT_LOADED,
+    FUNCTION_NOT_FOUND,
+    INVALID_PARAMETER,
+    ENGINE_ERROR,
+    UNKNOWN_ERROR
+};
+
+// FFI result with error information
+struct FfiResult {
+    FfiError error;
+    std::string error_message;
+
+    bool ok() const { return error == FfiError::SUCCESS; }
+    operator bool() const { return ok(); }
+};
+
 // Input method types
 enum class InputMethod : uint8_t {
     Telex = 0,
@@ -39,6 +58,10 @@ public:
     bool initialize();
     void shutdown();
     bool is_loaded() const { return dll_ != nullptr; }
+
+    // Error handling
+    FfiResult get_last_error() const { return last_error_; }
+    static const char* error_to_string(FfiError error);
 
     // Core IME functions
     void init();
@@ -73,6 +96,10 @@ private:
 
     bool load_dll();
     void load_functions();
+    void set_error(FfiError error, const char* message);
+    void clear_error();
+
+    FfiResult last_error_ = {FfiError::SUCCESS, ""};
 
     HMODULE dll_ = nullptr;
 

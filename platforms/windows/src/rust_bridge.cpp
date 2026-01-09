@@ -1,8 +1,32 @@
 #include "rust_bridge.h"
+#include "logger.h"
 #include <codecvt>
 #include <locale>
 
 namespace gonhanh {
+
+const char* RustBridge::error_to_string(FfiError error) {
+    switch (error) {
+        case FfiError::SUCCESS: return "Success";
+        case FfiError::DLL_NOT_LOADED: return "DLL not loaded";
+        case FfiError::FUNCTION_NOT_FOUND: return "Function not found";
+        case FfiError::INVALID_PARAMETER: return "Invalid parameter";
+        case FfiError::ENGINE_ERROR: return "Engine error";
+        case FfiError::UNKNOWN_ERROR: return "Unknown error";
+        default: return "Unknown error code";
+    }
+}
+
+void RustBridge::set_error(FfiError error, const char* message) {
+    last_error_.error = error;
+    last_error_.error_message = message;
+    Logger::error("FFI Error: %s (code=%d)", message, static_cast<int>(error));
+}
+
+void RustBridge::clear_error() {
+    last_error_.error = FfiError::SUCCESS;
+    last_error_.error_message.clear();
+}
 
 RustBridge& RustBridge::instance() {
     static RustBridge instance;
@@ -14,14 +38,23 @@ RustBridge::~RustBridge() {
 }
 
 bool RustBridge::initialize() {
-    if (dll_) return true;
-    if (!load_dll()) return false;
+    if (dll_) {
+        clear_error();
+        return true;
+    }
+    if (!load_dll()) {
+        set_error(FfiError::DLL_NOT_LOADED, "Failed to load gonhanh_core.dll");
+        return false;
+    }
     load_functions();
+    Logger::info("Rust bridge initialized successfully");
+    clear_error();
     return true;
 }
 
 void RustBridge::shutdown() {
     if (dll_) {
+        Logger::info("Rust bridge shutting down");
         FreeLibrary(dll_);
         dll_ = nullptr;
     }
@@ -43,6 +76,7 @@ void RustBridge::shutdown() {
     fn_ime_clear_shortcuts_ = nullptr;
     fn_version_compare_ = nullptr;
     fn_version_has_update_ = nullptr;
+    clear_error();
 }
 
 bool RustBridge::load_dll() {
@@ -82,11 +116,20 @@ void RustBridge::load_functions() {
 }
 
 void RustBridge::init() {
-    if (fn_ime_init_) fn_ime_init_();
+    if (!fn_ime_init_) {
+        set_error(FfiError::FUNCTION_NOT_FOUND, "ime_init function not found");
+        return;
+    }
+    fn_ime_init_();
+    Logger::log_ffi_call("ime_init", true);
+    clear_error();
 }
 
 void RustBridge::clear() {
-    if (fn_ime_clear_) fn_ime_clear_();
+    if (fn_ime_clear_) {
+        fn_ime_clear_();
+        clear_error();
+    }
 }
 
 void RustBridge::set_method(InputMethod method) {
@@ -124,10 +167,26 @@ void RustBridge::set_bracket_shortcut(bool enabled) {
 ImeResult RustBridge::process_key(uint16_t keycode, bool shift, bool capslock) {
     ImeResult result{ImeAction::None, 0, 0, L""};
 
-    if (!fn_ime_key_ || !fn_ime_free_) return result;
+    if (!dll_) {
+        set_error(FfiError::DLL_NOT_LOADED, "gonhanh_core.dll not loaded");
+        return result;
+    }
+
+    if (!fn_ime_key_) {
+        set_error(FfiError::FUNCTION_NOT_FOUND, "ime_key function not found");
+        return result;
+    }
+
+    if (!fn_ime_free_) {
+        set_error(FfiError::FUNCTION_NOT_FOUND, "ime_free function not found");
+        return result;
+    }
 
     NativeResult* native = fn_ime_key_(keycode, shift, capslock);
-    if (!native) return result;
+    if (!native) {
+        set_error(FfiError::ENGINE_ERROR, "ime_key returned null");
+        return result;
+    }
 
     result.action = static_cast<ImeAction>(native->action);
     result.backspace = native->backspace;
@@ -152,6 +211,7 @@ ImeResult RustBridge::process_key(uint16_t keycode, bool shift, bool capslock) {
     }
 
     fn_ime_free_(native);
+    clear_error();
     return result;
 }
 

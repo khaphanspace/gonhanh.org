@@ -1,4 +1,5 @@
 #include "app.h"
+#include "logger.h"
 #include "rust_bridge.h"
 #include "keyboard_hook.h"
 #include "text_sender.h"
@@ -16,13 +17,20 @@ App& App::instance() {
 bool App::initialize(HINSTANCE hinstance) {
     hinstance_ = hinstance;
 
+    // Initialize logging first
+    Logger::init(Logger::get_default_log_dir());
+    Logger::info("GoNhanh starting up (version %ls)", APP_VERSION);
+
     // Check single instance
     if (!check_single_instance()) {
+        Logger::warn("Another instance is already running");
         return false;
     }
 
     // Initialize Rust core
     if (!RustBridge::instance().initialize()) {
+        auto err = RustBridge::instance().get_last_error();
+        Logger::error("Failed to initialize Rust bridge: %s", err.error_message.c_str());
         MessageBoxW(nullptr, L"Failed to load gonhanh_core.dll", APP_NAME, MB_ICONERROR);
         return false;
     }
@@ -30,9 +38,11 @@ bool App::initialize(HINSTANCE hinstance) {
 
     // Load settings and apply to engine
     apply_settings_to_engine();
+    Logger::info("Settings applied to engine");
 
     // Create hidden window for messages
     if (!create_window()) {
+        Logger::error("Failed to create main window");
         return false;
     }
 
@@ -42,6 +52,7 @@ bool App::initialize(HINSTANCE hinstance) {
     setup_hotkey();
 
     running_ = true;
+    Logger::info("GoNhanh initialized successfully");
     return true;
 }
 
@@ -55,6 +66,7 @@ int App::run() {
 }
 
 void App::shutdown() {
+    Logger::info("GoNhanh shutting down");
     running_ = false;
 
     KeyboardHook::instance().stop();
@@ -71,6 +83,8 @@ void App::shutdown() {
         CloseHandle(mutex_);
         mutex_ = nullptr;
     }
+
+    Logger::shutdown();
 }
 
 bool App::check_single_instance() {

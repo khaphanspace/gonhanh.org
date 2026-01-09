@@ -11,6 +11,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(SOURCES
     src/main.cpp
     src/app.cpp
+    src/logger.cpp
     src/rust_bridge.cpp
     src/keyboard_hook.cpp
     src/text_sender.cpp
@@ -18,6 +19,7 @@ set(SOURCES
     src/tray_icon.cpp
     src/hotkey.cpp
     src/ui/d2d_renderer.cpp
+    src/ui/validator.cpp
     src/ui/settings_window.cpp
     src/ui/about_window.cpp
     src/ui/shortcuts_window.cpp
@@ -33,6 +35,7 @@ set(SOURCES
 # Header files
 set(HEADERS
     src/app.h
+    src/logger.h
     src/rust_bridge.h
     src/keyboard_hook.h
     src/text_sender.h
@@ -40,6 +43,7 @@ set(HEADERS
     src/tray_icon.h
     src/hotkey.h
     src/ui/d2d_renderer.h
+    src/ui/validator.h
     src/ui/settings_window.h
     src/ui/about_window.h
     src/ui/shortcuts_window.h
