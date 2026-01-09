@@ -9,6 +9,8 @@
 #include "update_manager.h"
 #include "sound_manager.h"
 #include "ui/composition_window.h"
+#include "ui/settings_window.h"
+#include "ui/about_window.h"
 #include "ui/update_window.h"
 
 namespace gonhanh {
@@ -263,15 +265,11 @@ void App::set_method(int method) {
 }
 
 void App::show_settings() {
-    // TODO: Implement settings window with Direct2D
-    MessageBoxW(hwnd_, L"Settings window - Coming soon", APP_NAME, MB_ICONINFORMATION);
+    ui::SettingsWindow::instance().show();
 }
 
 void App::show_about() {
-    // TODO: Implement about window with Direct2D
-    std::wstring msg = std::wstring(APP_NAME) + L"\nVersion " + APP_VERSION +
-                       L"\n\nVietnamese Input Method Engine";
-    MessageBoxW(hwnd_, msg.c_str(), L"About GoNhanh", MB_ICONINFORMATION);
+    ui::AboutWindow::instance().show();
 }
 
 void App::show_update() {

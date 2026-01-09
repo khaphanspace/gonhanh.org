@@ -103,9 +103,9 @@ target_compile_definitions(GoNhanh PRIVATE
     NOMINMAX
 )
 
-# Compiler warnings
+# Compiler warnings and UTF-8 source encoding
 if(MSVC)
-    target_compile_options(GoNhanh PRIVATE /W4 /WX-)
+    target_compile_options(GoNhanh PRIVATE /W4 /WX- /utf-8)
 endif()
 
 # Note: DPI awareness is set via app.manifest in app.rc
