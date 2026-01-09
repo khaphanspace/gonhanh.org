@@ -130,9 +130,13 @@ void SettingsWindow::render() {
     render_target_->EndDraw();
 }
 
+// Sidebar layout constants (Windows 11 NavigationView style)
+static constexpr float SIDEBAR_LOGO_Y = 32.0f;
+static constexpr float SIDEBAR_NAV_START_Y = 80.0f;  // Navigation starts below logo
+
 void SettingsWindow::render_sidebar() {
-    // Sidebar background
-    auto sidebar_brush = create_brush(render_target_.Get(), D2D1::ColorF(0.95f, 0.95f, 0.96f));
+    // Sidebar background - Windows 11 NavigationView uses LayerFillColorDefault (#F9F9F9)
+    auto sidebar_brush = create_brush(render_target_.Get(), D2D1::ColorF(0.976f, 0.976f, 0.976f));  // #F9F9F9
     D2D1_RECT_F sidebar_rect = {0, 0, static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(HEIGHT)};
     render_target_->FillRectangle(sidebar_rect, sidebar_brush.Get());
 
@@ -148,7 +152,7 @@ void SettingsWindow::render_sidebar() {
     auto& renderer = D2DRenderer::instance();
 
     // Logo area at top
-    D2D1_RECT_F logo_rect = {20, 40, static_cast<float>(SIDEBAR_WIDTH - 20), 80};
+    D2D1_RECT_F logo_rect = {20, SIDEBAR_LOGO_Y, static_cast<float>(SIDEBAR_WIDTH - 20), SIDEBAR_LOGO_Y + 32};
     auto logo_brush = create_brush(render_target_.Get(), Colors::Primary);
     render_target_->DrawText(
         L"GoNhanh",
@@ -158,8 +162,8 @@ void SettingsWindow::render_sidebar() {
         logo_brush.Get()
     );
 
-    // Navigation items
-    float nav_y = static_cast<float>(HEIGHT) - 100;
+    // Navigation items - positioned BELOW logo (Windows 11 NavigationView style)
+    float nav_y = SIDEBAR_NAV_START_Y;
     float item_x = 12;
     float item_width = static_cast<float>(SIDEBAR_WIDTH) - 24;
 
@@ -185,8 +189,8 @@ void SettingsWindow::render_sidebar() {
     );
 
     // Version badge at bottom
-    nav_y = static_cast<float>(HEIGHT) - 30;
-    D2D1_RECT_F version_rect = {20, nav_y, static_cast<float>(SIDEBAR_WIDTH - 20), nav_y + 20};
+    float version_y = static_cast<float>(HEIGHT) - 40;
+    D2D1_RECT_F version_rect = {20, version_y, static_cast<float>(SIDEBAR_WIDTH - 20), version_y + 20};
     auto version_brush = create_brush(render_target_.Get(), Colors::TextTertiary);
 
     std::wstring version_text = L"v";
@@ -247,20 +251,37 @@ void SettingsWindow::render_settings_page() {
         text_rect = {row_x, row_y + 12, toggle_x - 8, row_y + 32};
         render_target_->DrawText(L"Kiểu gõ", 7, renderer.text_format_body(), text_rect, text_brush.Get());
 
-        // Draw dropdown button (simplified - shows current selection)
+        // Draw dropdown (Windows 11 ComboBox style)
         float dropdown_x = toggle_x - 40;
         float dropdown_width = 100;
+        float dropdown_height = 32.0f;
         const wchar_t* method_text = settings.input_method() == 0 ? L"Telex" : L"VNI";
-        D2D1_RECT_F dropdown_rect = {dropdown_x, row_y + 10, dropdown_x + dropdown_width, row_y + 34};
-        auto dropdown_bg = create_brush(render_target_.Get(), Colors::CardBg);
-        auto dropdown_border = create_brush(render_target_.Get(), Colors::Border);
+        D2D1_RECT_F dropdown_rect = {dropdown_x, row_y + 6, dropdown_x + dropdown_width, row_y + 6 + dropdown_height};
 
-        D2D1_ROUNDED_RECT rounded_dropdown = {dropdown_rect, 6.0f, 6.0f};
+        // Windows 11 ComboBox: white background with subtle border
+        auto dropdown_bg = create_brush(render_target_.Get(), D2D1::ColorF(1.0f, 1.0f, 1.0f));  // ControlFillColorDefault
+        auto dropdown_border = create_brush(render_target_.Get(), D2D1::ColorF(0.82f, 0.82f, 0.82f));  // ControlStrokeColorDefault #D1D1D1
+
+        // 4px corner radius per WinUI 3 spec
+        D2D1_ROUNDED_RECT rounded_dropdown = {dropdown_rect, 4.0f, 4.0f};
         render_target_->FillRoundedRectangle(rounded_dropdown, dropdown_bg.Get());
         render_target_->DrawRoundedRectangle(rounded_dropdown, dropdown_border.Get(), 1.0f);
 
-        D2D1_RECT_F method_text_rect = {dropdown_x + 8, row_y + 10, dropdown_x + dropdown_width - 8, row_y + 34};
-        render_target_->DrawText(method_text, wcslen(method_text), renderer.text_format_body(), method_text_rect, text_brush.Get());
+        // Text (left-aligned with padding)
+        D2D1_RECT_F method_text_rect = {dropdown_x + 12, row_y + 6, dropdown_x + dropdown_width - 28, row_y + 6 + dropdown_height};
+        auto body_format = renderer.text_format_body();
+        body_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        render_target_->DrawText(method_text, wcslen(method_text), body_format, method_text_rect, text_brush.Get());
+
+        // Chevron icon (Windows 11 style down arrow)
+        float chevron_x = dropdown_x + dropdown_width - 18;
+        float chevron_y = row_y + 6 + (dropdown_height / 2) - 2;
+        auto chevron_brush = create_brush(render_target_.Get(), Colors::TextSecondary);
+        D2D1_POINT_2F c1 = {chevron_x - 4, chevron_y};
+        D2D1_POINT_2F c2 = {chevron_x, chevron_y + 4};
+        D2D1_POINT_2F c3 = {chevron_x + 4, chevron_y};
+        render_target_->DrawLine(c1, c2, chevron_brush.Get(), 1.5f);
+        render_target_->DrawLine(c2, c3, chevron_brush.Get(), 1.5f);
 
         row_y += ROW_HEIGHT;
 
@@ -547,9 +568,9 @@ void SettingsWindow::handle_mouse_move(int x, int y) {
     hover_per_app_row_ = false;
     hover_hotkey_picker_ = false;
 
-    // Check sidebar items
+    // Check sidebar items - use SIDEBAR_NAV_START_Y (navigation below logo)
     if (x < SIDEBAR_WIDTH) {
-        float nav_y = static_cast<float>(HEIGHT) - 100;
+        float nav_y = SIDEBAR_NAV_START_Y;
         if (y >= nav_y && y < nav_y + Sidebar::ITEM_HEIGHT) {
             hover_sidebar_item_ = 0; // Settings
         } else if (y >= nav_y + Sidebar::ITEM_HEIGHT + 4 && y < nav_y + (Sidebar::ITEM_HEIGHT * 2) + 4) {
