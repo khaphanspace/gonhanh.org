@@ -215,11 +215,21 @@ public class TrayIcon : IDisposable
             g.DrawString(text, font, brush, x, y);
         }
 
-        // Clone icon to own it, then dispose temp resources
+        // Create icon and properly destroy the handle after cloning
         var hIcon = bitmap.GetHicon();
-        using var tempIcon = Icon.FromHandle(hIcon);
-        return (Icon)tempIcon.Clone();
+        try
+        {
+            using var tempIcon = Icon.FromHandle(hIcon);
+            return (Icon)tempIcon.Clone();
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     private static GraphicsPath CreateRoundedRectPath(Rectangle rect, int radius)
     {

@@ -45,6 +45,9 @@ public static class RustBridge
     private static extern void ime_auto_capitalize([MarshalAs(UnmanagedType.U1)] bool enabled);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void ime_bracket_shortcut([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr ime_key(ushort keycode, [MarshalAs(UnmanagedType.U1)] bool shift, [MarshalAs(UnmanagedType.U1)] bool capslock);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -159,6 +162,14 @@ public static class RustBridge
     public static void SetAutoCapitalize(bool enabled)
     {
         try { ime_auto_capitalize(enabled); } catch { }
+    }
+
+    /// <summary>
+    /// Enable bracket shortcut: [ → Ơ, ] → Ư
+    /// </summary>
+    public static void SetBracketShortcut(bool enabled)
+    {
+        try { ime_bracket_shortcut(enabled); } catch { }
     }
 
     /// <summary>

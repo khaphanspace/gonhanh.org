@@ -352,15 +352,15 @@ jobs:
             const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
             const body = [
-              '## 📦 Windows Build Ready',
+              '## Windows Build Ready',
               '',
               '| Commit | Version | Download |',
               '|--------|---------|----------|',
-              `| \`${shortSha}\` | \`${version}\` | [⬇️ **GoNhanh-${version}-Windows-x64.zip**](${artifactUrl}#artifacts) |`,
+              `| \`${shortSha}\` | \`${version}\` | [**GoNhanh-${version}-Windows-x64.zip**](${artifactUrl}#artifacts) |`,
               '',
-              '> ⚠️ **Requirements:** .NET 8.0 Runtime',
-              `> 🔗 Build for commit ${process.env.COMMIT_SHA}`,
-              `> 📁 Artifact expires in 14 days`
+              '> Requirements: .NET 8.0 Runtime',
+              `> Build for commit ${process.env.COMMIT_SHA}`,
+              `> Artifact expires in 14 days`
             ].join('\n');
 
             await github.rest.issues.createComment({
