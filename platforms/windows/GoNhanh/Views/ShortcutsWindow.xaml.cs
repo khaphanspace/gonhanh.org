@@ -53,7 +53,7 @@ public partial class ShortcutsWindow : Window
     {
         if (ShortcutsGrid.SelectedItem is ShortcutItem item)
         {
-            var result = System.Windows.global::System.Windows.MessageBox.Show(
+            var result = global::System.Windows.MessageBox.Show(
                 $"Xóa viết tắt \"{item.Key}\"?",
                 "Xác nhận",
                 MessageBoxButton.YesNo,
