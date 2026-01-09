@@ -1,0 +1,87 @@
+cmake_minimum_required(VERSION 3.20)
+project(GoNhanh VERSION 1.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Static runtime linking (no MSVC runtime dependency)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# Source files
+set(SOURCES
+    src/main.cpp
+    src/app.cpp
+    src/rust_bridge.cpp
+    src/keyboard_hook.cpp
+    src/text_sender.cpp
+    src/settings.cpp
+    src/tray_icon.cpp
+    src/hotkey.cpp
+    src/ui/d2d_renderer.cpp
+    src/ui/settings_window.cpp
+    src/ui/controls/toggle.cpp
+    src/ui/controls/button.cpp
+    src/ui/controls/card.cpp
+    src/ui/controls/sidebar.cpp
+)
+
+# Header files
+set(HEADERS
+    src/app.h
+    src/rust_bridge.h
+    src/keyboard_hook.h
+    src/text_sender.h
+    src/settings.h
+    src/tray_icon.h
+    src/hotkey.h
+    src/ui/d2d_renderer.h
+    src/ui/settings_window.h
+    src/ui/controls/toggle.h
+    src/ui/controls/button.h
+    src/ui/controls/card.h
+    src/ui/controls/sidebar.h
+)
+
+# Windows executable (no console)
+add_executable(GoNhanh WIN32 ${SOURCES} ${HEADERS} resources/app.rc)
+
+# Include directories
+target_include_directories(GoNhanh PRIVATE src)
+
+# Link Windows libraries
+target_link_libraries(GoNhanh PRIVATE
+    # Direct2D / DirectWrite
+    d2d1
+    dwrite
+    windowscodecs
+    # Win32 APIs
+    user32
+    shell32
+    advapi32
+    gdi32
+    ole32
+    comctl32
+)
+
+# Unicode support
+target_compile_definitions(GoNhanh PRIVATE
+    UNICODE
+    _UNICODE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+)
+
+# Compiler warnings
+if(MSVC)
+    target_compile_options(GoNhanh PRIVATE /W4 /WX-)
+endif()
+
+# DPI awareness manifest
+set_target_properties(GoNhanh PROPERTIES
+    VS_DPI_AWARE "PerMonitor"
+)
+
+# Output directory
+set_target_properties(GoNhanh PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
