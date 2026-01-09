@@ -5,6 +5,7 @@
 #include "../rust_bridge.h"
 #include <shlobj.h>
 #include <commdlg.h>
+#include <windowsx.h>
 #include <fstream>
 #include <sstream>
 #include <algorithm>

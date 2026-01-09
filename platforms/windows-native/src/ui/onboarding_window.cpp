@@ -3,6 +3,7 @@
 #include "controls/button.h"
 #include "../app.h"
 #include "../settings.h"
+#include <windowsx.h>
 
 namespace gonhanh::ui {
 

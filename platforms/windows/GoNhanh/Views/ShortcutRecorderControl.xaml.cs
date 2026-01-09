@@ -6,7 +6,7 @@ using GoNhanh.Core;
 
 namespace GoNhanh.Views;
 
-public partial class ShortcutRecorderControl : UserControl
+public partial class ShortcutRecorderControl : System.Windows.Controls.UserControl
 {
     private bool _isRecording;
     private KeyboardShortcut _shortcut = KeyboardShortcut.Default;
@@ -64,7 +64,7 @@ public partial class ShortcutRecorderControl : UserControl
         Focusable = false;
     }
 
-    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (!_isRecording) return;
 
