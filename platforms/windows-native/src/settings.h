@@ -54,6 +54,9 @@ public:
     bool first_run() const { return first_run_; }
     void set_first_run(bool v) { first_run_ = v; save_value(L"FirstRun", v); }
 
+    bool onboarding_completed() const { return onboarding_completed_; }
+    void set_onboarding_completed(bool v) { onboarding_completed_ = v; save_value(L"OnboardingCompleted", v); }
+
     // Toggle shortcut (modifier + key)
     uint32_t toggle_shortcut() const { return toggle_shortcut_; }
     void set_toggle_shortcut(uint32_t v) { toggle_shortcut_ = v; save_value(L"ToggleShortcut", static_cast<int>(v)); }
@@ -92,6 +95,7 @@ private:
     bool per_app_mode_ = false;
     bool bracket_shortcut_ = false;
     bool first_run_ = true;
+    bool onboarding_completed_ = false;
     uint32_t toggle_shortcut_ = 0;  // Encoded as (modifiers << 16) | vk
 };
 

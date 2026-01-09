@@ -19,10 +19,15 @@ set(SOURCES
     src/hotkey.cpp
     src/ui/d2d_renderer.cpp
     src/ui/settings_window.cpp
+    src/ui/about_window.cpp
+    src/ui/shortcuts_window.cpp
+    src/ui/onboarding_window.cpp
     src/ui/controls/toggle.cpp
     src/ui/controls/button.cpp
     src/ui/controls/card.cpp
     src/ui/controls/sidebar.cpp
+    src/ui/controls/dropdown.cpp
+    src/ui/controls/text_input.cpp
 )
 
 # Header files
@@ -36,10 +41,15 @@ set(HEADERS
     src/hotkey.h
     src/ui/d2d_renderer.h
     src/ui/settings_window.h
+    src/ui/about_window.h
+    src/ui/shortcuts_window.h
+    src/ui/onboarding_window.h
     src/ui/controls/toggle.h
     src/ui/controls/button.h
     src/ui/controls/card.h
     src/ui/controls/sidebar.h
+    src/ui/controls/dropdown.h
+    src/ui/controls/text_input.h
 )
 
 # Windows executable (no console)

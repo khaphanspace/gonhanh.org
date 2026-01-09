@@ -370,6 +370,160 @@ jobs:
               body: body
             });
 
+  build-windows-native:
+    # For manual trigger or PR
+    if: ${{ github.event_name == 'pull_request' || inputs.platform == 'windows' || inputs.platform == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Add MSVC to PATH
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build Rust core DLL
+        shell: pwsh
+        run: |
+          cd core
+          cargo build --release --target x86_64-pc-windows-msvc
+
+          # Verify DLL exists
+          $dllPath = "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll"
+          if (Test-Path $dllPath) {
+            Write-Host "✓ Built gonhanh_core.dll"
+            Get-Item $dllPath | Format-List Length,LastWriteTime
+          } else {
+            Write-Host "::error::DLL not found at $dllPath"
+            Get-ChildItem -Recurse target/x86_64-pc-windows-msvc/release/*.dll
+            exit 1
+          }
+
+      - name: Get version from latest tag
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          git fetch --tags 2>&1 | Out-Null
+          $tagOutput = git describe --tags --abbrev=0 2>&1
+          if ($LASTEXITCODE -eq 0 -and $tagOutput -match '^v?\d') {
+            $latestTag = $tagOutput.Trim()
+          } else {
+            $latestTag = "v1.0.0"
+          }
+          $baseVersion = $latestTag -replace '^v', ''
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $buildNum = $env:GITHUB_RUN_NUMBER
+          $version = "${baseVersion}-pre.${buildNum}.${shortSha}"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Pre-release version: $version (build #${buildNum})"
+          exit 0
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cd platforms/windows-native
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build with CMake
+        shell: pwsh
+        run: |
+          cd platforms/windows-native
+          cmake --build build --config Release --verbose
+
+          # Verify exe exists
+          if (-not (Test-Path "build/bin/Release/GoNhanh.exe")) {
+            Write-Host "::error::GoNhanh.exe not found!"
+            Get-ChildItem -Recurse build/
+            exit 1
+          }
+
+          Write-Host "✓ Built GoNhanh.exe"
+          Get-Item build/bin/Release/GoNhanh.exe | Format-List Length,LastWriteTime
+
+      - name: Copy Rust DLL to output
+        shell: pwsh
+        run: |
+          $dllSrc = "core/target/x86_64-pc-windows-msvc/release/gonhanh_core.dll"
+          $dllDest = "platforms/windows-native/build/bin/Release/gonhanh_core.dll"
+
+          Copy-Item $dllSrc $dllDest -Force
+          Write-Host "✓ Copied gonhanh_core.dll to output directory"
+          Get-ChildItem platforms/windows-native/build/bin/Release/
+
+      - name: Package Windows native app
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          cd platforms/windows-native/build/bin/Release
+
+          # Verify both files exist
+          if (-not (Test-Path "GoNhanh.exe")) {
+            Write-Host "::error::GoNhanh.exe not found!"
+            exit 1
+          }
+          if (-not (Test-Path "gonhanh_core.dll")) {
+            Write-Host "::error::gonhanh_core.dll not found!"
+            exit 1
+          }
+
+          $zipName = "GoNhanh-${version}-Windows-Native-x64.zip"
+          Compress-Archive -Path GoNhanh.exe,gonhanh_core.dll -DestinationPath $zipName -Force
+          Write-Host "✓ Created $zipName"
+          Get-Item $zipName | Format-List Length,LastWriteTime
+
+      - name: Upload Windows native artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoNhanh-${{ steps.version.outputs.version }}-Windows-Native
+          path: platforms/windows-native/build/bin/Release/*.zip
+          retention-days: 14
+
+      - name: Comment on PR with Windows native artifact link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const shortSha = process.env.COMMIT_SHA.substring(0, 7);
+            const version = process.env.VERSION;
+            const prNumber = process.env.PR_NUMBER;
+            const runId = process.env.RUN_ID;
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            const body = [
+              '## Windows Native Build Ready',
+              '',
+              '| Commit | Version | Download |',
+              '|--------|---------|----------|',
+              `| \`${shortSha}\` | \`${version}\` | [**GoNhanh-${version}-Windows-Native-x64.zip**](${artifactUrl}#artifacts) |`,
+              '',
+              '> Native C++ app with Direct2D UI (zero .NET dependency)',
+              `> Build for commit ${process.env.COMMIT_SHA}`,
+              `> Artifact expires in 14 days`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: body
+            });
+
   build-linux:
     # Only for manual trigger (not PR) - Linux build is optional
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.platform == 'linux' || inputs.platform == 'all') }}

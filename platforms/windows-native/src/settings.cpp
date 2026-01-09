@@ -20,6 +20,7 @@ void Settings::load() {
     per_app_mode_ = load_bool(L"PerAppModeEnabled", false);
     bracket_shortcut_ = load_bool(L"BracketShortcut", false);
     first_run_ = load_bool(L"FirstRun", true);
+    onboarding_completed_ = load_bool(L"OnboardingCompleted", false);
     toggle_shortcut_ = static_cast<uint32_t>(load_int(L"ToggleShortcut", 0));
 }
 
@@ -36,6 +37,7 @@ void Settings::save() {
     save_value(L"PerAppModeEnabled", per_app_mode_);
     save_value(L"BracketShortcut", bracket_shortcut_);
     save_value(L"FirstRun", first_run_);
+    save_value(L"OnboardingCompleted", onboarding_completed_);
     save_value(L"ToggleShortcut", static_cast<int>(toggle_shortcut_));
 }
 
