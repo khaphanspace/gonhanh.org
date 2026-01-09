@@ -69,46 +69,72 @@ ID2D1HwndRenderTarget* D2DRenderer::create_render_target(HWND hwnd) {
 bool D2DRenderer::create_text_formats() {
     if (!dwrite_factory_) return false;
 
-    const wchar_t* font_family = L"Segoe UI";
+    // Use Segoe UI Variable for Windows 11, fallback to Segoe UI
+    // Windows 11 Fluent Design typography standards
+    const wchar_t* font_family = L"Segoe UI Variable";
+    const wchar_t* font_fallback = L"Segoe UI";
+    const wchar_t* locale = L"vi-VN";  // Vietnamese locale
 
-    // Title: 20px bold
+    // Title: 20px semibold (Windows 11 Subtitle style)
     HRESULT hr = dwrite_factory_->CreateTextFormat(
         font_family,
         nullptr,
-        DWRITE_FONT_WEIGHT_BOLD,
+        DWRITE_FONT_WEIGHT_SEMI_BOLD,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
         20.0f,
-        L"en-US",
+        locale,
         text_format_title_.GetAddressOf()
     );
-    if (FAILED(hr)) return false;
+    // Fallback to Segoe UI if Variable font not available
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            20.0f, locale, text_format_title_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
 
-    // Body: 13px regular
+    // Body: 14px regular (Windows 11 Body style - NOT 13px)
     hr = dwrite_factory_->CreateTextFormat(
         font_family,
         nullptr,
         DWRITE_FONT_WEIGHT_REGULAR,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        13.0f,
-        L"en-US",
+        14.0f,
+        locale,
         text_format_body_.GetAddressOf()
     );
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            14.0f, locale, text_format_body_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
 
-    // Small: 11px regular
+    // Small: 12px regular (Windows 11 Caption style - NOT 11px)
     hr = dwrite_factory_->CreateTextFormat(
         font_family,
         nullptr,
         DWRITE_FONT_WEIGHT_REGULAR,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        11.0f,
-        L"en-US",
+        12.0f,
+        locale,
         text_format_small_.GetAddressOf()
     );
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            12.0f, locale, text_format_small_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
 
     return true;
 }

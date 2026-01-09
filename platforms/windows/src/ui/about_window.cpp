@@ -230,7 +230,7 @@ void AboutWindow::render() {
         DWRITE_FONT_WEIGHT_REGULAR,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        13.0f,
+        14.0f,
         L"vi-VN",
         &body_format
     );
@@ -341,7 +341,7 @@ void AboutWindow::render() {
         static_cast<DWRITE_FONT_WEIGHT>(600),  // SEMIBOLD
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        13.0f,
+        14.0f,
         L"vi-VN",
         &author_format
     );

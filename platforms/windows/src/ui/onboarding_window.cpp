@@ -353,7 +353,7 @@ void OnboardingWindow::render_setup_step() {
         DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        13.0f,
+        14.0f,
         L"vi-VN",
         &option_desc_format
     );

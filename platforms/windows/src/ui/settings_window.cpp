@@ -482,7 +482,7 @@ void SettingsWindow::render_about_page() {
         DWRITE_FONT_WEIGHT_BOLD,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        24.0f, L"en-US",
+        24.0f, L"vi-VN",
         title_format.GetAddressOf()
     );
     title_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
@@ -498,7 +498,7 @@ void SettingsWindow::render_about_page() {
         DWRITE_FONT_WEIGHT_REGULAR,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        13.0f, L"en-US",
+        14.0f, L"vi-VN",
         desc_format.GetAddressOf()
     );
     desc_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);

@@ -8,15 +8,24 @@
   />
   <description>GoNhanh - Vietnamese Input Method</description>
 
-  <!-- DPI Awareness -->
+  <!-- Windows Settings (DPI, Long Paths, Heap, UTF-8) -->
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>
+      <!-- DPI Awareness: PerMonitorV2 for Windows 10 1703+ -->
       <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">True/PM</dpiAware>
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <!-- GDI Scaling for legacy GDI calls -->
+      <gdiScaling xmlns="http://schemas.microsoft.com/SMI/2017/WindowsSettings">true</gdiScaling>
+      <!-- Long path support (Windows 10 1607+) -->
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+      <!-- Segment Heap for better memory performance (Windows 10 2004+) -->
+      <heapType xmlns="http://schemas.microsoft.com/SMI/2020/WindowsSettings">SegmentHeap</heapType>
+      <!-- UTF-8 code page for proper Unicode handling -->
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
     </windowsSettings>
   </application>
 
-  <!-- Common Controls v6 -->
+  <!-- Common Controls v6 (Visual Styles) -->
   <dependency>
     <dependentAssembly>
       <assemblyIdentity
@@ -30,10 +39,10 @@
     </dependentAssembly>
   </dependency>
 
-  <!-- Compatibility -->
+  <!-- OS Compatibility -->
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
-      <!-- Windows 10 and 11 -->
+      <!-- Windows 10 / Windows 11 -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
     </application>
   </compatibility>

@@ -89,6 +89,9 @@ target_link_libraries(GoNhanh PRIVATE
     gdi32
     ole32
     comctl32
+    shlwapi     # Path functions (PathCombine, etc.)
+    uxtheme     # Visual styles and theming
+    dwmapi      # Desktop Window Manager (blur, etc.)
     # Networking (for update system)
     winhttp
     # Audio (for sound effects)
@@ -103,9 +106,17 @@ target_compile_definitions(GoNhanh PRIVATE
     NOMINMAX
 )
 
-# Compiler warnings and UTF-8 source encoding
+# Compiler settings (MSVC best practices)
 if(MSVC)
-    target_compile_options(GoNhanh PRIVATE /W4 /WX- /utf-8)
+    target_compile_options(GoNhanh PRIVATE
+        /W4                # Warning level 4
+        /WX-               # Don't treat warnings as errors (for now)
+        /utf-8             # UTF-8 source and execution encoding
+        /permissive-       # C++ standards conformance mode
+        /Zc:__cplusplus    # Report correct __cplusplus value
+        /Zc:preprocessor   # Use standards-conforming preprocessor
+        /EHsc              # Standard C++ exception handling
+    )
 endif()
 
 # Note: DPI awareness is set via app.manifest in app.rc

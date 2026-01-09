@@ -11,13 +11,18 @@ int WINAPI wWinMain(
     _In_ LPWSTR /*lpCmdLine*/,
     _In_ int /*nShowCmd*/
 ) {
-    // Initialize COM (needed for some Windows APIs)
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    // Initialize COM (required for Direct2D, DirectWrite, WIC)
+    // Use COINIT_APARTMENTTHREADED for UI thread
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(hr)) {
+        MessageBoxW(nullptr, L"Failed to initialize COM", L"GoNhanh", MB_ICONERROR);
+        return 1;
+    }
 
-    // Initialize common controls
+    // Initialize common controls (for modern visual styles)
     INITCOMMONCONTROLSEX icex = {};
     icex.dwSize = sizeof(icex);
-    icex.dwICC = ICC_STANDARD_CLASSES;
+    icex.dwICC = ICC_STANDARD_CLASSES | ICC_WIN95_CLASSES;
     InitCommonControlsEx(&icex);
 
     auto& app = gonhanh::App::instance();

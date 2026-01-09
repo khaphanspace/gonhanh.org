@@ -224,7 +224,7 @@ void PerAppWindow::render() {
     renderer.dwrite_factory()->CreateTextFormat(
         L"Segoe UI", nullptr,
         DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL, 13.0f, L"vi-VN", &body_format
+        DWRITE_FONT_STRETCH_NORMAL, 14.0f, L"vi-VN", &body_format
     );
 
     const wchar_t* desc = L"Gõ Nhanh sẽ tự động tắt khi bạn sử dụng các ứng dụng này.";
