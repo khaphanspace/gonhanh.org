@@ -81,6 +81,19 @@ jobs:
         run: dotnet publish -c Release -r win-${{ matrix.platform }} -p:Platform=${{ matrix.platform }} --no-restore
         working-directory: platforms/windows/GoNhanh.Windows
 
+      - name: Copy Rust DLL to publish folder
+        run: |
+          $publishPath = "platforms/windows/GoNhanh.Windows/bin/${{ matrix.platform }}/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish"
+          $dllSource = "platforms/windows/libs/${{ matrix.platform }}/gonhanh_core.dll"
+          if (Test-Path $dllSource) {
+            Copy-Item $dllSource $publishPath -Force
+            Write-Host "Copied gonhanh_core.dll to publish folder"
+          } else {
+            Write-Host "WARNING: gonhanh_core.dll not found at $dllSource"
+          }
+          Write-Host "Publish folder contents:"
+          Get-ChildItem $publishPath | ForEach-Object { Write-Host "  $_" }
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:

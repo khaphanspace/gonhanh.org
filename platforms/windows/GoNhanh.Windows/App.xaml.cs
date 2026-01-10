@@ -3,6 +3,8 @@ using GoNhanh.Core;
 using GoNhanh.Services;
 using GoNhanh.Views;
 
+// SystemTray is in GoNhanh.Views namespace
+
 namespace GoNhanh;
 
 /// <summary>
@@ -22,28 +24,47 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Initialize Rust engine
-        RustBridge.ime_init();
+        try
+        {
+            // Initialize Rust engine
+            RustBridge.ime_init();
 
-        // Load and apply settings
-        SettingsService.Instance.ApplyToEngine();
+            // Load and apply settings
+            SettingsService.Instance.ApplyToEngine();
 
-        // Create IME controller and start keyboard hook
-        _controller = new ImeController();
-        _controller.IsEnabled = SettingsService.Instance.Enabled;
-        _controller.EnabledChanged += OnEnabledChanged;
-        _controller.Start();
+            // Create IME controller and start keyboard hook
+            _controller = new ImeController();
+            _controller.IsEnabled = SettingsService.Instance.Enabled;
+            _controller.EnabledChanged += OnEnabledChanged;
+            _controller.Start();
 
-        // Create system tray
-        _tray = new SystemTray(_controller);
-        _tray.SettingsRequested += OnSettingsRequested;
-        _tray.AboutRequested += OnAboutRequested;
-        _tray.UpdateRequested += OnUpdateRequested;
-        _tray.QuitRequested += OnQuitRequested;
-        _tray.Show();
+            // Create system tray
+            _tray = new SystemTray(_controller);
+            _tray.SettingsRequested += OnSettingsRequested;
+            _tray.AboutRequested += OnAboutRequested;
+            _tray.UpdateRequested += OnUpdateRequested;
+            _tray.QuitRequested += OnQuitRequested;
+            _tray.Show();
 
-        // Create settings window (hidden by default, shown when settings requested)
-        _window = new SettingsWindow();
+            // Create settings window (hidden by default, shown when settings requested)
+            _window = new SettingsWindow();
+        }
+        catch (Exception ex)
+        {
+            // Show error dialog for debugging
+            var errorWindow = new Window
+            {
+                Title = "Go Nhanh - Error",
+                Content = new Microsoft.UI.Xaml.Controls.TextBlock
+                {
+                    Text = $"Error: {ex.Message}\n\n{ex.StackTrace}",
+                    TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+                    Margin = new Thickness(20)
+                }
+            };
+            errorWindow.Activate();
+            _window = errorWindow;
+        }
     }
 
     private void OnEnabledChanged(object? sender, bool enabled)
