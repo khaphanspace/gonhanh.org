@@ -38,11 +38,12 @@ public partial class App : Application
         _tray = new SystemTray(_controller);
         _tray.SettingsRequested += OnSettingsRequested;
         _tray.AboutRequested += OnAboutRequested;
+        _tray.UpdateRequested += OnUpdateRequested;
         _tray.QuitRequested += OnQuitRequested;
         _tray.Show();
 
-        // Create main window (hidden by default, shown when settings requested)
-        _window = new MainWindow();
+        // Create settings window (hidden by default, shown when settings requested)
+        _window = new SettingsWindow();
     }
 
     private void OnEnabledChanged(object? sender, bool enabled)
@@ -56,9 +57,18 @@ public partial class App : Application
         _window?.Activate();
     }
 
-    private void OnAboutRequested(object? sender, EventArgs e)
+    private async void OnAboutRequested(object? sender, EventArgs e)
     {
-        // TODO: Show about dialog (Phase 4)
+        if (_window == null) return;
+        var dialog = new AboutDialog { XamlRoot = _window.Content.XamlRoot };
+        await dialog.ShowAsync();
+    }
+
+    private async void OnUpdateRequested(object? sender, EventArgs e)
+    {
+        if (_window == null) return;
+        var dialog = new UpdateDialog { XamlRoot = _window.Content.XamlRoot };
+        await dialog.ShowAsync();
     }
 
     private void OnQuitRequested(object? sender, EventArgs e)
@@ -80,6 +90,7 @@ public partial class App : Application
         {
             _tray.SettingsRequested -= OnSettingsRequested;
             _tray.AboutRequested -= OnAboutRequested;
+            _tray.UpdateRequested -= OnUpdateRequested;
             _tray.QuitRequested -= OnQuitRequested;
             _tray.Dispose();
         }
