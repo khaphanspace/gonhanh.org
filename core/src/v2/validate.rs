@@ -309,8 +309,15 @@ fn check_spelling(syllable: &Syllable) -> bool {
         return false;
     }
 
-    // g → gh before e/i (but "gi" cluster is valid)
-    if onset == "g" && matches!(first_vowel, 'e' | 'ê' | 'i') {
+    // g → gh before e/i
+    // Exception: "g" + single vowel 'i' is valid (gì, gỉ, gí, gĩ, gị)
+    // These are standalone gi-words where 'i' is the only vowel
+    if onset == "g" && matches!(first_vowel, 'e' | 'ê') {
+        return false;
+    }
+    // "gi" with just one vowel 'i' is valid (gì = what)
+    // "gi" before another vowel needs "gi" cluster handling in parse_syllable
+    if onset == "g" && first_vowel == 'i' && syllable.vowels.len() > 1 {
         return false;
     }
 

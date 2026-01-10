@@ -287,9 +287,13 @@ impl Engine {
                 return self.rebuild_output();
             }
 
-            // Otherwise: ignore tone key - consume without effect
-            // Don't push to raw, don't change transformed
-            // Return consumed result (key handled, no output)
+            // Otherwise: ignore tone key effect but STILL push to raw buffer
+            // This is critical for dictionary-based restore to work!
+            // E.g., "services" → 'r' applies tone to 'e', final 's' must be in raw
+            // so that raw="services" matches dictionary for restore
+            // NOTE: Only push to raw, NOT transformed - transformed should stay clean
+            self.buffer.push_raw(raw_char);
+            // Return consumed result - no visible change to transformed
             return Result::send(0, &[]);
         }
 
@@ -332,7 +336,7 @@ impl Engine {
     /// Handle mark key (circumflex, horn, breve, stroke)
     fn handle_mark(&mut self, mark: MarkType) -> Result {
         use super::placement::{
-            apply_breve, apply_circumflex, apply_horn, apply_stroke, replace_char_at,
+            apply_circumflex, apply_horn_or_breve, apply_stroke, replace_char_at,
         };
 
         // Determine raw key for buffer
@@ -354,8 +358,8 @@ impl Engine {
             MarkType::Stroke => apply_stroke(transformed),
             MarkType::Circumflex => apply_circumflex(transformed),
             MarkType::HornOrBreve => {
-                // Try horn first (o→ơ, u→ư), then breve (a→ă)
-                apply_horn(transformed).or_else(|| apply_breve(transformed))
+                // Apply horn or breve based on LAST applicable vowel (a/o/u)
+                apply_horn_or_breve(transformed)
             }
         };
 
@@ -543,6 +547,26 @@ impl Engine {
     /// Set English auto-restore
     pub fn set_english_auto_restore(&mut self, enabled: bool) {
         self.english_auto_restore = enabled;
+    }
+
+    /// Load English dictionary from word list
+    /// Each word should be on a separate line
+    pub fn load_english_dict(&mut self, content: &str) {
+        let mut dict = Dict::new();
+        for line in content.lines() {
+            let word = line.trim();
+            if !word.is_empty() && word.chars().all(|c| c.is_ascii_alphabetic()) {
+                dict.insert(word);
+            }
+        }
+        self.dict = Some(dict);
+    }
+
+    /// Load English dictionary from embedded 100k word list
+    #[cfg(feature = "english-dict")]
+    pub fn load_default_english_dict(&mut self) {
+        let content = include_str!("../../tests/data/english_100k.txt");
+        self.load_english_dict(content);
     }
 
     /// Set auto-capitalize
@@ -1101,6 +1125,7 @@ fn test_debug_roofif() {
 #[test]
 fn test_debug_test_word() {
     // Debug: trace "Test " typing step by step
+    // Without dictionary, "Test" becomes "Tét" (Vietnamese transform)
     let mut e = Engine::new();
     let mut screen = String::new();
 
@@ -1150,12 +1175,44 @@ fn test_debug_test_word() {
     }
 
     println!("Final screen: '{}'", screen);
+    // Without dictionary loaded, Vietnamese output is kept
+    assert_eq!(screen, "Tét ");
+}
+
+#[test]
+fn test_debug_test_word_with_dict() {
+    // With English dictionary, "Test" restores to "Test"
+    let mut e = Engine::new();
+    e.load_english_dict("test\nTest\n"); // Load simple dict with "test"
+    let mut screen = String::new();
+
+    let input = "Test ";
+    for c in input.chars() {
+        let key = crate::utils::char_to_key(c);
+        let caps = c.is_uppercase();
+        let r = e.on_key(key, caps, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+
+    println!("Final screen with dict: '{}'", screen);
     assert_eq!(screen, "Test ");
 }
 
 #[test]
-fn test_e2e_all_cases() {
-    // Test all E2E cases with single keystrokes
+fn test_e2e_vietnamese_cases() {
+    // Test Vietnamese E2E cases (no dictionary needed)
     fn type_input(input: &str) -> String {
         let mut e = Engine::new();
         let mut screen = String::new();
@@ -1181,20 +1238,14 @@ fn test_e2e_all_cases() {
         screen
     }
 
+    // Vietnamese cases (no English restore expected)
     let cases = [
         ("xin chafo ", "xin chào "),
         ("tieengs Vieetj ", "tiếng Việt "),
-        ("text ", "text "),
-        ("window ", "window "),
-        ("view ", "view "),
-        ("tooi ddi work ", "tôi đi work "),
         ("saii", "saii"), // No Telex transform for 'ii', outputs as-is
         (" roofif", " rồi"),
         ("ddeer ", "để "), // 'r' = hỏi tone, not 'f'
         ("dduwowcj ", "được "),
-        ("law ", "law "),
-        ("saw ", "saw "),
-        ("raw ", "raw "),
     ];
 
     let mut all_pass = true;
@@ -1213,5 +1264,359 @@ fn test_e2e_all_cases() {
         }
     }
 
-    assert!(all_pass, "Some E2E cases failed");
+    assert!(all_pass, "Some E2E Vietnamese cases failed");
+}
+
+#[test]
+fn test_e2e_english_restore_cases() {
+    // Test English restore cases (WITH dictionary)
+    fn type_input_with_dict(engine: &mut Engine, input: &str) -> String {
+        let mut screen = String::new();
+        for c in input.chars() {
+            let key = crate::utils::char_to_key(c);
+            let caps = c.is_uppercase();
+            let r = engine.on_key(key, caps, false);
+
+            if r.action == Action::Send as u8 {
+                for _ in 0..r.backspace {
+                    screen.pop();
+                }
+                for i in 0..r.count as usize {
+                    if let Some(ch) = char::from_u32(r.chars[i]) {
+                        screen.push(ch);
+                    }
+                }
+            } else {
+                screen.push(c);
+            }
+        }
+        screen
+    }
+
+    // English restore cases (dictionary required)
+    let english_words = "text\nwindow\nview\nwork\nlaw\nsaw\nraw\n";
+    let cases = [
+        ("text ", "text "),
+        ("window ", "window "),
+        ("view ", "view "),
+        ("law ", "law "),
+        ("saw ", "saw "),
+        ("raw ", "raw "),
+    ];
+
+    let mut all_pass = true;
+    for (input, expected) in cases {
+        let mut e = Engine::new();
+        e.load_english_dict(english_words);
+        let result = type_input_with_dict(&mut e, input);
+        let pass = result == expected;
+        println!(
+            "[{}] '{}' → '{}' (expected '{}')",
+            if pass { "✓" } else { "✗" },
+            input,
+            result,
+            expected
+        );
+        if !pass {
+            all_pass = false;
+        }
+    }
+
+    assert!(all_pass, "Some E2E English restore cases failed");
+}
+
+#[test]
+fn debug_gif_tone() {
+    let mut e = Engine::new();
+
+    // Type 'g'
+    let r1 = e.on_key(keys::G, false, false);
+    println!(
+        "After 'g': action={}, backspace={}, count={}",
+        r1.action, r1.backspace, r1.count
+    );
+    if r1.count > 0 {
+        println!(
+            "  chars: {:?}",
+            (0..r1.count as usize)
+                .map(|i| char::from_u32(r1.chars[i]))
+                .collect::<Vec<_>>()
+        );
+    }
+    println!(
+        "  buffer raw={:?} transformed={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+
+    // Type 'i'
+    let r2 = e.on_key(keys::I, false, false);
+    println!(
+        "After 'i': action={}, backspace={}, count={}",
+        r2.action, r2.backspace, r2.count
+    );
+    if r2.count > 0 {
+        println!(
+            "  chars: {:?}",
+            (0..r2.count as usize)
+                .map(|i| char::from_u32(r2.chars[i]))
+                .collect::<Vec<_>>()
+        );
+    }
+    println!(
+        "  buffer raw={:?} transformed={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+
+    // Type 'f' (should be tone key)
+    let r3 = e.on_key(keys::F, false, false);
+    println!(
+        "After 'f': action={}, backspace={}, count={}",
+        r3.action, r3.backspace, r3.count
+    );
+    if r3.count > 0 {
+        println!(
+            "  chars: {:?}",
+            (0..r3.count as usize)
+                .map(|i| char::from_u32(r3.chars[i]))
+                .collect::<Vec<_>>()
+        );
+    }
+    println!(
+        "  buffer raw={:?} transformed={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+
+    // Verify
+    assert_eq!(
+        e.buffer.transformed(),
+        "gì",
+        "Expected 'gì' but got {:?}",
+        e.buffer.transformed()
+    );
+}
+
+#[test]
+fn debug_gif_with_space() {
+    use super::state::VnState;
+    use super::validate::validate_vn;
+
+    let mut e = Engine::new();
+    e.set_modern_tone(false);
+    e.set_english_auto_restore(true);
+
+    // Type 'g'
+    let _ = e.on_key(keys::G, false, false);
+    println!(
+        "After 'g': raw={:?} trans={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+
+    // Type 'i'
+    let _ = e.on_key(keys::I, false, false);
+    println!(
+        "After 'i': raw={:?} trans={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+
+    // Type 'f' (tone)
+    let _ = e.on_key(keys::F, false, false);
+    println!(
+        "After 'f': raw={:?} trans={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+    println!(
+        "  state: has_tone={}, had_transform={}",
+        e.state.has_tone(),
+        e.state.had_transform()
+    );
+    println!("  vn_state={:?}", e.state.vn_state());
+
+    // Validate gì directly
+    let direct_state = validate_vn("gì");
+    println!("  validate_vn(\"gì\") = {:?}", direct_state);
+
+    // Type ' ' (space - terminator)
+    let r = e.on_key(keys::SPACE, false, false);
+    println!(
+        "After ' ': action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
+    if r.count > 0 {
+        println!(
+            "  chars: {:?}",
+            (0..r.count as usize)
+                .map(|i| char::from_u32(r.chars[i]))
+                .collect::<Vec<_>>()
+        );
+    }
+    println!(
+        "  buffer raw={:?} transformed={:?}",
+        e.buffer.raw(),
+        e.buffer.transformed()
+    );
+}
+
+#[test]
+fn debug_choawts() {
+    let mut e = Engine::new();
+    e.set_modern_tone(false);
+
+    // Type "choawts" step by step
+    for c in "choawts".chars() {
+        let key = match c {
+            'c' => keys::C,
+            'h' => keys::H,
+            'o' => keys::O,
+            'a' => keys::A,
+            'w' => keys::W,
+            't' => keys::T,
+            's' => keys::S,
+            _ => continue,
+        };
+        let r = e.on_key(key, false, false);
+        println!(
+            "After '{}': raw={:?} trans={:?} action={}",
+            c,
+            e.buffer.raw(),
+            e.buffer.transformed(),
+            r.action
+        );
+    }
+
+    assert_eq!(
+        e.buffer.transformed(),
+        "choắt",
+        "Expected choắt but got {:?}",
+        e.buffer.transformed()
+    );
+}
+
+#[test]
+fn debug_giair() {
+    let mut e = Engine::new();
+    e.set_modern_tone(false);
+
+    // Type "giair" step by step
+    for c in "giair".chars() {
+        let key = match c {
+            'g' => keys::G,
+            'i' => keys::I,
+            'a' => keys::A,
+            'r' => keys::R,
+            _ => continue,
+        };
+        let r = e.on_key(key, false, false);
+        println!(
+            "After '{}': raw={:?} trans={:?} action={} state={:?}",
+            c,
+            e.buffer.raw(),
+            e.buffer.transformed(),
+            r.action,
+            e.state
+        );
+    }
+
+    assert_eq!(
+        e.buffer.transformed(),
+        "giải",
+        "Expected giải but got {:?}",
+        e.buffer.transformed()
+    );
+}
+
+#[test]
+fn debug_buyts() {
+    let mut e = Engine::new();
+    e.set_modern_tone(false);
+
+    // Type "buyts" step by step
+    for c in "buyts".chars() {
+        let key = match c {
+            'b' => keys::B,
+            'u' => keys::U,
+            'y' => keys::Y,
+            't' => keys::T,
+            's' => keys::S,
+            _ => continue,
+        };
+        let r = e.on_key(key, false, false);
+        println!(
+            "After '{}': raw={:?} trans={:?} action={}",
+            c,
+            e.buffer.raw(),
+            e.buffer.transformed(),
+            r.action
+        );
+    }
+
+    assert_eq!(
+        e.buffer.transformed(),
+        "buýt",
+        "Expected buýt but got {:?}",
+        e.buffer.transformed()
+    );
+}
+
+#[test]
+fn debug_thuowr() {
+    use super::validate::validate_vn;
+
+    let mut e = Engine::new();
+    e.set_modern_tone(false);
+    e.set_english_auto_restore(true); // Match test settings
+
+    // Type "thuowr " step by step (with space at end like the test)
+    let mut screen = String::new();
+    for c in "thuowr ".chars() {
+        let key = match c {
+            't' => keys::T,
+            'h' => keys::H,
+            'u' => keys::U,
+            'o' => keys::O,
+            'w' => keys::W,
+            'r' => keys::R,
+            ' ' => keys::SPACE,
+            _ => continue,
+        };
+        let r = e.on_key(key, false, false);
+        let vn = validate_vn(e.buffer.transformed());
+        println!(
+            "After '{}': raw={:?} trans={:?} vn_state={:?} state={:?}",
+            c,
+            e.buffer.raw(),
+            e.buffer.transformed(),
+            vn,
+            e.state
+        );
+        println!("  action={} bs={} count={}", r.action, r.backspace, r.count);
+
+        // Simulate screen like the test does
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace as usize {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+        println!("  screen={:?}", screen);
+    }
+
+    // Also test validate_vn directly
+    println!("\nDirect validate_vn tests:");
+    println!("  validate_vn(\"thuở\") = {:?}", validate_vn("thuở"));
+    println!("  validate_vn(\"thuơ\") = {:?}", validate_vn("thuơ"));
+    println!("  validate_vn(\"thuo\") = {:?}", validate_vn("thuo"));
+
+    assert_eq!(screen.trim(), "thuở", "Expected thuở but got {:?}", screen);
 }

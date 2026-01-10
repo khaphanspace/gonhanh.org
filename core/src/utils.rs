@@ -49,6 +49,21 @@ pub fn key_to_char(key: u16, caps: bool) -> Option<char> {
         keys::N7 => return Some('7'),
         keys::N8 => return Some('8'),
         keys::N9 => return Some('9'),
+        // Terminators and punctuation
+        keys::SPACE => return Some(' '),
+        keys::DOT => return Some('.'),
+        keys::COMMA => return Some(','),
+        keys::SEMICOLON => return Some(';'),
+        keys::QUOTE => return Some('\''),
+        keys::LBRACKET => return Some('['),
+        keys::RBRACKET => return Some(']'),
+        keys::MINUS => return Some('-'),
+        keys::EQUAL => return Some('='),
+        keys::SLASH => return Some('/'),
+        keys::BACKSLASH => return Some('\\'),
+        keys::BACKQUOTE => return Some('`'),
+        keys::RETURN => return Some('\n'),
+        keys::TAB => return Some('\t'),
         _ => return None,
     };
     Some(if caps { ch.to_ascii_uppercase() } else { ch })

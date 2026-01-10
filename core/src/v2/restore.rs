@@ -19,18 +19,22 @@ pub enum Decision {
 
 /// Determine if buffer should be restored to raw
 ///
+/// New approach: Dictionary-based restore only
+/// - Only restore when raw is 100% match in English dictionary
+/// - AND transformed is invalid Vietnamese
+///
 /// # Arguments
 /// * `state` - Current buffer state flags
 /// * `raw` - Raw input string
 /// * `buffer` - Transformed buffer string
-/// * `dict` - Optional dictionary for word lookup
+/// * `dict` - Optional English dictionary for word lookup
 ///
 /// # Returns
 /// * `Decision` - Keep, Restore, or Skip
 pub fn should_restore(
     state: &BufferState,
     raw: &str,
-    buffer: &str,
+    _buffer: &str,
     dict: Option<&Dict>,
 ) -> Decision {
     // P1: No transform = nothing to restore
@@ -39,37 +43,40 @@ pub fn should_restore(
     }
 
     // P2: Stroke (đ) = 100% intentional VN
+    // This is the strongest signal - user pressed 'dd' for đ
     if state.has_stroke() {
         return Decision::Keep;
     }
 
-    // P3: Pending breve = restore (aw + terminator = law, saw)
-    if state.pending_breve() {
-        return Decision::Restore;
-    }
-
-    // Dictionary-based restore (primary method)
+    // P3: Dictionary-based restore (PRIMARY METHOD)
+    // If raw is in English dictionary, restore it to raw
+    // This takes priority over the "has tone = Vietnamese" heuristic
+    // because tones often get added accidentally (e.g., "test" → "tét" via 's' key)
     if let Some(dict) = dict {
-        if dict.contains(buffer) {
-            return Decision::Keep;
-        }
         if dict.contains(raw) {
             return Decision::Restore;
         }
     }
 
-    // P4: Impossible VN should restore immediately
+    // P4: Complete VN with tone = intentional VN (when no dict match)
+    // If user typed a word with tone that's NOT in English dict,
+    // they're likely typing Vietnamese
+    if state.has_tone() && state.vn_state() == VnState::Complete {
+        return Decision::Keep;
+    }
+
+    // P5: Valid Vietnamese without tone = keep
+    if state.vn_state() == VnState::Complete {
+        return Decision::Keep;
+    }
+
+    // P6: Impossible VN = restore
     if state.vn_state() == VnState::Impossible {
         return Decision::Restore;
     }
 
-    // Check for English patterns (Tiers 3-7)
-    if is_english(raw) {
-        return Decision::Restore;
-    }
-
-    // Fallback when no dictionary
-    should_restore_fallback(state, raw, buffer)
+    // P7: Otherwise = skip (incomplete word, don't guess)
+    Decision::Skip
 }
 
 /// Fallback logic when no dictionary available
@@ -265,12 +272,25 @@ mod tests {
     }
 
     #[test]
-    fn test_pending_breve_restores() {
+    fn test_pending_breve_with_dict_restores() {
+        // With English dictionary, "law" should restore
+        let mut state = BufferState::new();
+        state.set_pending_breve(true);
+        state.set_had_transform(true);
+        let dict = Dict::from_words(&["law"]);
+        let result = should_restore(&state, "law", "lăw", Some(&dict));
+        assert_eq!(result, Decision::Restore);
+    }
+
+    #[test]
+    fn test_pending_breve_without_dict_skips() {
+        // Without dictionary, pending breve alone doesn't trigger restore
+        // (goes to P7 Skip since vn_state not set)
         let mut state = BufferState::new();
         state.set_pending_breve(true);
         state.set_had_transform(true);
         let result = should_restore(&state, "law", "lăw", None);
-        assert_eq!(result, Decision::Restore);
+        assert_eq!(result, Decision::Skip);
     }
 
     #[test]
@@ -283,13 +303,26 @@ mod tests {
     }
 
     #[test]
-    fn test_english_pattern_restores() {
+    fn test_english_pattern_with_dict_restores() {
+        // With English dictionary, "text" should restore
         let mut state = BufferState::new();
         state.set_had_transform(true);
         state.set_vn_state(VnState::Complete);
-        // "text" has English coda cluster "xt"
-        let result = should_restore(&state, "text", "téxt", None);
+        let dict = Dict::from_words(&["text"]);
+        let result = should_restore(&state, "text", "téxt", Some(&dict));
         assert_eq!(result, Decision::Restore);
+    }
+
+    #[test]
+    fn test_english_pattern_without_dict_keeps() {
+        // Without dictionary, valid VN with tone is kept (P4)
+        // English pattern detection is not used without dictionary
+        let mut state = BufferState::new();
+        state.set_had_transform(true);
+        state.set_has_tone(true);
+        state.set_vn_state(VnState::Complete);
+        let result = should_restore(&state, "text", "téxt", None);
+        assert_eq!(result, Decision::Keep);
     }
 
     #[test]
@@ -322,10 +355,24 @@ mod tests {
 
     // Dictionary tests
     #[test]
-    fn test_dict_buffer_match_keeps() {
+    fn test_dict_raw_not_match_skips() {
+        // Dictionary check is for ENGLISH words (raw), not Vietnamese (buffer)
+        // If raw doesn't match English dict, continues to other checks
+        // Here vn_state is not set, so goes to P7 Skip
         let mut state = BufferState::new();
         state.set_had_transform(true);
-        let dict = Dict::from_words(&["việt"]);
+        let dict = Dict::from_words(&["other"]); // "viet" not in dict
+        let result = should_restore(&state, "viet", "việt", Some(&dict));
+        assert_eq!(result, Decision::Skip);
+    }
+
+    #[test]
+    fn test_dict_raw_not_match_but_complete_keeps() {
+        // If raw doesn't match English dict but buffer is valid Vietnamese, keep
+        let mut state = BufferState::new();
+        state.set_had_transform(true);
+        state.set_vn_state(VnState::Complete);
+        let dict = Dict::from_words(&["other"]); // "viet" not in dict
         let result = should_restore(&state, "viet", "việt", Some(&dict));
         assert_eq!(result, Decision::Keep);
     }

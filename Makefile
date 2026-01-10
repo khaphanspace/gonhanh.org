@@ -1,4 +1,4 @@
-.PHONY: help all test test-v2 format build build-v2 build-linux clean setup install dmg release release-minor release-major
+.PHONY: help all test test-v2 format build build-v2 build-linux clean setup install dmg release release-minor release-major run
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -16,7 +16,7 @@ help: ## Show this help
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;34mDevelopment:\033[0m"
-	@grep -E '^(test|test-v2|format|build|build-v2|build-linux|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(test|test-v2|format|build|build-v2|build-linux|run|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "\033[1;33mSetup & Install:\033[0m"
 	@grep -E '^(setup|install):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
@@ -39,11 +39,19 @@ build: format ## Build core + macos app (V1 engine)
 	@./scripts/build-core.sh
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
+	@$(MAKE) run
 
 build-v2: format ## Build core + macos app (V2 engine)
 	@CARGO_FEATURES=engine-v2 ./scripts/build-core.sh
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
+	@$(MAKE) run
+
+run: ## Run macOS app from build folder
+	@pkill -x GoNhanh 2>/dev/null || true
+	@sleep 0.5
+	@open platforms/macos/build/Release/GoNhanh.app
+	@echo "✅ GoNhanh started"
 
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh

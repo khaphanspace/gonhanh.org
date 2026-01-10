@@ -142,7 +142,7 @@ pub const VN_ONSET_CLUSTERS: &[[u8; 2]] = &[
 /// Valid VN coda clusters (3 clusters)
 pub const VN_CODA_CLUSTERS: &[[u8; 2]] = &[*b"ch", *b"ng", *b"nh"];
 
-/// Valid VN diphthongs (29 patterns)
+/// Valid VN diphthongs (30 patterns)
 /// From spec Section 2.2
 pub const VALID_DIPHTHONGS: &[[char; 2]] = &[
     ['a', 'i'],
@@ -167,6 +167,7 @@ pub const VALID_DIPHTHONGS: &[[char; 2]] = &[
     ['u', 'ê'],
     ['u', 'i'],
     ['u', 'ô'],
+    ['u', 'ơ'], // thuở - u + ơ (only o has horn, distinct from ươ)
     ['u', 'y'],
     ['ư', 'a'],
     ['ư', 'i'],

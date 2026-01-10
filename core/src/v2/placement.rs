@@ -129,26 +129,38 @@ pub fn find_tone_position_with_context(
     has_final: bool,
     ctx: &PlacementContext,
 ) -> Option<usize> {
-    match vowels.len() {
+    // Handle gi-initial: first 'i' is part of consonant, skip it
+    // Example: "giai" → skip first i, process "ai" as diphthong
+    let effective_vowels: &[VowelInfo] =
+        if ctx.has_gi_initial && !vowels.is_empty() && vowels[0].vowel == 'i' {
+            &vowels[1..]
+        } else if ctx.has_qu_initial && !vowels.is_empty() && vowels[0].vowel == 'u' {
+            // Handle qu-initial: first 'u' is part of consonant, skip it
+            &vowels[1..]
+        } else {
+            vowels
+        };
+
+    match effective_vowels.len() {
         0 => None,
 
         // Rule 1: Single vowel
-        1 => Some(vowels[0].position),
+        1 => Some(effective_vowels[0].position),
 
         // Diphthong: use pattern tables
-        2 => find_diphthong_position(vowels, has_final, ctx),
+        2 => find_diphthong_position(effective_vowels, has_final, ctx),
 
         // Triphthong: use pattern lookup, then fallback to middle
-        3 => find_triphthong_position(vowels),
+        3 => find_triphthong_position(effective_vowels),
 
         // 4+ vowels: check triphthong in first 3, else fallback
         _ => {
             // Try matching triphthong in first 3 vowels
-            if let Some(pos) = find_triphthong_position(&vowels[0..3]) {
+            if let Some(pos) = find_triphthong_position(&effective_vowels[0..3]) {
                 return Some(pos);
             }
             // Fallback: middle vowel
-            Some(vowels[vowels.len() / 2].position)
+            Some(effective_vowels[effective_vowels.len() / 2].position)
         }
     }
 }
@@ -192,10 +204,25 @@ fn find_diphthong_position(
         return Some(vowels[1].position);
     }
 
-    // Rule: Modern vs Traditional placement for oa, oe, uy
-    // - Modern: hoà, hoè, thuỳ (second vowel)
-    // - Traditional: hòa, hòe, thùy (first vowel)
-    let is_modern_pattern = (v1 == 'o' && (v2 == 'a' || v2 == 'e')) || (v1 == 'u' && v2 == 'y');
+    // Special: "uy" pattern - context-dependent (similar to "ua")
+    // Closed syllable (buýt, huýt): y is main → tone on 'y' (regardless of style)
+    // Open syllable: style-dependent (thuỳ/thùy)
+    if v1 == 'u' && v2 == 'y' {
+        if has_final {
+            return Some(vowels[1].position); // Closed: always tone on 'y'
+        }
+        // Open: use modern/traditional style
+        return if ctx.modern {
+            Some(vowels[1].position) // Modern: thuỳ
+        } else {
+            Some(vowels[0].position) // Traditional: thùy
+        };
+    }
+
+    // Rule: Modern vs Traditional placement for oa, oe
+    // - Modern: hoà, hoè (second vowel)
+    // - Traditional: hòa, hòe (first vowel)
+    let is_modern_pattern = v1 == 'o' && (v2 == 'a' || v2 == 'e');
     if is_modern_pattern {
         return if ctx.modern {
             Some(vowels[1].position) // Modern: second vowel
@@ -508,15 +535,31 @@ pub fn apply_circumflex(s: &str) -> Option<(usize, char)> {
     None
 }
 
+/// Check if buffer has 'qu' initial pattern
+/// In 'qu' initial, the 'u' is consonant part, not vowel
+fn has_qu_initial(s: &str) -> bool {
+    let lower = s.to_ascii_lowercase();
+    lower.starts_with("qu")
+}
+
 /// Apply horn mark to last applicable vowel (o→ơ, u→ư)
+/// Context-aware: skips 'u' in 'qu' initial pattern
 pub fn apply_horn(s: &str) -> Option<(usize, char)> {
-    for (i, c) in s.chars().rev().enumerate() {
-        let pos = s.chars().count() - 1 - i;
+    let chars: Vec<char> = s.chars().collect();
+    let has_qu = has_qu_initial(s);
+
+    for (i, &c) in chars.iter().enumerate().rev() {
         match c {
-            'o' => return Some((pos, '\u{01a1}')), // ơ
-            'O' => return Some((pos, '\u{01a0}')), // Ơ
-            'u' => return Some((pos, '\u{01b0}')), // ư
-            'U' => return Some((pos, '\u{01af}')), // Ư
+            'o' => return Some((i, '\u{01a1}')), // ơ
+            'O' => return Some((i, '\u{01a0}')), // Ơ
+            'u' | 'U' => {
+                // Skip 'u' at position 1 if 'qu' initial
+                if has_qu && i == 1 {
+                    continue;
+                }
+                return Some((i, if c == 'u' { '\u{01b0}' } else { '\u{01af}' }));
+                // ư/Ư
+            }
             _ => continue,
         }
     }
@@ -524,12 +567,55 @@ pub fn apply_horn(s: &str) -> Option<(usize, char)> {
 }
 
 /// Apply breve mark to 'a' (a→ă)
+/// Context-aware: handles patterns like 'quaw' → 'quăn' correctly
 pub fn apply_breve(s: &str) -> Option<(usize, char)> {
-    for (i, c) in s.chars().rev().enumerate() {
-        let pos = s.chars().count() - 1 - i;
+    let chars: Vec<char> = s.chars().collect();
+
+    for (i, &c) in chars.iter().enumerate().rev() {
         match c {
-            'a' => return Some((pos, '\u{0103}')), // ă
-            'A' => return Some((pos, '\u{0102}')), // Ă
+            'a' => return Some((i, '\u{0103}')), // ă
+            'A' => return Some((i, '\u{0102}')), // Ă
+            _ => continue,
+        }
+    }
+    None
+}
+
+/// Apply horn or breve based on LAST applicable vowel (a, o, u)
+///
+/// Vietnamese phonology rule for Telex 'w' key:
+/// - If last applicable vowel is 'a' → breve (ă)
+/// - If last applicable vowel is 'o' or 'u' → horn (ơ/ư)
+///
+/// Examples:
+/// - "choa" + w → "choă" (last is 'a' → breve)
+/// - "cho" + w → "chơ" (last is 'o' → horn)
+/// - "mu" + w → "mư" (last is 'u' → horn)
+/// - "qua" + w → "quă" (last is 'a' → breve, 'u' is part of 'qu')
+/// - "thuo" + w → "thuơ" (last is 'o' → horn on o only for uơ diphthong)
+pub fn apply_horn_or_breve(s: &str) -> Option<(usize, char)> {
+    let chars: Vec<char> = s.chars().collect();
+    let has_qu = s.to_ascii_lowercase().starts_with("qu");
+
+    // Find LAST character that is a, o, or u
+    for (i, &c) in chars.iter().enumerate().rev() {
+        match c.to_ascii_lowercase() {
+            'a' => {
+                // Apply breve to 'a'
+                return Some((i, if c == 'A' { '\u{0102}' } else { '\u{0103}' }));
+            }
+            'o' => {
+                // Apply horn to 'o'
+                return Some((i, if c == 'O' { '\u{01a0}' } else { '\u{01a1}' }));
+            }
+            'u' => {
+                // Skip 'u' at position 1 if 'qu' initial
+                if has_qu && i == 1 {
+                    continue;
+                }
+                // Apply horn to 'u'
+                return Some((i, if c == 'U' { '\u{01af}' } else { '\u{01b0}' }));
+            }
             _ => continue,
         }
     }
