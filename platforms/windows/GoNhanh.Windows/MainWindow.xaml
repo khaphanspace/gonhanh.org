@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="GoNhanh.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Gõ Nhanh">
+
+    <!-- Main window will be hidden - app runs in system tray -->
+    <Grid>
+        <TextBlock
+            Text="Gõ Nhanh is running in the system tray."
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            FontSize="14" />
+    </Grid>
+</Window>
