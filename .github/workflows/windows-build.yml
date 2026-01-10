@@ -17,15 +17,17 @@ env:
   DOTNET_VERSION: '9.0.x'
 
 jobs:
-  build-rust:
+  build:
     runs-on: windows-latest
     strategy:
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
             platform: x64
+            runtime: win-x64
           - target: aarch64-pc-windows-msvc
             platform: arm64
+            runtime: win-arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -43,31 +45,10 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
         working-directory: core
 
-      - name: Upload DLL artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: gonhanh_core-${{ matrix.platform }}
-          path: core/target/${{ matrix.target }}/release/gonhanh_core.dll
-
-  build-app:
-    runs-on: windows-latest
-    needs: build-rust
-    strategy:
-      matrix:
-        platform: [x64, arm64]
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Download Rust DLL
-        uses: actions/download-artifact@v4
-        with:
-          name: gonhanh_core-${{ matrix.platform }}
-          path: platforms/windows/libs/${{ matrix.platform }}
 
       - name: Restore dependencies
         run: dotnet restore
@@ -78,31 +59,52 @@ jobs:
         working-directory: platforms/windows/GoNhanh.Windows
 
       - name: Publish NativeAOT
-        run: dotnet publish -c Release -r win-${{ matrix.platform }} -p:Platform=${{ matrix.platform }} --no-restore
+        run: dotnet publish -c Release -r ${{ matrix.runtime }} -p:Platform=${{ matrix.platform }} --no-restore
         working-directory: platforms/windows/GoNhanh.Windows
 
-      - name: Copy Rust DLL to publish folder
+      - name: Package release
         run: |
-          $publishPath = "platforms/windows/GoNhanh.Windows/bin/${{ matrix.platform }}/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish"
-          $dllSource = "platforms/windows/libs/${{ matrix.platform }}/gonhanh_core.dll"
-          if (Test-Path $dllSource) {
-            Copy-Item $dllSource $publishPath -Force
-            Write-Host "Copied gonhanh_core.dll to publish folder"
-          } else {
-            Write-Host "WARNING: gonhanh_core.dll not found at $dllSource"
-          }
-          Write-Host "Publish folder contents:"
-          Get-ChildItem $publishPath | ForEach-Object { Write-Host "  $_" }
+          $publishPath = "platforms/windows/GoNhanh.Windows/bin/${{ matrix.platform }}/Release/net9.0-windows10.0.26100.0/${{ matrix.runtime }}/publish"
+          $dllSource = "core/target/${{ matrix.target }}/release/gonhanh_core.dll"
+          $outputDir = "release"
 
-      - name: Upload build artifact
+          # Create clean release folder
+          New-Item -ItemType Directory -Force -Path $outputDir
+
+          # Copy exe
+          $exeFile = Get-ChildItem "$publishPath/*.exe" | Select-Object -First 1
+          if ($exeFile) {
+            Copy-Item $exeFile.FullName "$outputDir/GoNhanh.exe"
+            Write-Host "Copied $($exeFile.Name) -> GoNhanh.exe"
+          } else {
+            Write-Host "ERROR: No exe found in $publishPath"
+            exit 1
+          }
+
+          # Copy Rust DLL
+          if (Test-Path $dllSource) {
+            Copy-Item $dllSource "$outputDir/gonhanh_core.dll"
+            Write-Host "Copied gonhanh_core.dll"
+          } else {
+            Write-Host "ERROR: gonhanh_core.dll not found at $dllSource"
+            exit 1
+          }
+
+          # Show contents
+          Write-Host "`nRelease contents:"
+          Get-ChildItem $outputDir | ForEach-Object {
+            $size = [math]::Round($_.Length / 1MB, 2)
+            Write-Host "  $($_.Name) ($size MB)"
+          }
+
+      - name: Upload release
         uses: actions/upload-artifact@v4
         with:
-          name: GoNhanh-${{ matrix.platform }}
-          path: platforms/windows/GoNhanh.Windows/bin/${{ matrix.platform }}/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish/
+          name: GoNhanh-Windows-${{ matrix.platform }}
+          path: release/
 
   test:
     runs-on: windows-latest
-    needs: build-rust
     steps:
       - uses: actions/checkout@v4
 
