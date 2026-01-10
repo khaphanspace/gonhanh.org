@@ -1076,6 +1076,228 @@ fn issue159_bracket_revert() {
     assert_eq!(result.chars[0], ']' as u32, "t]] should revert to t]");
 }
 
+// =============================================================================
+// ISSUE #200: "khoảng " → "khoan " (tone mark lost on space)
+// https://github.com/user/gonhanh/issues/200
+//
+// User reports: typing "khoảng" + space becomes "khoan"
+// Expected: "khoảng " should stay as "khoảng "
+// =============================================================================
+
+#[test]
+fn issue200_khoang_loses_tone_on_space() {
+    use gonhanh_core::engine::Action;
+
+    // Test without auto_restore
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "khoangr ");
+    println!("'khoangr ' -> '{}' (expected: 'khoảng ')", result);
+    assert_eq!(
+        result, "khoảng ",
+        "'khoangr ' should produce 'khoảng ', not 'khoan '"
+    );
+
+    // Test with auto_restore enabled
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "khoangr ");
+    println!(
+        "[auto_restore] 'khoangr ' -> '{}' (expected: 'khoảng ')",
+        result2
+    );
+    assert_eq!(
+        result2, "khoảng ",
+        "'khoangr ' with auto_restore should produce 'khoảng '"
+    );
+
+    // Debug step-by-step
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen = String::new();
+    let inputs = ['k', 'h', 'o', 'a', 'n', 'g', 'r', ' '];
+
+    println!("\n=== Step-by-step debug ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+    println!("Final screen: '{}'", screen);
+}
+
+// =============================================================================
+// ISSUE #197: Need to press tone key twice for mark removal after backspace
+// https://github.com/user/gonhanh/issues/197
+//
+// Steps to reproduce:
+// 1. Type "serv" → "sẻv"
+// 2. Backspace → "sẻ"
+// 3. Type "r" → should become "ser" but needs 2 presses
+//
+// Another example:
+// 1. Type "caos" → "cáo"
+// 2. Type "s" again → should restore "caos" but doesn't work
+// =============================================================================
+
+#[test]
+fn issue197_mark_removal_after_backspace() {
+    use gonhanh_core::engine::Action;
+
+    // Test case 1: serv → backspace → ser
+    let mut e = Engine::new();
+    let mut screen = String::new();
+
+    println!("\n=== Issue #197 Test: serv + backspace + r ===");
+
+    // Type "serv" → should become "sẻv"
+    for c in ['s', 'e', 'r', 'v'] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+    println!("After 'serv': screen='{}'", screen);
+    assert_eq!(screen, "sẻv", "'serv' should produce 'sẻv'");
+
+    // Backspace → should be "sẻ"
+    let key = gonhanh_core::utils::char_to_key('<'); // '<' = DELETE
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+    } else {
+        screen.pop();
+    }
+    println!("After backspace: screen='{}'", screen);
+    assert_eq!(screen, "sẻ", "After backspace should be 'sẻ'");
+
+    // Type "r" → should become "ser" (mark removed)
+    let key = gonhanh_core::utils::char_to_key('r');
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+        println!(
+            "After 'r': backspace={}, output='{}', screen='{}'",
+            r.backspace,
+            (0..r.count as usize)
+                .filter_map(|i| char::from_u32(r.chars[i]))
+                .collect::<String>(),
+            screen
+        );
+    } else {
+        screen.push('r');
+        println!("After 'r': passthrough, screen='{}'", screen);
+    }
+
+    assert_eq!(
+        screen, "ser",
+        "'serv' + backspace + 'r' should produce 'ser', not '{}'",
+        screen
+    );
+}
+
+#[test]
+fn issue197_caos_double_s_restore() {
+    use gonhanh_core::engine::Action;
+
+    // Test case 2: caos → s → should restore
+    let mut e = Engine::new();
+    let mut screen = String::new();
+
+    println!("\n=== Issue #197 Test: caos + s ===");
+
+    // Type "caos" → should become "cáo"
+    for c in ['c', 'a', 'o', 's'] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+    println!("After 'caos': screen='{}'", screen);
+    assert_eq!(screen, "cáo", "'caos' should produce 'cáo'");
+
+    // Type another "s" → should restore to "caos"
+    let key = gonhanh_core::utils::char_to_key('s');
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+        println!(
+            "After 2nd 's': backspace={}, output='{}', screen='{}'",
+            r.backspace,
+            (0..r.count as usize)
+                .filter_map(|i| char::from_u32(r.chars[i]))
+                .collect::<String>(),
+            screen
+        );
+    } else {
+        screen.push('s');
+        println!("After 2nd 's': passthrough, screen='{}'", screen);
+    }
+
+    assert_eq!(
+        screen, "caos",
+        "'caos' + 's' should restore to 'caos', not '{}'",
+        screen
+    );
+}
+
 #[test]
 fn issue159_bracket_continuous_typing() {
     use gonhanh_core::data::keys;
