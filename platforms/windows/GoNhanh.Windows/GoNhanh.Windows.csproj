@@ -16,6 +16,10 @@
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
 
+    <!-- Self-contained Windows App SDK (no runtime install needed) -->
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
+
     <!-- App Identity -->
     <ApplicationId>GoNhanh.Windows</ApplicationId>
     <Version>1.0.102</Version>
