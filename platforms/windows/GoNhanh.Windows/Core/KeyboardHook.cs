@@ -123,12 +123,19 @@ public sealed class KeyboardHook : IDisposable
 
 public class KeyEventArgs : EventArgs
 {
+    // KBDLLHOOKSTRUCT flags
+    public const int LLKHF_INJECTED = 0x10;  // Key was injected by SendInput
+    public const int LLKHF_ALTDOWN = 0x20;   // Alt key is pressed
+
     public int VirtualKey { get; }
     public int ScanCode { get; }
     public int Flags { get; }
     public bool Shift { get; }
     public bool CapsLock { get; }
     public bool Handled { get; set; }
+
+    /// <summary>True if key was injected (e.g., by SendInput)</summary>
+    public bool IsInjected => (Flags & LLKHF_INJECTED) != 0;
 
     public KeyEventArgs(int vk, int scan, int flags, bool shift, bool caps)
     {
