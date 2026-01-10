@@ -661,6 +661,7 @@ class KeyboardHookManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var mouseMonitor: Any?  // NSEvent monitor for mouse clicks
+    private var tapHealthTimer: Timer?  // Periodic check to re-enable tap (Issue #198)
     private var isRunning = false
 
     private init() {}
@@ -700,7 +701,25 @@ class KeyboardHookManager {
             isRunning = true
             setupShortcutObserver()
             startMouseMonitor()
+            startTapHealthTimer()  // Issue #198: periodic tap health check
             Log.info("Hook started")
+        }
+    }
+
+    /// Issue #198: Periodic check to ensure event tap is enabled
+    /// macOS can disable tap after timeout/user input, causing missed shortcuts
+    private func startTapHealthTimer() {
+        tapHealthTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.ensureTapEnabled()
+        }
+    }
+
+    /// Re-enable tap if disabled (Issue #198)
+    private func ensureTapEnabled() {
+        guard let tap = eventTap else { return }
+        if !CGEvent.tapIsEnabled(tap: tap) {
+            CGEvent.tapEnable(tap: tap, enable: true)
+            Log.info("Tap re-enabled by health check")
         }
     }
 
@@ -718,6 +737,8 @@ class KeyboardHookManager {
 
     func stop() {
         guard isRunning else { return }
+        tapHealthTimer?.invalidate()  // Issue #198: stop health timer
+        tapHealthTimer = nil
         if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let src = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetCurrent(), src, .commonModes) }
         if let monitor = mouseMonitor { NSEvent.removeMonitor(monitor) }
