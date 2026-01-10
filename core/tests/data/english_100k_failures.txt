@@ -77,6 +77,7 @@ arms	ám
 hair	hải
 tree	trê
 trust	trút
+uses	ues
 mary	mảy
 piece	piêc
 trees	trế
@@ -109,6 +110,7 @@ rooms	rốm
 moon	môn
 turns	tún
 axis	ái
+horses	hoes
 towns	tớn
 roots	rốt
 poems	poém
@@ -167,6 +169,7 @@ sur	sủ
 lots	lót
 beer	bể
 refuse	rếu
+nurses	nues
 bars	bá
 poets	poét
 rays	ráy
@@ -177,6 +180,7 @@ keeps	kếp
 ix	ĩ
 bits	bít
 rats	rát
+moses	moes
 boats	boát
 dawn	dăn
 para	pẩ
@@ -188,11 +192,12 @@ guest	guét
 rows	rớ
 buyer	buyẻ
 tries	trié
+rises	ries
 burn	bủn
 cuts	cút
 peer	pể
 chiefs	chié
-doses	doé
+doses	does
 dense	dến
 pays	páy
 ussr	usr
@@ -218,7 +223,7 @@ deeds	đế
 hers	hé
 norm	nỏm
 vis	ví
-verses	vế
+verses	verss
 rests	rets
 disc	díc
 lungs	lúng
@@ -253,7 +258,7 @@ photos	phốt
 aa	â
 sits	sít
 cows	cớ
-loses	loé
+loses	loes
 gaps	gáp
 ir	ỉ
 lest	lét
@@ -273,6 +278,7 @@ ups	úp
 chips	chíp
 aus	áu
 curse	cué
+roses	roes
 wa	ưa
 burma	buảm
 lawn	lăn
@@ -310,11 +316,12 @@ horns	hón
 tens	tén
 bees	bế
 imf	ìm
+buses	bues
 nasa	nấ
 rosa	roá
 choir	chỏi
 hips	híp
-poses	poé
+poses	poes
 lust	lút
 reef	rề
 donors	dốn
@@ -454,6 +461,7 @@ turf	tù
 mir	mỉ
 sown	sơn
 oj	ọ
+theses	thes
 dee	dê
 charms	chám
 vows	vớ
@@ -510,7 +518,7 @@ liar	lỉa
 deduce	đêuc
 cures	cué
 boer	boẻ
-noses	noé
+noses	noes
 wc	ưc
 postscript	potscript
 barr	bar
@@ -589,7 +597,7 @@ cary	cảy
 lax	lã
 lex	lẽ
 hays	háy
-curses	cué
+curses	cues
 defends	đến
 lerner	lernr
 taps	táp
@@ -680,7 +688,7 @@ nas	ná
 pero	pẻo
 serfs	sé
 moons	mốn
-muses	mué
+muses	mues
 dix	dĩ
 refs	ré
 bor	bỏ
@@ -698,6 +706,7 @@ wp	ưp
 vos	vó
 sens	sén
 norse	noé
+horseshoe	hoeshoe
 bins	bín
 cowan	cơan
 corral	coral
@@ -723,6 +732,7 @@ dips	díp
 dwarfs	dứa
 pow	pơ
 loo	lô
+casas	cass
 ecr	ẻc
 masts	mats
 loot	lôt
@@ -807,6 +817,7 @@ mira	mỉa
 pee	pê
 busch	búch
 horst	hót
+girard	giard
 ruse	rué
 mays	máy
 trieste	triết
@@ -844,14 +855,14 @@ dirac	dỉac
 chakra	chẩk
 curfew	cừe
 sacs	sác
-purer	puẻ
+purer	puer
 cara	cẩ
 vero	vẻo
 ajax	ẫ
 bono	bôn
 ips	íp
 booze	boe
-dieses	diế
+dieses	diess
 esr	ẻ
 ree	rê
 caso	cáo
@@ -892,10 +903,9 @@ moro	mổ
 tarn	tản
 parr	par
 kris	krí
-hoses	hoé
+hoses	hoes
 postsecondary	potsecondary
 samaj	sậm
-rosario	rôải
 ast	át
 loco	lôc
 lans	lán
@@ -993,6 +1003,7 @@ deren	dển
 dwyer	dưyẻ
 hos	hó
 serf	sè
+mises	mies
 ecj	ẹc
 darn	dản
 meer	mể
@@ -1013,12 +1024,12 @@ doran	doản
 urns	ún
 loon	lôn
 eff	ef
-choses	choé
+choses	choes
 lusaka	luấk
 huns	hún
 lw	lư
 moans	moán
-purses	pué
+purses	pues
 puri	pủi
 wn	ưn
 tamar	tẩm
@@ -1077,7 +1088,7 @@ rajya	rậy
 otros	ốt
 bores	boé
 afr	ả
-borer	boẻ
+borer	boer
 dorado	đoảo
 veer	vể
 puis	púi
@@ -1106,7 +1117,6 @@ aca	âc
 thar	thả
 mujer	muẻ
 wwii	wii
-nyerere	nyeree
 terns	tén
 nasir	nải
 amar	ẩm
@@ -1202,7 +1212,7 @@ mois	mói
 gaya	gây
 uw	ư
 iww	iw
-surer	suẻ
+surer	suer
 bestselling	betselling
 maru	mảu
 ris	rí
@@ -1238,7 +1248,7 @@ thos	thó
 erm	ẻm
 tof	tò
 tees	tế
-rosas	roá
+rosas	roas
 marais	mấi
 ene	ên
 ipr	ỉp
@@ -1404,7 +1414,7 @@ haya	hây
 parris	paris
 isms	ims
 aac	âc
-cosas	coá
+cosas	coas
 heures	hếu
 thongs	thóng
 nomos	nốm
@@ -1513,7 +1523,7 @@ oren	oẻn
 menger	mểng
 corns	cón
 bers	bé
-durer	duẻ
+durer	duer
 sana	sân
 bosons	bosos
 sarai	sẩi
@@ -1568,11 +1578,12 @@ raps	ráp
 gora	goả
 naf	nà
 saks	sák
-borers	boé
+borers	boers
 corsair	coải
 dda	đa
 acr	ảc
 aar	ẩ
+disestablishment	diestablishment
 vies	vié
 deeps	dếp
 ucr	ủc
@@ -1590,7 +1601,6 @@ queste	quết
 maf	mà
 quern	quẻn
 kruse	krué
-ararat	araat
 ots	ót
 seme	sêm
 tepee	tepe
@@ -1628,6 +1638,7 @@ mejor	mẻo
 tary	tảy
 aso	áo
 ruf	rù
+morarji	moarji
 engr	ẻng
 doon	dôn
 tryst	trýt
@@ -1749,6 +1760,7 @@ sweatshops	sweatshos
 usu	úu
 irm	ỉm
 nus	nú
+horseshoes	hoeshoes
 masao	mấo
 oxo	ỗ
 penser	pển
@@ -2041,6 +2053,7 @@ vdd	vđ
 lowi	lơi
 mums	múm
 uts	út
+hirer	hier
 sops	sóp
 buffing	bufing
 amax	ẫm
@@ -2050,13 +2063,13 @@ gyms	gým
 tost	tót
 herm	hẻm
 hwnd	hưnd
-ruses	rué
+ruses	rues
 gaf	gà
 rescher	rểch
 suas	súa
 carrol	carol
 khas	khá
-torsos	tố
+torsos	torss
 vaso	váo
 umw	ưm
 nips	níp
@@ -2100,6 +2113,7 @@ rossa	rosa
 nueces	nuếc
 hys	hý
 doxa	doã
+bajaj	baj
 oom	ôm
 vix	vĩ
 haro	hảo
@@ -2205,6 +2219,7 @@ rosse	rose
 larus	láu
 posix	põi
 nias	nía
+meses	mess
 puer	puẻ
 esm	ém
 oost	ốt
@@ -2302,7 +2317,7 @@ iasc	íac
 hanssen	hansen
 hoon	hôn
 kins	kín
-gorer	goẻ
+gorer	goer
 vias	vía
 saro	sảo
 moana	moân
@@ -2325,7 +2340,7 @@ versts	vets
 morais	moái
 inra	ỉan
 raa	râ
-marwar	mẩ
+marwar	marwr
 awn	ăn
 gujrat	guảt
 kiran	kỉan
@@ -2434,7 +2449,6 @@ passo	paso
 transf	tràn
 puro	puỏ
 yx	ỹ
-miserere	miseree
 musts	muts
 ufw	ừ
 awwa	awa
@@ -2490,6 +2504,7 @@ kisch	kích
 ajay	ậy
 wus	ứu
 sarna	sẩn
+harar	har
 larix	lãi
 etfs	ét
 kyr	kỷ
@@ -2603,11 +2618,11 @@ lecher	lểch
 bursary	buảy
 torno	tổn
 casta	cất
+girardeau	giardeau
 hots	hót
 puran	puản
 thej	thẹ
 momo	môm
-marwari	mẩi
 goro	gổ
 darwinists	darwiniss
 nwc	nưc
@@ -2622,6 +2637,7 @@ ownerships	ownershis
 twt	tưt
 lossing	losing
 daws	dắ
+girardin	giardin
 bama	bâm
 esk	ék
 busk	búk
@@ -2645,6 +2661,7 @@ panas	pấn
 leos	léo
 mij	mị
 tef	tè
+tirer	tier
 corm	cỏm
 defmed	đềm
 phips	phíp

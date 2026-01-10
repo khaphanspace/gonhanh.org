@@ -2480,12 +2480,19 @@ impl Engine {
                     .skip(pos + 1)
                     .any(|ch| !keys::is_vowel(ch.key));
 
-                if has_consonant_after {
-                    // Consonant after: REVERT the mark (remove dấu)
+                // Check if vowel is at the END of buffer (no chars after at all)
+                // Issue #197: After backspace, vowel may be at end - pressing same
+                // mark key should REVERT, not absorb
+                // Example: "serv" → "sẻv" → backspace → "sẻ" → 'r' should → "ser"
+                let is_vowel_at_end = pos + 1 >= self.buf.len();
+
+                if has_consonant_after || is_vowel_at_end {
+                    // Consonant after OR vowel at end: REVERT the mark (remove dấu)
                     // "lists" → "lits", user typed s twice to undo the mark
+                    // "sẻ" → "se", user typed r after backspace to undo the mark
                     return Some(self.revert_mark(key, caps));
                 } else {
-                    // Only vowels after: absorb (user double-tapped in same syllable)
+                    // Vowels after (not at end): absorb (user double-tapped in same syllable)
                     // "roofif" → "rồi"
                     return Some(Result::send(0, &[]));
                 }
