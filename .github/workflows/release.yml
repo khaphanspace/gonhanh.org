@@ -497,42 +497,74 @@ jobs:
           git push
 
   build-windows:
-    if: false  # Temporarily disabled
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - platform: x64
+            rust-target: x86_64-pc-windows-msvc
+          - platform: arm64
+            rust-target: aarch64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.rust-target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
+          key: ${{ matrix.rust-target }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Build Rust Core
         run: |
           cd core
-          cargo build --release --target x86_64-pc-windows-msvc
-          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
-                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
+          cargo build --release --target ${{ matrix.rust-target }}
 
-      - name: Build WPF App
+      - name: Copy DLL to libs
         run: |
-          cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+          New-Item -ItemType Directory -Force -Path "platforms/windows/libs/${{ matrix.platform }}"
+          Copy-Item "core/target/${{ matrix.rust-target }}/release/gonhanh_core.dll" `
+                    "platforms/windows/libs/${{ matrix.platform }}/gonhanh_core.dll"
 
-      - name: Package
+      - name: Publish NativeAOT
         run: |
-          cd platforms/windows
+          cd platforms/windows/GoNhanh.Windows
           $V = "${{ github.ref_name }}".TrimStart('v')
-          Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
+          dotnet publish -c Release -r win-${{ matrix.platform }} -p:Version=$V
+
+      - name: Create MSIX Package
+        run: |
+          $V = "${{ github.ref_name }}".TrimStart('v')
+          $publishDir = "platforms/windows/GoNhanh.Windows/bin/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish"
+
+          # Find or create MSIX
+          $msix = Get-ChildItem "$publishDir/*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $msix) {
+            # Create ZIP as fallback
+            Compress-Archive -Path "$publishDir/*" -DestinationPath "platforms/windows/GoNhanh-$V-win-${{ matrix.platform }}.zip"
+          }
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-zip
-          path: platforms/windows/*.zip
+          name: windows-${{ matrix.platform }}
+          path: |
+            platforms/windows/GoNhanh.Windows/bin/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish/*.msix
+            platforms/windows/*.zip
+
+      - name: Add to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            platforms/windows/GoNhanh.Windows/bin/Release/net9.0-windows10.0.26100.0/win-${{ matrix.platform }}/publish/*.msix
+            platforms/windows/*.zip

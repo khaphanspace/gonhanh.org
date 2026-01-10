@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller
+  xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+  Version="1.0.102.0"
+  Uri="https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.appinstaller">
+
+  <MainBundle
+    Name="GoNhanh.Windows"
+    Version="1.0.102.0"
+    Uri="https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh-x64.msix"
+    Publisher="CN=Kha Phan" />
+
+  <UpdateSettings>
+    <OnLaunch HoursBetweenUpdateChecks="24" />
+    <AutomaticBackgroundTask />
+  </UpdateSettings>
+
+</AppInstaller>

@@ -1,41 +1,82 @@
-# Build Gõ Nhanh Rust core for Windows
-# Requires: Rust with x86_64-pc-windows-msvc and aarch64-pc-windows-msvc targets
+# Build Gõ Nhanh for Windows (Rust core + .NET app)
+# Requires: Rust toolchain, .NET 9 SDK
 #
 # Run: pwsh scripts/build-windows.ps1
+#      pwsh scripts/build-windows.ps1 -Platform x64
+#      pwsh scripts/build-windows.ps1 -NativeAOT
+#      pwsh scripts/build-windows.ps1 -SkipRust
+
+param(
+    [ValidateSet('x64', 'arm64', 'all')]
+    [string]$Platform = 'all',
+
+    [ValidateSet('Debug', 'Release')]
+    [string]$Configuration = 'Release',
+
+    [switch]$NativeAOT,
+    [switch]$SkipRust
+)
 
 $ErrorActionPreference = "Stop"
-Set-Location (Split-Path $PSScriptRoot -Parent)
+$ProjectRoot = Split-Path $PSScriptRoot -Parent
+Set-Location $ProjectRoot
 
-Write-Host "Building gonhanh_core.dll for Windows..." -ForegroundColor Cyan
+$CoreDir = Join-Path $ProjectRoot 'core'
+$WindowsDir = Join-Path $ProjectRoot 'platforms/windows'
+$AppDir = Join-Path $WindowsDir 'GoNhanh.Windows'
 
-# Build for x64
-Write-Host "Building x64..." -ForegroundColor Yellow
-cargo build --release --target x86_64-pc-windows-msvc
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+function Build-RustCore {
+    param([string]$Target, [string]$Platform)
 
-$x64Src = "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll"
-$x64Dst = "platforms/windows/libs/x64/gonhanh_core.dll"
-if (Test-Path $x64Src) {
-    Copy-Item $x64Src $x64Dst -Force
-    Write-Host "Copied to $x64Dst" -ForegroundColor Green
-} else {
-    Write-Host "ERROR: $x64Src not found" -ForegroundColor Red
-    exit 1
+    Write-Host "Building Rust core for $Target..." -ForegroundColor Cyan
+
+    Push-Location $CoreDir
+    try {
+        cargo build --release --target $Target
+        if ($LASTEXITCODE -ne 0) { throw "Rust build failed" }
+
+        $libDir = Join-Path $WindowsDir "libs/$Platform"
+        New-Item -ItemType Directory -Force -Path $libDir | Out-Null
+        Copy-Item "target/$Target/release/gonhanh_core.dll" $libDir -Force
+        Write-Host "Copied DLL to $libDir" -ForegroundColor Green
+    }
+    finally {
+        Pop-Location
+    }
 }
 
-# Build for ARM64
-Write-Host "Building arm64..." -ForegroundColor Yellow
-cargo build --release --target aarch64-pc-windows-msvc
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+function Build-App {
+    param([string]$Platform)
 
-$arm64Src = "target/aarch64-pc-windows-msvc/release/gonhanh_core.dll"
-$arm64Dst = "platforms/windows/libs/arm64/gonhanh_core.dll"
-if (Test-Path $arm64Src) {
-    Copy-Item $arm64Src $arm64Dst -Force
-    Write-Host "Copied to $arm64Dst" -ForegroundColor Green
-} else {
-    Write-Host "ERROR: $arm64Src not found" -ForegroundColor Red
-    exit 1
+    Write-Host "Building .NET app for $Platform..." -ForegroundColor Cyan
+
+    Push-Location $AppDir
+    try {
+        if ($NativeAOT) {
+            Write-Host "Publishing with NativeAOT..." -ForegroundColor Yellow
+            dotnet publish -c $Configuration -r "win-$Platform"
+        } else {
+            dotnet build -c $Configuration -p:Platform=$Platform
+        }
+        if ($LASTEXITCODE -ne 0) { throw "App build failed" }
+        Write-Host "App build complete for $Platform" -ForegroundColor Green
+    }
+    finally {
+        Pop-Location
+    }
 }
 
-Write-Host "Build complete!" -ForegroundColor Green
+# Main
+$platforms = if ($Platform -eq 'all') { @('x64', 'arm64') } else { @($Platform) }
+
+foreach ($p in $platforms) {
+    $rustTarget = if ($p -eq 'x64') { 'x86_64-pc-windows-msvc' } else { 'aarch64-pc-windows-msvc' }
+
+    if (-not $SkipRust) {
+        Build-RustCore -Target $rustTarget -Platform $p
+    }
+    Build-App -Platform $p
+}
+
+Write-Host "`nBuild complete!" -ForegroundColor Green
+Write-Host "Output: $AppDir/bin/$Configuration/" -ForegroundColor Cyan
