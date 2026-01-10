@@ -3,7 +3,6 @@
     x:Class="GoNhanh.Views.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:GoNhanh.Controls"
     Title="Go Nhanh - Cai dat"
     Width="500" Height="700"
     MinWidth="400" MinHeight="500">
@@ -34,7 +33,7 @@
                 <!-- Toggle Shortcut -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="Phim tat bat/tat" Style="{StaticResource SubtitleTextBlockStyle}"/>
-                    <controls:ShortcutRecorder x:Name="ToggleShortcutRecorder"/>
+                    <TextBox x:Name="ToggleShortcutBox" IsReadOnly="True" PlaceholderText="Ctrl+Space"/>
                 </StackPanel>
 
                 <!-- Feature Toggles -->
