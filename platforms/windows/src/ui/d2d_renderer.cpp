@@ -1,0 +1,142 @@
+#include "d2d_renderer.h"
+
+#pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "dwrite.lib")
+
+namespace gonhanh::ui {
+
+D2DRenderer& D2DRenderer::instance() {
+    static D2DRenderer instance;
+    return instance;
+}
+
+bool D2DRenderer::initialize() {
+    if (d2d_factory_) return true;
+
+    // Create D2D factory
+    HRESULT hr = D2D1CreateFactory(
+        D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        d2d_factory_.GetAddressOf()
+    );
+    if (FAILED(hr)) return false;
+
+    // Create DirectWrite factory
+    hr = DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(dwrite_factory_.GetAddressOf())
+    );
+    if (FAILED(hr)) return false;
+
+    // Create text formats
+    if (!create_text_formats()) return false;
+
+    return true;
+}
+
+void D2DRenderer::shutdown() {
+    text_format_small_.Reset();
+    text_format_body_.Reset();
+    text_format_title_.Reset();
+    dwrite_factory_.Reset();
+    d2d_factory_.Reset();
+}
+
+ID2D1HwndRenderTarget* D2DRenderer::create_render_target(HWND hwnd) {
+    if (!d2d_factory_) return nullptr;
+
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+
+    D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
+
+    // Use 0.0f DPI to let D2D use system DPI automatically
+    // This enables proper DPI scaling like native Windows 11 apps
+    D2D1_RENDER_TARGET_PROPERTIES rt_props = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_DEFAULT,
+        D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_UNKNOWN),
+        0.0f,   // dpiX - use system DPI
+        0.0f    // dpiY - use system DPI
+    );
+    D2D1_HWND_RENDER_TARGET_PROPERTIES hwnd_props = D2D1::HwndRenderTargetProperties(hwnd, size);
+
+    ID2D1HwndRenderTarget* render_target = nullptr;
+    HRESULT hr = d2d_factory_->CreateHwndRenderTarget(rt_props, hwnd_props, &render_target);
+
+    return SUCCEEDED(hr) ? render_target : nullptr;
+}
+
+bool D2DRenderer::create_text_formats() {
+    if (!dwrite_factory_) return false;
+
+    // Use Segoe UI Variable for Windows 11, fallback to Segoe UI
+    // Windows 11 Fluent Design typography standards
+    const wchar_t* font_family = L"Segoe UI Variable";
+    const wchar_t* font_fallback = L"Segoe UI";
+    const wchar_t* locale = L"vi-VN";  // Vietnamese locale
+
+    // Title: 20px semibold (Windows 11 Subtitle style)
+    HRESULT hr = dwrite_factory_->CreateTextFormat(
+        font_family,
+        nullptr,
+        DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        20.0f,
+        locale,
+        text_format_title_.GetAddressOf()
+    );
+    // Fallback to Segoe UI if Variable font not available
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            20.0f, locale, text_format_title_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
+
+    // Body: 14px regular (Windows 11 Body style - NOT 13px)
+    hr = dwrite_factory_->CreateTextFormat(
+        font_family,
+        nullptr,
+        DWRITE_FONT_WEIGHT_REGULAR,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        14.0f,
+        locale,
+        text_format_body_.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            14.0f, locale, text_format_body_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
+
+    // Small: 12px regular (Windows 11 Caption style - NOT 11px)
+    hr = dwrite_factory_->CreateTextFormat(
+        font_family,
+        nullptr,
+        DWRITE_FONT_WEIGHT_REGULAR,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        12.0f,
+        locale,
+        text_format_small_.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        hr = dwrite_factory_->CreateTextFormat(
+            font_fallback, nullptr,
+            DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            12.0f, locale, text_format_small_.GetAddressOf()
+        );
+        if (FAILED(hr)) return false;
+    }
+
+    return true;
+}
+
+} // namespace gonhanh::ui
