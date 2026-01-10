@@ -3,12 +3,7 @@
     x:Class="GoNhanh.Views.AboutDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Ve Go Nhanh"
-    CloseButtonText="Dong">
-
-    <StackPanel Spacing="16" Padding="8">
-        <TextBlock Text="Go Nhanh" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-        <TextBlock x:Name="VersionText" Text="Phien ban 1.0.102" HorizontalAlignment="Center"/>
-        <TextBlock Text="Bo go tieng Viet hieu suat cao cho Windows" TextWrapping="Wrap" TextAlignment="Center"/>
-    </StackPanel>
+    Title="About"
+    CloseButtonText="Close">
+    <TextBlock Text="Go Nhanh" />
 </ContentDialog>

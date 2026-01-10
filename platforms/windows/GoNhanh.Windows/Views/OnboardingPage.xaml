@@ -3,12 +3,7 @@
     x:Class="GoNhanh.Views.OnboardingPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-
-    <Grid Padding="48">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-            <TextBlock Text="Chao mung den voi Go Nhanh" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-            <TextBlock Text="Nhan nut de tiep tuc" HorizontalAlignment="Center"/>
-            <Button x:Name="NextButton" Content="Tiep tuc" HorizontalAlignment="Center" Click="Next_Click"/>
-        </StackPanel>
+    <Grid>
+        <TextBlock Text="Onboarding" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Grid>
 </Page>

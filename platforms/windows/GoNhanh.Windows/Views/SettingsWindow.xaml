@@ -3,14 +3,8 @@
     x:Class="GoNhanh.Views.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Go Nhanh - Cai dat"
-    Width="500" Height="700">
-
-    <Grid Padding="24">
-        <StackPanel Spacing="16">
-            <TextBlock Text="Go Nhanh" FontSize="24" FontWeight="Bold"/>
-            <TextBlock x:Name="VersionText" Text="Phien ban 1.0.102"/>
-            <TextBlock Text="Cai dat se duoc them sau" Opacity="0.7"/>
-        </StackPanel>
+    Title="Settings">
+    <Grid>
+        <TextBlock Text="Settings" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Grid>
 </Window>
