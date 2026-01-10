@@ -85,23 +85,7 @@
                         <Button x:Name="AddShortcutButton" Content="+ Them" Click="AddShortcut_Click"/>
                     </StackPanel>
 
-                    <ListView x:Name="ShortcutsList" SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Padding="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Trigger}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Replacement}"/>
-                                    <Button Grid.Column="2" Content="Xoa" Tag="{Binding Trigger}"
-                                        Click="DeleteShortcut_Click"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                    <ListView x:Name="ShortcutsList" SelectionMode="None"/>
                 </StackPanel>
 
             </StackPanel>

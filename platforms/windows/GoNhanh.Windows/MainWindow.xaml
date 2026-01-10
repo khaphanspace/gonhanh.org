@@ -3,12 +3,12 @@
     x:Class="GoNhanh.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Gõ Nhanh">
+    Title="Go Nhanh">
 
     <!-- Main window will be hidden - app runs in system tray -->
     <Grid>
         <TextBlock
-            Text="Gõ Nhanh is running in the system tray."
+            Text="Go Nhanh is running in the system tray."
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             FontSize="14" />

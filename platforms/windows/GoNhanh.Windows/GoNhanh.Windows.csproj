@@ -30,7 +30,6 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.*" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.*" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.1.*" />
-    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.1.*" />
   </ItemGroup>
 
   <!-- Native DLL copy -->

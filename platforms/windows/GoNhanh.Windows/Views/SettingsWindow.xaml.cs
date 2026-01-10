@@ -38,11 +38,11 @@ public sealed partial class SettingsWindow : Window
         try
         {
             var shortcuts = JsonSerializer.Deserialize<List<ShortcutEntry>>(_settings.UserShortcuts) ?? [];
-            ShortcutsList.ItemsSource = shortcuts;
+            ShortcutsList.ItemsSource = shortcuts.Select(s => $"{s.Trigger} -> {s.Replacement}").ToList();
         }
         catch
         {
-            ShortcutsList.ItemsSource = new List<ShortcutEntry>();
+            ShortcutsList.ItemsSource = new List<string>();
         }
     }
 
