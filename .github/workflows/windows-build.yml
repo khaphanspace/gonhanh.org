@@ -45,6 +45,14 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
         working-directory: core
 
+      - name: Copy Rust DLL to libs folder
+        run: |
+          $libsDir = "platforms/windows/libs/${{ matrix.platform }}"
+          $dllSource = "core/target/${{ matrix.target }}/release/gonhanh_core.dll"
+          New-Item -ItemType Directory -Force -Path $libsDir
+          Copy-Item $dllSource $libsDir -Force
+          Write-Host "Copied DLL to $libsDir"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -65,7 +73,7 @@ jobs:
       - name: Package release
         run: |
           $publishPath = "platforms/windows/GoNhanh.Windows/bin/${{ matrix.platform }}/Release/net9.0-windows10.0.26100.0/${{ matrix.runtime }}/publish"
-          $dllSource = "core/target/${{ matrix.target }}/release/gonhanh_core.dll"
+          $dllSource = "platforms/windows/libs/${{ matrix.platform }}/gonhanh_core.dll"
           $outputDir = "release"
 
           # Create clean release folder
