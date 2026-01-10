@@ -78,7 +78,7 @@ jobs:
         working-directory: platforms/windows/GoNhanh.Windows
 
       - name: Publish NativeAOT
-        run: dotnet publish -c Release -r win-${{ matrix.platform }} --no-restore
+        run: dotnet publish -c Release -r win-${{ matrix.platform }} -p:Platform=${{ matrix.platform }} --no-restore
         working-directory: platforms/windows/GoNhanh.Windows
 
       - name: Upload build artifact
