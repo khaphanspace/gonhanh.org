@@ -25,8 +25,8 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Kieu go" Style="{StaticResource SubtitleTextBlockStyle}"/>
                     <RadioButtons x:Name="InputMethodRadio" SelectedIndex="0">
-                        <RadioButton Content="Telex (aa -> a, dd -> d, as -> a')" Tag="0"/>
-                        <RadioButton Content="VNI (a6 -> a, d9 -> d, a1 -> a')" Tag="1"/>
+                        <RadioButton Content="Telex" Tag="0"/>
+                        <RadioButton Content="VNI" Tag="1"/>
                     </RadioButtons>
                 </StackPanel>
 
@@ -41,35 +41,35 @@
                     <TextBlock Text="Tinh nang" Style="{StaticResource SubtitleTextBlockStyle}"/>
 
                     <ToggleSwitch x:Name="SkipWShortcutToggle"
-                        Header="Tat phim tat W -> U"
-                        OffContent="Go 'w' thanh 'u'" OnContent="Giu nguyen 'w'"/>
+                        Header="Tat phim tat W"
+                        OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="BracketShortcutToggle"
-                        Header="Phim tat ngoac [ ] -> o u"
-                        OffContent="Tat" OnContent="[ -> o, ] -> u"/>
+                        Header="Phim tat ngoac"
+                        OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="EscRestoreToggle"
-                        Header="ESC khoi phuc van ban goc"
+                        Header="ESC khoi phuc"
                         OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="FreeToneToggle"
-                        Header="Dat dau tu do (khong kiem tra chinh ta)"
+                        Header="Dat dau tu do"
                         OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="ModernToneToggle"
-                        Header="Kieu bo dau moi (hoa -> hoa, khong phai hoa)"
-                        OffContent="Truyen thong" OnContent="Hien dai"/>
+                        Header="Kieu bo dau moi"
+                        OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="EnglishAutoRestoreToggle"
                         Header="Tu dong khoi phuc tieng Anh"
                         OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="AutoCapitalizeToggle"
-                        Header="Tu dong viet hoa dau cau"
+                        Header="Tu dong viet hoa"
                         OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="SoundToggle"
-                        Header="Am thanh khi go"
+                        Header="Am thanh"
                         OffContent="Tat" OnContent="Bat"/>
 
                     <ToggleSwitch x:Name="LaunchAtStartupToggle"
@@ -82,7 +82,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="Go tat" Style="{StaticResource SubtitleTextBlockStyle}"
                             VerticalAlignment="Center"/>
-                        <Button x:Name="AddShortcutButton" Content="+ Them" Click="AddShortcut_Click"/>
+                        <Button x:Name="AddShortcutButton" Content="Them" Click="AddShortcut_Click"/>
                     </StackPanel>
 
                     <ListView x:Name="ShortcutsList" SelectionMode="None"/>
