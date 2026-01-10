@@ -76,34 +76,32 @@ jobs:
           $dllSource = "platforms/windows/libs/${{ matrix.platform }}/gonhanh_core.dll"
           $outputDir = "release"
 
-          # Create clean release folder
+          # Create release folder
           New-Item -ItemType Directory -Force -Path $outputDir
 
-          # Copy exe
-          $exeFile = Get-ChildItem "$publishPath/*.exe" | Select-Object -First 1
-          if ($exeFile) {
-            Copy-Item $exeFile.FullName "$outputDir/GoNhanh.exe"
-            Write-Host "Copied $($exeFile.Name) -> GoNhanh.exe"
-          } else {
-            Write-Host "ERROR: No exe found in $publishPath"
-            exit 1
+          # Copy all publish files (self-contained includes Windows App SDK)
+          Copy-Item "$publishPath\*" $outputDir -Recurse -Force
+
+          # Rename main exe to GoNhanh.exe
+          $exeFile = Get-ChildItem "$outputDir/*.exe" | Select-Object -First 1
+          if ($exeFile -and $exeFile.Name -ne "GoNhanh.exe") {
+            Rename-Item $exeFile.FullName "GoNhanh.exe"
           }
 
-          # Copy Rust DLL
+          # Copy Rust DLL (may already be there, but ensure it's present)
           if (Test-Path $dllSource) {
-            Copy-Item $dllSource "$outputDir/gonhanh_core.dll"
-            Write-Host "Copied gonhanh_core.dll"
-          } else {
-            Write-Host "ERROR: gonhanh_core.dll not found at $dllSource"
-            exit 1
+            Copy-Item $dllSource "$outputDir/gonhanh_core.dll" -Force
           }
 
-          # Show contents
+          # Show contents and total size
           Write-Host "`nRelease contents:"
+          $totalSize = 0
           Get-ChildItem $outputDir | ForEach-Object {
             $size = [math]::Round($_.Length / 1MB, 2)
+            $totalSize += $_.Length
             Write-Host "  $($_.Name) ($size MB)"
           }
+          Write-Host "`nTotal size: $([math]::Round($totalSize / 1MB, 2)) MB"
 
       - name: Upload release
         uses: actions/upload-artifact@v4
