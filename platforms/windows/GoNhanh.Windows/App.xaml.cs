@@ -1,21 +1,15 @@
 using Microsoft.UI.Xaml;
-using GoNhanh.Core;
-using GoNhanh.Services;
-using GoNhanh.Views;
-
-// SystemTray is in GoNhanh.Views namespace
+using Microsoft.UI.Xaml.Controls;
 
 namespace GoNhanh;
 
 /// <summary>
 /// Go Nhanh Vietnamese IME for Windows.
-/// Entry point and lifecycle management.
+/// DEBUG MODE - Simple window to verify app runs.
 /// </summary>
 public partial class App : Application
 {
     private Window? _window;
-    private ImeController? _controller;
-    private SystemTray? _tray;
 
     public App()
     {
@@ -24,96 +18,31 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        try
+        _window = new Window
         {
-            // Initialize Rust engine
-            RustBridge.ime_init();
+            Title = "Gõ Nhanh - DEBUG"
+        };
 
-            // Load and apply settings
-            SettingsService.Instance.ApplyToEngine();
-
-            // Create IME controller and start keyboard hook
-            _controller = new ImeController();
-            _controller.IsEnabled = SettingsService.Instance.Enabled;
-            _controller.EnabledChanged += OnEnabledChanged;
-            _controller.Start();
-
-            // Create system tray
-            _tray = new SystemTray(_controller);
-            _tray.SettingsRequested += OnSettingsRequested;
-            _tray.AboutRequested += OnAboutRequested;
-            _tray.UpdateRequested += OnUpdateRequested;
-            _tray.QuitRequested += OnQuitRequested;
-            _tray.Show();
-
-            // Create settings window (hidden by default, shown when settings requested)
-            _window = new SettingsWindow();
-        }
-        catch (Exception ex)
+        var panel = new StackPanel
         {
-            // Show error dialog for debugging
-            var errorWindow = new Window
-            {
-                Title = "Go Nhanh - Error",
-                Content = new Microsoft.UI.Xaml.Controls.TextBlock
-                {
-                    Text = $"Error: {ex.Message}\n\n{ex.StackTrace}",
-                    TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
-                    Margin = new Thickness(20)
-                }
-            };
-            errorWindow.Activate();
-            _window = errorWindow;
-        }
-    }
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Spacing = 10
+        };
 
-    private void OnEnabledChanged(object? sender, bool enabled)
-    {
-        SettingsService.Instance.Enabled = enabled;
-        SettingsService.Instance.SaveAll();
-    }
-
-    private void OnSettingsRequested(object? sender, EventArgs e)
-    {
-        _window?.Activate();
-    }
-
-    private async void OnAboutRequested(object? sender, EventArgs e)
-    {
-        if (_window == null) return;
-        var dialog = new AboutDialog { XamlRoot = _window.Content.XamlRoot };
-        await dialog.ShowAsync();
-    }
-
-    private async void OnUpdateRequested(object? sender, EventArgs e)
-    {
-        if (_window == null) return;
-        var dialog = new UpdateDialog { XamlRoot = _window.Content.XamlRoot };
-        await dialog.ShowAsync();
-    }
-
-    private void OnQuitRequested(object? sender, EventArgs e)
-    {
-        Cleanup();
-        Exit();
-    }
-
-    private void Cleanup()
-    {
-        // Unsubscribe event handlers to prevent memory leaks
-        if (_controller != null)
+        panel.Children.Add(new TextBlock
         {
-            _controller.EnabledChanged -= OnEnabledChanged;
-            _controller.Dispose();
-        }
+            Text = "Gõ Nhanh đang chạy!",
+            FontSize = 24
+        });
 
-        if (_tray != null)
+        panel.Children.Add(new TextBlock
         {
-            _tray.SettingsRequested -= OnSettingsRequested;
-            _tray.AboutRequested -= OnAboutRequested;
-            _tray.UpdateRequested -= OnUpdateRequested;
-            _tray.QuitRequested -= OnQuitRequested;
-            _tray.Dispose();
-        }
+            Text = "Nếu bạn thấy cửa sổ này, app hoạt động bình thường.",
+            FontSize = 14
+        });
+
+        _window.Content = panel;
+        _window.Activate();
     }
 }
