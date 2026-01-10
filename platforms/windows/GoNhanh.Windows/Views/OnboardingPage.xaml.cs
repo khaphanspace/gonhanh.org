@@ -1,7 +1,7 @@
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.UI;
 using GoNhanh.Core;
 using GoNhanh.Services;
 
@@ -36,7 +36,6 @@ public sealed partial class OnboardingPage : Page
         }
         else
         {
-            // Complete onboarding
             SaveSettings();
             Completed?.Invoke(this, EventArgs.Empty);
         }
@@ -48,11 +47,8 @@ public sealed partial class OnboardingPage : Page
         Step2Panel.Visibility = _currentStep == 2 ? Visibility.Visible : Visibility.Collapsed;
         Step3Panel.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
 
-        // Update step indicators
-        var accentBrush = Application.Current.Resources["AccentFillColorDefaultBrush"] as Brush
-            ?? new SolidColorBrush(Colors.Blue);
-        var defaultBrush = Application.Current.Resources["ControlStrongFillColorDefaultBrush"] as Brush
-            ?? new SolidColorBrush(Colors.Gray);
+        var accentBrush = new SolidColorBrush(Color.FromArgb(255, 0, 120, 215));
+        var defaultBrush = new SolidColorBrush(Color.FromArgb(255, 128, 128, 128));
 
         Step1Indicator.Fill = _currentStep >= 1 ? accentBrush : defaultBrush;
         Step2Indicator.Fill = _currentStep >= 2 ? accentBrush : defaultBrush;

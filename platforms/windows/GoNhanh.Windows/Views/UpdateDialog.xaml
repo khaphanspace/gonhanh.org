@@ -15,27 +15,16 @@
 
         <!-- Up to date state -->
         <StackPanel x:Name="UpToDatePanel" Spacing="8" Visibility="Collapsed">
-            <FontIcon Glyph="&#xE73E;" FontSize="48"
-                Foreground="{ThemeResource SystemFillColorSuccessBrush}"
-                HorizontalAlignment="Center"/>
-            <TextBlock Text="Ban da su dung phien ban moi nhat!"
-                HorizontalAlignment="Center"/>
-            <TextBlock x:Name="CurrentVersionText" Opacity="0.7"
-                HorizontalAlignment="Center"/>
+            <TextBlock Text="Ban da su dung phien ban moi nhat!" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="CurrentVersionText" Opacity="0.7" HorizontalAlignment="Center"/>
         </StackPanel>
 
         <!-- Update available state -->
         <StackPanel x:Name="UpdateAvailablePanel" Spacing="8" Visibility="Collapsed">
-            <FontIcon Glyph="&#xE896;" FontSize="48"
-                Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                HorizontalAlignment="Center"/>
             <TextBlock Text="Co phien ban moi!" HorizontalAlignment="Center"/>
             <TextBlock x:Name="NewVersionText" HorizontalAlignment="Center"/>
             <TextBlock x:Name="ReleaseNotesText" TextWrapping="Wrap" Opacity="0.7"/>
-            <Button x:Name="DownloadButton" Content="Tai xuong"
-                Style="{StaticResource AccentButtonStyle}"
-                HorizontalAlignment="Center"
-                Click="Download_Click"/>
+            <Button x:Name="DownloadButton" Content="Tai xuong" HorizontalAlignment="Center" Click="Download_Click"/>
         </StackPanel>
 
         <!-- Downloading state -->
@@ -46,13 +35,8 @@
 
         <!-- Error state -->
         <StackPanel x:Name="ErrorPanel" Spacing="8" Visibility="Collapsed">
-            <FontIcon Glyph="&#xE783;" FontSize="48"
-                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                HorizontalAlignment="Center"/>
-            <TextBlock x:Name="ErrorText" TextWrapping="Wrap"
-                HorizontalAlignment="Center"/>
-            <Button Content="Thu lai" Click="Retry_Click"
-                HorizontalAlignment="Center"/>
+            <TextBlock x:Name="ErrorText" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+            <Button Content="Thu lai" Click="Retry_Click" HorizontalAlignment="Center"/>
         </StackPanel>
     </StackPanel>
 </ContentDialog>
