@@ -6,111 +6,39 @@ namespace GoNhanh.Views;
 
 public sealed partial class UpdateDialog : ContentDialog
 {
-    private readonly UpdateService _updateService = new();
-    private UpdateInfo? _updateInfo;
-    private CancellationTokenSource? _cts;
-
     public UpdateDialog()
     {
         InitializeComponent();
         Loaded += OnLoaded;
-        Closed += OnClosed;
-    }
-
-    private void OnClosed(ContentDialog sender, ContentDialogClosedEventArgs args)
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        await CheckForUpdates();
-    }
-
-    private async Task CheckForUpdates()
-    {
-        ShowPanel(CheckingPanel);
-
+        var updateService = new UpdateService();
         try
         {
-            _updateInfo = await _updateService.CheckForUpdateAsync();
-
-            if (_updateInfo == null)
+            var info = await updateService.CheckForUpdateAsync();
+            if (info == null)
             {
-                CurrentVersionText.Text = $"Phien ban hien tai: {UpdateService.CurrentVersion}";
-                ShowPanel(UpToDatePanel);
+                StatusText.Text = $"Ban da su dung phien ban moi nhat ({UpdateService.CurrentVersion})";
             }
             else
             {
-                NewVersionText.Text = $"Phien ban {_updateInfo.Version}";
-                ReleaseNotesText.Text = _updateInfo.ReleaseNotes;
-                ShowPanel(UpdateAvailablePanel);
+                StatusText.Text = $"Co phien ban moi: {info.Version}";
+                ActionButton.Content = "Tai xuong";
+                ActionButton.Visibility = Visibility.Visible;
             }
         }
         catch (Exception ex)
         {
-            ErrorText.Text = $"Loi kiem tra cap nhat: {ex.Message}";
-            ShowPanel(ErrorPanel);
+            StatusText.Text = $"Loi: {ex.Message}";
+            ActionButton.Content = "Thu lai";
+            ActionButton.Visibility = Visibility.Visible;
         }
     }
 
-    private async void Download_Click(object sender, RoutedEventArgs e)
+    private void Action_Click(object sender, RoutedEventArgs e)
     {
-        if (_updateInfo?.DownloadUrl == null || _updateInfo.FileName == null)
-        {
-            ErrorText.Text = "Khong tim thay file cap nhat";
-            ShowPanel(ErrorPanel);
-            return;
-        }
-
-        ShowPanel(DownloadingPanel);
-        DownloadStatusText.Text = "Dang tai xuong...";
-
-        _cts = new CancellationTokenSource();
-        var progress = new Progress<double>(p =>
-        {
-            DownloadProgress.Value = p * 100;
-            DownloadStatusText.Text = $"Dang tai xuong: {p:P0}";
-        });
-
-        try
-        {
-            await _updateService.DownloadUpdateAsync(
-                _updateInfo.DownloadUrl,
-                _updateInfo.FileName,
-                progress,
-                _cts.Token);
-
-            DownloadStatusText.Text = "Hoan tat! Dang mo trinh cai dat...";
-            await Task.Delay(1000);
-            Hide();
-        }
-        catch (OperationCanceledException)
-        {
-            DownloadStatusText.Text = "Da huy tai xuong";
-        }
-        catch (Exception ex)
-        {
-            ErrorText.Text = $"Loi tai xuong: {ex.Message}";
-            ShowPanel(ErrorPanel);
-        }
-    }
-
-    private async void Retry_Click(object sender, RoutedEventArgs e)
-    {
-        await CheckForUpdates();
-    }
-
-    private void ShowPanel(StackPanel panel)
-    {
-        CheckingPanel.Visibility = Visibility.Collapsed;
-        UpToDatePanel.Visibility = Visibility.Collapsed;
-        UpdateAvailablePanel.Visibility = Visibility.Collapsed;
-        DownloadingPanel.Visibility = Visibility.Collapsed;
-        ErrorPanel.Visibility = Visibility.Collapsed;
-
-        panel.Visibility = Visibility.Visible;
+        Hide();
     }
 }

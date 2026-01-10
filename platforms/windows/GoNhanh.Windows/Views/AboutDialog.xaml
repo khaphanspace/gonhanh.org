@@ -7,21 +7,8 @@
     CloseButtonText="Dong">
 
     <StackPanel Spacing="16" Padding="8">
-        <StackPanel HorizontalAlignment="Center" Spacing="8">
-            <Image Source="ms-appx:///Assets/Logo.png" Width="96" Height="96"/>
-            <TextBlock Text="Go Nhanh" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="VersionText" Text="Phien ban 1.0.102" HorizontalAlignment="Center" Opacity="0.7"/>
-        </StackPanel>
-
-        <TextBlock TextWrapping="Wrap" TextAlignment="Center">
-            Bo go tieng Viet hieu suat cao cho Windows.
-        </TextBlock>
-
-        <StackPanel Spacing="4">
-            <HyperlinkButton Content="Trang chu: gonhanh.org" NavigateUri="https://gonhanh.org"/>
-            <HyperlinkButton Content="GitHub" NavigateUri="https://github.com/khaphanspace/gonhanh.org"/>
-        </StackPanel>
-
-        <TextBlock Text="Phat trien boi: Kha Phan" Opacity="0.7"/>
+        <TextBlock Text="Go Nhanh" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="VersionText" Text="Phien ban 1.0.102" HorizontalAlignment="Center"/>
+        <TextBlock Text="Bo go tieng Viet hieu suat cao cho Windows" TextWrapping="Wrap" TextAlignment="Center"/>
     </StackPanel>
 </ContentDialog>

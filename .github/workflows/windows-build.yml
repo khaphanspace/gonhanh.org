@@ -74,7 +74,7 @@ jobs:
         working-directory: platforms/windows/GoNhanh.Windows
 
       - name: Build
-        run: dotnet build -c Release -p:Platform=${{ matrix.platform }} --no-restore
+        run: dotnet build -c Release -p:Platform=${{ matrix.platform }} --no-restore -v:detailed
         working-directory: platforms/windows/GoNhanh.Windows
 
       - name: Publish NativeAOT

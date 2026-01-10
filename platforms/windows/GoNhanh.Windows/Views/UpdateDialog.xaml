@@ -7,36 +7,7 @@
     CloseButtonText="Dong">
 
     <StackPanel Spacing="16" MinWidth="300">
-        <!-- Checking state -->
-        <StackPanel x:Name="CheckingPanel" Spacing="8" Visibility="Visible">
-            <ProgressRing IsActive="True" Width="32" Height="32"/>
-            <TextBlock Text="Dang kiem tra cap nhat..." HorizontalAlignment="Center"/>
-        </StackPanel>
-
-        <!-- Up to date state -->
-        <StackPanel x:Name="UpToDatePanel" Spacing="8" Visibility="Collapsed">
-            <TextBlock Text="Ban da su dung phien ban moi nhat!" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="CurrentVersionText" Opacity="0.7" HorizontalAlignment="Center"/>
-        </StackPanel>
-
-        <!-- Update available state -->
-        <StackPanel x:Name="UpdateAvailablePanel" Spacing="8" Visibility="Collapsed">
-            <TextBlock Text="Co phien ban moi!" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="NewVersionText" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="ReleaseNotesText" TextWrapping="Wrap" Opacity="0.7"/>
-            <Button x:Name="DownloadButton" Content="Tai xuong" HorizontalAlignment="Center" Click="Download_Click"/>
-        </StackPanel>
-
-        <!-- Downloading state -->
-        <StackPanel x:Name="DownloadingPanel" Spacing="8" Visibility="Collapsed">
-            <ProgressBar x:Name="DownloadProgress" IsIndeterminate="False" Minimum="0" Maximum="100"/>
-            <TextBlock x:Name="DownloadStatusText" HorizontalAlignment="Center"/>
-        </StackPanel>
-
-        <!-- Error state -->
-        <StackPanel x:Name="ErrorPanel" Spacing="8" Visibility="Collapsed">
-            <TextBlock x:Name="ErrorText" TextWrapping="Wrap" HorizontalAlignment="Center"/>
-            <Button Content="Thu lai" Click="Retry_Click" HorizontalAlignment="Center"/>
-        </StackPanel>
+        <TextBlock x:Name="StatusText" Text="Dang kiem tra cap nhat..." HorizontalAlignment="Center"/>
+        <Button x:Name="ActionButton" Content="Kiem tra" HorizontalAlignment="Center" Click="Action_Click" Visibility="Collapsed"/>
     </StackPanel>
 </ContentDialog>
