@@ -3,7 +3,81 @@
     x:Class="GoNhanh.Views.OnboardingPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
     <Grid>
-        <TextBlock Text="Onboarding" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Padding="48" Spacing="32" MaxWidth="600"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                <!-- Step indicators -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                    <Ellipse x:Name="Step1Indicator" Width="12" Height="12" Fill="{ThemeResource AccentFillColorDefaultBrush}"/>
+                    <Ellipse x:Name="Step2Indicator" Width="12" Height="12" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}"/>
+                    <Ellipse x:Name="Step3Indicator" Width="12" Height="12" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}"/>
+                </StackPanel>
+
+                <!-- Step 1: Welcome -->
+                <StackPanel x:Name="Step1Panel" Spacing="16" Visibility="Visible">
+                    <Image Source="ms-appx:///Assets/Logo.png" Width="128" Height="128"
+                        HorizontalAlignment="Center"/>
+                    <TextBlock Text="Chao mung den voi Go Nhanh"
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        HorizontalAlignment="Center"/>
+                    <TextBlock TextWrapping="Wrap" TextAlignment="Center">
+                        Bo go tieng Viet hieu suat cao cho Windows.
+                        Chi can vai buoc thiet lap don gian.
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Step 2: Input Method Selection -->
+                <StackPanel x:Name="Step2Panel" Spacing="16" Visibility="Collapsed">
+                    <TextBlock Text="Chon kieu go"
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        HorizontalAlignment="Center"/>
+                    <RadioButtons x:Name="InputMethodRadio">
+                        <RadioButton Content="Telex - Pho bien nhat" IsChecked="True" Tag="0"/>
+                        <RadioButton Content="VNI - Dung phim so" Tag="1"/>
+                    </RadioButtons>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7">
+                        Telex: go 'aa' de viet 'a', 'dd' de viet 'd'
+                        VNI: go 'a6' de viet 'a', 'd9' de viet 'd'
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Step 3: Complete -->
+                <StackPanel x:Name="Step3Panel" Spacing="16" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE73E;" FontSize="64"
+                        HorizontalAlignment="Center"
+                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                    <TextBlock Text="Hoan tat!"
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        HorizontalAlignment="Center"/>
+                    <TextBlock TextWrapping="Wrap" TextAlignment="Center">
+                        Go Nhanh da san sang. Nhan Ctrl+Space de bat/tat.
+                        Bieu tuong tren thanh tac vu de truy cap cai dat.
+                    </TextBlock>
+                    <ToggleSwitch x:Name="LaunchAtStartupToggle"
+                        Header="Khoi dong cung Windows"
+                        HorizontalAlignment="Center"/>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Navigation buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal"
+            HorizontalAlignment="Center" Spacing="16" Padding="24">
+            <Button x:Name="BackButton" Content="Quay lai"
+                Click="Back_Click" Visibility="Collapsed"/>
+            <Button x:Name="NextButton" Content="Tiep tuc"
+                Style="{StaticResource AccentButtonStyle}"
+                Click="Next_Click"/>
+        </StackPanel>
     </Grid>
 </Page>

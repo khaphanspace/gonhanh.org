@@ -3,7 +3,44 @@
     x:Class="GoNhanh.Views.AboutDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="About"
-    CloseButtonText="Close">
-    <TextBlock Text="Go Nhanh" />
+    Title="Ve Go Nhanh"
+    CloseButtonText="Dong">
+
+    <StackPanel Spacing="16" Padding="8">
+        <!-- Logo and version -->
+        <StackPanel HorizontalAlignment="Center" Spacing="8">
+            <Image Source="ms-appx:///Assets/Logo.png" Width="96" Height="96"/>
+            <TextBlock Text="Go Nhanh" Style="{StaticResource TitleTextBlockStyle}"
+                HorizontalAlignment="Center"/>
+            <TextBlock x:Name="VersionText" Text="Phien ban 1.0.102"
+                HorizontalAlignment="Center" Opacity="0.7"/>
+        </StackPanel>
+
+        <!-- Description -->
+        <TextBlock TextWrapping="Wrap" TextAlignment="Center">
+            Bo go tieng Viet hieu suat cao cho Windows.
+            Xu ly ngon ngu hoc (khong dung bang tra cuu)
+            voi do tre duoi 1ms.
+        </TextBlock>
+
+        <!-- Links -->
+        <StackPanel Spacing="4">
+            <HyperlinkButton Content="Trang chu: gonhanh.org"
+                NavigateUri="https://gonhanh.org"/>
+            <HyperlinkButton Content="GitHub: github.com/khaphanspace/gonhanh.org"
+                NavigateUri="https://github.com/khaphanspace/gonhanh.org"/>
+            <HyperlinkButton Content="Gop y va Bao loi"
+                NavigateUri="https://github.com/khaphanspace/gonhanh.org/issues"/>
+        </StackPanel>
+
+        <!-- Developer -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="Phat trien boi:" Opacity="0.7"/>
+            <TextBlock Text="Kha Phan"/>
+        </StackPanel>
+
+        <!-- License -->
+        <TextBlock Text="Phan mem nguon mo theo giay phep BSD-3-Clause"
+            Opacity="0.7" FontSize="12"/>
+    </StackPanel>
 </ContentDialog>
