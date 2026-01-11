@@ -154,6 +154,12 @@ Nếu các bạn thấy phần mềm hữu ích có thể [ủng hộ tôi tại
 
 ---
 
+## 🌟 Contributors
+
+Xem danh sách [đóng góp viên](CONTRIBUTORS.md) của dự án.
+
+---
+
 ## 🔧 Dành cho Developer
 
 ### Tech Stack
