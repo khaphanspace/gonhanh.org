@@ -72,7 +72,7 @@ public sealed class ImeService : IDisposable
         }
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
+    private void OnKeyDown(object? sender, Core.KeyEventArgs e)
     {
         if (!_enabled) return;
 

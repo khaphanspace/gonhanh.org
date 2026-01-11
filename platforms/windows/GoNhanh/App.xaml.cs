@@ -10,7 +10,7 @@ namespace GoNhanh;
 /// <summary>
 /// Application entry point
 /// </summary>
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private static Mutex? _mutex;
     private ImeService? _imeService;
