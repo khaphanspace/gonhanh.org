@@ -6212,28 +6212,46 @@ impl Engine {
     ///
     /// Called when ESC is pressed. Replaces transformed output with original keystrokes.
     /// Example: "tẽt" (from typing "text" in Telex) → "text"
+    /// Example: "of" → "ò" → ESC → "of" (mark was applied)
+    /// Example: "off" → "of" → ESC → "off" (mark was applied then reverted)
     fn restore_to_raw(&self) -> Result {
         if self.raw_input.is_empty() || self.buf.is_empty() {
             return Result::none();
         }
 
-        // Check if any transforms were applied
-        let has_transforms = self
-            .buf
-            .iter()
-            .any(|c| c.tone > 0 || c.mark > 0 || c.stroke);
-        if !has_transforms {
+        // Build raw ASCII output from raw_input history
+        // If telex_double_raw is set (revert happened), use it as base and append subsequent chars
+        // This ensures "aww" → ESC → "aww" (not "aw"), "a66" → ESC → "a66" (not "a6")
+        let raw_chars: Vec<char> = if let Some(ref base_raw) = self.telex_double_raw {
+            // Start with the original raw string before revert modification
+            let mut chars: Vec<char> = base_raw.chars().collect();
+            // Append any characters typed after the revert
+            for &(key, caps, shift) in self.raw_input.iter().skip(self.telex_double_raw_len) {
+                if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
+                    chars.push(ch);
+                }
+            }
+            chars
+        } else {
+            // Normal case: use raw_input directly
+            self.raw_input
+                .iter()
+                .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+                .collect()
+        };
+
+        if raw_chars.is_empty() {
             return Result::none();
         }
 
-        // Build raw ASCII output from raw_input history
-        let raw_chars: Vec<char> = self
-            .raw_input
-            .iter()
-            .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
-            .collect();
+        // Get current buffer content for comparison
+        let buffer_str = self.buf.to_full_string();
+        let raw_str: String = raw_chars.iter().collect();
 
-        if raw_chars.is_empty() {
+        // Only restore if:
+        // 1. Any transform was ever applied (even if later reverted), OR
+        // 2. Buffer differs from raw input (handles edge cases)
+        if !self.had_any_transform && buffer_str == raw_str {
             return Result::none();
         }
 
@@ -6320,12 +6338,38 @@ mod tests {
         ("dd\x1b", "dd"),         // đ → dd (stroke restore)
         ("vieejt\x1b", "vieejt"), // việt → vieejt (all typed keys)
         ("Vieejt\x1b", "Vieejt"), // Việt → Vieejt (preserve case)
+        // Mark revert cases: second modifier reverts, ESC should restore full raw input
+        ("of\x1b", "of"),         // ò → of (mark applied)
+        ("off\x1b", "off"),       // of → off (mark applied then reverted by 2nd f)
+        ("ass\x1b", "ass"),       // as → ass (mark applied then reverted by 2nd s)
+        ("arr\x1b", "arr"),       // ar → arr (mark applied then reverted by 2nd r)
+        ("axx\x1b", "axx"),       // ax → axx (mark applied then reverted by 2nd x)
+        ("ajj\x1b", "ajj"),       // aj → ajj (mark applied then reverted by 2nd j)
+        // More complex mark revert cases
+        ("bass\x1b", "bass"),     // bás → bas → bass
+        ("boss\x1b", "boss"),     // bòs → bos → boss
+        ("buff\x1b", "buff"),     // bùf → buf → buff
+        ("diff\x1b", "diff"),     // dìf → dif → diff
+        ("miss\x1b", "miss"),     // mìs → mis → miss
+        ("pass\x1b", "pass"),     // pás → pas → pass
+        ("jazz\x1b", "jazz"),     // jaz → jazz (no mark on a, j only at start)
+        // Tone mark cases
+        ("too\x1b", "too"),       // tô → to → too (circumflex applied then reverted)
+        ("see\x1b", "see"),       // sê → se → see
+        ("bee\x1b", "bee"),       // bê → be → bee
     ];
 
     const VNI_ESC_RESTORE: &[(&str, &str)] = &[
         ("a1\x1b", "a1"),         // á → a1
         ("vie65t\x1b", "vie65t"), // việt → vie65t
         ("d9\x1b", "d9"),         // đ → d9
+        // Mark revert cases in VNI mode
+        ("a11\x1b", "a11"),       // á → a → a11 (mark applied then reverted by 2nd 1)
+        ("a22\x1b", "a22"),       // à → a → a22 (huyền reverted)
+        ("a33\x1b", "a33"),       // ả → a → a33 (hỏi reverted)
+        ("a44\x1b", "a44"),       // ã → a → a44 (ngã reverted)
+        ("a55\x1b", "a55"),       // ạ → a → a55 (nặng reverted)
+        ("a66\x1b", "a66"),       // â → a → a66 (circumflex reverted)
     ];
 
     // Normal Vietnamese transforms apply
