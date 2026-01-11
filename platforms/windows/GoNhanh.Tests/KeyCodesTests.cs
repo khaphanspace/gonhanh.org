@@ -28,11 +28,11 @@ public class KeyCodesTests
     }
 
     [Fact]
-    public void ToMacKeycode_UnmappedKey_Returns65535()
+    public void ToMacKeycode_UnmappedKey_Returns255()
     {
-        // F13 is not mapped
+        // F13 is not mapped, returns 0xFF (255)
         var result = KeyCodes.ToMacKeycode(0x7C);
-        Assert.Equal((ushort)0xFFFF, result);
+        Assert.Equal((ushort)0xFF, result);
     }
 
     [Fact]

@@ -60,11 +60,10 @@ public class ImeResultTests
     [Fact]
     public void ImeResult_Layout_IsSequential()
     {
-        // Verify struct layout attribute
-        var attr = typeof(ImeResult).GetCustomAttributes(typeof(StructLayoutAttribute), false);
-        Assert.NotEmpty(attr);
-
-        var layout = (StructLayoutAttribute)attr[0];
-        Assert.Equal(LayoutKind.Sequential, layout.Value);
+        // StructLayoutAttribute is a pseudo-attribute, use TypeAttributes instead
+        var typeAttr = typeof(ImeResult).Attributes;
+        // Sequential layout is indicated by LayoutSequential flag
+        Assert.True((typeAttr & System.Reflection.TypeAttributes.SequentialLayout) != 0,
+            "ImeResult should have sequential layout");
     }
 }
