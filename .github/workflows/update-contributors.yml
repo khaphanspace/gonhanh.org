@@ -40,7 +40,7 @@ jobs:
 
       - name: Generate contributors list
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
         run: node scripts/generate-contributors.js
 
       - name: Check for changes
