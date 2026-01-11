@@ -258,7 +258,7 @@ function generateMarkdown(sponsors, contributors, issueCreators, commenters) {
     (u) => !allKnownLogins.has(u.login)
   );
 
-  const now = new Date().toLocaleDateString('vi-VN');
+  const now = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return `<div align="center">
 
