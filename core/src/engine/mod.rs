@@ -6339,24 +6339,24 @@ mod tests {
         ("vieejt\x1b", "vieejt"), // việt → vieejt (all typed keys)
         ("Vieejt\x1b", "Vieejt"), // Việt → Vieejt (preserve case)
         // Mark revert cases: second modifier reverts, ESC should restore full raw input
-        ("of\x1b", "of"),         // ò → of (mark applied)
-        ("off\x1b", "off"),       // of → off (mark applied then reverted by 2nd f)
-        ("ass\x1b", "ass"),       // as → ass (mark applied then reverted by 2nd s)
-        ("arr\x1b", "arr"),       // ar → arr (mark applied then reverted by 2nd r)
-        ("axx\x1b", "axx"),       // ax → axx (mark applied then reverted by 2nd x)
-        ("ajj\x1b", "ajj"),       // aj → ajj (mark applied then reverted by 2nd j)
+        ("of\x1b", "of"),   // ò → of (mark applied)
+        ("off\x1b", "off"), // of → off (mark applied then reverted by 2nd f)
+        ("ass\x1b", "ass"), // as → ass (mark applied then reverted by 2nd s)
+        ("arr\x1b", "arr"), // ar → arr (mark applied then reverted by 2nd r)
+        ("axx\x1b", "axx"), // ax → axx (mark applied then reverted by 2nd x)
+        ("ajj\x1b", "ajj"), // aj → ajj (mark applied then reverted by 2nd j)
         // More complex mark revert cases
-        ("bass\x1b", "bass"),     // bás → bas → bass
-        ("boss\x1b", "boss"),     // bòs → bos → boss
-        ("buff\x1b", "buff"),     // bùf → buf → buff
-        ("diff\x1b", "diff"),     // dìf → dif → diff
-        ("miss\x1b", "miss"),     // mìs → mis → miss
-        ("pass\x1b", "pass"),     // pás → pas → pass
-        ("jazz\x1b", "jazz"),     // jaz → jazz (no mark on a, j only at start)
+        ("bass\x1b", "bass"), // bás → bas → bass
+        ("boss\x1b", "boss"), // bòs → bos → boss
+        ("buff\x1b", "buff"), // bùf → buf → buff
+        ("diff\x1b", "diff"), // dìf → dif → diff
+        ("miss\x1b", "miss"), // mìs → mis → miss
+        ("pass\x1b", "pass"), // pás → pas → pass
+        ("jazz\x1b", "jazz"), // jaz → jazz (no mark on a, j only at start)
         // Tone mark cases
-        ("too\x1b", "too"),       // tô → to → too (circumflex applied then reverted)
-        ("see\x1b", "see"),       // sê → se → see
-        ("bee\x1b", "bee"),       // bê → be → bee
+        ("too\x1b", "too"), // tô → to → too (circumflex applied then reverted)
+        ("see\x1b", "see"), // sê → se → see
+        ("bee\x1b", "bee"), // bê → be → bee
     ];
 
     const VNI_ESC_RESTORE: &[(&str, &str)] = &[
@@ -6364,12 +6364,12 @@ mod tests {
         ("vie65t\x1b", "vie65t"), // việt → vie65t
         ("d9\x1b", "d9"),         // đ → d9
         // Mark revert cases in VNI mode
-        ("a11\x1b", "a11"),       // á → a → a11 (mark applied then reverted by 2nd 1)
-        ("a22\x1b", "a22"),       // à → a → a22 (huyền reverted)
-        ("a33\x1b", "a33"),       // ả → a → a33 (hỏi reverted)
-        ("a44\x1b", "a44"),       // ã → a → a44 (ngã reverted)
-        ("a55\x1b", "a55"),       // ạ → a → a55 (nặng reverted)
-        ("a66\x1b", "a66"),       // â → a → a66 (circumflex reverted)
+        ("a11\x1b", "a11"), // á → a → a11 (mark applied then reverted by 2nd 1)
+        ("a22\x1b", "a22"), // à → a → a22 (huyền reverted)
+        ("a33\x1b", "a33"), // ả → a → a33 (hỏi reverted)
+        ("a44\x1b", "a44"), // ã → a → a44 (ngã reverted)
+        ("a55\x1b", "a55"), // ạ → a → a55 (nặng reverted)
+        ("a66\x1b", "a66"), // â → a → a66 (circumflex reverted)
     ];
 
     // Normal Vietnamese transforms apply
