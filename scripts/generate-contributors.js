@@ -210,7 +210,7 @@ function avatarHtml(user, size = 50) {
 /**
  * Generate table row for code contributors
  */
-function contributorTableHtml(contributors, perRow = 6) {
+function contributorTableHtml(contributors, perRow = 7) {
   if (contributors.length === 0) return '<p><em>Chưa có</em></p>';
 
   let html = '<table>\n';
