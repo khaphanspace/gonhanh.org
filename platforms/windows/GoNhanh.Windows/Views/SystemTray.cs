@@ -26,12 +26,24 @@ public sealed class SystemTray : IDisposable
     public SystemTray(ImeController controller)
     {
         _controller = controller;
-        _trayIcon = new TaskbarIcon();
+        _trayIcon = new TaskbarIcon
+        {
+            ToolTipText = "Go Nhanh"
+        };
 
-        // Set icon using GeneratedIcon (creates icon from text/color)
-        var icon = new H.NotifyIcon.Core.GeneratedIcon("V", foreground: System.Drawing.Color.White, background: System.Drawing.Color.FromArgb(0, 120, 215));
-        _trayIcon.Icon = icon.Icon;
-        _trayIcon.ToolTipText = "Go Nhanh";
+        // Load icon from embedded resource or file
+        try
+        {
+            var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+            if (System.IO.File.Exists(iconPath))
+            {
+                _trayIcon.Icon = new System.Drawing.Icon(iconPath);
+            }
+        }
+        catch
+        {
+            // Icon loading failed, continue without icon
+        }
 
         // Create menu items first
         _toggleItem = new ToggleMenuFlyoutItem
