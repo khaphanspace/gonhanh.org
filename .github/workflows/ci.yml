@@ -73,7 +73,7 @@ jobs:
       - name: Publish App
         run: |
           cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ../publish
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
