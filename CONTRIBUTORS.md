@@ -194,6 +194,6 @@ Những người đã tham gia thảo luận, giúp định hình sản phẩm.
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 11/1/2026*
+*Được cập nhật tự động · Lần cuối: 11/01/2026*
 
 </div>
