@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Gõ Nhanh"
+           Manufacturer="Gõ Nhanh Contributors"
+           Version="$(var.Version)"
+           UpgradeCode="47B7C8A1-5E2D-4F1A-9B3C-8D6E7F0A1B2C"
+           Compressed="yes">
+
+    <!-- Require admin for system-wide install -->
+    <SummaryInformation Description="Vietnamese Input Method for Windows" />
+
+    <!-- Upgrade handling -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed."
+                  Schedule="afterInstallInitialize" />
+
+    <!-- Features -->
+    <Feature Id="MainFeature" Title="Gõ Nhanh" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="StartupShortcut" />
+    </Feature>
+
+    <!-- Install directory -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="GoNhanh">
+        <Directory Id="NativeDir" Name="Native" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Program Menu shortcuts -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Gõ Nhanh" />
+    </StandardDirectory>
+
+    <!-- Startup folder -->
+    <StandardDirectory Id="StartupFolder" />
+
+    <!-- Components -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Main executable -->
+      <Component Id="MainExecutable" Guid="*">
+        <File Id="GoNhanhExe" Source="$(var.PublishDir)\GoNhanh.exe" KeyPath="yes" />
+      </Component>
+
+      <!-- .NET dependencies -->
+      <Component Id="RuntimeConfig" Guid="*">
+        <File Id="RuntimeConfigJson" Source="$(var.PublishDir)\GoNhanh.runtimeconfig.json" />
+      </Component>
+      <Component Id="DepsJson" Guid="*">
+        <File Id="DepsJsonFile" Source="$(var.PublishDir)\GoNhanh.deps.json" />
+      </Component>
+
+      <!-- Native DLL -->
+      <Component Id="NativeDll" Guid="*" Directory="NativeDir">
+        <File Id="CoreDll" Source="$(var.PublishDir)\Native\gonhanh_core.dll" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Start Menu shortcut -->
+    <Component Id="ApplicationShortcut" Guid="*" Directory="ApplicationProgramsFolder">
+      <Shortcut Id="ApplicationStartMenuShortcut"
+                Name="Gõ Nhanh"
+                Description="Vietnamese Input Method"
+                Target="[INSTALLFOLDER]GoNhanh.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\GoNhanh" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- Startup shortcut (optional) -->
+    <Component Id="StartupShortcut" Guid="*" Directory="StartupFolder">
+      <Shortcut Id="StartupShortcutFile"
+                Name="Gõ Nhanh"
+                Description="Vietnamese Input Method"
+                Target="[INSTALLFOLDER]GoNhanh.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKCU" Key="Software\GoNhanh" Name="startup" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+  </Package>
+</Wix>

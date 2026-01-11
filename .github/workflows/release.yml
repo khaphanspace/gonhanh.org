@@ -497,13 +497,17 @@ jobs:
           git push
 
   build-windows:
-    if: false  # Temporarily disabled
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
@@ -520,19 +524,46 @@ jobs:
           Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
                     "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
 
+      - name: Set Version
+        id: version
+        run: |
+          $V = "${{ github.ref_name }}".TrimStart('v')
+          echo "version=$V" >> $env:GITHUB_OUTPUT
+
+          # Update AssemblyVersion in csproj
+          $csproj = "platforms/windows/GoNhanh/GoNhanh.csproj"
+          $content = Get-Content $csproj -Raw
+          $content = $content -replace '<Version>.*?</Version>', "<Version>$V</Version>"
+          Set-Content $csproj $content
+
       - name: Build WPF App
         run: |
           cd platforms/windows/GoNhanh
           dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
 
-      - name: Package
+      - name: Package ZIP
         run: |
           cd platforms/windows
-          $V = "${{ github.ref_name }}".TrimStart('v')
+          $V = "${{ steps.version.outputs.version }}"
           Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
 
-      - name: Upload Windows artifact
+      - name: Build MSI Installer
+        run: |
+          cd platforms/windows/Installer
+          dotnet tool install --global wix --version 5.0.0
+          wix build GoNhanh.wxs -d Version=${{ steps.version.outputs.version }} -d PublishDir=..\publish -o GoNhanh-${{ steps.version.outputs.version }}-win-x64.msi
+
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-zip
-          path: platforms/windows/*.zip
+          name: windows-release
+          path: |
+            platforms/windows/*.zip
+            platforms/windows/Installer/*.msi
+
+      - name: Add to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            platforms/windows/*.zip
+            platforms/windows/Installer/*.msi

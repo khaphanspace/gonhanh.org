@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using System.Windows;
 using GoNhanh.Core;
 using GoNhanh.Services;
@@ -6,136 +8,79 @@ using GoNhanh.Views;
 namespace GoNhanh;
 
 /// <summary>
-/// GoNhanh - Vietnamese Input Method for Windows
-/// Main application entry point
-/// Matches macOS App.swift flow
+/// Application entry point
 /// </summary>
-public partial class App : System.Windows.Application
+public partial class App : Application
 {
+    private static Mutex? _mutex;
+    private ImeService? _imeService;
     private TrayIcon? _trayIcon;
-    private KeyboardHook? _keyboardHook;
-    private readonly SettingsService _settings = new();
-    private System.Threading.Mutex? _mutex;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        // Prevent multiple instances
-        if (!EnsureSingleInstance())
+        // Single instance check
+        const string mutexName = "GoNhanh-SingleInstance-Mutex";
+        _mutex = new Mutex(true, mutexName, out bool createdNew);
+
+        if (!createdNew)
         {
+            MessageBox.Show(
+                "Gõ Nhanh is already running.",
+                "Gõ Nhanh",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             Shutdown();
             return;
         }
 
-        // Initialize Rust core engine
-        RustBridge.Initialize();
-
-        // Load settings
-        _settings.Load();
-        ApplySettings();
-
-        // Initialize keyboard hook
-        _keyboardHook = new KeyboardHook();
-        _keyboardHook.KeyPressed += OnKeyPressed;
-        _keyboardHook.Start();
-
-        // Initialize system tray
-        _trayIcon = new TrayIcon();
-        _trayIcon.OnExitRequested += ExitApplication;
-        _trayIcon.OnMethodChanged += ChangeInputMethod;
-        _trayIcon.OnEnabledChanged += ToggleEnabled;
-        _trayIcon.Initialize(_settings.CurrentMethod, _settings.IsEnabled);
-
-        // Show onboarding if first run (like macOS)
-        if (_settings.IsFirstRun)
+        try
         {
-            ShowOnboarding();
+            // Initialize services
+            _imeService = new ImeService();
+
+            // Load settings
+            var settings = SettingsService.Instance.Load();
+            _imeService.ApplySettings(settings);
+
+            // Show onboarding on first run
+            if (SettingsService.IsFirstRun)
+            {
+                var onboarding = new OnboardingWindow();
+                if (onboarding.ShowDialog() != true)
+                {
+                    Shutdown();
+                    return;
+                }
+            }
+
+            // Start IME service
+            _imeService.Start();
+
+            // Create system tray icon
+            _trayIcon = new TrayIcon(_imeService);
+            _trayIcon.Show();
         }
-    }
-
-    private bool EnsureSingleInstance()
-    {
-        _mutex = new System.Threading.Mutex(true, "GoNhanh_SingleInstance", out bool createdNew);
-        if (!createdNew)
+        catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(
-                $"{AppMetadata.Name} đang chạy.\nKiểm tra khay hệ thống (system tray).",
-                AppMetadata.Name,
+            MessageBox.Show(
+                $"Failed to start Gõ Nhanh:\n\n{ex.Message}",
+                "Error",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return false;
+                MessageBoxImage.Error);
+            Shutdown();
         }
-        return true;
-    }
-
-    private void ApplySettings()
-    {
-        RustBridge.SetMethod(_settings.CurrentMethod);
-        RustBridge.SetEnabled(_settings.IsEnabled);
-        RustBridge.SetModernTone(_settings.UseModernTone);
-    }
-
-    private void OnKeyPressed(object? sender, KeyPressedEventArgs e)
-    {
-        if (!_settings.IsEnabled) return;
-
-        var result = RustBridge.ProcessKey(e.VirtualKeyCode, e.Shift, e.CapsLock);
-
-        if (result.Action == ImeAction.Send && result.Count > 0)
-        {
-            e.Handled = true;
-            TextSender.SendText(result.GetText(), result.Backspace);
-        }
-        else if (result.Action == ImeAction.Restore)
-        {
-            e.Handled = true;
-            TextSender.SendText(result.GetText(), result.Backspace);
-        }
-    }
-
-    private void ShowOnboarding()
-    {
-        var onboarding = new OnboardingWindow(_settings);
-        onboarding.ShowDialog();
-
-        // Save settings after onboarding
-        _settings.IsFirstRun = false;
-        _settings.Save();
-
-        ApplySettings();
-        _trayIcon?.UpdateState(_settings.CurrentMethod, _settings.IsEnabled);
-    }
-
-    private void ChangeInputMethod(InputMethod method)
-    {
-        _settings.CurrentMethod = method;
-        _settings.Save();
-        RustBridge.SetMethod(method);
-    }
-
-    private void ToggleEnabled(bool enabled)
-    {
-        _settings.IsEnabled = enabled;
-        _settings.Save();
-        RustBridge.SetEnabled(enabled);
-    }
-
-    private void ExitApplication()
-    {
-        _keyboardHook?.Stop();
-        _keyboardHook?.Dispose();
-        _trayIcon?.Dispose();
-        RustBridge.Clear();
-        _mutex?.Dispose();
-        Shutdown();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
+        _imeService?.Stop();
+        _imeService?.Dispose();
+        _mutex?.ReleaseMutex();
         _mutex?.Dispose();
+
         base.OnExit(e);
     }
 }

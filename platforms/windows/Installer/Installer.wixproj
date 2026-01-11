@@ -1,0 +1,16 @@
+<Project Sdk="WixToolset.Sdk/5.0.0">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputName>GoNhanh-$(Version)-win-x64</OutputName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishDir>..\publish\</PublishDir>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="GoNhanh.wxs" />
+  </ItemGroup>
+</Project>

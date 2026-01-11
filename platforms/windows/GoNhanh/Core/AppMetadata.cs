@@ -3,74 +3,54 @@ using System.Reflection;
 namespace GoNhanh.Core;
 
 /// <summary>
-/// Centralized app metadata - matches macOS AppMetadata.swift
-/// All project metadata in one place for consistency
+/// Application metadata and constants
 /// </summary>
 public static class AppMetadata
 {
-    // App Info
-    public static readonly string Name = "GoNhanh";
-    public static readonly string DisplayName = "GoNhanh - Gõ Nhanh";
-    public static readonly string Tagline = "Bộ gõ tiếng Việt hiệu suất cao";
+    /// <summary>
+    /// Application name
+    /// </summary>
+    public const string AppName = "Gõ Nhanh";
 
-    // Version
-    public static string Version
-    {
-        get
-        {
-            var version = Assembly.GetExecutingAssembly().GetName().Version;
-            return $"{version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
-        }
-    }
+    /// <summary>
+    /// Application display name in Vietnamese
+    /// </summary>
+    public const string DisplayName = "Gõ Nhanh";
 
-    // Author
-    public static readonly string Author = "Kha Phan";
-    public static readonly string AuthorEmail = "nhatkha1407@gmail.com";
-    public static readonly string AuthorLinkedin = "https://www.linkedin.com/in/khaphanspace";
+    /// <summary>
+    /// Application description
+    /// </summary>
+    public const string Description = "Vietnamese Input Method for Windows";
 
-    // Links
-    public static readonly string Website = "https://gonhanh.org";
-    public static readonly string Repository = "https://github.com/khaphanspace/gonhanh.org";
-    public static readonly string IssuesUrl = "https://github.com/khaphanspace/gonhanh.org/issues";
+    /// <summary>
+    /// Organization name
+    /// </summary>
+    public const string Organization = "Gõ Nhanh Contributors";
 
-    // Legal
-    public static readonly string Copyright = $"Copyright (c) 2025 {Author}. All rights reserved.";
-    public static readonly string License = "GPL-3.0-or-later";
+    /// <summary>
+    /// Project homepage URL
+    /// </summary>
+    public const string HomepageUrl = "https://github.com/user/gonhanh";
 
-    // Tech
-    public static readonly string TechStack = "Rust + WPF";
-}
+    /// <summary>
+    /// Registry key path for application settings
+    /// </summary>
+    public const string RegistryPath = @"SOFTWARE\GoNhanh";
 
-/// <summary>
-/// Input method descriptions - matches macOS InputMode
-/// </summary>
-public static class InputMethodInfo
-{
-    public static string GetName(InputMethod method) => method switch
-    {
-        InputMethod.Telex => "Telex",
-        InputMethod.VNI => "VNI",
-        _ => "Unknown"
-    };
+    /// <summary>
+    /// Run registry key for startup
+    /// </summary>
+    public const string RunRegistryPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
-    public static string GetShortName(InputMethod method) => method switch
-    {
-        InputMethod.Telex => "T",
-        InputMethod.VNI => "V",
-        _ => "?"
-    };
+    /// <summary>
+    /// Get application version from assembly
+    /// </summary>
+    public static Version Version =>
+        Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0);
 
-    public static string GetDescription(InputMethod method) => method switch
-    {
-        InputMethod.Telex => "aw, ow, w, s, f, r, x, j",
-        InputMethod.VNI => "a8, o9, 1-5",
-        _ => ""
-    };
-
-    public static string GetFullDescription(InputMethod method) => method switch
-    {
-        InputMethod.Telex => $"Telex ({GetDescription(method)})",
-        InputMethod.VNI => $"VNI ({GetDescription(method)})",
-        _ => ""
-    };
+    /// <summary>
+    /// Get version string (e.g., "1.0.0")
+    /// </summary>
+    public static string VersionString =>
+        $"{Version.Major}.{Version.Minor}.{Version.Build}";
 }

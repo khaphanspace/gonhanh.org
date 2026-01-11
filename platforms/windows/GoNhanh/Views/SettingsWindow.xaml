@@ -1,0 +1,61 @@
+<Window x:Class="GoNhanh.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cài đặt - Gõ Nhanh"
+        Height="500" Width="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Input Method -->
+                <TextBlock Text="Kiểu gõ" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                    <RadioButton x:Name="TelexRadio" Content="Telex" GroupName="Method" Margin="0,0,20,0"/>
+                    <RadioButton x:Name="VniRadio" Content="VNI" GroupName="Method"/>
+                </StackPanel>
+
+                <!-- Options -->
+                <TextBlock Text="Tùy chọn" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                <CheckBox x:Name="ModernToneCheckbox" Content="Bỏ dấu kiểu mới (hoà → hòa)"
+                          Margin="0,5"/>
+                <CheckBox x:Name="WShortcutCheckbox" Content="Gõ w → ư"
+                          Margin="0,5"/>
+                <CheckBox x:Name="BracketShortcutCheckbox" Content="Gõ [ ] → ư ơ"
+                          Margin="0,5"/>
+                <CheckBox x:Name="EscRestoreCheckbox" Content="ESC khôi phục gốc"
+                          Margin="0,5"/>
+                <CheckBox x:Name="FreeToneCheckbox" Content="Tự do đặt dấu"
+                          Margin="0,5"/>
+                <CheckBox x:Name="EnglishAutoRestoreCheckbox" Content="Tự động khôi phục từ tiếng Anh"
+                          Margin="0,5"/>
+                <CheckBox x:Name="AutoCapitalizeCheckbox" Content="Tự động viết hoa"
+                          Margin="0,5"/>
+
+                <!-- System -->
+                <TextBlock Text="Hệ thống" FontWeight="SemiBold" Margin="0,20,0,10"/>
+                <CheckBox x:Name="LaunchAtLoginCheckbox" Content="Khởi động cùng Windows"
+                          Margin="0,5"/>
+                <CheckBox x:Name="SoundEnabledCheckbox" Content="Âm thanh"
+                          Margin="0,5"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Hủy" Click="CancelButton_Click"
+                    Width="80" Height="30" Margin="0,0,10,0"/>
+            <Button Content="Lưu" Click="SaveButton_Click"
+                    Width="80" Height="30"
+                    Background="{StaticResource PrimaryBrush}"
+                    Foreground="White" BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</Window>

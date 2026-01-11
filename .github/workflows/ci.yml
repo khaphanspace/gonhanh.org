@@ -34,6 +34,41 @@ jobs:
           workspaces: core
       - run: cargo build --manifest-path core/Cargo.toml --release
 
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build Rust Core
+        run: |
+          cd core
+          cargo build --release --target x86_64-pc-windows-msvc
+          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
+                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
+
+      - name: Build WPF App
+        run: |
+          cd platforms/windows/GoNhanh
+          dotnet build -c Release
+
+      - name: Run Tests
+        run: |
+          cd platforms/windows/GoNhanh.Tests
+          dotnet test -c Release --logger "console;verbosity=detailed"
+
   build-linux:
     runs-on: ubuntu-latest
     steps:

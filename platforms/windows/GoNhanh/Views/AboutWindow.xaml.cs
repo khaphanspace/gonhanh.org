@@ -1,55 +1,41 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows;
-using System.Windows.Navigation;
-using GoNhanh.Core;
 
 namespace GoNhanh.Views;
 
 /// <summary>
-/// About window showing app info and links
-/// Matches macOS AboutView exactly
+/// About information window
 /// </summary>
 public partial class AboutWindow : Window
 {
     public AboutWindow()
     {
         InitializeComponent();
-        LoadMetadata();
+
+        // Set version from assembly
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        if (version != null)
+        {
+            VersionText.Text = $"Phiên bản {version.Major}.{version.Minor}.{version.Build}";
+        }
     }
 
-    private void LoadMetadata()
-    {
-        // Version
-        VersionText.Text = $"Version {AppMetadata.Version}";
-
-        // Author
-        AuthorText.Text = AppMetadata.Author;
-        EmailText.Text = AppMetadata.AuthorEmail;
-        EmailLink.NavigateUri = new Uri($"mailto:{AppMetadata.AuthorEmail}");
-        LinkedInLink.NavigateUri = new Uri(AppMetadata.AuthorLinkedin);
-
-        // Links
-        WebsiteLink.NavigateUri = new Uri(AppMetadata.Website);
-        GitHubLink.NavigateUri = new Uri(AppMetadata.Repository);
-
-        // Copyright
-        CopyrightText.Text = AppMetadata.Copyright;
-    }
-
-    private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+    private void GitHubButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = e.Uri.AbsoluteUri,
+                FileName = "https://github.com/user/gonhanh",
                 UseShellExecute = true
             });
         }
-        catch
-        {
-            // Ignore errors opening browser/email client
-        }
-        e.Handled = true;
+        catch { }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }

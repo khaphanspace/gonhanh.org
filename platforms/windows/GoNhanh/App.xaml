@@ -3,44 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <ResourceDictionary>
-            <!-- Colors -->
-            <Color x:Key="PrimaryColor">#2563EB</Color>
-            <Color x:Key="PrimaryHoverColor">#1D4ED8</Color>
-            <Color x:Key="BackgroundColor">#FFFFFF</Color>
-            <Color x:Key="TextColor">#1F2937</Color>
-            <Color x:Key="SecondaryTextColor">#6B7280</Color>
-
-            <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
-            <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource PrimaryHoverColor}"/>
-            <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
-            <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
-            <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryTextColor}"/>
-
-            <!-- Button Style -->
-            <Style x:Key="PrimaryButton" TargetType="Button">
-                <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                <Setter Property="Foreground" Value="White"/>
-                <Setter Property="Padding" Value="16,8"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="6"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
-        </ResourceDictionary>
+        <!-- Theme colors -->
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#0066CC"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#00AA44"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#1A1A1A"/>
+        <SolidColorBrush x:Key="SubtleBrush" Color="#666666"/>
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0"/>
     </Application.Resources>
 </Application>

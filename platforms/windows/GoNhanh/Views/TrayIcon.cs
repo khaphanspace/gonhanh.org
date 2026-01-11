@@ -1,279 +1,189 @@
-using System.Diagnostics;
+using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.Windows;
 using System.Windows.Forms;
 using GoNhanh.Core;
+using GoNhanh.Services;
+using Application = System.Windows.Application;
 
 namespace GoNhanh.Views;
 
 /// <summary>
 /// System tray icon with context menu
-/// Matches macOS MenuBarController flow exactly
 /// </summary>
-public class TrayIcon : IDisposable
+public sealed class TrayIcon : IDisposable
 {
-    private NotifyIcon? _notifyIcon;
-    private ContextMenuStrip? _contextMenu;
-    private ToolStripMenuItem? _headerItem;
-    private ToolStripMenuItem? _telexItem;
-    private ToolStripMenuItem? _vniItem;
-    private bool _isEnabled = true;
-    private InputMethod _currentMethod = InputMethod.Telex;
+    private readonly NotifyIcon _notifyIcon;
+    private readonly ImeService _imeService;
     private bool _disposed;
 
-    #region Events
+    // Menu items that need updates
+    private ToolStripMenuItem _toggleItem;
+    private ToolStripMenuItem _telexItem;
+    private ToolStripMenuItem _vniItem;
 
-    public event Action? OnExitRequested;
-    public event Action<InputMethod>? OnMethodChanged;
-    public event Action<bool>? OnEnabledChanged;
-
-    #endregion
-
-    /// <summary>
-    /// Initialize the system tray icon
-    /// </summary>
-    public void Initialize(InputMethod currentMethod, bool isEnabled)
+    public TrayIcon(ImeService imeService)
     {
-        _currentMethod = currentMethod;
-        _isEnabled = isEnabled;
+        _imeService = imeService;
 
-        _contextMenu = new ContextMenuStrip();
-        _contextMenu.Font = new Font("Segoe UI", 9F);
-        _contextMenu.ShowCheckMargin = true;
-        _contextMenu.ShowImageMargin = false;
-
-        // Header with toggle (like macOS)
-        _headerItem = new ToolStripMenuItem();
-        _headerItem.Enabled = false; // Non-clickable, just display
-        _contextMenu.Items.Add(_headerItem);
-        _contextMenu.Items.Add(new ToolStripSeparator());
-
-        // Input methods with shortcuts (Ctrl+1, Ctrl+2 like macOS ⌘1, ⌘2)
-        _telexItem = new ToolStripMenuItem("Telex");
-        _telexItem.ShortcutKeys = Keys.Control | Keys.D1;
-        _telexItem.Click += (s, e) => SetMethod(InputMethod.Telex);
-        _contextMenu.Items.Add(_telexItem);
-
-        _vniItem = new ToolStripMenuItem("VNI");
-        _vniItem.ShortcutKeys = Keys.Control | Keys.D2;
-        _vniItem.Click += (s, e) => SetMethod(InputMethod.VNI);
-        _contextMenu.Items.Add(_vniItem);
-
-        _contextMenu.Items.Add(new ToolStripSeparator());
-
-        // Toggle enabled
-        var toggleItem = new ToolStripMenuItem("Bật/Tắt");
-        toggleItem.ShortcutKeys = Keys.Control | Keys.D0;
-        toggleItem.Click += (s, e) => ToggleEnabled();
-        _contextMenu.Items.Add(toggleItem);
-
-        _contextMenu.Items.Add(new ToolStripSeparator());
-
-        // About (like macOS "Giới thiệu GoNhanh")
-        var aboutItem = new ToolStripMenuItem($"Giới thiệu {AppMetadata.Name}");
-        aboutItem.Click += (s, e) => ShowAbout();
-        _contextMenu.Items.Add(aboutItem);
-
-        // Feedback/Issues (like macOS "Góp ý & Báo lỗi")
-        var feedbackItem = new ToolStripMenuItem("Góp ý && Báo lỗi");
-        feedbackItem.Click += (s, e) => OpenFeedback();
-        _contextMenu.Items.Add(feedbackItem);
-
-        _contextMenu.Items.Add(new ToolStripSeparator());
-
-        // Exit (like macOS "Thoát")
-        var exitItem = new ToolStripMenuItem("Thoát");
-        exitItem.ShortcutKeys = Keys.Control | Keys.Q;
-        exitItem.Click += (s, e) => OnExitRequested?.Invoke();
-        _contextMenu.Items.Add(exitItem);
-
-        // Create tray icon
         _notifyIcon = new NotifyIcon
         {
-            ContextMenuStrip = _contextMenu,
-            Visible = true
+            Text = "Gõ Nhanh",
+            Visible = false,
+            Icon = LoadIcon()
         };
 
-        // Double-click to toggle (like macOS)
-        _notifyIcon.DoubleClick += (s, e) => ToggleEnabled();
-
-        // Update initial state
-        UpdateState(currentMethod, isEnabled);
+        _notifyIcon.ContextMenuStrip = CreateContextMenu();
+        _notifyIcon.DoubleClick += (s, e) => ShowSettings();
     }
 
-    /// <summary>
-    /// Update tray icon and menu state
-    /// </summary>
-    public void UpdateState(InputMethod method, bool isEnabled)
+    private Icon LoadIcon()
     {
-        _currentMethod = method;
-        _isEnabled = isEnabled;
-
-        // Update header text
-        if (_headerItem != null)
+        // Try to load from resources, fall back to system icon
+        try
         {
-            string status = isEnabled ? "ON" : "OFF";
-            _headerItem.Text = $"{AppMetadata.Name}  [{status}]";
+            var uri = new Uri("pack://application:,,,/Resources/Icons/app.ico");
+            using var stream = Application.GetResourceStream(uri)?.Stream;
+            if (stream != null)
+            {
+                return new Icon(stream);
+            }
         }
+        catch { }
 
-        // Update method checkmarks
-        if (_telexItem != null)
-            _telexItem.Checked = method == InputMethod.Telex;
-
-        if (_vniItem != null)
-            _vniItem.Checked = method == InputMethod.VNI;
-
-        UpdateIcon(isEnabled);
-        UpdateTooltip(method, isEnabled);
+        // Fallback to system icon
+        return SystemIcons.Application;
     }
 
-    private void SetMethod(InputMethod method)
+    private ContextMenuStrip CreateContextMenu()
     {
-        _currentMethod = method;
-        OnMethodChanged?.Invoke(method);
+        var menu = new ContextMenuStrip();
 
-        if (_telexItem != null)
-            _telexItem.Checked = method == InputMethod.Telex;
+        // Toggle on/off
+        _toggleItem = new ToolStripMenuItem("Bật/Tắt (Ctrl+Shift+Space)")
+        {
+            Checked = _imeService.IsEnabled
+        };
+        _toggleItem.Click += (s, e) => ToggleEnabled();
+        menu.Items.Add(_toggleItem);
 
-        if (_vniItem != null)
-            _vniItem.Checked = method == InputMethod.VNI;
+        menu.Items.Add(new ToolStripSeparator());
+
+        // Input method selection
+        _telexItem = new ToolStripMenuItem("Telex")
+        {
+            Checked = _imeService.Method == InputMethod.Telex
+        };
+        _telexItem.Click += (s, e) => SetMethod(InputMethod.Telex);
+
+        _vniItem = new ToolStripMenuItem("VNI")
+        {
+            Checked = _imeService.Method == InputMethod.VNI
+        };
+        _vniItem.Click += (s, e) => SetMethod(InputMethod.VNI);
+
+        menu.Items.Add(_telexItem);
+        menu.Items.Add(_vniItem);
+
+        menu.Items.Add(new ToolStripSeparator());
+
+        // Settings
+        var settingsItem = new ToolStripMenuItem("Cài đặt...");
+        settingsItem.Click += (s, e) => ShowSettings();
+        menu.Items.Add(settingsItem);
+
+        // About
+        var aboutItem = new ToolStripMenuItem("Về Gõ Nhanh");
+        aboutItem.Click += (s, e) => ShowAbout();
+        menu.Items.Add(aboutItem);
+
+        menu.Items.Add(new ToolStripSeparator());
+
+        // Exit
+        var exitItem = new ToolStripMenuItem("Thoát");
+        exitItem.Click += (s, e) => Application.Current.Shutdown();
+        menu.Items.Add(exitItem);
+
+        return menu;
+    }
+
+    public void Show()
+    {
+        _notifyIcon.Visible = true;
+    }
+
+    public void Hide()
+    {
+        _notifyIcon.Visible = false;
     }
 
     private void ToggleEnabled()
     {
-        _isEnabled = !_isEnabled;
-        UpdateState(_currentMethod, _isEnabled);
-        OnEnabledChanged?.Invoke(_isEnabled);
+        _imeService.IsEnabled = !_imeService.IsEnabled;
+        _toggleItem.Checked = _imeService.IsEnabled;
+        UpdateTooltip();
     }
 
-    private void UpdateIcon(bool isEnabled)
+    private void SetMethod(InputMethod method)
     {
-        if (_notifyIcon == null) return;
+        _imeService.SetMethod(method);
+        _telexItem.Checked = method == InputMethod.Telex;
+        _vniItem.Checked = method == InputMethod.VNI;
 
-        try
+        // Save to settings
+        var settings = SettingsService.Instance.Load();
+        settings.Method = method;
+        SettingsService.Instance.Save(settings);
+
+        UpdateTooltip();
+    }
+
+    private void UpdateTooltip()
+    {
+        var status = _imeService.IsEnabled ? "Bật" : "Tắt";
+        var method = _imeService.Method == InputMethod.Telex ? "Telex" : "VNI";
+        _notifyIcon.Text = $"Gõ Nhanh - {method} ({status})";
+    }
+
+    private void ShowSettings()
+    {
+        var settingsWindow = Application.Current.Windows
+            .OfType<SettingsWindow>()
+            .FirstOrDefault();
+
+        if (settingsWindow == null)
         {
-            // Create icon matching macOS style:
-            // White rounded rect background with "V" or "E" text
-            _notifyIcon.Icon = CreateStatusIcon(isEnabled ? "V" : "E", isEnabled);
+            settingsWindow = new SettingsWindow(_imeService);
+            settingsWindow.Show();
         }
-        catch
+        else
         {
-            _notifyIcon.Icon = SystemIcons.Application;
+            settingsWindow.Activate();
         }
-    }
-
-    private void UpdateTooltip(InputMethod method, bool isEnabled)
-    {
-        if (_notifyIcon == null) return;
-
-        string status = isEnabled ? "Bật" : "Tắt";
-        string methodName = InputMethodInfo.GetName(method);
-        _notifyIcon.Text = $"{AppMetadata.Name} [{methodName}] - {status}";
-    }
-
-    /// <summary>
-    /// Create status icon matching macOS style
-    /// White rounded rect background with colored text
-    /// </summary>
-    private static Icon CreateStatusIcon(string text, bool isEnabled)
-    {
-        const int size = 16;
-        using var bitmap = new Bitmap(size, size);
-
-        using (var g = Graphics.FromImage(bitmap))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-            g.Clear(Color.Transparent);
-
-            // White rounded rect background (like macOS)
-            var rect = new Rectangle(0, 0, size - 1, size - 1);
-            using var path = CreateRoundedRectPath(rect, 3);
-            using var bgBrush = new SolidBrush(Color.White);
-            g.FillPath(bgBrush, path);
-
-            // Text color based on state
-            var textColor = isEnabled
-                ? Color.FromArgb(37, 99, 235)  // Blue when enabled
-                : Color.FromArgb(156, 163, 175); // Gray when disabled
-
-            using var font = new Font("Segoe UI", 9, FontStyle.Bold);
-            using var brush = new SolidBrush(textColor);
-
-            var textSize = g.MeasureString(text, font);
-            float x = (size - textSize.Width) / 2;
-            float y = (size - textSize.Height) / 2;
-
-            g.DrawString(text, font, brush, x, y);
-        }
-
-        // Clone icon to own it, then dispose temp resources
-        var hIcon = bitmap.GetHicon();
-        using var tempIcon = Icon.FromHandle(hIcon);
-        return (Icon)tempIcon.Clone();
-    }
-
-    private static GraphicsPath CreateRoundedRectPath(Rectangle rect, int radius)
-    {
-        var path = new GraphicsPath();
-        int d = radius * 2;
-
-        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
-        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
-        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
-        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
-        path.CloseFigure();
-
-        return path;
     }
 
     private void ShowAbout()
     {
-        var about = new AboutWindow();
-        about.ShowDialog();
-    }
+        var aboutWindow = Application.Current.Windows
+            .OfType<AboutWindow>()
+            .FirstOrDefault();
 
-    private void OpenFeedback()
-    {
-        try
+        if (aboutWindow == null)
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = AppMetadata.IssuesUrl,
-                UseShellExecute = true
-            });
+            aboutWindow = new AboutWindow();
+            aboutWindow.Show();
         }
-        catch
+        else
         {
-            // Ignore errors opening browser
+            aboutWindow.Activate();
         }
     }
-
-    #region IDisposable
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        if (_disposed) return;
+        _notifyIcon.Visible = false;
+        _notifyIcon.Dispose();
+        _disposed = true;
     }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                _notifyIcon?.Dispose();
-                _contextMenu?.Dispose();
-            }
-            _disposed = true;
-        }
-    }
-
-    ~TrayIcon()
-    {
-        Dispose(false);
-    }
-
-    #endregion
 }

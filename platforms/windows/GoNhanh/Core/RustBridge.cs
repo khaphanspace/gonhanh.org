@@ -1,111 +1,60 @@
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace GoNhanh.Core;
 
 /// <summary>
-/// P/Invoke bridge to Rust core library (gonhanh_core.dll)
-/// FFI contract matches core/src/lib.rs exports
+/// Result struct returned by ime_key(). Must match Rust layout exactly.
+/// Rust: pub struct Result { chars: [u32; 256], action: u8, backspace: u8, count: u8, flags: u8 }
 /// </summary>
-public static class RustBridge
+[StructLayout(LayoutKind.Sequential)]
+public struct ImeResult
 {
-    private const string DllName = "gonhanh_core.dll";
+    /// <summary>UTF-32 codepoints to insert (max 256)</summary>
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)]
+    public uint[] chars;
 
-    #region Native Imports
+    /// <summary>Action: 0=None (pass-through), 1=Send (replace), 2=Restore</summary>
+    public byte action;
 
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_init();
+    /// <summary>Number of characters to backspace before inserting</summary>
+    public byte backspace;
 
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_clear();
+    /// <summary>Number of valid codepoints in chars array</summary>
+    public byte count;
 
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_free(IntPtr result);
+    /// <summary>Flags: bit 0 = key consumed by shortcut</summary>
+    public byte flags;
 
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_method(byte method);
+    /// <summary>Check if key was consumed (don't pass through)</summary>
+    public bool KeyConsumed => (flags & 0x01) != 0;
 
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_enabled([MarshalAs(UnmanagedType.U1)] bool enabled);
-
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ime_modern([MarshalAs(UnmanagedType.U1)] bool modern);
-
-    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr ime_key(ushort keycode, [MarshalAs(UnmanagedType.U1)] bool shift, [MarshalAs(UnmanagedType.U1)] bool capslock);
-
-    #endregion
-
-    #region Public API
-
-    /// <summary>
-    /// Initialize the IME engine. Call once at startup.
-    /// </summary>
-    public static void Initialize()
+    /// <summary>Convert chars to UTF-16 string</summary>
+    public string GetText()
     {
-        ime_init();
-    }
-
-    /// <summary>
-    /// Clear the typing buffer.
-    /// </summary>
-    public static void Clear()
-    {
-        ime_clear();
-    }
-
-    /// <summary>
-    /// Set input method (Telex=0, VNI=1)
-    /// </summary>
-    public static void SetMethod(InputMethod method)
-    {
-        ime_method((byte)method);
-    }
-
-    /// <summary>
-    /// Enable or disable IME processing
-    /// </summary>
-    public static void SetEnabled(bool enabled)
-    {
-        ime_enabled(enabled);
-    }
-
-    /// <summary>
-    /// Set tone style (modern=true: hòa, old=false: hoà)
-    /// </summary>
-    public static void SetModernTone(bool modern)
-    {
-        ime_modern(modern);
-    }
-
-    /// <summary>
-    /// Process a keystroke and get the result
-    /// </summary>
-    public static ImeResult ProcessKey(ushort keycode, bool shift, bool capslock)
-    {
-        IntPtr ptr = ime_key(keycode, shift, capslock);
-        if (ptr == IntPtr.Zero)
+        if (chars == null || count == 0) return string.Empty;
+        var sb = new StringBuilder(count);
+        for (int i = 0; i < count; i++)
         {
-            return ImeResult.Empty;
+            sb.Append(char.ConvertFromUtf32((int)chars[i]));
         }
-
-        try
-        {
-            var native = Marshal.PtrToStructure<NativeResult>(ptr);
-            return ImeResult.FromNative(native);
-        }
-        finally
-        {
-            ime_free(ptr);
-        }
+        return sb.ToString();
     }
-
-    #endregion
 }
 
-/// <summary>
-/// Input method type
-/// </summary>
+/// <summary>Action types returned by engine</summary>
+public enum ImeAction : byte
+{
+    /// <summary>Pass keystroke through unchanged</summary>
+    None = 0,
+    /// <summary>Send backspaces + replacement text</summary>
+    Send = 1,
+    /// <summary>Restore original input (ESC key)</summary>
+    Restore = 2
+}
+
+/// <summary>Input method types</summary>
 public enum InputMethod : byte
 {
     Telex = 0,
@@ -113,76 +62,182 @@ public enum InputMethod : byte
 }
 
 /// <summary>
-/// IME action type
+/// P/Invoke bindings to gonhanh_core.dll (Rust IME engine)
 /// </summary>
-public enum ImeAction : byte
+public static class RustBridge
 {
-    None = 0,    // No action needed
-    Send = 1,    // Send text replacement
-    Restore = 2  // Restore original text
+    private const string DLL = "gonhanh_core.dll";
+    private const CallingConvention CC = CallingConvention.Cdecl;
+
+    // ========== Core Functions ==========
+
+    /// <summary>Initialize engine. Call once at app start.</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_init();
+
+    /// <summary>Process key event. Returns pointer to ImeResult.</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern IntPtr ime_key(ushort key, [MarshalAs(UnmanagedType.U1)] bool caps,
+        [MarshalAs(UnmanagedType.U1)] bool ctrl);
+
+    /// <summary>Process key with shift parameter (for VNI Shift+number).</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern IntPtr ime_key_ext(ushort key, [MarshalAs(UnmanagedType.U1)] bool caps,
+        [MarshalAs(UnmanagedType.U1)] bool ctrl, [MarshalAs(UnmanagedType.U1)] bool shift);
+
+    /// <summary>Free result pointer. Must call after each ime_key().</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_free(IntPtr result);
+
+    /// <summary>Set input method (0=Telex, 1=VNI).</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_method(byte method);
+
+    /// <summary>Enable/disable engine.</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_enabled([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    /// <summary>Clear buffer on word boundary.</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_clear();
+
+    /// <summary>Clear all state including history.</summary>
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_clear_all();
+
+    // ========== Engine Options ==========
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_skip_w_shortcut([MarshalAs(UnmanagedType.U1)] bool skip);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_bracket_shortcut([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_esc_restore([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_free_tone([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_modern([MarshalAs(UnmanagedType.U1)] bool modern);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_english_auto_restore([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_auto_capitalize([MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    // ========== Shortcuts ==========
+
+    [DllImport(DLL, CallingConvention = CC, CharSet = CharSet.Ansi)]
+    public static extern void ime_add_shortcut(
+        [MarshalAs(UnmanagedType.LPStr)] string trigger,
+        [MarshalAs(UnmanagedType.LPStr)] string replacement);
+
+    [DllImport(DLL, CallingConvention = CC, CharSet = CharSet.Ansi)]
+    public static extern void ime_remove_shortcut([MarshalAs(UnmanagedType.LPStr)] string trigger);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern void ime_clear_shortcuts();
+
+    // ========== Word Restore ==========
+
+    [DllImport(DLL, CallingConvention = CC, CharSet = CharSet.Ansi)]
+    public static extern void ime_restore_word([MarshalAs(UnmanagedType.LPStr)] string word);
+
+    [DllImport(DLL, CallingConvention = CC)]
+    public static extern long ime_get_buffer(IntPtr buffer, long maxLen);
 }
 
 /// <summary>
-/// Native result structure from Rust (must match core/src/lib.rs)
-/// Size: 256 UInt32 chars (1024 bytes) + 4 bytes = 1028 bytes
+/// High-level wrapper for Rust IME engine
 /// </summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct NativeResult
+public sealed class ImeEngine : IDisposable
 {
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)]
-    public uint[] chars;
-    public byte action;
-    public byte backspace;
-    public byte count;
-    public byte _pad;
-}
+    private static ImeEngine? _instance;
+    private bool _initialized;
+    private bool _disposed;
 
-/// <summary>
-/// Managed IME result
-/// </summary>
-public readonly struct ImeResult
-{
-    public readonly ImeAction Action;
-    public readonly byte Backspace;
-    public readonly byte Count;
-    private readonly uint[] _chars;
+    public static ImeEngine Instance => _instance ??= new ImeEngine();
 
-    public static readonly ImeResult Empty = new(ImeAction.None, 0, 0, Array.Empty<uint>());
+    private ImeEngine() { }
 
-    private ImeResult(ImeAction action, byte backspace, byte count, uint[] chars)
+    /// <summary>Initialize the engine (call once)</summary>
+    public void Initialize()
     {
-        Action = action;
-        Backspace = backspace;
-        Count = count;
-        _chars = chars;
+        if (_initialized) return;
+        RustBridge.ime_init();
+        _initialized = true;
     }
 
-    internal static ImeResult FromNative(NativeResult native)
+    /// <summary>Process a key event</summary>
+    public ImeResult? ProcessKey(ushort keycode, bool caps, bool ctrl, bool shift = false)
     {
-        return new ImeResult(
-            (ImeAction)native.action,
-            native.backspace,
-            native.count,
-            native.chars ?? Array.Empty<uint>()
-        );
-    }
+        if (!_initialized) return null;
 
-    /// <summary>
-    /// Get the result text as a string
-    /// </summary>
-    public string GetText()
-    {
-        if (Count == 0 || _chars == null)
-            return string.Empty;
+        IntPtr ptr = shift
+            ? RustBridge.ime_key_ext(keycode, caps, ctrl, shift)
+            : RustBridge.ime_key(keycode, caps, ctrl);
 
-        var sb = new StringBuilder(Count);
-        for (int i = 0; i < Count && i < _chars.Length; i++)
+        if (ptr == IntPtr.Zero) return null;
+
+        try
         {
-            if (_chars[i] > 0)
-            {
-                sb.Append(char.ConvertFromUtf32((int)_chars[i]));
-            }
+            return Marshal.PtrToStructure<ImeResult>(ptr);
         }
-        return sb.ToString();
+        finally
+        {
+            RustBridge.ime_free(ptr);
+        }
+    }
+
+    /// <summary>Set input method</summary>
+    public void SetMethod(InputMethod method)
+    {
+        RustBridge.ime_method((byte)method);
+    }
+
+    /// <summary>Enable/disable engine</summary>
+    public void SetEnabled(bool enabled)
+    {
+        RustBridge.ime_enabled(enabled);
+    }
+
+    /// <summary>Clear buffer (call on word boundary)</summary>
+    public void Clear()
+    {
+        RustBridge.ime_clear();
+    }
+
+    /// <summary>Clear all state (call on cursor change)</summary>
+    public void ClearAll()
+    {
+        RustBridge.ime_clear_all();
+    }
+
+    // Options
+    public void SetSkipWShortcut(bool skip) => RustBridge.ime_skip_w_shortcut(skip);
+    public void SetBracketShortcut(bool enabled) => RustBridge.ime_bracket_shortcut(enabled);
+    public void SetEscRestore(bool enabled) => RustBridge.ime_esc_restore(enabled);
+    public void SetFreeTone(bool enabled) => RustBridge.ime_free_tone(enabled);
+    public void SetModernTone(bool modern) => RustBridge.ime_modern(modern);
+    public void SetEnglishAutoRestore(bool enabled) => RustBridge.ime_english_auto_restore(enabled);
+    public void SetAutoCapitalize(bool enabled) => RustBridge.ime_auto_capitalize(enabled);
+
+    // Shortcuts
+    public void AddShortcut(string trigger, string replacement)
+        => RustBridge.ime_add_shortcut(trigger, replacement);
+    public void RemoveShortcut(string trigger) => RustBridge.ime_remove_shortcut(trigger);
+    public void ClearShortcuts() => RustBridge.ime_clear_shortcuts();
+
+    // Word restore
+    public void RestoreWord(string word) => RustBridge.ime_restore_word(word);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        // Rust engine uses global state, no explicit cleanup needed
+        _disposed = true;
     }
 }

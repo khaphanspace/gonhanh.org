@@ -4,130 +4,270 @@ using GoNhanh.Core;
 namespace GoNhanh.Services;
 
 /// <summary>
-/// Manages application settings using Windows Registry
-/// Similar to UserDefaults on macOS
+/// Registry-based settings persistence
+/// Location: HKEY_CURRENT_USER\SOFTWARE\GoNhanh
 /// </summary>
-public class SettingsService
+public sealed class SettingsService
 {
-    private const string RegistryKeyPath = @"SOFTWARE\GoNhanh";
-    private const string AutoStartKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string RegistryPath = @"SOFTWARE\GoNhanh";
+    private const string RunPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string AppName = "GoNhanh";
 
-    #region Settings Keys
+    // Singleton
+    private static SettingsService? _instance;
+    public static SettingsService Instance => _instance ??= new SettingsService();
 
-    private const string KeyInputMethod = "InputMethod";
-    private const string KeyModernTone = "ModernTone";
-    private const string KeyEnabled = "Enabled";
-    private const string KeyFirstRun = "FirstRun";
-    private const string KeyAutoStart = "AutoStart";
+    // Cached values
+    private SettingsData _cache;
 
-    #endregion
-
-    #region Properties
-
-    public InputMethod CurrentMethod { get; set; } = InputMethod.Telex;
-    public bool UseModernTone { get; set; } = true;
-    public bool IsEnabled { get; set; } = true;
-    public bool IsFirstRun { get; set; } = true;
-    public bool AutoStart { get; set; } = false;
-
-    #endregion
-
-    #region Public Methods
-
-    /// <summary>
-    /// Load settings from registry
-    /// </summary>
-    public void Load()
+    private SettingsService()
     {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath);
-            if (key == null)
-            {
-                // First run, use defaults
-                IsFirstRun = true;
-                return;
-            }
+        _cache = new SettingsData();
+    }
 
-            CurrentMethod = (InputMethod)(int)(key.GetValue(KeyInputMethod, 0) ?? 0);
-            UseModernTone = ((int)(key.GetValue(KeyModernTone, 1) ?? 1)) == 1;
-            IsEnabled = ((int)(key.GetValue(KeyEnabled, 1) ?? 1)) == 1;
-            IsFirstRun = ((int)(key.GetValue(KeyFirstRun, 1) ?? 1)) == 1;
-            AutoStart = ((int)(key.GetValue(KeyAutoStart, 0) ?? 0)) == 1;
-        }
-        catch (Exception ex)
+    /// <summary>Check if this is first run</summary>
+    public static bool IsFirstRun
+    {
+        get
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to load settings: {ex.Message}");
+            using var key = Registry.CurrentUser.OpenSubKey(RegistryPath);
+            return key == null;
         }
     }
 
-    /// <summary>
-    /// Save settings to registry
-    /// </summary>
-    public void Save()
+    /// <summary>Load all settings from registry</summary>
+    public SettingsData Load()
     {
-        try
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(RegistryKeyPath);
-            if (key != null)
-            {
-                key.SetValue(KeyInputMethod, (int)CurrentMethod, RegistryValueKind.DWord);
-                key.SetValue(KeyModernTone, UseModernTone ? 1 : 0, RegistryValueKind.DWord);
-                key.SetValue(KeyEnabled, IsEnabled ? 1 : 0, RegistryValueKind.DWord);
-                key.SetValue(KeyFirstRun, IsFirstRun ? 1 : 0, RegistryValueKind.DWord);
-                key.SetValue(KeyAutoStart, AutoStart ? 1 : 0, RegistryValueKind.DWord);
-            }
+        using var key = Registry.CurrentUser.OpenSubKey(RegistryPath);
+        if (key == null) return _cache = SettingsData.Defaults;
 
-            // Update auto-start registry
-            UpdateAutoStart();
-        }
-        catch (Exception ex)
+        _cache = new SettingsData
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
+            // Engine settings
+            Method = (InputMethod)GetInt(key, "Method", 0),
+            Enabled = GetBool(key, "Enabled", true),
+
+            // Options
+            PerAppMode = GetBool(key, "PerAppMode", false),
+            AutoCapitalize = GetBool(key, "AutoCapitalize", false),
+            EnglishAutoRestore = GetBool(key, "EnglishAutoRestore", false),
+            ModernTone = GetBool(key, "ModernTone", true),
+            WShortcut = GetBool(key, "WShortcut", true),
+            BracketShortcut = GetBool(key, "BracketShortcut", true),
+            EscRestore = GetBool(key, "EscRestore", true),
+            FreeTone = GetBool(key, "FreeTone", false),
+
+            // System
+            LaunchAtLogin = GetLaunchAtLogin(),
+            SoundEnabled = GetBool(key, "SoundEnabled", true),
+
+            // Shortcuts
+            Shortcuts = LoadShortcuts()
+        };
+
+        return _cache;
+    }
+
+    /// <summary>Save all settings to registry</summary>
+    public void Save(SettingsData data)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
+        if (key == null) return;
+
+        // Engine settings
+        key.SetValue("Method", (int)data.Method, RegistryValueKind.DWord);
+        key.SetValue("Enabled", data.Enabled ? 1 : 0, RegistryValueKind.DWord);
+
+        // Options
+        key.SetValue("PerAppMode", data.PerAppMode ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("AutoCapitalize", data.AutoCapitalize ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("EnglishAutoRestore", data.EnglishAutoRestore ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("ModernTone", data.ModernTone ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("WShortcut", data.WShortcut ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("BracketShortcut", data.BracketShortcut ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("EscRestore", data.EscRestore ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("FreeTone", data.FreeTone ? 1 : 0, RegistryValueKind.DWord);
+
+        // System
+        key.SetValue("SoundEnabled", data.SoundEnabled ? 1 : 0, RegistryValueKind.DWord);
+        SetLaunchAtLogin(data.LaunchAtLogin);
+
+        // Shortcuts
+        SaveShortcuts(data.Shortcuts);
+
+        _cache = data;
+    }
+
+    /// <summary>Save a single setting</summary>
+    public void Set<T>(string name, T value)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
+        if (key == null) return;
+
+        if (value is bool b)
+            key.SetValue(name, b ? 1 : 0, RegistryValueKind.DWord);
+        else if (value is int i)
+            key.SetValue(name, i, RegistryValueKind.DWord);
+        else if (value is string s)
+            key.SetValue(name, s, RegistryValueKind.String);
+    }
+
+    /// <summary>Get a single setting</summary>
+    public T Get<T>(string name, T defaultValue)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RegistryPath);
+        if (key == null) return defaultValue;
+
+        var value = key.GetValue(name);
+        if (value == null) return defaultValue;
+
+        if (typeof(T) == typeof(bool))
+            return (T)(object)((int)value != 0);
+        if (typeof(T) == typeof(int))
+            return (T)value;
+        if (typeof(T) == typeof(string))
+            return (T)value;
+
+        return defaultValue;
+    }
+
+    // ========== Launch at Login ==========
+
+    private bool GetLaunchAtLogin()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunPath);
+        return key?.GetValue(AppName) != null;
+    }
+
+    private void SetLaunchAtLogin(bool enabled)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunPath, writable: true);
+        if (key == null) return;
+
+        if (enabled)
+        {
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (exePath != null)
+            {
+                key.SetValue(AppName, $"\"{exePath}\"", RegistryValueKind.String);
+            }
+        }
+        else
+        {
+            key.DeleteValue(AppName, throwOnMissingValue: false);
         }
     }
 
-    /// <summary>
-    /// Update Windows startup entry
-    /// </summary>
-    public void UpdateAutoStart()
-    {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(AutoStartKeyPath, true);
-            if (key == null) return;
+    // ========== Shortcuts ==========
 
-            if (AutoStart)
+    private List<ShortcutEntry> LoadShortcuts()
+    {
+        var shortcuts = new List<ShortcutEntry>();
+
+        using var key = Registry.CurrentUser.OpenSubKey($@"{RegistryPath}\Shortcuts");
+        if (key == null) return shortcuts;
+
+        foreach (var trigger in key.GetValueNames())
+        {
+            var replacement = key.GetValue(trigger) as string;
+            if (!string.IsNullOrEmpty(replacement))
             {
-                string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
-                if (!string.IsNullOrEmpty(exePath))
-                {
-                    key.SetValue(AppName, $"\"{exePath}\"");
-                }
-            }
-            else
-            {
-                key.DeleteValue(AppName, false);
+                shortcuts.Add(new ShortcutEntry(trigger, replacement));
             }
         }
-        catch (Exception ex)
+
+        return shortcuts;
+    }
+
+    private void SaveShortcuts(List<ShortcutEntry> shortcuts)
+    {
+        // Delete and recreate shortcuts key
+        Registry.CurrentUser.DeleteSubKey($@"{RegistryPath}\Shortcuts", throwOnMissingSubKey: false);
+
+        using var key = Registry.CurrentUser.CreateSubKey($@"{RegistryPath}\Shortcuts");
+        if (key == null) return;
+
+        foreach (var shortcut in shortcuts)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to update auto-start: {ex.Message}");
+            key.SetValue(shortcut.Trigger, shortcut.Replacement, RegistryValueKind.String);
         }
     }
 
-    /// <summary>
-    /// Reset settings to defaults
-    /// </summary>
-    public void Reset()
+    // ========== Per-App State ==========
+
+    /// <summary>Get enabled state for specific app</summary>
+    public bool GetAppEnabled(string processName, bool defaultEnabled)
     {
-        CurrentMethod = InputMethod.Telex;
-        UseModernTone = true;
-        IsEnabled = true;
-        AutoStart = false;
-        Save();
+        using var key = Registry.CurrentUser.OpenSubKey($@"{RegistryPath}\Apps");
+        if (key == null) return defaultEnabled;
+
+        var value = key.GetValue(processName);
+        return value == null ? defaultEnabled : (int)value != 0;
     }
 
-    #endregion
+    /// <summary>Set enabled state for specific app</summary>
+    public void SetAppEnabled(string processName, bool enabled)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey($@"{RegistryPath}\Apps");
+        key?.SetValue(processName, enabled ? 1 : 0, RegistryValueKind.DWord);
+    }
+
+    // ========== Helpers ==========
+
+    private static int GetInt(RegistryKey key, string name, int defaultValue)
+    {
+        var value = key.GetValue(name);
+        return value is int i ? i : defaultValue;
+    }
+
+    private static bool GetBool(RegistryKey key, string name, bool defaultValue)
+    {
+        var value = key.GetValue(name);
+        return value is int i ? i != 0 : defaultValue;
+    }
 }
+
+/// <summary>All settings data</summary>
+public class SettingsData
+{
+    // Engine
+    public InputMethod Method { get; set; }
+    public bool Enabled { get; set; }
+
+    // Options
+    public bool PerAppMode { get; set; }
+    public bool AutoCapitalize { get; set; }
+    public bool EnglishAutoRestore { get; set; }
+    public bool ModernTone { get; set; }
+    public bool WShortcut { get; set; }
+    public bool BracketShortcut { get; set; }
+    public bool EscRestore { get; set; }
+    public bool FreeTone { get; set; }
+
+    // System
+    public bool LaunchAtLogin { get; set; }
+    public bool SoundEnabled { get; set; }
+
+    // Shortcuts
+    public List<ShortcutEntry> Shortcuts { get; set; } = new();
+
+    public static SettingsData Defaults => new()
+    {
+        Method = InputMethod.Telex,
+        Enabled = true,
+        PerAppMode = false,
+        AutoCapitalize = false,
+        EnglishAutoRestore = false,
+        ModernTone = true,
+        WShortcut = true,
+        BracketShortcut = true,
+        EscRestore = true,
+        FreeTone = false,
+        LaunchAtLogin = false,
+        SoundEnabled = true,
+        Shortcuts = new List<ShortcutEntry>()
+    };
+}
+
+/// <summary>Shortcut entry</summary>
+public record ShortcutEntry(string Trigger, string Replacement);
