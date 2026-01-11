@@ -70,6 +70,18 @@ jobs:
           cd platforms/windows/GoNhanh.Tests
           dotnet test -c Release --logger "console;verbosity=detailed"
 
+      - name: Publish App
+        run: |
+          cd platforms/windows/GoNhanh
+          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoNhanh-Windows-x64
+          path: platforms/windows/publish/
+          retention-days: 7
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
