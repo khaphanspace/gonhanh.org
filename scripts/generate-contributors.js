@@ -87,7 +87,7 @@ async function fetchSponsors() {
       };
 
       if (price >= 50) diamond.push(sponsor);
-      else if (price >= 25) gold.push(sponsor);
+      else if (price >= 20) gold.push(sponsor);
       else if (price >= 5) silver.push(sponsor);
       else backers.push(sponsor);
     }
