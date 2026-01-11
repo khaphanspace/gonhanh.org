@@ -23,6 +23,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start observing input source changes
         InputSourceObserver.shared.start()
+
+        // PERF: Observe app deactivation for memory cleanup
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Clear detection cache and buffers to release memory
+            clearDetectionCache()
+            RustBridge.clearBufferAll()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

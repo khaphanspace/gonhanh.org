@@ -1,4 +1,4 @@
-.PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major
+.PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major benchmark benchmark-ci
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -16,7 +16,7 @@ help: ## Show this help
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;34mDevelopment:\033[0m"
-	@grep -E '^(test|format|build|build-linux|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(test|format|build|build-linux|clean|benchmark):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "\033[1;33mSetup & Install:\033[0m"
 	@grep -E '^(setup|install):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
@@ -80,3 +80,25 @@ release-major: ## Major release (1.0.9 → 2.0.0)
 	@git tag -a v$(NEXT_MAJOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MAJOR)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
+
+benchmark: ## Run criterion + E2E benchmarks
+	@echo "Running Rust criterion benchmarks..."
+	@cd core && cargo bench --bench ime_pipeline
+	@echo ""
+	@echo "Running E2E benchmark..."
+	@./scripts/benchmark-e2e.sh
+
+bench-save: ## Save criterion baseline (for comparison)
+	@cd core && cargo bench --bench ime_pipeline -- --save-baseline main
+
+bench-compare: ## Compare benchmarks against saved baseline
+	@cd core && cargo bench --bench ime_pipeline -- --baseline main
+
+benchmark-ci: ## Run E2E benchmark (CI mode, fail on regression)
+	@./scripts/benchmark-e2e.sh || (echo "Benchmark failed!" && exit 1)
+
+bench-memory: ## Run memory stability test
+	@cd core && cargo test --test memory_stability -- --nocapture
+
+bench-auto: ## Run auto benchmark (opens TextEdit, types, measures CPU/RAM)
+	@./scripts/benchmark-auto.sh

@@ -36,6 +36,115 @@ private enum Log {
     static func queue(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("Q: \(msg())") }
 }
 
+// MARK: - Performance Metrics
+
+/// Performance metrics for hot path monitoring with per-step breakdown
+/// Enable: touch /tmp/gonhanh_perf.log
+/// Disable: rm /tmp/gonhanh_perf.log
+/// Output: /tmp/gonhanh_perf_data.jsonl (JSON Lines format for analysis)
+private enum PerfMetrics {
+    private static let enablePath = "/tmp/gonhanh_perf.log"
+    private static let dataPath = "/tmp/gonhanh_perf_data.jsonl"
+    private static var _enabled: Bool?
+    private static var fileHandle: FileHandle?
+    private static var measurements: [String: [Double]] = [:]
+    private static var currentKeystroke: [String: Double] = [:]
+    private static var keystrokeStart: CFAbsoluteTime = 0
+
+    static var isEnabled: Bool {
+        if let cached = _enabled { return cached }
+        _enabled = FileManager.default.fileExists(atPath: enablePath)
+        if _enabled! {
+            FileManager.default.createFile(atPath: dataPath, contents: nil)
+            fileHandle = FileHandle(forWritingAtPath: dataPath)
+            fileHandle?.seekToEndOfFile()
+        }
+        return _enabled!
+    }
+
+    static func refresh() {
+        _enabled = nil
+        fileHandle?.closeFile()
+        fileHandle = nil
+    }
+
+    @inline(__always)
+    static func beginKeystroke() {
+        guard isEnabled else { return }
+        keystrokeStart = CFAbsoluteTimeGetCurrent()
+        currentKeystroke.removeAll()
+    }
+
+    private static var currentLabel: String?
+    private static var stepStart: CFAbsoluteTime = 0
+
+    /// Start timing a labeled step
+    @inline(__always)
+    static func start(_ label: String) {
+        guard isEnabled else { return }
+        currentLabel = label
+        stepStart = CFAbsoluteTimeGetCurrent()
+    }
+
+    /// End timing current step (uses label from start)
+    @inline(__always)
+    static func end() {
+        guard isEnabled, stepStart > 0, let label = currentLabel else { return }
+        let elapsed = (CFAbsoluteTimeGetCurrent() - stepStart) * 1000
+        currentKeystroke[label] = elapsed
+        if measurements[label] == nil { measurements[label] = [] }
+        measurements[label]?.append(elapsed)
+        currentLabel = nil
+        stepStart = 0
+    }
+
+    @inline(__always)
+    static func endKeystroke() {
+        guard isEnabled, keystrokeStart > 0 else { return }
+        let total = (CFAbsoluteTimeGetCurrent() - keystrokeStart) * 1000
+        currentKeystroke["total"] = total
+
+        if let data = try? JSONSerialization.data(withJSONObject: currentKeystroke),
+           let line = String(data: data, encoding: .utf8) {
+            fileHandle?.write((line + "\n").data(using: .utf8)!)
+        }
+
+        if total > 1.0 {
+            let breakdown = currentKeystroke.map { "\($0.key)=\(String(format: "%.2f", $0.value))ms" }.joined(separator: " ")
+            Log.info("PERF SLOW: \(breakdown)")
+        }
+    }
+
+    static func report() -> String {
+        var result = "=== Performance Report ===\n"
+        result += "Step Breakdown (avg/max/p99 in ms):\n"
+
+        let steps = ["detectMethod", "ime_key_ext", "injectSync", "total"]
+        for step in steps {
+            guard let times = measurements[step], !times.isEmpty else { continue }
+            let sorted = times.sorted()
+            let avg = times.reduce(0, +) / Double(times.count)
+            let max = sorted.last ?? 0
+            let p99 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.99))]
+            result += String(format: "  %-15s avg=%.2f  max=%.2f  p99=%.2f\n", step, avg, max, p99)
+        }
+
+        if let bottleneck = measurements.filter({ $0.key != "total" }).max(by: {
+            ($0.value.reduce(0, +) / Double($0.value.count)) < ($1.value.reduce(0, +) / Double($1.value.count))
+        }) {
+            let avg = bottleneck.value.reduce(0, +) / Double(bottleneck.value.count)
+            result += "\n🔴 BOTTLENECK: \(bottleneck.key) (avg=\(String(format: "%.2f", avg))ms)\n"
+        }
+
+        return result
+    }
+
+    static func clear() {
+        measurements.removeAll()
+        currentKeystroke.removeAll()
+    }
+}
+
 // MARK: - Constants
 
 private enum KeyCode {
@@ -77,6 +186,50 @@ private enum KeyCode {
     static let n8: CGKeyCode = 0x1C
     static let n9: CGKeyCode = 0x19
 }
+
+// MARK: - App Bundle ID Sets (PERF: Static Sets for O(1) lookup in detectMethod)
+
+/// Arc/Dia browser bundle IDs
+private let kTheBrowserCompany: Set<String> = [
+    "company.thebrowser.Browser", "company.thebrowser.Arc", "company.thebrowser.dia"
+]
+
+/// Firefox-based browser bundle IDs
+private let kFirefoxBrowsers: Set<String> = [
+    "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
+    "org.waterfoxproject.waterfox", "io.gitlab.librewolf-community.librewolf",
+    "one.ablaze.floorp", "org.torproject.torbrowser", "net.mullvad.mullvadbrowser",
+    "app.zen-browser.zen"
+]
+
+/// Browser bundle IDs (Chromium, Safari, Opera, WebKit-based)
+private let kBrowsers: Set<String> = [
+    // Chromium-based
+    "com.google.Chrome", "com.google.Chrome.canary", "com.google.Chrome.beta",
+    "org.chromium.Chromium", "com.brave.Browser", "com.brave.Browser.beta",
+    "com.brave.Browser.nightly", "com.microsoft.edgemac", "com.microsoft.edgemac.Beta",
+    "com.microsoft.edgemac.Dev", "com.microsoft.edgemac.Canary",
+    "com.vivaldi.Vivaldi", "com.vivaldi.Vivaldi.snapshot", "ru.yandex.desktop.yandex-browser",
+    // Opera
+    "com.opera.Opera", "com.operasoftware.Opera", "com.operasoftware.OperaGX",
+    "com.operasoftware.OperaAir", "com.opera.OperaNext",
+    // Safari
+    "com.apple.Safari", "com.apple.SafariTechnologyPreview",
+    // WebKit-based
+    "com.kagi.kagimacOS",
+    // Others
+    "com.sigmaos.sigmaos.macos", "com.pushplaylabs.sidekick", "com.firstversionist.polypane",
+    "ai.perplexity.comet", "com.duckduckgo.macos.browser", "com.openai.atlas"
+]
+
+/// Terminal/IDE bundle IDs
+private let kTerminals: Set<String> = [
+    "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
+    "com.github.wez.wezterm", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
+    "co.zeit.hyper", "org.tabby", "com.raphaelamorim.rio", "com.termius-dmg.mac",
+    "com.microsoft.VSCode", "com.google.antigravity", "dev.zed.Zed",
+    "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
+]
 
 /// Check if key is a break key (space, punctuation, arrows, etc.)
 /// When shift=true, also treat number keys as break (they produce !@#$%^&*())
@@ -767,43 +920,50 @@ private var wasControlPressed = false
 /// Returns the word only if cursor is right after a space/punctuation that follows a word
 /// This ensures we only restore when actually entering a word, not when deleting within a word
 private func getWordToRestoreOnBackspace() -> String? {
-    let systemWide = AXUIElementCreateSystemWide()
-    var focused: CFTypeRef?
+    // PERF: autoreleasepool prevents temporary object accumulation from AX queries
+    var text: String?
+    var cursorPos: Int = 0
 
-    guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-          let el = focused else {
-        Log.info("restore: no focused element")
-        return nil
+    autoreleasepool {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focused: CFTypeRef?
+
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+              let el = focused else {
+            Log.info("restore: no focused element")
+            return
+        }
+
+        let axEl = el as! AXUIElement
+
+        // Get text value
+        var textValue: CFTypeRef?
+        let textResult = AXUIElementCopyAttributeValue(axEl, kAXValueAttribute as CFString, &textValue)
+        guard textResult == .success, let t = textValue as? String, !t.isEmpty else {
+            Log.info("restore: no text value (err=\(textResult.rawValue))")
+            return
+        }
+        text = t
+
+        // Get selected text range (cursor position)
+        var rangeValue: CFTypeRef?
+        let rangeResult = AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue)
+        guard rangeResult == .success else {
+            Log.info("restore: no range (err=\(rangeResult.rawValue))")
+            return
+        }
+
+        // Extract range from AXValue
+        var range = CFRange(location: 0, length: 0)
+        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else {
+            Log.info("restore: can't extract range")
+            return
+        }
+        cursorPos = range.location
     }
 
-    let axEl = el as! AXUIElement
-
-    // Get text value
-    var textValue: CFTypeRef?
-    let textResult = AXUIElementCopyAttributeValue(axEl, kAXValueAttribute as CFString, &textValue)
-    guard textResult == .success, let text = textValue as? String, !text.isEmpty else {
-        Log.info("restore: no text value (err=\(textResult.rawValue))")
-        return nil
-    }
-
-    // Get selected text range (cursor position)
-    var rangeValue: CFTypeRef?
-    let rangeResult = AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue)
-    guard rangeResult == .success else {
-        Log.info("restore: no range (err=\(rangeResult.rawValue))")
-        return nil
-    }
-
-    // Extract range from AXValue
-    var range = CFRange(location: 0, length: 0)
-    guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else {
-        Log.info("restore: can't extract range")
-        return nil
-    }
-
-    let cursorPos = range.location
+    guard let text = text, cursorPos > 0 else { return nil }
     Log.info("restore: cursor=\(cursorPos) text='\(text.prefix(50))...'")
-    guard cursorPos > 0 else { return nil }
 
     let textChars = Array(text)
     guard cursorPos <= textChars.count else {
@@ -994,10 +1154,14 @@ private func keyboardCallback(
 
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
 
+    // Start performance measurement for keystroke processing
+    PerfMetrics.beginKeystroke()
+
     // Reset modifier state if any key is pressed while modifiers are held
     wasModifierShortcutPressed = false
 
     if event.getIntegerValueField(.eventSourceUserData) == kEventMarker {
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
@@ -1005,6 +1169,7 @@ private func keyboardCallback(
 
     // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
     if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
+        PerfMetrics.endKeystroke()
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
         return nil
     }
@@ -1019,45 +1184,67 @@ private func keyboardCallback(
     // then clear buffer. Engine sets pending_capitalize when it sees Enter key.
     // Also handle auto-restore and shortcut results (same as ESC handling)
     if keyCode == 0x24 || keyCode == 0x4C {  // Return (0x24) or Enter/Numpad (0x4C)
+        PerfMetrics.start("detectMethod")
         let (method, delays) = detectMethod()
+        PerfMetrics.end()
 
-        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        PerfMetrics.start("ime_key_ext")
+        let keyResult = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift)
+        PerfMetrics.end()
+
+        if let (bs, chars, keyConsumed) = keyResult {
+            PerfMetrics.start("injectSync")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+            PerfMetrics.end()
 
             if bs > 0 || !chars.isEmpty {
                 TextInjector.shared.clearSessionBuffer()
                 // Shortcut: consumed, don't post. Auto-restore: post Enter after replacement
                 if !keyConsumed { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
+                PerfMetrics.endKeystroke()
                 return nil
             }
         }
 
         TextInjector.shared.clearSessionBuffer()
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
     // Issue #149: ESC key - restore raw ASCII if enabled, then clear buffer
     // Must call engine FIRST to get restore result before clearing
     if keyCode == 0x35 {  // Escape
         // Detect injection method once per keystroke (expensive AX query)
+        PerfMetrics.start("detectMethod")
         let (method, delays) = detectMethod()
+        PerfMetrics.end()
 
         // Try to get restore result from engine
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        PerfMetrics.start("ime_key_ext")
+        let escResult = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift)
+        PerfMetrics.end()
+
+        if let (bs, chars, _) = escResult {
             Log.info("ESC restore: backspace \(bs), chars '\(String(chars))'")
+            PerfMetrics.start("injectSync")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+            PerfMetrics.end()
         }
 
         TextInjector.shared.clearSessionBuffer()
         RustBridge.clearBuffer()
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
     // Detect injection method once per keystroke (expensive AX query)
+    PerfMetrics.start("detectMethod")
     let (method, delays) = detectMethod()
+    PerfMetrics.end()
 
     // iPhone Mirroring and other passthrough apps: pass all keys directly
     // These apps handle text input remotely and cannot receive macOS text injection
     if method == .passthrough {
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
@@ -1074,6 +1261,7 @@ private func keyboardCallback(
     if arrowKeys.contains(keyCode) && hasModifier {
         RustBridge.clearBuffer()
         TextInjector.shared.clearSessionBuffer()
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
@@ -1112,6 +1300,7 @@ private func keyboardCallback(
             }
         }
         // Pass through all Cmd shortcuts
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
@@ -1124,18 +1313,29 @@ private func keyboardCallback(
             if !session.isEmpty {
                 // Session has content - remove last char and re-inject
                 TextInjector.shared.updateSessionBuffer(backspace: 1, newText: "")
+                PerfMetrics.start("injectSync")
                 TextInjector.shared.injectSelectAllOnly(proxy: proxy)
+                PerfMetrics.end()
+                PerfMetrics.endKeystroke()
                 return nil
             } else {
                 // Session is empty (after Cmd+A, etc.) - pass through backspace to delete selection
                 Log.info("selectAll: pass through backspace (empty session)")
+                PerfMetrics.endKeystroke()
                 return Unmanaged.passUnretained(event)
             }
         }
 
         // First try Rust engine (handles immediate backspace-after-space)
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        PerfMetrics.start("ime_key_ext")
+        let bsResult = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift)
+        PerfMetrics.end()
+
+        if let (bs, chars, _) = bsResult {
+            PerfMetrics.start("injectSync")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+            PerfMetrics.end()
+            PerfMetrics.endKeystroke()
             return nil
         }
 
@@ -1149,6 +1349,7 @@ private func keyboardCallback(
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
 
         // Pass through backspace to delete the character
+        PerfMetrics.endKeystroke()
         return Unmanaged.passUnretained(event)
     }
 
@@ -1159,16 +1360,26 @@ private func keyboardCallback(
         skipWordRestoreAfterClick = false
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+    PerfMetrics.start("ime_key_ext")
+    let keyResult = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift)
+    PerfMetrics.end()
+
+    if let (bs, chars, keyConsumed) = keyResult {
+        PerfMetrics.start("injectSync")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+        PerfMetrics.end()
 
         // Break keys (punctuation, not space): pass through or post synthetically
         let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
             if bs > 0 && !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
-            else { return Unmanaged.passUnretained(event) }
+            else {
+                PerfMetrics.endKeystroke()
+                return Unmanaged.passUnretained(event)
+            }
         }
+        PerfMetrics.endKeystroke()
         return nil
     }
 
@@ -1178,11 +1389,15 @@ private func keyboardCallback(
         // Convert keyCode to character
         if let char = keyCodeToChar(keyCode: keyCode, shift: shift) {
             TextInjector.shared.updateSessionBuffer(backspace: 0, newText: String(char))
+            PerfMetrics.start("injectSync")
             TextInjector.shared.injectSelectAllOnly(proxy: proxy)
+            PerfMetrics.end()
+            PerfMetrics.endKeystroke()
             return nil
         }
     }
 
+    PerfMetrics.endKeystroke()
     return Unmanaged.passUnretained(event)
 }
 
@@ -1286,32 +1501,36 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if let cached = DetectionCache.get() { return cached }
 
     // Slow path: query AX for focused element
-    let systemWide = AXUIElementCreateSystemWide()
-    var focused: CFTypeRef?
+    // PERF: autoreleasepool prevents temporary object accumulation (~0.1ms gain)
     var role: String?
     var bundleId: String?
 
-    if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-       let el = focused {
-        let axEl = el as! AXUIElement
+    autoreleasepool {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focused: CFTypeRef?
 
-        // Get role
-        var roleVal: CFTypeRef?
-        AXUIElementCopyAttributeValue(axEl, kAXRoleAttribute as CFString, &roleVal)
-        role = roleVal as? String
+        if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+           let el = focused {
+            let axEl = el as! AXUIElement
 
-        // Get owning app's bundle ID (works for Spotlight overlay)
-        var pid: pid_t = 0
-        if AXUIElementGetPid(axEl, &pid) == .success {
-            if let app = NSRunningApplication(processIdentifier: pid) {
-                bundleId = app.bundleIdentifier
+            // Get role
+            var roleVal: CFTypeRef?
+            AXUIElementCopyAttributeValue(axEl, kAXRoleAttribute as CFString, &roleVal)
+            role = roleVal as? String
+
+            // Get owning app's bundle ID (works for Spotlight overlay)
+            var pid: pid_t = 0
+            if AXUIElementGetPid(axEl, &pid) == .success {
+                if let app = NSRunningApplication(processIdentifier: pid) {
+                    bundleId = app.bundleIdentifier
+                }
             }
         }
-    }
 
-    // Fallback to frontmost app if we couldn't get bundle from focused element
-    if bundleId == nil {
-        bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        // Fallback to frontmost app if we couldn't get bundle from focused element
+        if bundleId == nil {
+            bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        }
     }
 
     guard let bundleId = bundleId else { return (.fast, (200, 800, 500)) }
@@ -1338,21 +1557,16 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     }
 
     // Arc/Dia browser - use AX API for address bar
-    let theBrowserCompany = ["company.thebrowser.Browser", "company.thebrowser.Arc", "company.thebrowser.dia"]
-    if theBrowserCompany.contains(bundleId) && (role == "AXTextField" || role == "AXTextArea") {
+    // PERF: Static Set for O(1) lookup vs O(n) array
+    if kTheBrowserCompany.contains(bundleId) && (role == "AXTextField" || role == "AXTextArea") {
         Log.method("ax:arc"); return cached(.axDirect, (0, 0, 0))
     }
 
     // Firefox-based browsers - use selection method for address bar (AXTextField)
     // Use AX API only for content areas (AXWindow) where selection method doesn't work
     // Note: AX method was causing interference with mouse word selection (Issue #160)
-    let firefoxBrowsers = [
-        "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
-        "org.waterfoxproject.waterfox", "io.gitlab.librewolf-community.librewolf",
-        "one.ablaze.floorp", "org.torproject.torbrowser", "net.mullvad.mullvadbrowser",
-        "app.zen-browser.zen"
-    ]
-    if firefoxBrowsers.contains(bundleId) {
+    // PERF: Static Set for O(1) lookup
+    if kFirefoxBrowsers.contains(bundleId) {
         if role == "AXTextField" {
             Log.method("sel:firefox"); return cached(.selection, (0, 0, 0))  // Address bar
         } else if role == "AXWindow" {
@@ -1362,42 +1576,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     // Browser address bars (AXTextField with autocomplete)
     // Note: Arc and Firefox-based browsers use axDirect (handled above)
-    let browsers = [
-        // Chromium-based
-        "com.google.Chrome",             // Google Chrome
-        "com.google.Chrome.canary",      // Chrome Canary
-        "com.google.Chrome.beta",        // Chrome Beta
-        "org.chromium.Chromium",         // Chromium
-        "com.brave.Browser",             // Brave
-        "com.brave.Browser.beta",        // Brave Beta
-        "com.brave.Browser.nightly",     // Brave Nightly
-        "com.microsoft.edgemac",         // Microsoft Edge
-        "com.microsoft.edgemac.Beta",    // Edge Beta
-        "com.microsoft.edgemac.Dev",     // Edge Dev
-        "com.microsoft.edgemac.Canary",  // Edge Canary
-        "com.vivaldi.Vivaldi",           // Vivaldi
-        "com.vivaldi.Vivaldi.snapshot",  // Vivaldi Snapshot
-        "ru.yandex.desktop.yandex-browser", // Yandex Browser
-        // Opera
-        "com.opera.Opera",               // Opera
-        "com.operasoftware.Opera",       // Opera (alt)
-        "com.operasoftware.OperaGX",     // Opera GX
-        "com.operasoftware.OperaAir",    // Opera Air
-        "com.opera.OperaNext",           // Opera Next
-        // Safari
-        "com.apple.Safari",              // Safari
-        "com.apple.SafariTechnologyPreview", // Safari Tech Preview
-        // WebKit-based
-        "com.kagi.kagimacOS",            // Orion (Kagi)
-        // Others
-        "com.sigmaos.sigmaos.macos",     // SigmaOS
-        "com.pushplaylabs.sidekick",     // Sidekick
-        "com.firstversionist.polypane",  // Polypane
-        "ai.perplexity.comet",           // Comet (Perplexity AI)
-        "com.duckduckgo.macos.browser",  // DuckDuckGo
-        "com.openai.atlas"               // ChatGPT Atlas
-    ]
-    if browsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return cached(.selection, (0, 0, 0)) }
+    // PERF: Static Set for O(1) lookup
+    if kBrowsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return cached(.selection, (0, 0, 0)) }
     if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { Log.method("sel:jb"); return cached(.selection, (0, 0, 0)) }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
@@ -1412,14 +1592,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if bundleId == "dev.warp.Warp-Stable" { Log.method("slow:warp"); return cached(.slow, (8000, 15000, 8000)) }
 
     // Terminal/IDE apps - conservative delays
-    let terminals = [
-        "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
-        "com.github.wez.wezterm", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
-        "co.zeit.hyper", "org.tabby", "com.raphaelamorim.rio", "com.termius-dmg.mac",
-        "com.microsoft.VSCode", "com.google.antigravity", "dev.zed.Zed",
-        "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
-    ]
-    if terminals.contains(bundleId) { Log.method("slow:term"); return cached(.slow, (3000, 8000, 3000)) }
+    // PERF: Static Set for O(1) lookup
+    if kTerminals.contains(bundleId) { Log.method("slow:term"); return cached(.slow, (3000, 8000, 3000)) }
     if bundleId.hasPrefix("com.jetbrains") { Log.method("slow:jb"); return cached(.slow, (3000, 8000, 3000)) }
 
     // Default: safe delays
