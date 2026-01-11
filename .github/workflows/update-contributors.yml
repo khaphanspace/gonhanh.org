@@ -1,23 +1,23 @@
 name: Update Contributors
 
 on:
-  # Run on push to main
+  # Run on push to main (after PR merged)
   push:
     branches: [main]
 
-  # Run when issues/PRs are opened or commented
+  # Run when issues are opened/closed
   issues:
     types: [opened, closed]
+
+  # Run when someone comments
   issue_comment:
     types: [created]
-  pull_request:
-    types: [opened, closed, merged]
 
   # Run weekly on Sunday at 00:00 UTC
   schedule:
     - cron: '0 0 * * 0'
 
-  # Allow manual trigger
+  # Allow manual trigger (maintainers only)
   workflow_dispatch:
 
 jobs:
