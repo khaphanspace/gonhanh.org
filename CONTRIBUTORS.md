@@ -15,19 +15,23 @@ Mỗi đóng góp, dù lớn hay nhỏ, đều giúp người Việt gõ tiếng
 Những người đã tin tưởng và hỗ trợ tài chính cho dự án.
 
 
+### 🥇 Gold
+
+<p align="center">
+<a href="https://github.com/blueberry6401"><img src="https://avatars.githubusercontent.com/u/7337535?u=465b15011bab7c2bb58c6a5b96be55fee8f9c858&v=4" width="100" title="blueberry6401"/></a>
+</p>
 
 ### 🥈 Silver
 
 <p align="center">
-<a href="https://github.com/blueberry6401"><img src="https://avatars.githubusercontent.com/u/7337535?u=465b15011bab7c2bb58c6a5b96be55fee8f9c858&v=4" width="80" title="blueberry6401"/></a>
+<a href="https://github.com/nguyencaokyvn"><img src="https://avatars.githubusercontent.com/u/2754877?u=b4cf2da20034865ba9deda9458024215f0d7b39f&v=4" width="80" title="nguyencaokyvn"/></a>
+<a href="https://github.com/vienkmt"><img src="https://avatars.githubusercontent.com/u/20434534?u=12a0117494ef54992f329b8a943036622d5c0f17&v=4" width="80" title="vienkmt"/></a>
 </p>
 
 ### 💜 Backers
 
 <p align="center">
 <a href="https://github.com/ducfilan"><img src="https://avatars.githubusercontent.com/u/1677524?u=b6af07b085067d01331688a03b6822c4761cd59f&v=4" width="50" title="ducfilan"/></a>
-<a href="https://github.com/nguyencaokyvn"><img src="https://avatars.githubusercontent.com/u/2754877?u=b4cf2da20034865ba9deda9458024215f0d7b39f&v=4" width="50" title="nguyencaokyvn"/></a>
-<a href="https://github.com/vienkmt"><img src="https://avatars.githubusercontent.com/u/20434534?u=12a0117494ef54992f329b8a943036622d5c0f17&v=4" width="50" title="vienkmt"/></a>
 <a href="https://github.com/xkhanhs"><img src="https://avatars.githubusercontent.com/u/27943649?u=eaf8af96dea32cc35571340208f868bf1f72eed5&v=4" width="50" title="xkhanhs"/></a>
 <a href="https://github.com/hothanhly"><img src="https://avatars.githubusercontent.com/u/82742923?v=4" width="50" title="hothanhly"/></a>
 <a href="https://github.com/ngthminhdev"><img src="https://avatars.githubusercontent.com/u/95201788?u=aac25761e8b610e3095cf70667e966e970ec77bf&v=4" width="50" title="ngthminhdev"/></a>
@@ -96,8 +100,6 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
       <br/>
       <sub>1 commits</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/blueberry6401">
         <img src="https://avatars.githubusercontent.com/u/7337535?v=4" width="80" style="border-radius:50%"/><br/>
