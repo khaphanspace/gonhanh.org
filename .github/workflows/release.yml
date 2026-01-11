@@ -521,6 +521,7 @@ jobs:
         run: |
           cd core
           cargo build --release --target x86_64-pc-windows-msvc
+          New-Item -ItemType Directory -Force -Path "../platforms/windows/GoNhanh/Native"
           Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
                     "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
 
