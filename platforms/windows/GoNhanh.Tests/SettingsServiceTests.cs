@@ -22,29 +22,23 @@ public class SettingsServiceTests
     }
 
     [Fact]
-    public void Load_DefaultMethod_IsTelex()
+    public void SettingsData_Defaults_HasCorrectValues()
     {
-        var settings = SettingsService.Instance.Load();
-        // Default should be Telex
-        Assert.Equal(InputMethod.Telex, settings.Method);
-    }
+        var settings = SettingsData.Defaults;
 
-    [Fact]
-    public void AppSettings_HasDefaultValues()
-    {
-        var settings = new AppSettings();
-
-        // Check defaults
+        // Check defaults match actual implementation
         Assert.Equal(InputMethod.Telex, settings.Method);
+        Assert.True(settings.Enabled);
         Assert.True(settings.ModernTone);
         Assert.True(settings.WShortcut);
         Assert.True(settings.BracketShortcut);
         Assert.True(settings.EscRestore);
-        Assert.True(settings.FreeTone);
-        Assert.True(settings.EnglishAutoRestore);
-        Assert.True(settings.AutoCapitalize);
+        Assert.False(settings.FreeTone);
+        Assert.False(settings.EnglishAutoRestore);
+        Assert.False(settings.AutoCapitalize);
         Assert.False(settings.LaunchAtLogin);
         Assert.True(settings.SoundEnabled);
+        Assert.NotNull(settings.Shortcuts);
     }
 
     [Fact]

@@ -10,9 +10,9 @@ public class KeyCodesTests
     [InlineData(0x5A, 6)] // Z
     [InlineData(0x30, 29)] // 0
     [InlineData(0x39, 25)] // 9
-    public void ToMacKeyCode_Letters_MapsCorrectly(int vk, ushort expected)
+    public void ToMacKeycode_Letters_MapsCorrectly(int vk, ushort expected)
     {
-        var result = KeyCodes.ToMacKeyCode(vk);
+        var result = KeyCodes.ToMacKeycode(vk);
         Assert.Equal(expected, result);
     }
 
@@ -21,17 +21,17 @@ public class KeyCodesTests
     [InlineData(0xDD, 30)] // ] -> ơ
     [InlineData(0x20, 49)] // Space
     [InlineData(0x08, 51)] // Backspace
-    public void ToMacKeyCode_SpecialKeys_MapsCorrectly(int vk, ushort expected)
+    public void ToMacKeycode_SpecialKeys_MapsCorrectly(int vk, ushort expected)
     {
-        var result = KeyCodes.ToMacKeyCode(vk);
+        var result = KeyCodes.ToMacKeycode(vk);
         Assert.Equal(expected, result);
     }
 
     [Fact]
-    public void ToMacKeyCode_UnmappedKey_Returns65535()
+    public void ToMacKeycode_UnmappedKey_Returns65535()
     {
         // F13 is not mapped
-        var result = KeyCodes.ToMacKeyCode(0x7C);
+        var result = KeyCodes.ToMacKeycode(0x7C);
         Assert.Equal((ushort)0xFFFF, result);
     }
 
@@ -41,7 +41,7 @@ public class KeyCodesTests
         // A-Z (0x41-0x5A)
         for (int vk = 0x41; vk <= 0x5A; vk++)
         {
-            var result = KeyCodes.ToMacKeyCode(vk);
+            var result = KeyCodes.ToMacKeycode(vk);
             Assert.NotEqual((ushort)0xFFFF, result);
         }
     }
@@ -52,7 +52,7 @@ public class KeyCodesTests
         // 0-9 (0x30-0x39)
         for (int vk = 0x30; vk <= 0x39; vk++)
         {
-            var result = KeyCodes.ToMacKeyCode(vk);
+            var result = KeyCodes.ToMacKeycode(vk);
             Assert.NotEqual((ushort)0xFFFF, result);
         }
     }
