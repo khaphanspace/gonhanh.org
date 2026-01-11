@@ -26,11 +26,11 @@ public partial class App : System.Windows.Application
 
         if (!createdNew)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 "Gõ Nhanh is already running.",
                 "Gõ Nhanh",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -64,11 +64,11 @@ public partial class App : System.Windows.Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 $"Failed to start Gõ Nhanh:\n\n{ex.Message}",
                 "Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
             Shutdown();
         }
     }
