@@ -42,8 +42,9 @@ add_executable(gonhanh WIN32
 )
 
 # Link Rust static lib + system libs
+# Note: Corrosion converts hyphens to underscores in target names
 target_link_libraries(gonhanh PRIVATE
-    gonhanh-core
+    gonhanh_core
     ws2_32 userenv bcrypt advapi32
     user32 shell32 gdi32 comctl32 psapi
 )
