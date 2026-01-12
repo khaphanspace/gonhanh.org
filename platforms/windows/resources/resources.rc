@@ -1,4 +1,13 @@
+#include <windows.h>
 #include <winver.h>
+#include "../src/resource.h"
+
+// Icons
+IDI_TRAY_ICON ICON "icon.ico"
+IDI_APP_LOGO ICON "logo.ico"
+
+// DPI Awareness Manifest
+1 RT_MANIFEST "manifest.xml"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION 1,0,0,0

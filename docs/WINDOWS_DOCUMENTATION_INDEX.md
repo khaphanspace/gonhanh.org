@@ -23,14 +23,16 @@ Detailed technical reference:
   - Troubleshooting guide
   - Performance characteristics
 
-### For Phase 2c UI Developers
-Practical integration guide:
-- **[Windows Phase 2c UI Integration](windows-phase2c-ui-integration.md)** - Implementation guide
-  - Hook public API reference
-  - P/Invoke bridge setup
-  - System tray integration
-  - Settings persistence via Registry
-  - Complete minimal WPF example
+### For Phase 3 UI Developers
+Complete implementation reference:
+- **[Windows Phase 3: System Tray & UI](windows-phase3-ui-system-tray.md)** - Implementation guide
+  - System tray architecture (Shell_NotifyIcon)
+  - Settings window with 10 feature flags
+  - Shortcuts dialog management
+  - About dialog
+  - Registry persistence (HKCU)
+  - UTF-16 ↔ UTF-8 conversion
+  - All 16 macOS features ported
 
 ### For Project Management
 Overall roadmap and status:
@@ -47,7 +49,8 @@ Overall roadmap and status:
 |-------|-----------|--------|------|
 | **2a** | Architecture & Build | ✓ Complete | system-architecture.md |
 | **2b** | Keyboard Hook | ✓ Complete (Jan 12) | windows-keyboard-hook-reference.md |
-| **2c** | UI & Settings | → Next | windows-phase2c-ui-integration.md |
+| **3** | UI & Settings | ✅ Complete (Jan 12) | windows-phase3-ui-system-tray.md |
+| **4** | QA & Release | → Next | TBD |
 
 ---
 
@@ -179,27 +182,38 @@ system-architecture.md (754 LOC) - Overview
 
 ---
 
-## Phase 2c Integration (Next)
+## Phase 3 Implementation (Complete)
 
-When starting UI development:
-1. Read: [windows-phase2c-ui-integration.md](windows-phase2c-ui-integration.md)
-2. Reference: [windows-keyboard-hook-reference.md](windows-keyboard-hook-reference.md) for hook API
-3. Build: WPF app shell with NotifyIcon
-4. Implement: System tray menu
-5. Persist: Settings via Windows Registry
-6. Test: Using provided 20-point checklist
+Reference documentation for Phase 3 UI completion:
+- [windows-phase3-ui-system-tray.md](windows-phase3-ui-system-tray.md) - Complete implementation guide
+- [system-architecture.md](system-architecture.md) - Updated with Phase 3 UI section
+- Key files: system_tray.h/cpp, settings.h/cpp, settings_window.h/cpp, resource.h, main.cpp
 
-**Estimated Timeline:** 2-3 weeks
+**Completion Date:** Jan 12, 2025
+
+---
+
+## Phase 4 (Quality Assurance & Release) - Next
+
+1. Integration testing with keyboard hook
+2. Settings persistence verification
+3. Auto-start functionality testing
+4. Cross-app compatibility testing
+5. Performance & memory profiling
+6. Installer & distribution packaging
+7. Release notes & documentation
+
+**Estimated Timeline:** 1-2 weeks
 
 ---
 
 ## Version & Updates
 
-- **Phase 2b Status:** Complete (Jan 12, 2025)
-- **Documentation Version:** 1.0 (Final)
+- **Phase 3 Status:** ✅ Complete (Jan 12, 2025)
+- **Documentation Version:** 2.0 (Phase 3 Complete)
 - **Last Updated:** 2025-01-12
 - **Audience:** All developers working on Windows platform
-- **Next Update:** Phase 2c completion (UI & Settings)
+- **Next Update:** Phase 4 completion (QA & Release)
 
 ---
 

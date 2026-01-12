@@ -30,6 +30,11 @@ add_executable(gonhanh WIN32
     src/main.cpp
     src/keyboard_hook.cpp
     src/rust_bridge.cpp
+    src/settings.cpp
+    src/system_tray.cpp
+    src/settings_window.cpp
+    src/shortcuts_dialog.cpp
+    src/about_dialog.cpp
     resources/resources.rc
 )
 

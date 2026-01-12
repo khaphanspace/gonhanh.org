@@ -4,13 +4,13 @@
 
 ```
 ┌──────────────────────────────────────────┐   ┌──────────────────────────────────────────┐
-│         macOS Application                │   │      Windows Application (Phase 1)       │
+│         macOS Application                │   │  Windows Application (Phase 3 Complete)  │
 │                                          │   │                                          │
 │  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
-│  │     SwiftUI Menu Bar           │     │   │  │   WPF/.NET 8 System Tray       │     │
-│  │  • Input method selector       │     │   │  │  • Input method selector       │     │
-│  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
-│  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │
+│  │     SwiftUI Menu Bar           │     │   │  │   System Tray + Dialogs (WPF)  │     │
+│  │  • Input method selector       │     │   │  │  • Tray icon + context menu    │     │
+│  │  • Enable/disable toggle       │     │   │  │  • Settings/Shortcuts/About    │     │
+│  │  • Settings, About, Update     │     │   │  │  • Registry persistence       │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
@@ -630,6 +630,126 @@ if (kb->vkCode == VK_SPACE && (GetKeyState(VK_CONTROL) & 0x8000)) {
 - Persistent across app switches
 - Works in secure contexts (lockscreen, elevated apps)
 
+### Windows UI & Settings Integration (Phase 3)
+
+#### System Tray Architecture
+
+**Message-Only Window + System Tray Icon:**
+```
+Main.cpp:WinMain
+  ├─ Create message-only window (HWND_MESSAGE)
+  ├─ Install keyboard hook on same thread
+  ├─ Create system tray icon via Shell_NotifyIcon
+  └─ Run message loop (REQUIRED for WH_KEYBOARD_LL)
+
+WindowProc callback
+  ├─ WM_TRAYICON → SystemTray::HandleMessage
+  │  ├─ WM_RBUTTONUP → ShowMenu()
+  │  └─ WM_LBUTTONDBLCLK → Toggle enabled state
+  ├─ WM_COMMAND → Route to dialog handlers
+  └─ WM_DESTROY → Cleanup & exit
+```
+
+**Singleton Components (RAII Pattern):**
+- SystemTray::Instance() - Manage tray icon, menu
+- Settings::Instance() - Registry persistence
+- KeyboardHook::Instance() - Keyboard interception
+- SettingsWindow::Instance() - Modal settings dialog
+- ShortcutsDialog::Instance() - Shortcuts management
+- AboutDialog::Instance() - About & help
+
+#### Registry Structure (HKCU)
+
+**Location:** `HKEY_CURRENT_USER\Software\GoNhanh`
+
+```
+Enabled (REG_DWORD)           → 1=ON, 0=OFF
+Method (REG_DWORD)            → 0=Telex, 1=VNI
+SkipWShortcut (REG_DWORD)     → 1=skip W shortcut (Ctrl+W safe)
+BracketShortcut (REG_DWORD)   → 1=auto ""
+EscRestore (REG_DWORD)        → 1=ESC restores English
+AutoStart (REG_DWORD)         → 1=launch on Windows boot
+PerApp (REG_DWORD)            → 1=remember IME per app
+AutoRestore (REG_DWORD)       → 1=auto-restore English words
+Sound (REG_DWORD)             → 1=enable notification sound
+ModernTone (REG_DWORD)        → 1=modern tone placement
+AutoCapitalize (REG_DWORD)    → 1=auto capitalize after . ! ?
+Shortcuts (REG_MULTI_SZ)      → "trigger\0replacement\0..."
+```
+
+**Auto-Start:** `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
+```
+GoNhanh (REG_SZ) → "C:\Path\To\gonhanh.exe"  (quoted for security)
+```
+
+#### Settings Loading & Application
+
+**Startup Sequence:**
+```
+1. WinMain:
+   ├─ ime_init() - Initialize Rust engine
+   ├─ Settings::Instance().Load() - Read from Registry (HKCU)
+   ├─ Settings::ApplyToEngine() - Call ime_* FFI functions
+   │  ├─ ime_enabled(bool)
+   │  ├─ ime_method(uint8)
+   │  ├─ ime_skip_w_shortcut(bool)
+   │  ├─ ime_esc_restore(bool)
+   │  ├─ ime_auto_capitalize(bool)
+   │  └─ ime_add_shortcut(trigger, replacement) × N
+   └─ Create tray icon
+
+2. User action:
+   ├─ Tray right-click → ShowMenu()
+   ├─ Menu item click → WM_COMMAND dispatch
+   │  ├─ IDM_TELEX/IDM_VNI → Settings::method = ..., Settings::Save()
+   │  ├─ IDM_ENABLE → Settings::enabled ^= ..., Settings::Save()
+   │  ├─ IDM_SETTINGS → SettingsWindow::Show()
+   │  └─ IDM_EXIT → PostQuitMessage(0)
+   └─ Settings::Save() → ApplyToEngine() + RegSetValueEx(...)
+```
+
+#### UTF-16 ↔ UTF-8 Conversion (Bridge Layer)
+
+**Rust Core:** UTF-8 (str)
+**Windows APIs:** UTF-16 (wchar_t)
+**Registry:** UTF-16 (native)
+
+```cpp
+// Conversion in rust_bridge.cpp
+std::string Utf16ToUtf8(const std::wstring& utf16) {
+    int size = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, NULL, 0, NULL, NULL);
+    std::string utf8(size - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, &utf8[0], size, NULL, NULL);
+    return utf8;
+}
+
+// Usage: Shortcuts from Registry (UTF-16) to Rust (UTF-8)
+std::wstring triggerUTF16 = L"vn";
+std::string triggerUTF8 = Utf16ToUtf8(triggerUTF16);  // "vn"
+ime_add_shortcut(triggerUTF8.c_str(), replacementUTF8.c_str());
+```
+
+#### Features Ported from macOS to Windows
+
+| Feature | macOS | Windows | Status |
+|---------|-------|---------|--------|
+| Toggle Vietnamese (Cmd/Ctrl+Space) | ✅ | ✅ | ✅ Complete |
+| Telex input method | ✅ | ✅ | ✅ Complete |
+| VNI input method | ✅ | ✅ | ✅ Complete |
+| Auto-restore English | ✅ | ✅ | ✅ Complete |
+| ESC restores to English | ✅ | ✅ | ✅ Complete |
+| Per-app memory (on/off) | ✅ | ✅ | ✅ Complete |
+| Skip W shortcut (Ctrl+W safe) | ✅ | ✅ | ✅ Complete |
+| Auto bracket shortcut "" | ✅ | ✅ | ✅ Complete |
+| Modern tone mark placement | ✅ | ✅ | ✅ Complete |
+| Auto capitalize after . ! ? | ✅ | ✅ | ✅ Complete |
+| Sound notification | ✅ | ✅ | ✅ Complete |
+| Custom shortcuts | ✅ | ✅ | ✅ Complete |
+| Settings persistence | UserDefaults | Registry | ✅ Complete |
+| Auto-start on boot | LaunchAgent | Run key | ✅ Complete |
+| System UI | Menu bar | System tray | ✅ Complete |
+| About/Help dialog | ✅ | ✅ | ✅ Complete |
+
 ### Accessibility Permission (macOS)
 
 #### macOS System Requirement
@@ -747,8 +867,9 @@ Visible to user as transformed or original text
 
 ---
 
-**Last Updated**: 2025-12-14
-**Architecture Version**: 2.0 (Validation-First, Cross-Platform)
-**Platforms**: macOS (v1.0.21+, CGEventTap), Windows (production, SetWindowsHookEx), Linux (beta, Fcitx5)
+**Last Updated**: 2025-01-12
+**Architecture Version**: 2.1 (Phase 3 UI Complete)
+**Platforms**: macOS (v1.0.21+, CGEventTap), Windows (Phase 3 Complete, SetWindowsHookEx), Linux (beta, Fcitx5)
+**Windows Status**: Phase 3 (UI & Settings) ✅ Complete | Phase 4 (QA & Release) → Next
 **Diagram Format**: ASCII (compatible with all documentation viewers)
-**Codebase Metrics**: 99,444 tokens, 380,026 chars, 78 files (per repomix analysis)
+**Codebase Metrics**: 99,444 tokens, 380,026 chars, 78 files (core); Windows Phase 3: ~1500 LOC (UI + dialogs)
