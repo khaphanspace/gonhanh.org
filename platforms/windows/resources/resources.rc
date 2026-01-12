@@ -1,0 +1,17 @@
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "FileDescription", "Gõ Nhanh Vietnamese IME"
+            VALUE "ProductName", "Gõ Nhanh"
+            VALUE "FileVersion", "1.0.0"
+            VALUE "ProductVersion", "1.0.0"
+        END
+    END
+END

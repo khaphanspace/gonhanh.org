@@ -24,3 +24,6 @@ lto = true               # Link-time optimization
 codegen-units = 1        # Better optimization
 strip = true             # Strip symbols
 panic = "abort"          # Smaller binary
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

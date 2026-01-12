@@ -4,36 +4,40 @@
 
 ```
 ┌──────────────────────────────────────────┐   ┌──────────────────────────────────────────┐
-│         macOS Application                │   │      Windows Application                 │
+│         macOS Application                │   │      Windows Application (Phase 1)       │
 │                                          │   │                                          │
 │  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
-│  │     SwiftUI Menu Bar           │     │   │  │   WPF System Tray UI           │     │
+│  │     SwiftUI Menu Bar           │     │   │  │   WPF/.NET 8 System Tray       │     │
 │  │  • Input method selector       │     │   │  │  • Input method selector       │     │
 │  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
 │  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
-│  │ CGEventTap Keyboard Hook        │     │   │  │ SetWindowsHookEx Keyboard Hook  │     │
-│  │ • Intercepts keyDown events     │     │   │  │ • Intercepts WH_KEYBOARD_LL     │     │
-│  │ • Smart text replacement        │     │   │  │ • SendInput for text            │     │
+│  │ CGEventTap Keyboard Hook        │     │   │  │ SetWindowsHookEx (WH_KEYBOARD_LL) │     │
+│  │ • Intercepts keyDown events     │     │   │  │ • Global low-level keyboard hook│     │
+│  │ • Smart text replacement        │     │   │  │ • SendInput for text injection  │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
-│  │    RustBridge (FFI Layer)       │     │   │  │   RustBridge.cs (P/Invoke)     │     │
-│  │  • C ABI function calls         │     │   │  │  • P/Invoke DLL function calls  │     │
-│  │  • Pointer safety handling      │     │   │  │  • UTF-32 interop               │     │
-│  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
+│  │    RustBridge (FFI Layer)       │     │   │  │   rust_bridge.cpp (C++/FFI)    │     │
+│  │  • C ABI function calls         │     │   │  │  • UTF-32 ↔ UTF-16 conversion   │     │
+│  │  • Swift memory safety          │     │   │  │  • RAII ImeResultGuard          │     │
+│  └────────────┬────────────────────┘     │   │  │  • Windows API wrappers         │     │
+│               │                          │   │  └────────────┬────────────────────┘     │
 └───────────────┼──────────────────────────┘   └───────────────┼──────────────────────────┘
                 │                                               │
                 └───────────────────┬──────────────────────────┘
                                     │
-                         extern "C" / P/Invoke
+                         extern "C" / C++20 FFI
                                     ↓
-         ┌─────────────────────────────────────────────┐
-         │     Rust Core Engine (Platform-Agnostic)   │
-         │     7-Stage Validation-First Pipeline       │
-         └─────────────────────────────────────────────┘
+         ┌─────────────────────────────────────────────────────┐
+         │  Rust Core Engine (Static Lib - Platform-Agnostic) │
+         │  Compiled: staticlib + cdylib                       │
+         │  CRT Linking: MSVC static (-C target-feature...)    │
+         │  Size: ~150KB (release, stripped, LTO enabled)      │
+         │  7-Stage Validation-First Pipeline                 │
+         └─────────────────────────────────────────────────────┘
                             ↓
          ┌─────────────────────────────────────────────┐
          │          Input Method Layer                 │
@@ -372,7 +376,139 @@ func getReplacementMethod() -> ReplacementMethod {
 | **JetBrains autocomplete** | Code completion popup | Bundle ID detection | ✅ Fixed |
 | **Excel cell autocomplete** | Cell suggestions | Bundle ID detection | ✅ Fixed |
 
-### Accessibility Permission
+### Windows SetWindowsHookEx Integration (Phase 1)
+
+#### Build System: Corrosion + CMake
+
+**Core Integration Chain:**
+```
+CMakeLists.txt (C++20 + MSVC)
+    ↓
+Corrosion v0.5 (git tag)
+    ↓
+Import gonhanh-core (Cargo.toml: staticlib crate-type)
+    ↓
+MSVC Static CRT linking: -C target-feature=+crt-static
+    ↓
+Result: Single .exe, zero DLL dependencies
+```
+
+**Key Files:**
+- `platforms/windows/CMakeLists.txt` - Corrosion integration, MSVC CRT config
+- `core/Cargo.toml` - crate-type = ["staticlib", "cdylib", "rlib"]
+- `platforms/windows/src/rust_bridge.h` - C++ FFI wrapper (RAII guards)
+- `platforms/windows/src/rust_bridge.cpp` - UTF-32 ↔ UTF-16 conversion
+- `platforms/windows/src/main.cpp` - WinMain entry point, keyboard hook setup
+- `platforms/windows/resources/resources.rc` - Version metadata (1.0.0)
+
+#### FFI Memory Model
+
+**Buffer Size Guarantee:**
+```c
+// Rust side (core/src/lib.rs)
+const MAX_BUFFER_SIZE: usize = 256;
+
+struct ImeResult {
+    chars: [u32; 256],      // UTF-32 output
+    action: u8,             // 0=None, 1=Send, 2=Restore
+    backspace: u8,
+    count: u8,
+    flags: u8
+}
+
+// Windows side (rust_bridge.h)
+struct ImeResult {
+    uint32_t chars[256];    // Matches Rust MAX constant
+    uint8_t action;
+    uint8_t backspace;
+    uint8_t count;
+    uint8_t flags;
+};
+```
+
+**RAII Memory Safety:**
+```cpp
+// C++ wrapper prevents leaks via scope
+class ImeResultGuard {
+    ImeResult* ptr_;
+public:
+    ~ImeResultGuard() { if (ptr_) ime_free(ptr_); }
+    ImeResultGuard(const ImeResultGuard&) = delete;      // No copy
+    ImeResultGuard(ImeResultGuard&&) = delete;            // No move
+};
+
+// Usage: scope-based cleanup
+{
+    ImeResultGuard result(ime_key(keycode, caps, ctrl));
+    // ... process result
+}  // automatic cleanup here
+```
+
+#### UTF Conversion Pipeline
+
+**UTF-32 (Rust Engine) → UTF-16 (Windows API):**
+```cpp
+// Handles all Unicode ranges including surrogate pairs
+std::wstring Utf32ToUtf16(const uint32_t* chars, uint8_t count) {
+    for (each codepoint) {
+        if (cp <= 0xFFFF) {
+            // BMP: direct mapping (Latin, Greek, etc.)
+            result.push_back(static_cast<wchar_t>(cp));
+        } else {
+            // Supplementary planes: surrogate pair
+            cp -= 0x10000;
+            result.push_back(0xD800 + (cp >> 10));      // High surrogate
+            result.push_back(0xDC00 + (cp & 0x3FF));    // Low surrogate
+        }
+    }
+    return result;
+}
+```
+
+**Expected Codepoint Ranges (Vietnamese):**
+- BMP (< 0x10000): ă, â, ê, ô, ơ, ư, đ (no surrogate pairs needed)
+- Special: Zero-width joiners (0x200D) handled via direct mapping
+
+#### SetWindowsHookEx Setup
+
+**Thread-Safe Hook Installation:**
+```cpp
+// Global hook handle (thread-local for each hook thread)
+HHOOK hKeyboardHook;
+
+// Low-level keyboard hook (WH_KEYBOARD_LL)
+LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    PKBDLLHOOKSTRUCT pKbStruct = (PKBDLLHOOKSTRUCT)lParam;
+
+    if (nCode == HC_ACTION) {
+        DWORD vkCode = pKbStruct->vkCode;
+        DWORD flags = pKbStruct->flags;
+
+        // Call Rust engine
+        ImeResultGuard result(ime_key(vkCode, is_caps_locked(), false));
+
+        if (result && result->action == 1) {
+            // Send replacement via SendInput
+            SendKeyboardInput(result->chars, result->count, result->backspace);
+            return 1;  // Consume key
+        }
+    }
+
+    return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+}
+
+// Installation
+hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardHookProc,
+                                  hInstance, 0);
+```
+
+**Advantages (vs Global Input Method):**
+- Global keyboard interception (works before app input handling)
+- Minimal overhead (kernel calls only for events)
+- No app modification needed
+- Persistent across app switches
+
+### Accessibility Permission (macOS)
 
 #### macOS System Requirement
 - **API**: `AXIsProcessTrusted()` checks if app has Accessibility permission
