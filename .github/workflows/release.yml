@@ -540,7 +540,7 @@ jobs:
       - name: Build WPF App
         run: |
           cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+          dotnet publish -c Release -r win-x64 --self-contained true -o ../publish
 
       - name: Package ZIP
         run: |
