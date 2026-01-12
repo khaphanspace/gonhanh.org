@@ -53,6 +53,9 @@ target_include_directories(gonhanh PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
+# Unicode support (required for wide-char strings)
+target_compile_definitions(gonhanh PRIVATE UNICODE _UNICODE)
+
 # Size optimization
 if(MSVC)
     target_compile_options(gonhanh PRIVATE /O1 /GL /GS-)
