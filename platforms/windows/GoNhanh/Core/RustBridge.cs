@@ -66,7 +66,7 @@ public enum InputMethod : byte
 /// </summary>
 public static class RustBridge
 {
-    private const string DLL = "gonhanh_core.dll";
+    private const string DLL = "Native\\gonhanh_core.dll";
     private const CallingConvention CC = CallingConvention.Cdecl;
 
     // ========== Core Functions ==========

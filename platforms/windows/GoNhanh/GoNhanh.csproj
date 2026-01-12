@@ -30,10 +30,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Native DLL -->
+    <!-- Native DLL - copy to output/Native folder -->
     <None Update="Native\gonhanh_core.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Native\gonhanh_core.dll</Link>
     </None>
+    <Content Include="Native\**" CopyToPublishDirectory="PreserveNewest" />
 
     <!-- App icon -->
     <Resource Include="Resources\Icons\app.ico" />
