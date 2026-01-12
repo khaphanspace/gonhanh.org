@@ -182,6 +182,8 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>duynguyeenx96</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/hongmd">
         <img src="https://avatars.githubusercontent.com/u/32331121?v=4" width="50" style="border-radius:50%"/><br/>
@@ -194,8 +196,6 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>hoang-rio</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/hacoi1day">
         <img src="https://avatars.githubusercontent.com/u/29734131?v=4" width="50" style="border-radius:50%"/><br/>
@@ -220,6 +220,8 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>trunghieupham59</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/hugodse">
         <img src="https://avatars.githubusercontent.com/u/31150748?v=4" width="50" style="border-radius:50%"/><br/>
@@ -244,8 +246,6 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>trongthanh</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/meichengg">
         <img src="https://avatars.githubusercontent.com/u/25204246?v=4" width="50" style="border-radius:50%"/><br/>
@@ -258,6 +258,8 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>lai-2</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/hungvx-dev">
         <img src="https://avatars.githubusercontent.com/u/85088954?v=4" width="50" style="border-radius:50%"/><br/>
@@ -332,6 +334,8 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>vanduc2514</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/levisre">
         <img src="https://avatars.githubusercontent.com/u/8775251?v=4" width="50" style="border-radius:50%"/><br/>
@@ -344,8 +348,6 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>phong010198</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/vienkmt">
         <img src="https://avatars.githubusercontent.com/u/20434534?v=4" width="50" style="border-radius:50%"/><br/>
@@ -370,6 +372,8 @@ Những người đã phát hiện lỗi và đề xuất tính năng mới.
         <b>jackfeng94</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/xkhanhs">
         <img src="https://avatars.githubusercontent.com/u/27943649?v=4" width="50" style="border-radius:50%"/><br/>
@@ -435,6 +439,8 @@ Những người đã tham gia thảo luận, giúp định hình sản phẩm.
         <b>huyhoangnhh98</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/Cr4ckPwd">
         <img src="https://avatars.githubusercontent.com/u/84202581?v=4" width="50" style="border-radius:50%"/><br/>
@@ -447,8 +453,6 @@ Những người đã tham gia thảo luận, giúp định hình sản phẩm.
         <b>24611210</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/bs90">
         <img src="https://avatars.githubusercontent.com/u/2457657?v=4" width="50" style="border-radius:50%"/><br/>
@@ -473,6 +477,8 @@ Những người đã tham gia thảo luận, giúp định hình sản phẩm.
         <b>harrytranft</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/louis-hoang21">
         <img src="https://avatars.githubusercontent.com/u/35162077?v=4" width="50" style="border-radius:50%"/><br/>
