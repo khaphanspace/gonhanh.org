@@ -24,6 +24,20 @@ bool KeyboardHook::Install() {
         0  // dwThreadId = 0 means system-wide hook
     );
 
+    // Log error details if hook installation fails
+    if (s_hook == nullptr) {
+        DWORD error = GetLastError();
+#ifdef _DEBUG
+        char msg[256];
+        sprintf_s(msg, "SetWindowsHookEx failed: error code %lu\n", error);
+        OutputDebugStringA(msg);
+#endif
+        // Common errors:
+        // ERROR_ACCESS_DENIED (5): Antivirus blocking
+        // ERROR_HOOK_NEEDS_HMOD (1428): Module handle issue (rare with WH_KEYBOARD_LL)
+        (void)error;  // Suppress unused variable warning in Release
+    }
+
     return s_hook != nullptr;
 }
 
@@ -80,7 +94,17 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
 
         // Queue event for worker thread (only process keydown events)
         if (event.isKeyDown) {
-            s_eventQueue.Push(event);  // Lock-free, fast
+            bool pushed = s_eventQueue.Push(event);  // Lock-free, fast
+
+            // Log warning if queue is full (should never happen at 512 size)
+            if (!pushed) {
+#ifdef _DEBUG
+                OutputDebugStringA("WARNING: Event queue full, dropped keystroke\n");
+#endif
+                // Queue is full - this means worker thread is severely delayed (>50ms)
+                // or user is typing >512 keys in ~50ms window (impossible)
+                // Likely indicates worker thread hang or infinite loop
+            }
         }
     }
 

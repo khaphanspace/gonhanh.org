@@ -10,6 +10,15 @@ struct ImeResult {
     int64_t count;       // Valid char count (0-16)
 };
 
+// Compile-time verification that struct matches Rust FFI layout
+// Rust: #[repr(C)] pub struct ImeResult { action: u8, backspace: u8, chars: [u32; 16], count: i64 }
+// Expected: 1 + 1 + (4*16) + 8 = 74 bytes → aligned to 80 bytes (8-byte boundary)
+static_assert(sizeof(ImeResult) == 80, "ImeResult size mismatch with Rust FFI");
+static_assert(offsetof(ImeResult, action) == 0, "ImeResult::action offset mismatch");
+static_assert(offsetof(ImeResult, backspace) == 1, "ImeResult::backspace offset mismatch");
+static_assert(offsetof(ImeResult, chars) == 4, "ImeResult::chars offset mismatch");
+static_assert(offsetof(ImeResult, count) == 72, "ImeResult::count offset mismatch");
+
 // Key event passed from hook callback to worker thread
 struct KeyEvent {
     uint16_t vkCode;     // Windows virtual keycode

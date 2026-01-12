@@ -112,7 +112,19 @@ void TextSender::Send(uint8_t backspaceCount, const uint32_t* chars, int64_t cha
 
     // Send all inputs atomically (single SendInput call)
     if (idx > 0) {
-        SendInput((UINT)idx, inputs.data(), sizeof(INPUT));
+        UINT sent = SendInput((UINT)idx, inputs.data(), sizeof(INPUT));
+
+        // Check for UIPI failures (UAC-elevated apps block SendInput)
+        if (sent != idx) {
+            // GetLastError() returns 0 for UIPI block (not an error per se)
+            // Known limitation: Cannot inject into Task Manager, RegEdit, etc.
+            // Log warning in debug builds
+#ifdef _DEBUG
+            char msg[128];
+            sprintf_s(msg, "SendInput: sent %u/%u inputs (UIPI block?)\n", sent, (UINT)idx);
+            OutputDebugStringA(msg);
+#endif
+        }
     }
 }
 
@@ -138,7 +150,15 @@ void TextSender::SendBackspaces(int count) {
         inputs[i * 2 + 1].ki.dwExtraInfo = 0;
     }
 
-    SendInput((UINT)inputs.size(), inputs.data(), sizeof(INPUT));
+    UINT sent = SendInput((UINT)inputs.size(), inputs.data(), sizeof(INPUT));
+
+#ifdef _DEBUG
+    if (sent != (UINT)inputs.size()) {
+        char msg[128];
+        sprintf_s(msg, "SendBackspaces: sent %u/%zu inputs (UIPI block?)\n", sent, inputs.size());
+        OutputDebugStringA(msg);
+    }
+#endif
 }
 
 void TextSender::SendUnicode(uint32_t codepoint) {
