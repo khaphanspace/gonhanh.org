@@ -57,6 +57,11 @@ target_include_directories(gonhanh PRIVATE
 # Unicode support (required for wide-char strings)
 target_compile_definitions(gonhanh PRIVATE UNICODE _UNICODE)
 
+# Disable auto-generated manifest (we provide our own in resources.rc)
+if(MSVC)
+    target_link_options(gonhanh PRIVATE /MANIFEST:NO)
+endif()
+
 # Size optimization
 if(MSVC)
     target_compile_options(gonhanh PRIVATE /O1 /GL /GS-)
