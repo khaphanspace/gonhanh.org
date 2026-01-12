@@ -28,6 +28,7 @@ corrosion_import_crate(
 # Main executable
 add_executable(gonhanh WIN32
     src/main.cpp
+    src/keyboard_hook.cpp
     src/rust_bridge.cpp
     resources/resources.rc
 )

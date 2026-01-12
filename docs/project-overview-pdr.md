@@ -116,11 +116,28 @@ User Keystroke (CGEventTap/SetWindowsHookEx)
 ### Phase 2: Cross-Platform (Windows Complete, Linux In Progress)
 
 **Windows 10/11 (Complete - Production Ready)**
-- SetWindowsHookEx keyboard hook
-- WPF/.NET 8 UI with system tray
-- Registry-based settings persistence
+
+*Phase 2a: Architecture & Build (Complete)*
+- CMake + Corrosion integration for Rust → C++20 FFI
+- Single .exe binary with static CRT (zero DLL dependencies)
+- FFI memory model with RAII ImeResultGuard cleanup
+- UTF-32 ↔ UTF-16 conversion pipeline for Unicode text injection
+
+*Phase 2b: Keyboard Hook (Complete - Jan 12, 2025)*
+- Global low-level SetWindowsHookEx(WH_KEYBOARD_LL) implementation
+- Message-only window (HWND_MESSAGE) for hook message delivery
+- VK → macOS keycode mapping (46 keys verified vs core/src/data/keys.rs)
+- Reentrancy guards: LLKHF_INJECTED flag + processing_ boolean
+- BMP + surrogate pair Unicode injection via SendInput
+- Ctrl+Space global toggle (always functional, suppressed from text)
+- Hook callback with 11-step validation flow
+
+*Phase 2c: UI & Settings (Next)*
+- WPF/.NET 8 system tray UI
+- Settings persistence via Windows Registry
+- Enable/disable toggle in tray menu
+- Input method selector (Telex/VNI)
 - Feature parity with macOS version
-- Compiled DLL shared with macOS core
 
 **Linux (Beta)**
 - Fcitx5 addon integration

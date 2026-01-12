@@ -376,7 +376,7 @@ func getReplacementMethod() -> ReplacementMethod {
 | **JetBrains autocomplete** | Code completion popup | Bundle ID detection | ✅ Fixed |
 | **Excel cell autocomplete** | Cell suggestions | Bundle ID detection | ✅ Fixed |
 
-### Windows SetWindowsHookEx Integration (Phase 1)
+### Windows SetWindowsHookEx Integration (Phase 2 Complete)
 
 #### Build System: Corrosion + CMake
 
@@ -393,13 +393,14 @@ MSVC Static CRT linking: -C target-feature=+crt-static
 Result: Single .exe, zero DLL dependencies
 ```
 
-**Key Files:**
-- `platforms/windows/CMakeLists.txt` - Corrosion integration, MSVC CRT config
-- `core/Cargo.toml` - crate-type = ["staticlib", "cdylib", "rlib"]
+**Key Files (Phase 2):**
+- `platforms/windows/CMakeLists.txt` - Corrosion integration, MSVC CRT config (+1 line)
+- `platforms/windows/src/keyboard_hook.h` - KeyboardHook class definition (29 LOC)
+- `platforms/windows/src/keyboard_hook.cpp` - Hook implementation & VK→macOS mapping (222 LOC)
 - `platforms/windows/src/rust_bridge.h` - C++ FFI wrapper (RAII guards)
 - `platforms/windows/src/rust_bridge.cpp` - UTF-32 ↔ UTF-16 conversion
-- `platforms/windows/src/main.cpp` - WinMain entry point, keyboard hook setup
-- `platforms/windows/resources/resources.rc` - Version metadata (1.0.0)
+- `platforms/windows/src/main.cpp` - WinMain entry point (+37 LOC for message loop)
+- `platforms/windows/resources/resources.rc` - Version metadata
 
 #### FFI Memory Model
 
@@ -449,57 +450,177 @@ public:
 **UTF-32 (Rust Engine) → UTF-16 (Windows API):**
 ```cpp
 // Handles all Unicode ranges including surrogate pairs
-std::wstring Utf32ToUtf16(const uint32_t* chars, uint8_t count) {
-    for (each codepoint) {
+void SendUnicodeText(const uint32_t* chars, uint8_t count) {
+    for (uint8_t i = 0; i < count; ++i) {
+        uint32_t cp = chars[i];
+
         if (cp <= 0xFFFF) {
-            // BMP: direct mapping (Latin, Greek, etc.)
-            result.push_back(static_cast<wchar_t>(cp));
+            // BMP: single UTF-16 unit (Latin, Greek, Vietnamese)
+            INPUT input = {};
+            input.type = INPUT_KEYBOARD;
+            input.ki.wVk = 0;              // Use Unicode, not VK
+            input.ki.wScan = (WORD)cp;
+            input.ki.dwFlags = KEYEVENTF_UNICODE;
+            SendInput(1, &input, sizeof(INPUT));
         } else {
-            // Supplementary planes: surrogate pair
+            // Supplementary planes: surrogate pair (emoji, rare chars)
             cp -= 0x10000;
-            result.push_back(0xD800 + (cp >> 10));      // High surrogate
-            result.push_back(0xDC00 + (cp & 0x3FF));    // Low surrogate
+            WORD high = 0xD800 + (WORD)(cp >> 10);
+            WORD low = 0xDC00 + (WORD)(cp & 0x3FF);
+
+            // Send both surrogates via SendInput
+            SendInput(4, surrogatePair, sizeof(INPUT));
         }
     }
-    return result;
 }
 ```
 
 **Expected Codepoint Ranges (Vietnamese):**
-- BMP (< 0x10000): ă, â, ê, ô, ơ, ư, đ (no surrogate pairs needed)
+- BMP (< 0x10000): ă, â, ê, ô, ơ, ư, đ (all native Vietnamese, no surrogates)
 - Special: Zero-width joiners (0x200D) handled via direct mapping
 
-#### SetWindowsHookEx Setup
+#### Keyboard Hook Implementation (Phase 2)
 
-**Thread-Safe Hook Installation:**
+**Global Message-Only Window Requirement:**
 ```cpp
-// Global hook handle (thread-local for each hook thread)
-HHOOK hKeyboardHook;
+// CRITICAL: WH_KEYBOARD_LL requires a message loop
+HWND hwnd = CreateWindowEx(
+    0, WINDOW_CLASS, L"GoNhanhMsg",
+    0, 0, 0, 0, 0,
+    HWND_MESSAGE,  // Message-only window (no desktop visible)
+    NULL, hInstance, NULL
+);
 
-// Low-level keyboard hook (WH_KEYBOARD_LL)
-LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    PKBDLLHOOKSTRUCT pKbStruct = (PKBDLLHOOKSTRUCT)lParam;
+// Install hook AFTER window creation
+auto& hook = gonhanh::KeyboardHook::Instance();
+hook.Install();
 
-    if (nCode == HC_ACTION) {
-        DWORD vkCode = pKbStruct->vkCode;
-        DWORD flags = pKbStruct->flags;
+// Message loop (REQUIRED for WH_KEYBOARD_LL to function)
+MSG msg;
+while (GetMessage(&msg, NULL, 0, 0)) {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+}
+```
 
-        // Call Rust engine
-        ImeResultGuard result(ime_key(vkCode, is_caps_locked(), false));
+**Why Message Loop Required:**
+- `WH_KEYBOARD_LL` is a global low-level hook (system-wide interception)
+- Windows requires a message queue to deliver hook notifications
+- Message-only window (HWND_MESSAGE) is invisible but maintains queue
+- Loop must run on same thread that called SetWindowsHookEx
 
-        if (result && result->action == 1) {
-            // Send replacement via SendInput
-            SendKeyboardInput(result->chars, result->count, result->backspace);
-            return 1;  // Consume key
-        }
-    }
+**KeyboardHook Class Architecture:**
 
-    return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+```cpp
+class KeyboardHook {
+private:
+    static HHOOK hook_;
+    bool enabled_ = true;
+    bool processing_ = false;  // Reentrancy guard
+
+    static LRESULT CALLBACK LowLevelKeyboardProc(...);
+};
+```
+
+**Hook Callback Flow:**
+
+```
+LowLevelKeyboardProc(nCode, wParam, lParam)
+    ↓
+1. Check nCode == HC_ACTION (only process real events)
+    ↓
+2. Check LLKHF_INJECTED flag (skip injected keys to prevent loops)
+    ↓
+3. Only process WM_KEYDOWN & WM_SYSKEYDOWN (ignore repeats)
+    ↓
+4. Handle Ctrl+Space toggle (BEFORE enabled check, always works)
+    ↓
+5. Check enabled flag (pass through if off)
+    ↓
+6. Check reentrancy guard (prevent recursive processing)
+    ↓
+7. Convert VK → macOS keycode via VkToMacKeycode()
+    ↓
+8. Extract modifier states: Caps, Ctrl, Shift
+    ↓
+9. Call Rust engine: ime_key_ext(keycode, caps, ctrl, shift)
+    ↓
+10. If action == 1 (transform):
+    - Send backspaces via SendInput (VK_BACK)
+    - Send replacement chars via SendUnicodeText()
+    - Return 1 (suppress original keystroke)
+    ↓
+11. Else: CallNextHookEx (pass through)
+```
+
+**VK→macOS Keycode Mapping (46 Keys):**
+
+| Category | Count | Examples | macOS Codes |
+|----------|-------|----------|------------|
+| Letters A-Z | 26 | A→0x00, B→0x0B, ..., Z→0x06 | Verified vs core/src/data/keys.rs |
+| Numbers 0-9 | 10 | 0→0x1D, 1→0x12, ..., 9→0x19 | Top row number keys |
+| Special Keys | 10 | Space→0x31, Return→0x24, Back→0x33, Esc→0x35, []→0x21/0x1E | Common symbols |
+| **Total** | **46** | - | Cross-referenced with Rust core |
+
+**Reentrancy Guard & Injection Prevention:**
+
+```cpp
+// Check injected flag (prevents infinite loops)
+if (kb->flags & LLKHF_INJECTED) {
+    return CallNextHookEx(...);  // Pass through without processing
 }
 
-// Installation
-hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardHookProc,
-                                  hInstance, 0);
+// Reentrancy guard (prevents concurrent processing of same engine)
+if (g_instance->processing_) {
+    return CallNextHookEx(...);  // Pass through
+}
+
+// Set flag during engine call
+g_instance->processing_ = true;
+ImeResultGuard result(ime_key_ext(keycode, caps, ctrl, shift));
+g_instance->processing_ = false;
+```
+
+**Why Both Guards Needed:**
+- `LLKHF_INJECTED`: Filters out our own SendInput calls (OS-level flag)
+- `processing_`: Handles edge case where callback fires before our SendInput completes
+- Combined: Eliminates infinite loops & concurrent Rust engine calls
+
+**Backspace Implementation:**
+
+```cpp
+static void SendBackspaces(int count) {
+    for (int i = 0; i < count; ++i) {
+        INPUT input = {};
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = VK_BACK;
+
+        // Key down
+        input.ki.dwFlags = 0;
+        SendInput(1, &input, sizeof(INPUT));
+
+        // Key up
+        input.ki.dwFlags = KEYEVENTF_KEYUP;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+}
+```
+
+**Ctrl+Space Toggle (Global Hotkey):**
+
+```cpp
+// Special case: Ctrl+Space handled BEFORE enabled check
+if (kb->vkCode == VK_SPACE && (GetKeyState(VK_CONTROL) & 0x8000)) {
+    if (g_instance) {
+        g_instance->Toggle();  // Toggle enabled_ state
+    }
+    return 1;  // Suppress key (don't pass to apps)
+}
+
+// This ordering ensures:
+// - Toggle always works even if engine disabled
+// - Toggle is global (works in any app)
+// - Ctrl+Space never appears in text
 ```
 
 **Advantages (vs Global Input Method):**
@@ -507,6 +628,7 @@ hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardHookProc,
 - Minimal overhead (kernel calls only for events)
 - No app modification needed
 - Persistent across app switches
+- Works in secure contexts (lockscreen, elevated apps)
 
 ### Accessibility Permission (macOS)
 

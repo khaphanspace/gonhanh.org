@@ -1,5 +1,18 @@
 #include <windows.h>
 #include "rust_bridge.h"
+#include "keyboard_hook.h"
+
+static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        default:
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nShow) {
     // Initialize Rust engine
@@ -7,24 +20,44 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     ime_method(0);  // Default: Telex
     ime_enabled(true);
 
-    // Test FFI call - keycode 0 corresponds to 'a' key in macOS mapping
-    ImeResultGuard result(ime_key(0, false, false));
-    if (result) {
-        // Success - FFI working
-        OutputDebugStringA("FFI OK: ime_key returned valid result\n");
+    // Register window class
+    WNDCLASSEX wc = {};
+    wc.cbSize = sizeof(WNDCLASSEX);
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = WINDOW_CLASS;
+    RegisterClassEx(&wc);
 
-        // Test UTF conversion if we have chars
-        if (result->count > 0) {
-            std::wstring text = gonhanh::Utf32ToUtf16(result->chars, result->count);
-            OutputDebugStringW(L"Converted text: ");
-            OutputDebugStringW(text.c_str());
-            OutputDebugStringW(L"\n");
-        }
+    // Create hidden message-only window
+    HWND hwnd = CreateWindowEx(
+        0, WINDOW_CLASS, L"GoNhanhMsg",
+        0, 0, 0, 0, 0,
+        HWND_MESSAGE,  // Critical: message-only window
+        NULL, hInstance, NULL
+    );
+
+    if (!hwnd) {
+        MessageBoxW(NULL, L"Failed to create message window", L"Error", MB_ICONERROR);
+        return 1;
     }
 
-    ime_clear();
+    // Install keyboard hook
+    auto& hook = gonhanh::KeyboardHook::Instance();
+    if (!hook.Install()) {
+        MessageBoxW(NULL, L"Failed to install keyboard hook", L"Error", MB_ICONERROR);
+        return 1;
+    }
 
-    // Minimal message box for testing
-    MessageBoxW(NULL, L"Gõ Nhanh - FFI Test OK", L"Test", MB_OK);
+    // Message loop (REQUIRED for WH_KEYBOARD_LL)
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    // Cleanup
+    hook.Uninstall();
+    ime_clear_all();
+
     return 0;
 }
