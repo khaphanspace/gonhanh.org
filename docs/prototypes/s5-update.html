@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-05: Update Dialog - Gõ Nhanh</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+      gap: var(--space-xl);
+      flex-wrap: wrap;
+    }
+
+    .update-window {
+      width: 340px;
+    }
+
+    .update-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-xl);
+      text-align: center;
+      min-height: 280px;
+    }
+
+    /* States */
+    .state-content {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .state-content.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Icon */
+    .update-icon {
+      font-size: 56px;
+      margin-bottom: var(--space-md);
+    }
+
+    .update-icon.spin {
+      animation: spin 2s linear infinite;
+    }
+
+    /* Typography */
+    .update-title {
+      font-family: var(--font-family-display);
+      font-size: 20px;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+
+    .update-description {
+      font-size: var(--font-size-body);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-lg);
+      line-height: var(--line-height-relaxed);
+    }
+
+    /* Version badge */
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background-color: var(--color-primary);
+      color: white;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-medium);
+      margin-bottom: var(--space-md);
+    }
+
+    /* Buttons */
+    .update-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      width: 100%;
+    }
+
+    .update-btn {
+      width: 100%;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      width: 100%;
+      margin-bottom: var(--space-md);
+    }
+
+    .progress-bar {
+      height: 4px;
+      background-color: var(--color-border);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: var(--color-primary);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-xs);
+    }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed;
+      bottom: var(--space-md);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: var(--space-sm);
+      padding: var(--space-sm);
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+
+    .demo-btn {
+      padding: var(--space-xs) var(--space-md);
+      font-size: var(--font-size-caption);
+      cursor: pointer;
+    }
+
+    .demo-btn.active {
+      background-color: var(--color-primary);
+      color: white;
+    }
+
+    /* State label */
+    .state-label {
+      position: absolute;
+      top: var(--space-md);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <!-- State: Checking -->
+  <div class="window update-window" id="window-checking">
+    <span class="state-label">Checking</span>
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close"></button>
+        <button class="window-control window-control-minimize"></button>
+        <button class="window-control window-control-maximize"></button>
+      </div>
+      <span class="window-title">Cập nhật</span>
+    </div>
+    <div class="update-content">
+      <div class="state-content active">
+        <div class="update-icon spin">&#128260;</div>
+        <h2 class="update-title">Đang kiểm tra...</h2>
+        <p class="update-description">
+          Đang tìm kiếm phiên bản mới nhất của Gõ Nhanh.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- State: Available -->
+  <div class="window update-window" id="window-available">
+    <span class="state-label">Available</span>
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close"></button>
+        <button class="window-control window-control-minimize"></button>
+        <button class="window-control window-control-maximize"></button>
+      </div>
+      <span class="window-title">Cập nhật</span>
+    </div>
+    <div class="update-content">
+      <div class="state-content active">
+        <div class="update-icon">&#128230;</div>
+        <h2 class="update-title">Phiên bản mới</h2>
+        <span class="version-badge">
+          <span>v1.0.22</span>
+          <span>&bull;</span>
+          <span>12 MB</span>
+        </span>
+        <p class="update-description">
+          Phiên bản mới đã sẵn sàng để tải xuống. Cập nhật ngay để có trải nghiệm tốt nhất.
+        </p>
+        <div class="update-buttons">
+          <button class="btn btn-primary update-btn" id="downloadBtn">
+            Tải xuống
+          </button>
+          <button class="btn btn-ghost update-btn">
+            Bỏ qua
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- State: Up to Date -->
+  <div class="window update-window" id="window-uptodate">
+    <span class="state-label">Up to Date</span>
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close"></button>
+        <button class="window-control window-control-minimize"></button>
+        <button class="window-control window-control-maximize"></button>
+      </div>
+      <span class="window-title">Cập nhật</span>
+    </div>
+    <div class="update-content">
+      <div class="state-content active">
+        <div class="update-icon">&#9989;</div>
+        <h2 class="update-title">Đã cập nhật</h2>
+        <p class="update-description">
+          Bạn đang sử dụng phiên bản mới nhất của Gõ Nhanh (v1.0.21).
+        </p>
+        <div class="update-buttons">
+          <button class="btn btn-secondary update-btn">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- State: Downloading (Interactive Demo) -->
+  <div class="window update-window" id="window-downloading" style="display: none;">
+    <span class="state-label">Downloading</span>
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close"></button>
+        <button class="window-control window-control-minimize"></button>
+        <button class="window-control window-control-maximize"></button>
+      </div>
+      <span class="window-title">Cập nhật</span>
+    </div>
+    <div class="update-content">
+      <div class="state-content active">
+        <div class="update-icon">&#128230;</div>
+        <h2 class="update-title">Đang tải xuống...</h2>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span class="progress-text" id="progressText">0%</span>
+        </div>
+        <div class="update-buttons">
+          <button class="btn btn-ghost update-btn" id="cancelBtn">
+            Hủy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="interactions.js"></script>
+  <script>
+    // Download simulation
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      // Hide "Available" window, show "Downloading"
+      document.getElementById('window-available').style.display = 'none';
+      document.getElementById('window-downloading').style.display = 'block';
+
+      // Simulate download progress
+      let progress = 0;
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+
+      const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          progressText.textContent = 'Hoàn tất! Đang cài đặt...';
+
+          // After 1s, show up-to-date
+          setTimeout(() => {
+            document.getElementById('window-downloading').style.display = 'none';
+            // Show success state (reuse up-to-date with modified text)
+            const uptodate = document.getElementById('window-uptodate');
+            uptodate.querySelector('.update-title').textContent = 'Cập nhật thành công!';
+            uptodate.querySelector('.update-description').textContent = 'Gõ Nhanh đã được cập nhật lên phiên bản v1.0.22.';
+          }, 1000);
+        }
+        progressFill.style.width = progress + '%';
+        if (progress < 100) {
+          progressText.textContent = Math.round(progress) + '%';
+        }
+      }, 200);
+    });
+
+    // Cancel button
+    document.getElementById('cancelBtn').addEventListener('click', function() {
+      document.getElementById('window-downloading').style.display = 'none';
+      document.getElementById('window-available').style.display = 'block';
+    });
+
+    // Close buttons
+    document.querySelectorAll('.window-control-close').forEach(btn => {
+      btn.addEventListener('click', function() {
+        this.closest('.window').style.opacity = '0';
+        this.closest('.window').style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          this.closest('.window').style.display = 'none';
+          this.closest('.window').style.opacity = '1';
+          this.closest('.window').style.transform = 'scale(1)';
+        }, 200);
+      });
+    });
+  </script>
+</body>
+</html>

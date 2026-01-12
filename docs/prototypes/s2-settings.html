@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-02: Settings - Gõ Nhanh</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+    }
+
+    .settings-window {
+      width: 500px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    /* Section styling */
+    .settings-section {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+    }
+
+    .settings-section-title {
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--space-sm);
+    }
+
+    /* Input method picker */
+    .method-picker {
+      display: flex;
+      gap: var(--space-md);
+    }
+
+    .method-option {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--color-border);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .method-option:hover {
+      border-color: var(--color-text-secondary);
+    }
+
+    .method-option.selected {
+      border-color: var(--color-primary);
+      background-color: rgba(0, 122, 255, 0.1);
+    }
+
+    .method-radio {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--color-border);
+      transition: all var(--transition-fast);
+    }
+
+    .method-option.selected .method-radio {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary);
+      box-shadow: inset 0 0 0 3px var(--color-background);
+    }
+
+    /* Toggle row */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) 0;
+    }
+
+    .toggle-row:not(:last-child) {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .toggle-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toggle-description {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-secondary);
+    }
+
+    /* Shortcuts table */
+    .shortcuts-table {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .shortcut-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 60px;
+      align-items: center;
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--color-surface-elevated);
+    }
+
+    .shortcut-row:not(:last-child) {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .shortcut-trigger {
+      font-family: monospace;
+      font-weight: var(--font-weight-medium);
+      color: var(--color-primary);
+    }
+
+    .shortcut-delete {
+      padding: var(--space-xs) var(--space-sm);
+      font-size: var(--font-size-caption);
+      background: transparent;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .shortcut-delete:hover {
+      border-color: var(--color-error);
+      color: var(--color-error);
+    }
+
+    .add-shortcut-btn {
+      width: 100%;
+      margin-top: var(--space-sm);
+      padding: var(--space-sm);
+      background: transparent;
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .add-shortcut-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="window settings-window">
+    <!-- Title Bar -->
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close" aria-label="Close"></button>
+        <button class="window-control window-control-minimize" aria-label="Minimize"></button>
+        <button class="window-control window-control-maximize" aria-label="Maximize"></button>
+      </div>
+      <span class="window-title">Cài đặt</span>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+      <!-- Input Method Section -->
+      <section class="settings-section">
+        <h2 class="settings-section-title">Kiểu gõ</h2>
+        <div class="method-picker" role="radiogroup" aria-label="Input method">
+          <div class="method-option selected" role="radio" aria-checked="true" data-method="telex">
+            <span class="method-radio"></span>
+            <span>Telex</span>
+          </div>
+          <div class="method-option" role="radio" aria-checked="false" data-method="vni">
+            <span class="method-radio"></span>
+            <span>VNI</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Options Section -->
+      <section class="settings-section">
+        <h2 class="settings-section-title">Tùy chọn</h2>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="perAppMode">
+            <span>Nhớ trạng thái theo ứng dụng</span>
+            <span class="toggle-description">Lưu bật/tắt riêng cho mỗi app</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="perAppMode" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="autoCapitalize">
+            <span>Tự động viết hoa đầu câu</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="autoCapitalize" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="englishRestore">
+            <span>Tự động khôi phục tiếng Anh</span>
+            <span class="toggle-description">Nhận diện từ tiếng Anh và bỏ dấu</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="englishRestore" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="modernTone">
+            <span>Đặt dấu kiểu mới (hoà, khoẻ)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="modernTone" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="wShortcut">
+            <span>Phím w → ư</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="wShortcut" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="bracketShortcut">
+            <span>Phím ] → ư, [ → ơ</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="bracketShortcut" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="escRestore">
+            <span>ESC khôi phục</span>
+            <span class="toggle-description">Nhấn ESC để bỏ dấu từ vừa gõ</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="escRestore" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="freeTone">
+            <span>Gõ tự do (bỏ kiểm tra chính tả)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="freeTone">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Shortcuts Section -->
+      <section class="settings-section">
+        <h2 class="settings-section-title">Gõ tắt</h2>
+
+        <div class="shortcuts-table" role="list">
+          <div class="shortcut-row" role="listitem">
+            <span class="shortcut-trigger">vn</span>
+            <span>Việt Nam</span>
+            <button class="shortcut-delete" aria-label="Xóa gõ tắt vn">Xóa</button>
+          </div>
+          <div class="shortcut-row" role="listitem">
+            <span class="shortcut-trigger">hcm</span>
+            <span>Hồ Chí Minh</span>
+            <button class="shortcut-delete" aria-label="Xóa gõ tắt hcm">Xóa</button>
+          </div>
+          <div class="shortcut-row" role="listitem">
+            <span class="shortcut-trigger">-></span>
+            <span>→</span>
+            <button class="shortcut-delete" aria-label="Xóa gõ tắt ->">Xóa</button>
+          </div>
+        </div>
+
+        <button class="add-shortcut-btn" id="addShortcutBtn">
+          + Thêm gõ tắt
+        </button>
+      </section>
+
+      <!-- System Section -->
+      <section class="settings-section">
+        <h2 class="settings-section-title">Hệ thống</h2>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="launchAtLogin">
+            <span>Khởi động cùng hệ thống</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="launchAtLogin" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label" for="soundEnabled">
+            <span>Âm thanh khi bật/tắt</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="soundEnabled" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="interactions.js"></script>
+  <script>
+    // Method picker interaction
+    document.querySelectorAll('.method-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.method-option').forEach(o => {
+          o.classList.remove('selected');
+          o.setAttribute('aria-checked', 'false');
+        });
+        option.classList.add('selected');
+        option.setAttribute('aria-checked', 'true');
+      });
+    });
+
+    // Toggle animations
+    document.querySelectorAll('.toggle input').forEach(toggle => {
+      toggle.addEventListener('change', function() {
+        // Add haptic-like visual feedback
+        this.parentElement.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          this.parentElement.style.transform = 'scale(1)';
+        }, 100);
+      });
+    });
+
+    // Delete shortcut interaction
+    document.querySelectorAll('.shortcut-delete').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const row = this.closest('.shortcut-row');
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(20px)';
+        setTimeout(() => row.remove(), 200);
+      });
+    });
+
+    // Add shortcut button
+    document.getElementById('addShortcutBtn').addEventListener('click', function() {
+      const table = document.querySelector('.shortcuts-table');
+      const newRow = document.createElement('div');
+      newRow.className = 'shortcut-row';
+      newRow.innerHTML = `
+        <input class="input" placeholder="Gõ tắt" style="width: 60px; padding: 4px 8px;">
+        <input class="input" placeholder="Thay thế" style="flex: 1; padding: 4px 8px; margin: 0 8px;">
+        <button class="btn btn-sm btn-primary">Lưu</button>
+      `;
+      newRow.style.opacity = '0';
+      table.appendChild(newRow);
+      setTimeout(() => newRow.style.opacity = '1', 10);
+      newRow.querySelector('input').focus();
+    });
+  </script>
+</body>
+</html>

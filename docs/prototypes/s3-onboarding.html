@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-03: Onboarding - Gõ Nhanh</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+    }
+
+    .onboarding-window {
+      width: 420px;
+      min-height: 480px;
+    }
+
+    .onboarding-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+      min-height: 420px;
+      text-align: center;
+    }
+
+    /* Step content */
+    .step-content {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .step-content.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Icons */
+    .step-icon {
+      font-size: 72px;
+      margin-bottom: var(--space-lg);
+      animation: bounceIn 0.5s ease;
+    }
+
+    @keyframes bounceIn {
+      0% {
+        transform: scale(0.5);
+        opacity: 0;
+      }
+      60% {
+        transform: scale(1.1);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .step-icon.pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    /* Typography */
+    .step-title {
+      font-family: var(--font-family-display);
+      font-size: 28px;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+
+    .step-description {
+      font-size: var(--font-size-body);
+      color: var(--color-text-secondary);
+      max-width: 280px;
+      margin-bottom: var(--space-xl);
+      line-height: var(--line-height-relaxed);
+    }
+
+    /* Button */
+    .step-button {
+      min-width: 160px;
+      padding: var(--space-md) var(--space-xl);
+      font-size: var(--font-size-heading);
+    }
+
+    /* Step indicator */
+    .step-indicator {
+      position: absolute;
+      bottom: var(--space-xl);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Permission status */
+    .permission-status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--color-surface);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-caption);
+      margin-bottom: var(--space-md);
+    }
+
+    .permission-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--color-warning);
+    }
+
+    .permission-dot.granted {
+      background-color: var(--color-success);
+      animation: pulse 1s ease-in-out;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: var(--space-md) auto;
+    }
+
+    /* Success checkmark */
+    .success-check {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: var(--color-success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 40px;
+      margin-bottom: var(--space-lg);
+      animation: bounceIn 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="window onboarding-window">
+    <!-- Title Bar -->
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close" aria-label="Close"></button>
+        <button class="window-control window-control-minimize" aria-label="Minimize"></button>
+        <button class="window-control window-control-maximize" aria-label="Maximize"></button>
+      </div>
+      <span class="window-title">Gõ Nhanh</span>
+    </div>
+
+    <!-- Onboarding Content -->
+    <div class="onboarding-content">
+      <!-- Step 0: Welcome -->
+      <div class="step-content active" data-step="0">
+        <div class="step-icon pulse">&#127483;&#127475;</div>
+        <h1 class="step-title">Chào mừng đến với<br>Gõ Nhanh</h1>
+        <p class="step-description">
+          Bộ gõ tiếng Việt nhanh nhất trên macOS. Hỗ trợ Telex và VNI.
+        </p>
+        <button class="btn btn-primary step-button" id="nextStep0">
+          Tiếp tục
+        </button>
+      </div>
+
+      <!-- Step 1: Permission -->
+      <div class="step-content" data-step="1">
+        <div class="step-icon">&#128274;</div>
+        <h1 class="step-title">Cần quyền<br>Accessibility</h1>
+        <p class="step-description">
+          Gõ Nhanh cần quyền này để đọc phím bạn gõ và gửi ký tự tiếng Việt.
+        </p>
+        <div class="permission-status" id="permissionStatus">
+          <span class="permission-dot" id="permissionDot"></span>
+          <span id="permissionText">Chưa cấp quyền</span>
+        </div>
+        <button class="btn btn-primary step-button" id="openSettings">
+          Mở Cài đặt
+        </button>
+        <div class="spinner" id="permissionSpinner" style="display: none;"></div>
+      </div>
+
+      <!-- Step 2: Ready -->
+      <div class="step-content" data-step="2">
+        <div class="success-check">&#10003;</div>
+        <h1 class="step-title">Sẵn sàng!</h1>
+        <p class="step-description">
+          Gõ Nhanh đã được thiết lập. Khởi động lại ứng dụng để bắt đầu sử dụng.
+        </p>
+        <button class="btn btn-primary step-button" id="restartApp">
+          Khởi động lại
+        </button>
+      </div>
+
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <span class="step-dot active" data-dot="0"></span>
+        <span class="step-dot" data-dot="1"></span>
+        <span class="step-dot" data-dot="2"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="interactions.js"></script>
+  <script>
+    let currentStep = 0;
+    const totalSteps = 3;
+
+    function showStep(step) {
+      // Hide all steps
+      document.querySelectorAll('.step-content').forEach(s => {
+        s.classList.remove('active');
+      });
+
+      // Show current step
+      const stepContent = document.querySelector(`[data-step="${step}"]`);
+      if (stepContent) {
+        stepContent.classList.add('active');
+      }
+
+      // Update dots
+      document.querySelectorAll('.step-dot').forEach((dot, index) => {
+        dot.classList.toggle('active', index === step);
+      });
+
+      currentStep = step;
+    }
+
+    // Step 0 -> Step 1
+    document.getElementById('nextStep0').addEventListener('click', () => {
+      showStep(1);
+    });
+
+    // Step 1: Open Settings (simulate permission check)
+    document.getElementById('openSettings').addEventListener('click', function() {
+      this.style.display = 'none';
+      document.getElementById('permissionSpinner').style.display = 'block';
+
+      // Simulate permission granted after 2 seconds
+      setTimeout(() => {
+        document.getElementById('permissionSpinner').style.display = 'none';
+        document.getElementById('permissionDot').classList.add('granted');
+        document.getElementById('permissionText').textContent = 'Đã cấp quyền';
+
+        // Auto-advance to next step
+        setTimeout(() => showStep(2), 800);
+      }, 2000);
+    });
+
+    // Step 2: Restart
+    document.getElementById('restartApp').addEventListener('click', () => {
+      // Simulate restart
+      document.body.style.opacity = '0';
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
+    });
+
+    // Click on dots to navigate (demo only)
+    document.querySelectorAll('.step-dot').forEach(dot => {
+      dot.style.cursor = 'pointer';
+      dot.addEventListener('click', function() {
+        const step = parseInt(this.dataset.dot);
+        showStep(step);
+      });
+    });
+  </script>
+</body>
+</html>

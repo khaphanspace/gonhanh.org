@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-01: Menu Bar - Gõ Nhanh</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Screen-specific styles */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: var(--space-xl);
+      background-color: #1a1a2e;
+    }
+
+    .demo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-md);
+    }
+
+    /* Status Bar Item */
+    .status-bar-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background-color: var(--color-surface-elevated);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+    }
+
+    .status-bar-item:hover {
+      background-color: var(--color-surface);
+    }
+
+    .status-flag {
+      font-size: 16px;
+    }
+
+    .status-caret {
+      font-size: 10px;
+      color: var(--color-text-secondary);
+    }
+
+    /* Menu Dropdown */
+    .menu-dropdown {
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: all var(--transition-normal);
+    }
+
+    .menu-dropdown.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Radio group styling */
+    .radio-group {
+      padding: var(--space-xs) var(--space-sm);
+    }
+
+    .radio-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: var(--font-size-body);
+    }
+
+    .radio-item:hover {
+      background-color: var(--color-surface);
+    }
+
+    .radio-bullet {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 2px solid var(--color-text-secondary);
+    }
+
+    .radio-bullet.selected {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary);
+    }
+
+    /* Checkmark */
+    .menu-checkmark {
+      width: 16px;
+      color: var(--color-primary);
+      font-weight: bold;
+    }
+
+    /* State demos */
+    .state-demos {
+      display: flex;
+      gap: var(--space-lg);
+      margin-top: var(--space-xl);
+    }
+
+    .state-demo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .state-label {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <!-- Status Bar Item -->
+    <div class="status-bar-item" id="statusBarItem" role="button" aria-haspopup="menu" aria-expanded="false">
+      <span class="status-flag" id="statusFlag">&#127483;&#127475;</span>
+      <span class="status-caret">&#9662;</span>
+    </div>
+
+    <!-- Menu Dropdown -->
+    <div class="menu menu-dropdown" id="menuDropdown" role="menu" aria-label="Gõ Nhanh menu">
+      <!-- Enable Toggle -->
+      <div class="menu-item" role="menuitemcheckbox" aria-checked="true" id="enableToggle">
+        <div class="row row-sm">
+          <span class="menu-checkmark" id="enableCheck">&#10003;</span>
+          <span>Bật Gõ Nhanh</span>
+        </div>
+        <span class="menu-item-shortcut">&#8963;Space</span>
+      </div>
+
+      <div class="menu-divider" role="separator"></div>
+
+      <!-- Input Method Selector -->
+      <div class="radio-group" role="radiogroup" aria-label="Kiểu gõ">
+        <div class="radio-item" role="menuitemradio" aria-checked="true" data-method="telex">
+          <span class="radio-bullet selected" id="telexBullet"></span>
+          <span>Telex</span>
+        </div>
+        <div class="radio-item" role="menuitemradio" aria-checked="false" data-method="vni">
+          <span class="radio-bullet" id="vniBullet"></span>
+          <span>VNI</span>
+        </div>
+      </div>
+
+      <div class="menu-divider" role="separator"></div>
+
+      <!-- Menu Items -->
+      <div class="menu-item" role="menuitem">
+        <span>Cài đặt...</span>
+      </div>
+      <div class="menu-item" role="menuitem">
+        <span>Giới thiệu...</span>
+      </div>
+
+      <div class="menu-divider" role="separator"></div>
+
+      <div class="menu-item" role="menuitem">
+        <span>Kiểm tra cập nhật...</span>
+      </div>
+      <div class="menu-item" role="menuitem" id="quitItem">
+        <span>Thoát</span>
+      </div>
+    </div>
+
+    <!-- State Demos -->
+    <div class="state-demos">
+      <div class="state-demo">
+        <div class="status-icon status-enabled">&#127483;&#127475;</div>
+        <span class="state-label">Enabled</span>
+      </div>
+      <div class="state-demo">
+        <div class="status-icon status-disabled">&#9000;</div>
+        <span class="state-label">Disabled</span>
+      </div>
+      <div class="state-demo">
+        <div class="status-icon status-updating">&#128260;</div>
+        <span class="state-label">Updating</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="interactions.js"></script>
+  <script>
+    // Menu toggle interaction
+    const statusBarItem = document.getElementById('statusBarItem');
+    const menuDropdown = document.getElementById('menuDropdown');
+    const enableToggle = document.getElementById('enableToggle');
+    const enableCheck = document.getElementById('enableCheck');
+    const statusFlag = document.getElementById('statusFlag');
+    let isEnabled = true;
+    let currentMethod = 'telex';
+
+    // Toggle menu visibility
+    statusBarItem.addEventListener('click', () => {
+      const isVisible = menuDropdown.classList.contains('visible');
+      menuDropdown.classList.toggle('visible');
+      statusBarItem.setAttribute('aria-expanded', !isVisible);
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!statusBarItem.contains(e.target) && !menuDropdown.contains(e.target)) {
+        menuDropdown.classList.remove('visible');
+        statusBarItem.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Toggle enable/disable
+    enableToggle.addEventListener('click', () => {
+      isEnabled = !isEnabled;
+      enableCheck.textContent = isEnabled ? '✓' : '';
+      enableToggle.setAttribute('aria-checked', isEnabled);
+      statusFlag.innerHTML = isEnabled ? '&#127483;&#127475;' : '&#9000;';
+    });
+
+    // Input method selection
+    document.querySelectorAll('.radio-item').forEach(item => {
+      item.addEventListener('click', () => {
+        currentMethod = item.dataset.method;
+        document.getElementById('telexBullet').classList.toggle('selected', currentMethod === 'telex');
+        document.getElementById('vniBullet').classList.toggle('selected', currentMethod === 'vni');
+        document.querySelectorAll('.radio-item').forEach(r => {
+          r.setAttribute('aria-checked', r.dataset.method === currentMethod);
+        });
+      });
+    });
+
+    // Show menu on load for demo
+    setTimeout(() => {
+      menuDropdown.classList.add('visible');
+      statusBarItem.setAttribute('aria-expanded', 'true');
+    }, 500);
+  </script>
+</body>
+</html>

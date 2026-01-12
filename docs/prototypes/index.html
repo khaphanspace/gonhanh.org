@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gõ Nhanh - Design Prototypes</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-height: 100vh;
+      padding: var(--space-xl);
+    }
+
+    .prototype-gallery {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .gallery-header {
+      text-align: center;
+      margin-bottom: var(--space-2xl);
+    }
+
+    .gallery-logo {
+      font-size: 64px;
+      margin-bottom: var(--space-md);
+    }
+
+    .gallery-title {
+      font-family: var(--font-family-display);
+      font-size: 32px;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-xs);
+    }
+
+    .gallery-subtitle {
+      font-size: var(--font-size-body);
+      color: var(--color-text-secondary);
+    }
+
+    /* Screen Grid */
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-2xl);
+    }
+
+    .screen-card {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: all var(--transition-normal);
+      border: 1px solid var(--color-border);
+    }
+
+    .screen-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--color-primary);
+    }
+
+    .screen-preview {
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .screen-info {
+      padding: var(--space-md);
+    }
+
+    .screen-id {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .screen-name {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: var(--space-xs);
+    }
+
+    .screen-desc {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-sm);
+    }
+
+    .screen-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: var(--font-size-caption);
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+
+    .screen-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Design System Section */
+    .section-title {
+      font-size: var(--font-size-title);
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-md);
+    }
+
+    /* Color Palette */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xl);
+    }
+
+    .color-swatch {
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: var(--space-sm);
+      font-size: var(--font-size-caption);
+      border: 1px solid var(--color-border);
+    }
+
+    .color-name {
+      font-weight: var(--font-weight-medium);
+    }
+
+    .color-value {
+      opacity: 0.7;
+      font-family: monospace;
+    }
+
+    /* Typography Demo */
+    .type-demo {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-xl);
+    }
+
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-md);
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .type-row:last-child {
+      border-bottom: none;
+    }
+
+    .type-label {
+      width: 100px;
+      font-size: var(--font-size-caption);
+      color: var(--color-text-secondary);
+    }
+
+    /* Component Demo */
+    .component-demo {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+      padding: var(--space-lg);
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+    }
+
+    /* Footer */
+    .gallery-footer {
+      text-align: center;
+      padding-top: var(--space-xl);
+      border-top: 1px solid var(--color-border);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype-gallery">
+    <!-- Header -->
+    <header class="gallery-header">
+      <div class="gallery-logo">&#127483;&#127475;</div>
+      <h1 class="gallery-title">Gõ Nhanh Design Prototypes</h1>
+      <p class="gallery-subtitle">Production-ready HTML/CSS/JS prototypes from UI_SPEC.md</p>
+    </header>
+
+    <!-- Screen Grid -->
+    <section>
+      <h2 class="section-title">Screens</h2>
+      <div class="screen-grid">
+        <article class="screen-card">
+          <div class="screen-preview">&#128203;</div>
+          <div class="screen-info">
+            <span class="screen-id">S-01</span>
+            <h3 class="screen-name">Menu Bar</h3>
+            <p class="screen-desc">System status bar with dropdown menu for engine toggle and settings.</p>
+            <a href="s1-menubar.html" class="screen-link">View Prototype &rarr;</a>
+          </div>
+        </article>
+
+        <article class="screen-card">
+          <div class="screen-preview">&#9881;&#65039;</div>
+          <div class="screen-info">
+            <span class="screen-id">S-02</span>
+            <h3 class="screen-name">Settings</h3>
+            <p class="screen-desc">Main settings window with input method, options, and shortcuts.</p>
+            <a href="s2-settings.html" class="screen-link">View Prototype &rarr;</a>
+          </div>
+        </article>
+
+        <article class="screen-card">
+          <div class="screen-preview">&#128075;</div>
+          <div class="screen-info">
+            <span class="screen-id">S-03</span>
+            <h3 class="screen-name">Onboarding</h3>
+            <p class="screen-desc">First-run wizard with welcome, permission request, and setup complete.</p>
+            <a href="s3-onboarding.html" class="screen-link">View Prototype &rarr;</a>
+          </div>
+        </article>
+
+        <article class="screen-card">
+          <div class="screen-preview">&#8505;&#65039;</div>
+          <div class="screen-info">
+            <span class="screen-id">S-04</span>
+            <h3 class="screen-name">About</h3>
+            <p class="screen-desc">Application info with version, developer details, and links.</p>
+            <a href="s4-about.html" class="screen-link">View Prototype &rarr;</a>
+          </div>
+        </article>
+
+        <article class="screen-card">
+          <div class="screen-preview">&#128259;</div>
+          <div class="screen-info">
+            <span class="screen-id">S-05</span>
+            <h3 class="screen-name">Update Dialog</h3>
+            <p class="screen-desc">Update states: checking, available, downloading, up-to-date.</p>
+            <a href="s5-update.html" class="screen-link">View Prototype &rarr;</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Design System -->
+    <section>
+      <h2 class="section-title">Design Tokens</h2>
+
+      <!-- Colors -->
+      <h3 class="text-heading" style="margin-bottom: var(--space-sm);">Colors</h3>
+      <div class="color-grid">
+        <div class="color-swatch" style="background: var(--color-background); color: var(--color-text-primary);">
+          <span class="color-name">Background</span>
+          <span class="color-value">#FFFFFF</span>
+        </div>
+        <div class="color-swatch" style="background: var(--color-surface); color: var(--color-text-primary);">
+          <span class="color-name">Surface</span>
+          <span class="color-value">#F5F5F5</span>
+        </div>
+        <div class="color-swatch" style="background: var(--color-primary); color: white;">
+          <span class="color-name">Primary</span>
+          <span class="color-value">#007AFF</span>
+        </div>
+        <div class="color-swatch" style="background: var(--color-success); color: white;">
+          <span class="color-name">Success</span>
+          <span class="color-value">#34C759</span>
+        </div>
+        <div class="color-swatch" style="background: var(--color-warning); color: white;">
+          <span class="color-name">Warning</span>
+          <span class="color-value">#FF9500</span>
+        </div>
+        <div class="color-swatch" style="background: var(--color-error); color: white;">
+          <span class="color-name">Error</span>
+          <span class="color-value">#FF3B30</span>
+        </div>
+      </div>
+
+      <!-- Typography -->
+      <h3 class="text-heading" style="margin-bottom: var(--space-sm);">Typography</h3>
+      <div class="type-demo">
+        <div class="type-row">
+          <span class="type-label">Title (24px)</span>
+          <span class="text-title">Gõ Nhanh</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Heading (14px)</span>
+          <span class="text-heading">Cài đặt ứng dụng</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Body (13px)</span>
+          <span class="text-body">Bộ gõ tiếng Việt nhanh nhất trên macOS.</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Caption (11px)</span>
+          <span class="text-caption">Version 1.0.21 • Build 42</span>
+        </div>
+      </div>
+
+      <!-- Components -->
+      <h3 class="text-heading" style="margin-bottom: var(--space-sm);">Components</h3>
+      <div class="component-demo">
+        <button class="btn btn-primary">Primary Button</button>
+        <button class="btn btn-secondary">Secondary</button>
+        <button class="btn btn-ghost">Ghost</button>
+
+        <label class="toggle">
+          <input type="checkbox" checked>
+          <span class="toggle-track"></span>
+        </label>
+
+        <label class="radio">
+          <input type="radio" name="demo" checked>
+          <span>Telex</span>
+        </label>
+
+        <label class="checkbox">
+          <input type="checkbox" checked>
+          <span>Option</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="gallery-footer">
+      <p>Generated from UI_SPEC.md • Gõ Nhanh Design System v1.0</p>
+      <p>Auto-generated by IPA Design workflow</p>
+    </footer>
+  </div>
+
+  <script src="interactions.js"></script>
+</body>
+</html>

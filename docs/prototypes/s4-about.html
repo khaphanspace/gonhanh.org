@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-04: About - Gõ Nhanh</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+    }
+
+    .about-window {
+      width: 380px;
+    }
+
+    .about-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-xl);
+      text-align: center;
+    }
+
+    /* App Logo */
+    .app-logo {
+      width: 96px;
+      height: 96px;
+      background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+      border-radius: var(--radius-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* App Name */
+    .app-name {
+      font-family: var(--font-family-display);
+      font-size: 24px;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-xs);
+    }
+
+    .app-tagline {
+      font-size: var(--font-size-body);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-md);
+    }
+
+    /* Version Info */
+    .version-info {
+      display: flex;
+      gap: var(--space-md);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--space-lg);
+    }
+
+    /* Info Section */
+    .info-section {
+      width: 100%;
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--space-xs) 0;
+      font-size: var(--font-size-caption);
+    }
+
+    .info-row:not(:last-child) {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .info-label {
+      color: var(--color-text-secondary);
+    }
+
+    .info-value {
+      font-weight: var(--font-weight-medium);
+    }
+
+    .info-value a {
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+
+    .info-value a:hover {
+      text-decoration: underline;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-sm) var(--space-md);
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      min-width: 80px;
+    }
+
+    .action-btn:hover {
+      background-color: var(--color-surface-elevated);
+      border-color: var(--color-primary);
+    }
+
+    .action-btn-icon {
+      font-size: 20px;
+    }
+
+    .action-btn-label {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-secondary);
+    }
+
+    /* Copyright */
+    .copyright {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-tertiary);
+    }
+
+    /* Hover animation for logo */
+    .app-logo:hover {
+      transform: scale(1.05) rotate(2deg);
+      transition: transform 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="window about-window">
+    <!-- Title Bar -->
+    <div class="window-titlebar">
+      <div class="window-controls">
+        <button class="window-control window-control-close" aria-label="Close"></button>
+        <button class="window-control window-control-minimize" aria-label="Minimize"></button>
+        <button class="window-control window-control-maximize" aria-label="Maximize"></button>
+      </div>
+      <span class="window-title">Giới thiệu</span>
+    </div>
+
+    <!-- About Content -->
+    <div class="about-content">
+      <!-- App Logo -->
+      <div class="app-logo" title="Gõ Nhanh">
+        &#127483;&#127475;
+      </div>
+
+      <!-- App Info -->
+      <h1 class="app-name">Gõ Nhanh</h1>
+      <p class="app-tagline">Bộ gõ tiếng Việt nhanh nhất</p>
+
+      <!-- Version -->
+      <div class="version-info">
+        <span>Version 1.0.21</span>
+        <span>&bull;</span>
+        <span>Build 42</span>
+      </div>
+
+      <!-- Info Section -->
+      <div class="info-section">
+        <div class="info-row">
+          <span class="info-label">Developer</span>
+          <span class="info-value">Kha Phan</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Contact</span>
+          <span class="info-value">
+            <a href="mailto:nhatkha1407@gmail.com">nhatkha1407@gmail.com</a>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Built with</span>
+          <span class="info-value">Rust + SwiftUI</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">License</span>
+          <span class="info-value">BSD-3-Clause</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <a href="https://github.com/user/gonhanh" class="action-btn" target="_blank" rel="noopener">
+          <span class="action-btn-icon">&#128187;</span>
+          <span class="action-btn-label">GitHub</span>
+        </a>
+        <a href="https://gonhanh.app" class="action-btn" target="_blank" rel="noopener">
+          <span class="action-btn-icon">&#127760;</span>
+          <span class="action-btn-label">Website</span>
+        </a>
+        <a href="https://github.com/sponsors/user" class="action-btn" target="_blank" rel="noopener">
+          <span class="action-btn-icon">&#10084;&#65039;</span>
+          <span class="action-btn-label">Sponsor</span>
+        </a>
+      </div>
+
+      <!-- Copyright -->
+      <p class="copyright">
+        &copy; 2025 Gõ Nhanh Contributors
+      </p>
+    </div>
+  </div>
+
+  <script src="interactions.js"></script>
+  <script>
+    // Logo hover effect already in CSS
+    // Add click-to-copy version
+    document.querySelector('.version-info').addEventListener('click', function() {
+      const version = 'Gõ Nhanh v1.0.21 (Build 42)';
+      navigator.clipboard.writeText(version).then(() => {
+        // Show brief tooltip
+        const tooltip = document.createElement('div');
+        tooltip.textContent = 'Copied!';
+        tooltip.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: var(--color-text-primary);
+          color: var(--color-background);
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 13px;
+          z-index: 1000;
+          animation: fadeInOut 1.5s ease forwards;
+        `;
+        document.body.appendChild(tooltip);
+        setTimeout(() => tooltip.remove(), 1500);
+      });
+    });
+
+    // Add CSS for tooltip animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>
