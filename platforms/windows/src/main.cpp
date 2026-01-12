@@ -5,14 +5,32 @@
 #include "settings.h"
 #include "settings_window.h"
 #include "about_dialog.h"
+#include "app_compat.h"
+#include "per_app.h"
+#include "utils.h"
 #include "resource.h"
 
 static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
+static const UINT_PTR APP_SWITCH_TIMER_ID = 1;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_TRAYICON:
             gonhanh::SystemTray::Instance().HandleMessage(wParam, lParam);
+            return 0;
+
+        case WM_TIMER:
+            if (wParam == APP_SWITCH_TIMER_ID) {
+                // Check for app switch and update per-app mode
+                auto& settings = gonhanh::Settings::Instance();
+                if (settings.perApp) {
+                    auto& appCompat = gonhanh::AppCompat::Instance();
+                    std::wstring appName = appCompat.GetForegroundAppName();
+                    if (!appName.empty()) {
+                        gonhanh::PerAppMode::Instance().SwitchToApp(appName);
+                    }
+                }
+            }
             return 0;
 
         case WM_COMMAND: {
@@ -24,6 +42,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     settings.enabled = !settings.enabled;
                     settings.Save();
                     tray.UpdateIcon();
+                    if (settings.sound) {
+                        gonhanh::PlayToggleSound();
+                    }
                     break;
 
                 case IDM_TELEX:
@@ -77,6 +98,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     settings.Load();
     settings.ApplyToEngine();
 
+    // Load per-app mode states
+    auto& perApp = gonhanh::PerAppMode::Instance();
+    perApp.Load();
+
     // Register window class
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -94,13 +119,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     );
 
     if (!hwnd) {
+        gonhanh::LogError(L"Failed to create message window");
         MessageBoxW(NULL, L"Failed to create message window", L"Error", MB_ICONERROR);
         return 1;
     }
 
+    // Set timer for app switching detection (500ms interval)
+    SetTimer(hwnd, APP_SWITCH_TIMER_ID, 500, NULL);
+
     // Install keyboard hook
     auto& hook = gonhanh::KeyboardHook::Instance();
     if (!hook.Install()) {
+        gonhanh::LogError(L"Failed to install keyboard hook");
         MessageBoxW(NULL, L"Failed to install keyboard hook", L"Error", MB_ICONERROR);
         return 1;
     }
@@ -108,9 +138,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     // Create system tray icon
     auto& tray = gonhanh::SystemTray::Instance();
     if (!tray.Create(hwnd)) {
+        gonhanh::LogError(L"Failed to create system tray icon");
         MessageBoxW(NULL, L"Failed to create system tray icon", L"Error", MB_ICONERROR);
         return 1;
     }
+
+    gonhanh::LogInfo(L"GoNhanh started successfully");
 
     // Message loop (REQUIRED for WH_KEYBOARD_LL)
     MSG msg;
@@ -120,9 +153,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     }
 
     // Cleanup
+    KillTimer(hwnd, APP_SWITCH_TIMER_ID);
     tray.Destroy();
     hook.Uninstall();
     ime_clear_all();
+
+    gonhanh::LogInfo(L"GoNhanh shut down successfully");
 
     return 0;
 }

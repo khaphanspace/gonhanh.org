@@ -35,6 +35,9 @@ add_executable(gonhanh WIN32
     src/settings_window.cpp
     src/shortcuts_dialog.cpp
     src/about_dialog.cpp
+    src/app_compat.cpp
+    src/per_app.cpp
+    src/utils.cpp
     resources/resources.rc
 )
 
@@ -42,7 +45,7 @@ add_executable(gonhanh WIN32
 target_link_libraries(gonhanh PRIVATE
     gonhanh-core
     ws2_32 userenv bcrypt advapi32
-    user32 shell32 gdi32 comctl32
+    user32 shell32 gdi32 comctl32 psapi
 )
 
 # Include directories
