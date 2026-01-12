@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(fcitx5-gonhanh VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+# Fcitx5 required C++ 20
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find Fcitx5 (Ubuntu package names: Fcitx5Core, Fcitx5Module)

@@ -8,26 +8,26 @@
 // FFI Result structure - must match core/src/engine/mod.rs
 // #[repr(C)]
 // pub struct Result {
-//     pub chars: [u32; 32],
+//     pub chars: [u32; MAX],  // MAX = 256 from buffer.rs
 //     pub action: u8,
 //     pub backspace: u8,
 //     pub count: u8,
-//     pub _pad: u8,
+//     pub flags: u8,
 // }
 //
 // Note: Rust #[repr(C)] uses C ABI layout, which matches C++ struct layout
-// for this specific arrangement. The array (128 bytes) is followed by
-// 4 bytes of u8 fields = 132 bytes total with no implicit padding needed.
+// for this specific arrangement. The array (1024 bytes) is followed by
+// 4 bytes of u8 fields = 1028 bytes total with no implicit padding needed.
 struct ImeResult {
-    uint32_t chars[32];  // 128 bytes
+    uint32_t chars[256]; // 1024 bytes (must match Rust MAX constant)
     uint8_t action;      // 1 byte
     uint8_t backspace;   // 1 byte
     uint8_t count;       // 1 byte
-    uint8_t _pad;        // 1 byte (explicit padding to 4-byte boundary)
+    uint8_t flags;       // 1 byte (flags: bit 0 = key_consumed)
 };
 
 // Verify struct size matches Rust at compile time
-static_assert(sizeof(ImeResult) == 132, "ImeResult size mismatch with Rust core");
+static_assert(sizeof(ImeResult) == 1028, "ImeResult size mismatch with Rust core");
 
 // Action types
 enum class ImeAction : uint8_t {
