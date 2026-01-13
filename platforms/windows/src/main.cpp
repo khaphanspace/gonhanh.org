@@ -8,6 +8,7 @@
 #include "app_compat.h"
 #include "per_app.h"
 #include "utils.h"
+#include "debug_console.h"
 #include "resource.h"
 
 static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
@@ -84,6 +85,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nShow) {
+#ifdef GONHANH_DEBUG_CONSOLE
+    // Create debug console for troubleshooting
+    auto& console = gonhanh::DebugConsole::Instance();
+    console.Create();
+    console.Log(L"[STARTUP] GoNhanh starting...");
+#endif
+
     // Initialize COM for common controls
     INITCOMMONCONTROLSEX icc = {};
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
@@ -92,15 +100,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
 
     // Initialize Rust engine
     ime_init();
+    gonhanh::LogInfo(L"Rust engine initialized");
 
     // Load settings from Registry
     auto& settings = gonhanh::Settings::Instance();
     settings.Load();
     settings.ApplyToEngine();
+    gonhanh::LogInfo(L"Settings loaded from Registry");
 
     // Load per-app mode states
     auto& perApp = gonhanh::PerAppMode::Instance();
     perApp.Load();
+    gonhanh::LogInfo(L"Per-app mode states loaded");
 
     // Register window class
     WNDCLASSEX wc = {};

@@ -4,6 +4,9 @@ project(gonhanh-windows LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Debug console option (for troubleshooting)
+option(ENABLE_DEBUG_CONSOLE "Enable debug console window" OFF)
+
 # MSVC static CRT (critical for Rust compatibility)
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -26,20 +29,42 @@ corrosion_import_crate(
 )
 
 # Main executable
-add_executable(gonhanh WIN32
-    src/main.cpp
-    src/keyboard_hook.cpp
-    src/rust_bridge.cpp
-    src/settings.cpp
-    src/system_tray.cpp
-    src/settings_window.cpp
-    src/shortcuts_dialog.cpp
-    src/about_dialog.cpp
-    src/app_compat.cpp
-    src/per_app.cpp
-    src/utils.cpp
-    resources/resources.rc
-)
+if(ENABLE_DEBUG_CONSOLE)
+    # Debug build with console window
+    add_executable(gonhanh
+        src/main.cpp
+        src/keyboard_hook.cpp
+        src/rust_bridge.cpp
+        src/settings.cpp
+        src/system_tray.cpp
+        src/settings_window.cpp
+        src/shortcuts_dialog.cpp
+        src/about_dialog.cpp
+        src/app_compat.cpp
+        src/per_app.cpp
+        src/utils.cpp
+        src/debug_console.cpp
+        resources/resources.rc
+    )
+    target_compile_definitions(gonhanh PRIVATE GONHANH_DEBUG_CONSOLE)
+else()
+    # Release build without console (WIN32)
+    add_executable(gonhanh WIN32
+        src/main.cpp
+        src/keyboard_hook.cpp
+        src/rust_bridge.cpp
+        src/settings.cpp
+        src/system_tray.cpp
+        src/settings_window.cpp
+        src/shortcuts_dialog.cpp
+        src/about_dialog.cpp
+        src/app_compat.cpp
+        src/per_app.cpp
+        src/utils.cpp
+        src/debug_console.cpp
+        resources/resources.rc
+    )
+endif()
 
 # Link Rust static lib + system libs
 # Note: Corrosion converts hyphens to underscores in target names
