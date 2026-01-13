@@ -1344,8 +1344,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     }
 
     // Firefox-based browsers - use selection method for address bar (AXTextField)
-    // Use AX API only for content areas (AXWindow) where selection method doesn't work
-    // Note: AX method was causing interference with mouse word selection (Issue #160)
+    // Use slow method for content areas - axDirect causes char deletion on mid-text insert
+    // Issue #160/#192: axDirect deletes chars/newlines when inserting in middle of text
     let firefoxBrowsers = [
         "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
         "org.waterfoxproject.waterfox", "io.gitlab.librewolf-community.librewolf",
@@ -1355,8 +1355,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if firefoxBrowsers.contains(bundleId) {
         if role == "AXTextField" {
             Log.method("sel:firefox"); return cached(.selection, (0, 0, 0))  // Address bar
-        } else if role == "AXWindow" {
-            Log.method("ax:firefox"); return cached(.axDirect, (0, 0, 0))  // Content area
+        } else {
+            Log.method("slow:firefox"); return cached(.slow, (3000, 8000, 3000))  // Content area
         }
     }
 
