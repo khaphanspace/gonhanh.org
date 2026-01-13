@@ -877,6 +877,13 @@ impl Engine {
             self.restored_pending_clear = false;
         }
 
+        // Issue #212: Reset has_non_letter_prefix when user starts typing letter into empty buffer
+        // This allows shortcuts to work after: expand → delete all → retype
+        // e.g., "ko" → "không " → backspace×6 → "ko" → should expand again
+        if self.buf.is_empty() && keys::is_letter(key) && self.has_non_letter_prefix {
+            self.has_non_letter_prefix = false;
+        }
+
         // Auto-capitalize: force uppercase for first letter after sentence-ending punctuation
         let was_auto_capitalized = self.pending_capitalize && keys::is_letter(key) && !caps;
         let effective_caps = if self.pending_capitalize && keys::is_letter(key) {

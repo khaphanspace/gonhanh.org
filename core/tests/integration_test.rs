@@ -3410,3 +3410,113 @@ fn test_ua_open_vs_closed_syllable() {
     let r2 = type_word(&mut e, "muasn ");
     assert_eq!(r2, "muán ", "ua closed syllable: tone on a");
 }
+
+// ============================================================
+// Issue #212: Shortcut not working after backspace
+// User types shortcut, expands, deletes all, retypes - should work again
+// ============================================================
+
+/// Issue #212: Shortcut should work after typing, expanding, and deleting all
+/// User flow: "ko" → "không " → backspace×6 → "ko" → should expand again
+#[test]
+fn shortcut_works_after_delete_all_and_retype() {
+    let mut e = Engine::new();
+    e.set_method(0);
+    e.shortcuts_mut().add(Shortcut::new("ko", "không"));
+
+    // First: type "ko" + SPACE → expands to "không "
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r1 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(
+        r1.action,
+        Action::Send as u8,
+        "first shortcut should trigger"
+    );
+    let chars1: String = (0..r1.count as usize)
+        .map(|i| char::from_u32(r1.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(chars1, "không ");
+
+    // Backspace 6 times to delete "không " (5 chars + 1 space)
+    for _ in 0..6 {
+        e.on_key(keys::DELETE, false, false);
+    }
+
+    // Retype "ko" + SPACE → should expand again
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r2 = e.on_key(keys::SPACE, false, false);
+
+    assert_eq!(
+        r2.action,
+        Action::Send as u8,
+        "shortcut 'ko' should trigger after delete all and retype"
+    );
+    let chars2: String = (0..r2.count as usize)
+        .map(|i| char::from_u32(r2.chars[i]).unwrap_or('?'))
+        .collect();
+    assert_eq!(chars2, "không ");
+}
+
+/// Issue #212 variant: Shortcut after deleting partial expansion
+/// "ko" → "không " → backspace×3 → SPACE → "ko" → should work
+#[test]
+fn shortcut_works_after_partial_delete_and_retype() {
+    let mut e = Engine::new();
+    e.set_method(0);
+    e.shortcuts_mut().add(Shortcut::new("ko", "không"));
+
+    // First expansion
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r1 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(r1.action, Action::Send as u8);
+
+    // Backspace 3 times (partial delete)
+    for _ in 0..3 {
+        e.on_key(keys::DELETE, false, false);
+    }
+
+    // Type SPACE to commit whatever is left, then retype
+    e.on_key(keys::SPACE, false, false);
+
+    // Now type "ko" again
+    e.on_key(keys::K, false, false);
+    e.on_key(keys::O, false, false);
+    let r2 = e.on_key(keys::SPACE, false, false);
+
+    assert_eq!(
+        r2.action,
+        Action::Send as u8,
+        "shortcut should work after partial delete"
+    );
+}
+
+/// Issue #212 variant: Multiple shortcut cycles
+/// "ko" → expand → delete all → "ko" → expand → delete all → "ko" → should work
+#[test]
+fn shortcut_works_multiple_delete_retype_cycles() {
+    let mut e = Engine::new();
+    e.set_method(0);
+    e.shortcuts_mut().add(Shortcut::new("ko", "không"));
+
+    for cycle in 1..=3 {
+        // Type "ko" + SPACE
+        e.on_key(keys::K, false, false);
+        e.on_key(keys::O, false, false);
+        let r = e.on_key(keys::SPACE, false, false);
+
+        assert_eq!(
+            r.action,
+            Action::Send as u8,
+            "cycle {}: shortcut should trigger",
+            cycle
+        );
+
+        // Delete all (6 chars: "không ")
+        for _ in 0..6 {
+            e.on_key(keys::DELETE, false, false);
+        }
+    }
+}
