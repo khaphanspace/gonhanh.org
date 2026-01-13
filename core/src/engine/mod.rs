@@ -309,6 +309,10 @@ pub struct Engine {
     /// Example: "dataa" → "dât" (after 4th key), typing 5th 'a' reverts to "data"
     /// Used in build_raw_chars to collapse double vowel at end for restore
     had_circumflex_revert: bool,
+    /// Issue #211: Tracks which vowel key triggered circumflex revert (extended vowel mode)
+    /// When set, subsequent same-key vowels append raw instead of re-transforming
+    /// Example: aaa→aa (reverted_circumflex_key=A), aaaa→aaa (skip transform, append raw)
+    reverted_circumflex_key: Option<u16>,
     /// Tracks if ANY Telex transform was applied (tone, mark, or stroke)
     /// Used for whitelist-based auto-restore to English words
     had_telex_transform: bool,
@@ -373,6 +377,7 @@ impl Engine {
             had_any_transform: false,
             had_vowel_triggered_circumflex: false,
             had_circumflex_revert: false,
+            reverted_circumflex_key: None,
             had_telex_transform: false,
             telex_double_raw: None,
             telex_double_raw_len: 0,
@@ -1402,6 +1407,12 @@ impl Engine {
             if last_key == key {
                 return Some(self.revert_tone(key, caps));
             }
+        }
+
+        // Issue #211: Extended vowel mode - skip circumflex transform after revert
+        // After aaa→aa revert, aaaa should become aaa (append raw), not aâ (re-transform)
+        if self.reverted_circumflex_key == Some(key) && tone_type == ToneType::Circumflex {
+            return None; // Let normal letter handling append raw vowel
         }
 
         // Validate buffer structure (not vowel patterns - those are checked after transform)
@@ -2694,7 +2705,8 @@ impl Engine {
             // Issue #162 fix: Don't reposition if vowels are identical (doubled vowels like "oo", "aa", "ee").
             // These are NOT valid Vietnamese diphthongs and should keep mark on first vowel.
             // This prevents VNI "o2o" from incorrectly producing "oò" instead of "òo".
-            if vowels.len() == 2 && vowels[0].key == vowels[1].key {
+            // Issue #211: Extended to handle 3+ same vowels (e.g., "asaaa" → "áaa", not "aáa")
+            if vowels.len() >= 2 && vowels.iter().all(|v| v.key == vowels[0].key) {
                 return None;
             }
 
@@ -2935,10 +2947,19 @@ impl Engine {
         self.buf.push(Char::new(key, caps));
 
         // Build output from position (includes new key)
-        let output: Vec<char> = (pos..self.buf.len())
-            .filter_map(|i| self.buf.get(i))
-            .filter_map(|c| utils::key_to_char(c.key, c.caps))
-            .collect();
+        // Use chars::to_char to preserve mark (sắc/huyền/etc) on reverted vowels
+        let mut output = Vec::with_capacity(self.buf.len() - pos);
+        for i in pos..self.buf.len() {
+            if let Some(c) = self.buf.get(i) {
+                if c.key == keys::D && c.stroke {
+                    output.push(chars::get_d(c.caps));
+                } else if let Some(ch) = chars::to_char(c.key, c.caps, c.tone, c.mark) {
+                    output.push(ch);
+                } else if let Some(ch) = utils::key_to_char(c.key, c.caps) {
+                    output.push(ch);
+                }
+            }
+        }
 
         Result::send(backspace, &output)
     }
@@ -2946,6 +2967,9 @@ impl Engine {
     /// Revert tone transformation
     fn revert_tone(&mut self, key: u16, caps: bool) -> Result {
         self.last_transform = None;
+        // Issue #211: Track which vowel triggered revert for extended vowel mode
+        // After revert, subsequent same-key vowels append raw instead of re-transforming
+        self.reverted_circumflex_key = Some(key);
 
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
@@ -3540,6 +3564,7 @@ impl Engine {
         self.had_any_transform = false;
         self.had_vowel_triggered_circumflex = false;
         self.had_circumflex_revert = false;
+        self.reverted_circumflex_key = None;
         self.had_telex_transform = false;
         self.telex_double_raw = None;
         self.telex_double_raw_len = 0;
@@ -3618,6 +3643,24 @@ impl Engine {
         // no mark was ever applied, so the result stays "forr" (not collapsed to "for")
         if !self.had_any_transform {
             return None;
+        }
+
+        // Issue #211: Skip auto-restore for extended vowel patterns
+        // When user types "áaa" or "hảaa", this is intentional Vietnamese (casual messaging)
+        // not English that needs to be restored. Detect by checking if:
+        // 1. reverted_circumflex_key is set (revert happened)
+        // 2. All vowels in buffer are the same key (extended pattern)
+        if self.reverted_circumflex_key.is_some() {
+            let vowels: Vec<u16> = self
+                .buf
+                .iter()
+                .filter(|c| keys::is_vowel(c.key))
+                .map(|c| c.key)
+                .collect();
+            if vowels.len() >= 2 && vowels.iter().all(|&k| k == vowels[0]) {
+                // Extended vowel pattern - skip auto-restore
+                return None;
+            }
         }
 
         // VIETNAMESE PRIORITY: Only keep Vietnamese when buffer has Vietnamese-SPECIFIC marks

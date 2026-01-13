@@ -343,9 +343,10 @@ fn double_mark_reverts() {
 #[test]
 fn triple_same_key_behavior() {
     let mut e = Engine::new();
-    // a → a, aa → â, aaa → aa, aaaa → aâ
+    // Issue #211: After triple revert, continue appending raw vowels
+    // a → a, aa → â, aaa → aa (revert), aaaa → aaa (append raw, NOT aâ)
     let result = type_word(&mut e, "aaaa");
-    assert_eq!(result, "aâ");
+    assert_eq!(result, "aaa");
 }
 
 // ============================================================
