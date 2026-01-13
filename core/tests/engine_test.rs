@@ -439,45 +439,25 @@ fn extended_vowel_with_tone_sac() {
 #[test]
 fn extended_vowel_with_tone_huyen() {
     // Issue #211: Extended vowels with huyền tone (f key)
-    telex(&[
-        ("af", "à"),
-        ("afa", "ầ"),
-        ("afaa", "àa"),
-        ("afaaa", "àaa"),
-    ]);
+    telex(&[("af", "à"), ("afa", "ầ"), ("afaa", "àa"), ("afaaa", "àaa")]);
 }
 
 #[test]
 fn extended_vowel_with_tone_hoi() {
     // Issue #211: Extended vowels with hỏi tone (r key)
-    telex(&[
-        ("ar", "ả"),
-        ("ara", "ẩ"),
-        ("araa", "ảa"),
-        ("araaa", "ảaa"),
-    ]);
+    telex(&[("ar", "ả"), ("ara", "ẩ"), ("araa", "ảa"), ("araaa", "ảaa")]);
 }
 
 #[test]
 fn extended_vowel_with_tone_nga() {
     // Issue #211: Extended vowels with ngã tone (x key)
-    telex(&[
-        ("ax", "ã"),
-        ("axa", "ẫ"),
-        ("axaa", "ãa"),
-        ("axaaa", "ãaa"),
-    ]);
+    telex(&[("ax", "ã"), ("axa", "ẫ"), ("axaa", "ãa"), ("axaaa", "ãaa")]);
 }
 
 #[test]
 fn extended_vowel_with_tone_nang() {
     // Issue #211: Extended vowels with nặng tone (j key)
-    telex(&[
-        ("aj", "ạ"),
-        ("aja", "ậ"),
-        ("ajaa", "ạa"),
-        ("ajaaa", "ạaa"),
-    ]);
+    telex(&[("aj", "ạ"), ("aja", "ậ"), ("ajaa", "ạa"), ("ajaaa", "ạaa")]);
 }
 
 #[test]
