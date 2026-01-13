@@ -206,6 +206,20 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
         return CallNextHookEx(NULL, nCode, wParam, lParam);
     }
 
+    // Log transform for debugging
+#ifdef _DEBUG
+    wchar_t logBuf[256];
+    swprintf_s(logBuf, L"[HOOK] VK=0x%02X keycode=%d backspace=%d count=%d chars=",
+               kb->vkCode, keycode, result->backspace, result->count);
+    std::wstring logMsg(logBuf);
+    for (uint8_t i = 0; i < result->count; ++i) {
+        wchar_t charBuf[16];
+        swprintf_s(charBuf, L"U+%04X ", result->chars[i]);
+        logMsg += charBuf;
+    }
+    OutputDebugStringW(logMsg.c_str());
+#endif
+
     // Suppress original key
     if (result->backspace > 0) {
         SendBackspaces(result->backspace);
