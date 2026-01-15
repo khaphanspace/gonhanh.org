@@ -331,6 +331,9 @@ pub struct Engine {
     /// Buffer was just restored from DELETE - clear on next letter input
     /// This prevents typing after restore from appending to old buffer
     restored_pending_clear: bool,
+    /// Restored word was pure ASCII (no Vietnamese chars) - clear on ANY letter
+    /// For Vietnamese restored words, only clear on consonant (allow mark/tone edits)
+    restored_is_ascii: bool,
     /// Auto-capitalize first letter after sentence-ending punctuation
     /// Triggers: . ! ? Enter → next letter becomes uppercase
     auto_capitalize: bool,
@@ -383,6 +386,7 @@ impl Engine {
             telex_double_raw_len: 0,
             shortcut_prefix: String::new(),
             restored_pending_clear: false,
+            restored_is_ascii: false,
             auto_capitalize: false, // Default: OFF
             pending_capitalize: false,
             auto_capitalize_used: false,
@@ -865,19 +869,31 @@ impl Engine {
         }
 
         // After DELETE restore, determine if user wants to:
-        // 1. Continue editing restored word (add tone/mark) - vowels, mark keys, tone keys
-        // 2. Start fresh word - regular consonants (not mark/tone keys)
+        // 1. Continue editing restored word (add tone/mark) - mark keys, tone keys
+        // 2. Start fresh word - regular letters (not mark/tone keys)
         // This allows "cha" + restore + "f" → "chà" (f is mark key)
         // But "cha" + restore + "m" → "m..." (m is consonant, start fresh)
+        // For pure ASCII restored words (like "shortcuts"), also clear on vowels
+        // unless they're mark/tone keys (allow "ban" + restore + "s" → "bán")
         if self.restored_pending_clear && keys::is_letter(key) {
             let m = input::get(self.method);
             let is_mark_or_tone = m.mark(key).is_some() || m.tone(key).is_some();
-            if keys::is_consonant(key) && !is_mark_or_tone {
-                // Regular consonant (not mark/tone key) = user starting new word
+            // Clear buffer when letter is NOT a mark/tone modifier:
+            // - Vietnamese restored: clear on consonant (vowels may add diacritics)
+            // - ASCII restored: clear on any non-mark/tone letter (consonant OR vowel)
+            let should_clear = if self.restored_is_ascii {
+                // Pure ASCII: clear on any letter except mark/tone keys
+                !is_mark_or_tone
+            } else {
+                // Vietnamese: clear only on consonant that's not mark/tone
+                keys::is_consonant(key) && !is_mark_or_tone
+            };
+            if should_clear {
                 self.clear();
             }
-            // Reset flag regardless - user is now actively typing
+            // Reset flags regardless - user is now actively typing
             self.restored_pending_clear = false;
+            self.restored_is_ascii = false;
         }
 
         // Issue #212: Reset has_non_letter_prefix when user starts typing letter into empty buffer
@@ -3604,6 +3620,7 @@ impl Engine {
         self.telex_double_raw = None;
         self.telex_double_raw_len = 0;
         self.restored_pending_clear = false;
+        self.restored_is_ascii = false;
         self.shortcut_prefix.clear();
     }
 
@@ -3644,6 +3661,7 @@ impl Engine {
     /// Parses Vietnamese characters back to buffer components.
     pub fn restore_word(&mut self, word: &str) {
         self.clear();
+        let mut is_ascii = true;
         for c in word.chars() {
             if let Some(parsed) = chars::parse_char(c) {
                 let mut ch = Char::new(parsed.key, parsed.caps);
@@ -3652,7 +3670,19 @@ impl Engine {
                 ch.stroke = parsed.stroke;
                 self.buf.push(ch);
                 self.raw_input.push((parsed.key, parsed.caps, false));
+                // Check if this char has any Vietnamese diacritics
+                if parsed.tone != 0 || parsed.mark != 0 || parsed.stroke {
+                    is_ascii = false;
+                }
             }
+        }
+        // Mark that buffer was restored from screen - if user types a regular consonant,
+        // clear buffer first (they want fresh word, not append to restored word)
+        // This allows: click on "shortcuts" → type "Nuw" → get "Nư" (not "shortcutsNuw")
+        // But mark/tone keys like 's' will still work to modify the restored word
+        if !self.buf.is_empty() {
+            self.restored_pending_clear = true;
+            self.restored_is_ascii = is_ascii;
         }
     }
 

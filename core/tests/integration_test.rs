@@ -2461,6 +2461,86 @@ fn restore_word_then_extend() {
     );
 }
 
+/// Bug fix: restore non-Vietnamese word, then type new word
+/// After backspacing into "shortcuts", typing "Nuw" should produce:
+/// - Internal buffer: "Nư" (buffer cleared on consonant 'N', then fresh typing)
+/// - Screen: "shortcutsNư" (screen keeps restored word, adds transformed output)
+/// The key fix: "uw" → "ư" transformation now works after restore
+#[test]
+fn restore_word_non_vietnamese_then_type_new() {
+    use gonhanh_core::utils::char_to_key;
+
+    let mut e = Engine::new();
+    // Restore non-Vietnamese word "shortcuts"
+    e.restore_word("shortcuts");
+
+    // Type "Nuw" - 'N' is consonant which clears buffer, then "uw" → "ư"
+    let mut screen = String::from("shortcuts");
+
+    // Type each character and apply results to screen
+    for c in "Nuw".chars() {
+        let key = char_to_key(c);
+        let caps = c.is_uppercase();
+        let r = e.on_key_ext(key, caps, false, false);
+        if r.action == 1 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            // No action from engine - just append the char
+            screen.push(c);
+        }
+    }
+
+    // Screen shows "shortcutsNư" - the original restored word + transformed new typing
+    // The important thing is "uw" → "ư" transformation works (not "Nuw" staying as raw)
+    assert_eq!(
+        screen, "shortcutsNư",
+        "uw → ư transformation should work after restoring non-VN word"
+    );
+}
+
+/// Restore pure ASCII word, then type vowel first (not consonant)
+/// Bug fix: typing 'u' after "shortcuts" should clear buffer, then "uw" → "ư"
+#[test]
+fn restore_word_ascii_then_vowel() {
+    use gonhanh_core::utils::char_to_key;
+    let mut e = Engine::new();
+    e.restore_word("shortcuts");
+
+    // Type "uw" - 'u' is a vowel but since restored word is pure ASCII, buffer should clear
+    let mut screen = String::from("shortcuts");
+
+    for c in "uw".chars() {
+        let key = char_to_key(c);
+        let caps = c.is_uppercase();
+        let r = e.on_key_ext(key, caps, false, false);
+        if r.action == 1 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+
+    // "uw" should transform to "ư" - buffer was cleared on 'u' since "shortcuts" is ASCII
+    assert_eq!(
+        screen, "shortcutsư",
+        "Vowel after ASCII restore should clear buffer and transform correctly"
+    );
+}
+
 /// Real scenario: "chào" + space + random chars + backspace to before 'o' + add mark
 /// This simulates: user types "chào ", then more stuff, then backspaces back into word
 #[test]
