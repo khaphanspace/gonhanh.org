@@ -146,6 +146,13 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var restoreShortcut: KeyboardShortcut {
+        didSet {
+            restoreShortcut.saveAsRestoreShortcut()
+            NotificationCenter.default.post(name: .restoreShortcutChanged, object: restoreShortcut)
+        }
+    }
+
     @Published var updateStatus: UpdateStatus = .idle
     @Published var shortcuts: [ShortcutItem] = []
     @Published var isLaunchAtLoginEnabled: Bool = false
@@ -162,6 +169,7 @@ class AppState: ObservableObject {
         isEnabled = defaults.bool(forKey: SettingsKey.enabled)
         currentMethod = InputMode(rawValue: defaults.integer(forKey: SettingsKey.method)) ?? .telex
         toggleShortcut = KeyboardShortcut.load()
+        restoreShortcut = KeyboardShortcut.loadRestoreShortcut()
         perAppModeEnabled = defaults.bool(forKey: SettingsKey.perAppMode)
         autoWShortcut = defaults.bool(forKey: SettingsKey.autoWShortcut)
         bracketShortcut = defaults.bool(forKey: SettingsKey.bracketShortcut)
@@ -686,6 +694,7 @@ struct NavButton: View {
 struct SettingsPageView: View {
     @ObservedObject var appState: AppState
     @State private var isRecordingShortcut = false
+    @State private var isRecordingRestoreShortcut = false
     @State private var showShortcutsSheet = false
 
     var body: some View {
@@ -723,7 +732,7 @@ struct SettingsPageView: View {
             }
             .cardBackground()
 
-            // Sound, tone and ESC options
+            // Sound, tone and restore shortcut options
             VStack(spacing: 0) {
                 SettingsToggleRow("Âm thanh chuyển ngôn ngữ", isOn: $appState.soundEnabled)
                 Divider().padding(.leading, 12)
@@ -731,7 +740,11 @@ struct SettingsPageView: View {
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Tự viết hoa đầu câu", isOn: $appState.autoCapitalize)
                 Divider().padding(.leading, 12)
-                SettingsToggleRow("Gõ ESC hoàn tác dấu", isOn: $appState.escRestore)
+                RestoreShortcutRecorderRow(
+                    shortcut: $appState.restoreShortcut,
+                    isEnabled: $appState.escRestore,
+                    isRecording: $isRecordingRestoreShortcut
+                )
             }
             .cardBackground()
 
@@ -1136,6 +1149,83 @@ struct ShortcutRecorderRow: View {
         cancelledObserver = NotificationCenter.default.addObserver(forName: .shortcutRecordingCancelled, object: nil, queue: .main) { _ in stopRecording() }
         windowObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { _ in stopRecording() }
         startShortcutRecording()
+    }
+
+    private func stopRecording() {
+        stopShortcutRecording()
+        [recordedObserver, cancelledObserver, windowObserver].compactMap { $0 }.forEach { NotificationCenter.default.removeObserver($0) }
+        recordedObserver = nil
+        cancelledObserver = nil
+        windowObserver = nil
+        isRecording = false
+    }
+}
+
+// MARK: - Restore Shortcut Recorder Row
+
+struct RestoreShortcutRecorderRow: View {
+    @Binding var shortcut: KeyboardShortcut
+    @Binding var isEnabled: Bool
+    @Binding var isRecording: Bool
+    @State private var hovered = false
+    @State private var recordedObserver: NSObjectProtocol?
+    @State private var cancelledObserver: NSObjectProtocol?
+    @State private var windowObserver: NSObjectProtocol?
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Phím hoàn tác dấu").font(.system(size: 13))
+                Text("Nhấn để thay đổi")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                shortcutDisplay
+                Toggle("", isOn: $isEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background((hovered || isRecording) ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .onTapGesture { isRecording ? stopRecording() : startRecording() }
+        .onDisappear { stopRecording() }
+        .onChange(of: isEnabled) { _ in
+            if isRecording { stopRecording() }
+        }
+    }
+
+    @ViewBuilder
+    private var shortcutDisplay: some View {
+        HStack(spacing: 4) {
+            if isRecording {
+                Text("Nhấn phím...")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.accentColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(RoundedRectangle(cornerRadius: 4).stroke(Color.accentColor, lineWidth: 1))
+            } else {
+                ForEach(shortcut.displayParts, id: \.self) { KeyCap(text: $0) }
+            }
+        }
+        .opacity(isEnabled ? 1.0 : 0.5)
+    }
+
+    private func startRecording() {
+        isRecording = true
+        recordedObserver = NotificationCenter.default.addObserver(forName: .shortcutRecorded, object: nil, queue: .main) { notification in
+            if let captured = notification.object as? KeyboardShortcut { shortcut = captured }
+            stopRecording()
+        }
+        cancelledObserver = NotificationCenter.default.addObserver(forName: .shortcutRecordingCancelled, object: nil, queue: .main) { _ in stopRecording() }
+        windowObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { _ in stopRecording() }
+        startRestoreShortcutRecording()  // Use restore-specific recording that allows single keys
     }
 
     private func stopRecording() {
