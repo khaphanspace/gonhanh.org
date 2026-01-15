@@ -889,6 +889,7 @@ private extension CGEventFlags {
 private var isRecordingRestoreShortcut = false  // Separate flag for restore shortcut recording
 
 func startShortcutRecording() {
+    guard !isRecordingShortcut else { return }  // Prevent simultaneous recording
     isRecordingShortcut = true
     isRecordingRestoreShortcut = false
     recordingModifiers = []
@@ -903,6 +904,7 @@ func stopShortcutRecording() {
 }
 
 func startRestoreShortcutRecording() {
+    guard !isRecordingShortcut else { return }  // Prevent simultaneous recording
     isRecordingShortcut = true
     isRecordingRestoreShortcut = true
     recordingModifiers = []
@@ -988,7 +990,7 @@ private func keyboardCallback(
         }
 
         // ESC cancels (only for toggle shortcut recording)
-        if type == .keyDown && keyCode == 0x35 {
+        if type == .keyDown && keyCode == KeyCode.esc {
             stopShortcutRecording()
             DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecordingCancelled, object: nil) }
             return nil
@@ -1239,7 +1241,7 @@ private func keyboardCallback(
     // Block ESC from reaching Rust if escRestore is enabled but shortcut is NOT ESC
     // This prevents Rust from auto-restoring when user configured a different shortcut
     if keyCode == KeyCode.esc && AppState.shared.escRestore {
-        let isEscShortcut = currentRestoreShortcut.keyCode == 0x35 && currentRestoreShortcut.modifiers == 0
+        let isEscShortcut = currentRestoreShortcut.keyCode == KeyCode.esc && currentRestoreShortcut.modifiers == 0
         if !isEscShortcut {
             // ESC pressed but shortcut is not ESC - just pass through without restore
             return Unmanaged.passUnretained(event)
