@@ -1491,6 +1491,7 @@ class PerAppModeManager {
         guard bundleId != currentBundleId else { return }
         currentBundleId = bundleId
 
+        Log.refresh()  // Re-check debug log file existence on app switch
         RustBridge.clearBuffer()
         TextInjector.shared.clearSessionBuffer()
         clearDetectionCache()  // Clear injection method cache on app switch
