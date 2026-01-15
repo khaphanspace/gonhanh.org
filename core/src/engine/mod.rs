@@ -845,6 +845,9 @@ impl Engine {
             // Reset stroke_reverted on backspace so user can re-trigger stroke
             // e.g., "ddddd" → "dddd", then backspace×3 → "d", then "d" → "đ"
             self.stroke_reverted = false;
+            // Issue #217: Reset reverted_circumflex_key on backspace so user can re-trigger circumflex
+            // e.g., "eee" → "ee", then backspace×2 → "", type "phe" → "phê" (not "phee")
+            self.reverted_circumflex_key = None;
             // Only reset restored_pending_clear when buffer is empty
             // (user finished deleting restored word completely)
             // If buffer still has chars, user might think they cleared everything
@@ -6660,6 +6663,35 @@ mod tests {
             assert_eq!(
                 result, *expected,
                 "[Interleaved diphthong] '{}' → '{}', expected '{}'",
+                input, result, expected
+            );
+        }
+    }
+
+    /// Issue #217: After typing "eee" (revert to "ee") and deleting, should be able to type "ê" again
+    /// Bug: reverted_circumflex_key was not reset on backspace, blocking circumflex in new words
+    #[test]
+    fn test_circumflex_revert_reset_on_backspace() {
+        // Test case from issue: type "Meee", delete all, type "Phee" → should get "Phê"
+        // '<' = backspace in test utilities
+        let cases: &[(&str, &str)] = &[
+            // After eee→ee revert, delete all, new word should work
+            ("meee<<<<<phee", "phê"),
+            ("ooo<<<<<choo", "chô"),
+            ("aaa<<<<<caa", "câ"),
+            // After revert but only partial delete, new 'e' in same buffer should also work
+            ("eee<<ee", "ê"),
+            // Mixed: revert one vowel, delete, type another vowel type
+            ("ooo<<<<<mee", "mê"),
+            ("aaa<<<<<boo", "bô"),
+        ];
+
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Issue #217 circumflex reset] '{}' → '{}', expected '{}'",
                 input, result, expected
             );
         }
