@@ -2712,18 +2712,44 @@ impl Engine {
                 }
             }
 
+            // Pre-calculate qu/gi initial for extended vowel check
+            let has_qu = self.has_qu_initial();
+            let has_gi = self.has_gi_initial();
+
             // Issue #162 fix: Don't reposition if vowels are identical (doubled vowels like "oo", "aa", "ee").
             // These are NOT valid Vietnamese diphthongs and should keep mark on first vowel.
             // This prevents VNI "o2o" from incorrectly producing "oò" instead of "òo".
             // Issue #211: Extended to handle 3+ same vowels (e.g., "asaaa" → "áaa", not "aáa")
-            if vowels.len() >= 2 && vowels.iter().all(|v| v.key == vowels[0].key) {
+            // Issue #211 fix for qu/gi: Skip the first vowel when checking for extended vowel patterns
+            // With "quasaaa", vowels = [u, a, a, a], but 'u' is part of "qu" consonant.
+            // We should check [a, a, a] which ARE all same key.
+            //
+            // Special case for "gi" + "i" pattern (e.g., "giri"):
+            // When has_gi and all vowels are 'i', don't reposition.
+            // "gir" → "gỉ", "giri" → "gỉi" (not "giỉ")
+            if has_gi && vowels.iter().all(|v| v.key == keys::I) {
+                return None;
+            }
+
+            let effective_vowels: &[Vowel] =
+                if has_qu && vowels.len() >= 2 && vowels[0].key == keys::U {
+                    &vowels[1..]
+                } else if has_gi && vowels.len() >= 2 && vowels[0].key == keys::I {
+                    &vowels[1..]
+                } else {
+                    &vowels
+                };
+
+            if effective_vowels.len() >= 2
+                && effective_vowels
+                    .iter()
+                    .all(|v| v.key == effective_vowels[0].key)
+            {
                 return None;
             }
 
             let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
             let has_final = self.has_final_consonant(last_vowel_pos);
-            let has_qu = self.has_qu_initial();
-            let has_gi = self.has_gi_initial();
             let new_pos =
                 Phonology::find_tone_position(&vowels, has_final, self.modern_tone, has_qu, has_gi);
 

@@ -1329,3 +1329,42 @@ fn issue159_bracket_continuous_typing() {
     assert_eq!(result2.action, 1, "'[' after 'ư' should produce output");
     assert_eq!(result2.chars[0], 'ơ' as u32, "][ should produce 'ươ'");
 }
+
+// =============================================================================
+// ISSUE #211: Extended vowel patterns - "asaaa" should produce "áaaa"
+// When typing extended vowels for emphasis in casual messaging,
+// the mark should stay on the first vowel and not jump around.
+// Example: "quá" + more 'a's should produce "quáa", "quáaa", etc.
+// =============================================================================
+
+#[test]
+fn issue211_extended_vowel_patterns() {
+    // Extended vowels with sắc tone
+    telex(&[
+        ("as", "á"),      // base case
+        ("asa", "ấ"),     // circumflex + mark
+        ("asaa", "áa"),   // revert circumflex, keep mark, add 'a'
+        ("asaaa", "áaa"), // mark stays on first 'a'
+        ("asaaaa", "áaaa"),
+    ]);
+
+    // Extended vowels with hỏi tone
+    telex(&[("ar", "ả"), ("ara", "ẩ"), ("araa", "ảa"), ("araaa", "ảaa")]);
+
+    // Extended vowels with "qu" initial
+    telex(&[
+        ("quas", "quá"),
+        ("quasa", "quấ"),
+        ("quasaa", "quáa"), // mark stays on first 'a' after 'qu'
+        ("quasaaa", "quáaa"),
+    ]);
+
+    // Extended vowels with "gi" initial - mark stays on first 'i'
+    telex(&[
+        ("gir", "gỉ"),
+        ("giri", "gỉi"), // mark stays on first 'i'
+        ("girii", "gỉii"),
+        ("gis", "gí"),
+        ("gisi", "gíi"),
+    ]);
+}
