@@ -25,7 +25,10 @@ use crate::input::{self, ToneType};
 use crate::utils;
 use buffer::{Buffer, Char, MAX};
 use shortcut::{InputMethod, ShortcutTable};
-use validation::{is_foreign_word_pattern, is_valid, is_valid_for_transform, is_valid_with_tones};
+use validation::{
+    is_foreign_word_pattern, is_valid, is_valid_for_transform_with_foreign, is_valid_with_foreign,
+    is_valid_with_tones,
+};
 
 /// Engine action result
 #[repr(u8)]
@@ -346,6 +349,9 @@ pub struct Engine {
     /// Only set pending_capitalize when space/Enter follows
     /// Issue #185: don't capitalize immediately after punctuation (e.g., google.com)
     saw_sentence_ending: bool,
+    /// Allow foreign consonants (z, w, j, f) as valid initial consonants
+    /// When true, these letters are accepted as Vietnamese consonants for loanwords
+    allow_foreign_consonants: bool,
 }
 
 impl Default for Engine {
@@ -391,6 +397,7 @@ impl Engine {
             pending_capitalize: false,
             auto_capitalize_used: false,
             saw_sentence_ending: false,
+            allow_foreign_consonants: false, // Default: OFF
         }
     }
 
@@ -444,6 +451,16 @@ impl Engine {
             self.pending_capitalize = false;
             self.saw_sentence_ending = false;
         }
+    }
+
+    /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
+    pub fn set_allow_foreign_consonants(&mut self, enabled: bool) {
+        self.allow_foreign_consonants = enabled;
+    }
+
+    /// Get whether foreign consonants are allowed
+    pub fn allow_foreign_consonants(&self) -> bool {
+        self.allow_foreign_consonants
     }
 
     pub fn shortcuts(&self) -> &ShortcutTable {
@@ -1331,7 +1348,7 @@ impl Engine {
                 // Must form valid Vietnamese (including vowel pattern) for delayed stroke
                 // Use is_valid() instead of is_valid_for_transform() to check vowel patterns
                 // This prevents "dea" + "d" → "đea" (invalid "ea" diphthong)
-                if !is_valid(&buffer_keys) {
+                if !is_valid_with_foreign(&buffer_keys, self.allow_foreign_consonants) {
                     return None;
                 }
 
@@ -1384,7 +1401,10 @@ impl Engine {
         // Only validate if buffer has vowels (complete syllable)
         // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
         // Skip validation if free_tone mode is enabled
-        if !self.free_tone_enabled && has_vowel && !is_valid_for_transform(&buffer_keys) {
+        if !self.free_tone_enabled
+            && has_vowel
+            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+        {
             return None;
         }
 
@@ -1445,7 +1465,9 @@ impl Engine {
         // Skip validation if free_tone mode is enabled
         let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
 
-        if !self.free_tone_enabled && !is_valid_for_transform(&buffer_keys) {
+        if !self.free_tone_enabled
+            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+        {
             return None;
         }
 
@@ -2389,7 +2411,7 @@ impl Engine {
         if !self.free_tone_enabled
             && !has_horn_transforms
             && !has_stroke_transforms
-            && !is_valid_for_transform(&buffer_keys)
+            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
         {
             return None;
         }

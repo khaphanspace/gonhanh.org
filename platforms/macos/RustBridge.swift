@@ -501,6 +501,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, do
 @_silgen_name("ime_modern") private func ime_modern(_ modern: Bool)
 @_silgen_name("ime_english_auto_restore") private func ime_english_auto_restore(_ enabled: Bool)
 @_silgen_name("ime_auto_capitalize") private func ime_auto_capitalize(_ enabled: Bool)
+@_silgen_name("ime_allow_foreign_consonants") private func ime_allow_foreign_consonants(_ enabled: Bool)
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_clear_all") private func ime_clear_all()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
@@ -574,6 +575,13 @@ class RustBridge {
     /// Set whether to enable auto-capitalize after sentence-ending punctuation
     /// When enabled, capitalizes first letter after . ! ? Enter
     static func setAutoCapitalize(_ enabled: Bool) { ime_auto_capitalize(enabled) }
+
+    /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
+    /// When enabled, these letters are accepted as Vietnamese consonants for loanwords
+    static func setAllowForeignConsonants(_ enabled: Bool) {
+        ime_allow_foreign_consonants(enabled)
+        Log.info("Allow foreign consonants: \(enabled)")
+    }
 
     static func clearBuffer() { ime_clear() }
 
