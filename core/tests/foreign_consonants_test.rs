@@ -220,3 +220,47 @@ fn no_foreign_w_becomes_u_horn() {
         ("waf", "ừa"), // w→ư, a, f→huyền on ư
     ]);
 }
+
+// ============================================================
+// FOREIGN CONSONANTS + ENGLISH AUTO-RESTORE COMPATIBILITY
+// When both options are enabled, foreign consonants should NOT trigger auto-restore
+// ============================================================
+
+/// Helper to run telex tests with BOTH foreign consonants AND english auto-restore enabled
+fn telex_foreign_with_auto_restore(cases: &[(&str, &str)]) {
+    for (input, expected) in cases {
+        let mut e = Engine::new();
+        e.set_allow_foreign_consonants(true);
+        e.set_english_auto_restore(true);
+        let result = type_word(&mut e, input);
+        assert_eq!(
+            result, *expected,
+            "[Telex ForeignConsonants+AutoRestore] '{}' → '{}'",
+            input, result
+        );
+    }
+}
+
+#[test]
+fn foreign_with_auto_restore_no_conflict() {
+    // When both options are enabled, words starting with foreign consonants
+    // should get diacritics and NOT be auto-restored to English
+    telex_foreign_with_auto_restore(&[
+        ("zas", "zá"),  // z + á, should NOT restore to "zas"
+        ("zaf", "zà"),  // z + à
+        ("fas", "fá"),  // f + á
+        ("jas", "já"),  // j + á
+        ("zoos", "zố"), // z + ố
+        ("foos", "fố"), // f + ố
+    ]);
+}
+
+#[test]
+fn foreign_full_syllable_with_auto_restore() {
+    // Full syllables with foreign consonants should work with auto-restore enabled
+    telex_foreign_with_auto_restore(&[
+        ("zans", "zán"), // z + án
+        ("fams", "fám"), // f + ám
+        ("jacs", "jác"), // j + ác
+    ]);
+}
