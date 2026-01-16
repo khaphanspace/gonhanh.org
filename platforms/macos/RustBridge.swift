@@ -1545,6 +1545,15 @@ class PerAppModeManager {
         // system-wide lag because CGWindowListCopyWindowInfo + AX queries run on EVERY click.
         // Keyboard-based detection (in keyboardCallback) is sufficient for Spotlight/Raycast.
 
+        // Save initial app state if per-app mode is enabled and app hasn't been saved yet
+        if AppState.shared.perAppModeEnabled,
+           let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
+            currentBundleId = bundleId
+            if !AppState.shared.hasPerAppMode(bundleId: bundleId) {
+                AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
+            }
+        }
+
         Log.info("PerAppModeManager started")
     }
 
@@ -1579,13 +1588,15 @@ class PerAppModeManager {
 
         guard AppState.shared.perAppModeEnabled else { return }
 
-        // Only restore saved mode if app was previously remembered
-        // For first-time apps, keep current E/V state (inherit from previous app)
-        guard AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
-
-        let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
-        RustBridge.setEnabled(mode)
-        AppState.shared.setEnabledSilently(mode)
+        if AppState.shared.hasPerAppMode(bundleId: bundleId) {
+            // Known app: restore saved mode
+            let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
+            RustBridge.setEnabled(mode)
+            AppState.shared.setEnabledSilently(mode)
+        } else {
+            // New app: save current state so it will be remembered next time
+            AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
+        }
     }
 }
 
