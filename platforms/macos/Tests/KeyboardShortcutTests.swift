@@ -230,7 +230,7 @@ final class KeyboardShortcutTests: XCTestCase {
     func testMatchesIgnoresNonModifierFlags() {
         let shortcut = KeyboardShortcut.default
         var flags = CGEventFlags.maskControl
-        flags.insert(CGEventFlags(rawValue: 0x100000))  // Non-modifier flag
+        flags.insert(.maskNumericPad)  // Non-modifier flag (numpad indicator)
         XCTAssertTrue(shortcut.matches(keyCode: 0x31, flags: flags))
     }
 
