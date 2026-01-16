@@ -27,7 +27,7 @@ use buffer::{Buffer, Char, MAX};
 use shortcut::{InputMethod, ShortcutTable};
 use validation::{
     is_foreign_word_pattern, is_valid, is_valid_for_transform_with_foreign, is_valid_with_foreign,
-    is_valid_with_tones,
+    is_valid_with_tones, is_valid_with_tones_and_foreign,
 };
 
 /// Engine action result
@@ -4499,8 +4499,12 @@ impl Engine {
         let buffer_tones: Vec<u8> = self.buf.iter().map(|c| c.tone).collect();
         let buffer_marks: Vec<u8> = self.buf.iter().map(|c| c.mark).collect();
 
-        // Check 1: Basic structural validation
-        if !validation::is_valid_with_tones(&buffer_keys, &buffer_tones) {
+        // Check 1: Basic structural validation (with foreign consonants support)
+        if !is_valid_with_tones_and_foreign(
+            &buffer_keys,
+            &buffer_tones,
+            self.allow_foreign_consonants,
+        ) {
             return true;
         }
 

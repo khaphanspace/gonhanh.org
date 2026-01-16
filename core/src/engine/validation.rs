@@ -305,6 +305,21 @@ pub fn is_valid_with_tones(keys: &[u16], tones: &[u8]) -> bool {
     validate(&snap).is_valid()
 }
 
+/// Quick check if buffer could be valid Vietnamese (with modifier info and foreign consonants option)
+pub fn is_valid_with_tones_and_foreign(
+    keys: &[u16],
+    tones: &[u8],
+    allow_foreign_consonants: bool,
+) -> bool {
+    let snap = BufferSnapshot {
+        keys: keys.to_vec(),
+        tones: tones.to_vec(),
+        has_tone_info: true,
+        allow_foreign_consonants,
+    };
+    validate(&snap).is_valid()
+}
+
 /// Quick check if buffer could be valid Vietnamese (keys only - legacy)
 ///
 /// NOTE: This cannot fully validate modifier requirements.
