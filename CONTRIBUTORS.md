@@ -97,7 +97,7 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
       <a href="https://github.com/khaphanspace">
         <img src="https://avatars.githubusercontent.com/u/16458012?v=4" width="80" style="border-radius:50%"/><br/>
         <b>khaphanspace</b>
-      </a><br/><sub>896 commits</sub>
+      </a><br/><sub>897 commits</sub>
     </td>
     <td align="center">
       <a href="https://github.com/tuananhht94">
