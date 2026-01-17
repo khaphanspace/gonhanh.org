@@ -76,3 +76,37 @@ jobs:
           LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/core/target/release:$LD_LIBRARY_PATH" \
             ./rustbridge_test --gtest_color=yes
 
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Build Rust core
+        run: cargo build --manifest-path core/Cargo.toml --release
+
+      - name: Configure CMake
+        run: |
+          cd platforms/windows
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Windows executable
+        run: |
+          cd platforms/windows
+          cmake --build build --config Release
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonhanh-windows-x64
+          path: platforms/windows/build/Release/gonhanh.exe
+          if-no-files-found: error
+

@@ -4,36 +4,40 @@
 
 ```
 ┌──────────────────────────────────────────┐   ┌──────────────────────────────────────────┐
-│         macOS Application                │   │      Windows Application                 │
+│         macOS Application                │   │  Windows Application (Phase 3 Complete)  │
 │                                          │   │                                          │
 │  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
-│  │     SwiftUI Menu Bar           │     │   │  │   WPF System Tray UI           │     │
-│  │  • Input method selector       │     │   │  │  • Input method selector       │     │
-│  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
-│  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │
+│  │     SwiftUI Menu Bar           │     │   │  │   System Tray + Dialogs (WPF)  │     │
+│  │  • Input method selector       │     │   │  │  • Tray icon + context menu    │     │
+│  │  • Enable/disable toggle       │     │   │  │  • Settings/Shortcuts/About    │     │
+│  │  • Settings, About, Update     │     │   │  │  • Registry persistence       │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
-│  │ CGEventTap Keyboard Hook        │     │   │  │ SetWindowsHookEx Keyboard Hook  │     │
-│  │ • Intercepts keyDown events     │     │   │  │ • Intercepts WH_KEYBOARD_LL     │     │
-│  │ • Smart text replacement        │     │   │  │ • SendInput for text            │     │
+│  │ CGEventTap Keyboard Hook        │     │   │  │ SetWindowsHookEx (WH_KEYBOARD_LL) │     │
+│  │ • Intercepts keyDown events     │     │   │  │ • Global low-level keyboard hook│     │
+│  │ • Smart text replacement        │     │   │  │ • SendInput for text injection  │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
-│  │    RustBridge (FFI Layer)       │     │   │  │   RustBridge.cs (P/Invoke)     │     │
-│  │  • C ABI function calls         │     │   │  │  • P/Invoke DLL function calls  │     │
-│  │  • Pointer safety handling      │     │   │  │  • UTF-32 interop               │     │
-│  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
+│  │    RustBridge (FFI Layer)       │     │   │  │   rust_bridge.cpp (C++/FFI)    │     │
+│  │  • C ABI function calls         │     │   │  │  • UTF-32 ↔ UTF-16 conversion   │     │
+│  │  • Swift memory safety          │     │   │  │  • RAII ImeResultGuard          │     │
+│  └────────────┬────────────────────┘     │   │  │  • Windows API wrappers         │     │
+│               │                          │   │  └────────────┬────────────────────┘     │
 └───────────────┼──────────────────────────┘   └───────────────┼──────────────────────────┘
                 │                                               │
                 └───────────────────┬──────────────────────────┘
                                     │
-                         extern "C" / P/Invoke
+                         extern "C" / C++20 FFI
                                     ↓
-         ┌─────────────────────────────────────────────┐
-         │     Rust Core Engine (Platform-Agnostic)   │
-         │     7-Stage Validation-First Pipeline       │
-         └─────────────────────────────────────────────┘
+         ┌─────────────────────────────────────────────────────┐
+         │  Rust Core Engine (Static Lib - Platform-Agnostic) │
+         │  Compiled: staticlib + cdylib                       │
+         │  CRT Linking: MSVC static (-C target-feature...)    │
+         │  Size: ~150KB (release, stripped, LTO enabled)      │
+         │  7-Stage Validation-First Pipeline                 │
+         └─────────────────────────────────────────────────────┘
                             ↓
          ┌─────────────────────────────────────────────┐
          │          Input Method Layer                 │
@@ -372,7 +376,381 @@ func getReplacementMethod() -> ReplacementMethod {
 | **JetBrains autocomplete** | Code completion popup | Bundle ID detection | ✅ Fixed |
 | **Excel cell autocomplete** | Cell suggestions | Bundle ID detection | ✅ Fixed |
 
-### Accessibility Permission
+### Windows SetWindowsHookEx Integration (Phase 2 Complete)
+
+#### Build System: Corrosion + CMake
+
+**Core Integration Chain:**
+```
+CMakeLists.txt (C++20 + MSVC)
+    ↓
+Corrosion v0.5 (git tag)
+    ↓
+Import gonhanh-core (Cargo.toml: staticlib crate-type)
+    ↓
+MSVC Static CRT linking: -C target-feature=+crt-static
+    ↓
+Result: Single .exe, zero DLL dependencies
+```
+
+**Key Files (Phase 2):**
+- `platforms/windows/CMakeLists.txt` - Corrosion integration, MSVC CRT config (+1 line)
+- `platforms/windows/src/keyboard_hook.h` - KeyboardHook class definition (29 LOC)
+- `platforms/windows/src/keyboard_hook.cpp` - Hook implementation & VK→macOS mapping (222 LOC)
+- `platforms/windows/src/rust_bridge.h` - C++ FFI wrapper (RAII guards)
+- `platforms/windows/src/rust_bridge.cpp` - UTF-32 ↔ UTF-16 conversion
+- `platforms/windows/src/main.cpp` - WinMain entry point (+37 LOC for message loop)
+- `platforms/windows/resources/resources.rc` - Version metadata
+
+#### FFI Memory Model
+
+**Buffer Size Guarantee:**
+```c
+// Rust side (core/src/lib.rs)
+const MAX_BUFFER_SIZE: usize = 256;
+
+struct ImeResult {
+    chars: [u32; 256],      // UTF-32 output
+    action: u8,             // 0=None, 1=Send, 2=Restore
+    backspace: u8,
+    count: u8,
+    flags: u8
+}
+
+// Windows side (rust_bridge.h)
+struct ImeResult {
+    uint32_t chars[256];    // Matches Rust MAX constant
+    uint8_t action;
+    uint8_t backspace;
+    uint8_t count;
+    uint8_t flags;
+};
+```
+
+**RAII Memory Safety:**
+```cpp
+// C++ wrapper prevents leaks via scope
+class ImeResultGuard {
+    ImeResult* ptr_;
+public:
+    ~ImeResultGuard() { if (ptr_) ime_free(ptr_); }
+    ImeResultGuard(const ImeResultGuard&) = delete;      // No copy
+    ImeResultGuard(ImeResultGuard&&) = delete;            // No move
+};
+
+// Usage: scope-based cleanup
+{
+    ImeResultGuard result(ime_key(keycode, caps, ctrl));
+    // ... process result
+}  // automatic cleanup here
+```
+
+#### UTF Conversion Pipeline
+
+**UTF-32 (Rust Engine) → UTF-16 (Windows API):**
+```cpp
+// Handles all Unicode ranges including surrogate pairs
+void SendUnicodeText(const uint32_t* chars, uint8_t count) {
+    for (uint8_t i = 0; i < count; ++i) {
+        uint32_t cp = chars[i];
+
+        if (cp <= 0xFFFF) {
+            // BMP: single UTF-16 unit (Latin, Greek, Vietnamese)
+            INPUT input = {};
+            input.type = INPUT_KEYBOARD;
+            input.ki.wVk = 0;              // Use Unicode, not VK
+            input.ki.wScan = (WORD)cp;
+            input.ki.dwFlags = KEYEVENTF_UNICODE;
+            SendInput(1, &input, sizeof(INPUT));
+        } else {
+            // Supplementary planes: surrogate pair (emoji, rare chars)
+            cp -= 0x10000;
+            WORD high = 0xD800 + (WORD)(cp >> 10);
+            WORD low = 0xDC00 + (WORD)(cp & 0x3FF);
+
+            // Send both surrogates via SendInput
+            SendInput(4, surrogatePair, sizeof(INPUT));
+        }
+    }
+}
+```
+
+**Expected Codepoint Ranges (Vietnamese):**
+- BMP (< 0x10000): ă, â, ê, ô, ơ, ư, đ (all native Vietnamese, no surrogates)
+- Special: Zero-width joiners (0x200D) handled via direct mapping
+
+#### Keyboard Hook Implementation (Phase 2)
+
+**Global Message-Only Window Requirement:**
+```cpp
+// CRITICAL: WH_KEYBOARD_LL requires a message loop
+HWND hwnd = CreateWindowEx(
+    0, WINDOW_CLASS, L"GoNhanhMsg",
+    0, 0, 0, 0, 0,
+    HWND_MESSAGE,  // Message-only window (no desktop visible)
+    NULL, hInstance, NULL
+);
+
+// Install hook AFTER window creation
+auto& hook = gonhanh::KeyboardHook::Instance();
+hook.Install();
+
+// Message loop (REQUIRED for WH_KEYBOARD_LL to function)
+MSG msg;
+while (GetMessage(&msg, NULL, 0, 0)) {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+}
+```
+
+**Why Message Loop Required:**
+- `WH_KEYBOARD_LL` is a global low-level hook (system-wide interception)
+- Windows requires a message queue to deliver hook notifications
+- Message-only window (HWND_MESSAGE) is invisible but maintains queue
+- Loop must run on same thread that called SetWindowsHookEx
+
+**KeyboardHook Class Architecture:**
+
+```cpp
+class KeyboardHook {
+private:
+    static HHOOK hook_;
+    bool enabled_ = true;
+    bool processing_ = false;  // Reentrancy guard
+
+    static LRESULT CALLBACK LowLevelKeyboardProc(...);
+};
+```
+
+**Hook Callback Flow:**
+
+```
+LowLevelKeyboardProc(nCode, wParam, lParam)
+    ↓
+1. Check nCode == HC_ACTION (only process real events)
+    ↓
+2. Check LLKHF_INJECTED flag (skip injected keys to prevent loops)
+    ↓
+3. Only process WM_KEYDOWN & WM_SYSKEYDOWN (ignore repeats)
+    ↓
+4. Handle Ctrl+Space toggle (BEFORE enabled check, always works)
+    ↓
+5. Check enabled flag (pass through if off)
+    ↓
+6. Check reentrancy guard (prevent recursive processing)
+    ↓
+7. Convert VK → macOS keycode via VkToMacKeycode()
+    ↓
+8. Extract modifier states: Caps, Ctrl, Shift
+    ↓
+9. Call Rust engine: ime_key_ext(keycode, caps, ctrl, shift)
+    ↓
+10. If action == 1 (transform):
+    - Send backspaces via SendInput (VK_BACK)
+    - Send replacement chars via SendUnicodeText()
+    - Return 1 (suppress original keystroke)
+    ↓
+11. Else: CallNextHookEx (pass through)
+```
+
+**VK→macOS Keycode Mapping (46 Keys):**
+
+| Category | Count | Examples | macOS Codes |
+|----------|-------|----------|------------|
+| Letters A-Z | 26 | A→0x00, B→0x0B, ..., Z→0x06 | Verified vs core/src/data/keys.rs |
+| Numbers 0-9 | 10 | 0→0x1D, 1→0x12, ..., 9→0x19 | Top row number keys |
+| Special Keys | 10 | Space→0x31, Return→0x24, Back→0x33, Esc→0x35, []→0x21/0x1E | Common symbols |
+| **Total** | **46** | - | Cross-referenced with Rust core |
+
+**Reentrancy Guard & Injection Prevention:**
+
+```cpp
+// Check injected flag (prevents infinite loops)
+if (kb->flags & LLKHF_INJECTED) {
+    return CallNextHookEx(...);  // Pass through without processing
+}
+
+// Reentrancy guard (prevents concurrent processing of same engine)
+if (g_instance->processing_) {
+    return CallNextHookEx(...);  // Pass through
+}
+
+// Set flag during engine call
+g_instance->processing_ = true;
+ImeResultGuard result(ime_key_ext(keycode, caps, ctrl, shift));
+g_instance->processing_ = false;
+```
+
+**Why Both Guards Needed:**
+- `LLKHF_INJECTED`: Filters out our own SendInput calls (OS-level flag)
+- `processing_`: Handles edge case where callback fires before our SendInput completes
+- Combined: Eliminates infinite loops & concurrent Rust engine calls
+
+**Backspace Implementation:**
+
+```cpp
+static void SendBackspaces(int count) {
+    for (int i = 0; i < count; ++i) {
+        INPUT input = {};
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = VK_BACK;
+
+        // Key down
+        input.ki.dwFlags = 0;
+        SendInput(1, &input, sizeof(INPUT));
+
+        // Key up
+        input.ki.dwFlags = KEYEVENTF_KEYUP;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+}
+```
+
+**Ctrl+Space Toggle (Global Hotkey):**
+
+```cpp
+// Special case: Ctrl+Space handled BEFORE enabled check
+if (kb->vkCode == VK_SPACE && (GetKeyState(VK_CONTROL) & 0x8000)) {
+    if (g_instance) {
+        g_instance->Toggle();  // Toggle enabled_ state
+    }
+    return 1;  // Suppress key (don't pass to apps)
+}
+
+// This ordering ensures:
+// - Toggle always works even if engine disabled
+// - Toggle is global (works in any app)
+// - Ctrl+Space never appears in text
+```
+
+**Advantages (vs Global Input Method):**
+- Global keyboard interception (works before app input handling)
+- Minimal overhead (kernel calls only for events)
+- No app modification needed
+- Persistent across app switches
+- Works in secure contexts (lockscreen, elevated apps)
+
+### Windows UI & Settings Integration (Phase 3)
+
+#### System Tray Architecture
+
+**Message-Only Window + System Tray Icon:**
+```
+Main.cpp:WinMain
+  ├─ Create message-only window (HWND_MESSAGE)
+  ├─ Install keyboard hook on same thread
+  ├─ Create system tray icon via Shell_NotifyIcon
+  └─ Run message loop (REQUIRED for WH_KEYBOARD_LL)
+
+WindowProc callback
+  ├─ WM_TRAYICON → SystemTray::HandleMessage
+  │  ├─ WM_RBUTTONUP → ShowMenu()
+  │  └─ WM_LBUTTONDBLCLK → Toggle enabled state
+  ├─ WM_COMMAND → Route to dialog handlers
+  └─ WM_DESTROY → Cleanup & exit
+```
+
+**Singleton Components (RAII Pattern):**
+- SystemTray::Instance() - Manage tray icon, menu
+- Settings::Instance() - Registry persistence
+- KeyboardHook::Instance() - Keyboard interception
+- SettingsWindow::Instance() - Modal settings dialog
+- ShortcutsDialog::Instance() - Shortcuts management
+- AboutDialog::Instance() - About & help
+
+#### Registry Structure (HKCU)
+
+**Location:** `HKEY_CURRENT_USER\Software\GoNhanh`
+
+```
+Enabled (REG_DWORD)           → 1=ON, 0=OFF
+Method (REG_DWORD)            → 0=Telex, 1=VNI
+SkipWShortcut (REG_DWORD)     → 1=skip W shortcut (Ctrl+W safe)
+BracketShortcut (REG_DWORD)   → 1=auto ""
+EscRestore (REG_DWORD)        → 1=ESC restores English
+AutoStart (REG_DWORD)         → 1=launch on Windows boot
+PerApp (REG_DWORD)            → 1=remember IME per app
+AutoRestore (REG_DWORD)       → 1=auto-restore English words
+Sound (REG_DWORD)             → 1=enable notification sound
+ModernTone (REG_DWORD)        → 1=modern tone placement
+AutoCapitalize (REG_DWORD)    → 1=auto capitalize after . ! ?
+Shortcuts (REG_MULTI_SZ)      → "trigger\0replacement\0..."
+```
+
+**Auto-Start:** `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`
+```
+GoNhanh (REG_SZ) → "C:\Path\To\gonhanh.exe"  (quoted for security)
+```
+
+#### Settings Loading & Application
+
+**Startup Sequence:**
+```
+1. WinMain:
+   ├─ ime_init() - Initialize Rust engine
+   ├─ Settings::Instance().Load() - Read from Registry (HKCU)
+   ├─ Settings::ApplyToEngine() - Call ime_* FFI functions
+   │  ├─ ime_enabled(bool)
+   │  ├─ ime_method(uint8)
+   │  ├─ ime_skip_w_shortcut(bool)
+   │  ├─ ime_esc_restore(bool)
+   │  ├─ ime_auto_capitalize(bool)
+   │  └─ ime_add_shortcut(trigger, replacement) × N
+   └─ Create tray icon
+
+2. User action:
+   ├─ Tray right-click → ShowMenu()
+   ├─ Menu item click → WM_COMMAND dispatch
+   │  ├─ IDM_TELEX/IDM_VNI → Settings::method = ..., Settings::Save()
+   │  ├─ IDM_ENABLE → Settings::enabled ^= ..., Settings::Save()
+   │  ├─ IDM_SETTINGS → SettingsWindow::Show()
+   │  └─ IDM_EXIT → PostQuitMessage(0)
+   └─ Settings::Save() → ApplyToEngine() + RegSetValueEx(...)
+```
+
+#### UTF-16 ↔ UTF-8 Conversion (Bridge Layer)
+
+**Rust Core:** UTF-8 (str)
+**Windows APIs:** UTF-16 (wchar_t)
+**Registry:** UTF-16 (native)
+
+```cpp
+// Conversion in rust_bridge.cpp
+std::string Utf16ToUtf8(const std::wstring& utf16) {
+    int size = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, NULL, 0, NULL, NULL);
+    std::string utf8(size - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, &utf8[0], size, NULL, NULL);
+    return utf8;
+}
+
+// Usage: Shortcuts from Registry (UTF-16) to Rust (UTF-8)
+std::wstring triggerUTF16 = L"vn";
+std::string triggerUTF8 = Utf16ToUtf8(triggerUTF16);  // "vn"
+ime_add_shortcut(triggerUTF8.c_str(), replacementUTF8.c_str());
+```
+
+#### Features Ported from macOS to Windows
+
+| Feature | macOS | Windows | Status |
+|---------|-------|---------|--------|
+| Toggle Vietnamese (Cmd/Ctrl+Space) | ✅ | ✅ | ✅ Complete |
+| Telex input method | ✅ | ✅ | ✅ Complete |
+| VNI input method | ✅ | ✅ | ✅ Complete |
+| Auto-restore English | ✅ | ✅ | ✅ Complete |
+| ESC restores to English | ✅ | ✅ | ✅ Complete |
+| Per-app memory (on/off) | ✅ | ✅ | ✅ Complete |
+| Skip W shortcut (Ctrl+W safe) | ✅ | ✅ | ✅ Complete |
+| Auto bracket shortcut "" | ✅ | ✅ | ✅ Complete |
+| Modern tone mark placement | ✅ | ✅ | ✅ Complete |
+| Auto capitalize after . ! ? | ✅ | ✅ | ✅ Complete |
+| Sound notification | ✅ | ✅ | ✅ Complete |
+| Custom shortcuts | ✅ | ✅ | ✅ Complete |
+| Settings persistence | UserDefaults | Registry | ✅ Complete |
+| Auto-start on boot | LaunchAgent | Run key | ✅ Complete |
+| System UI | Menu bar | System tray | ✅ Complete |
+| About/Help dialog | ✅ | ✅ | ✅ Complete |
+
+### Accessibility Permission (macOS)
 
 #### macOS System Requirement
 - **API**: `AXIsProcessTrusted()` checks if app has Accessibility permission
@@ -489,8 +867,9 @@ Visible to user as transformed or original text
 
 ---
 
-**Last Updated**: 2025-12-14
-**Architecture Version**: 2.0 (Validation-First, Cross-Platform)
-**Platforms**: macOS (v1.0.21+, CGEventTap), Windows (production, SetWindowsHookEx), Linux (beta, Fcitx5)
+**Last Updated**: 2025-01-12
+**Architecture Version**: 2.1 (Phase 3 UI Complete)
+**Platforms**: macOS (v1.0.21+, CGEventTap), Windows (Phase 3 Complete, SetWindowsHookEx), Linux (beta, Fcitx5)
+**Windows Status**: Phase 3 (UI & Settings) ✅ Complete | Phase 4 (QA & Release) → Next
 **Diagram Format**: ASCII (compatible with all documentation viewers)
-**Codebase Metrics**: 99,444 tokens, 380,026 chars, 78 files (per repomix analysis)
+**Codebase Metrics**: 99,444 tokens, 380,026 chars, 78 files (core); Windows Phase 3: ~1500 LOC (UI + dialogs)
