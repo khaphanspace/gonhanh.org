@@ -37,6 +37,8 @@ pub struct BufferSnapshot {
     /// True when tones were explicitly provided (validate modifier requirements)
     /// False when created from keys-only (legacy, skip modifier checks)
     pub has_tone_info: bool,
+    /// True when foreign consonants (z, w, j, f) are allowed as valid initials
+    pub allow_foreign_consonants: bool,
 }
 
 impl BufferSnapshot {
@@ -48,6 +50,18 @@ impl BufferSnapshot {
             keys,
             tones: vec![0; len],
             has_tone_info: false,
+            allow_foreign_consonants: false,
+        }
+    }
+
+    /// Create from keys with foreign consonants setting
+    pub fn from_keys_with_foreign(keys: Vec<u16>, allow_foreign_consonants: bool) -> Self {
+        let len = keys.len();
+        Self {
+            keys,
+            tones: vec![0; len],
+            has_tone_info: false,
+            allow_foreign_consonants,
         }
     }
 }
@@ -86,7 +100,11 @@ fn rule_valid_initial(snap: &BufferSnapshot, syllable: &Syllable) -> Option<Vali
     let initial: Vec<u16> = syllable.initial.iter().map(|&i| snap.keys[i]).collect();
 
     let is_valid = match initial.len() {
-        1 => constants::VALID_INITIALS_1.contains(&initial[0]),
+        1 => {
+            constants::VALID_INITIALS_1.contains(&initial[0])
+                || (snap.allow_foreign_consonants
+                    && constants::FOREIGN_INITIALS.contains(&initial[0]))
+        }
         2 => constants::VALID_INITIALS_2
             .iter()
             .any(|p| p[0] == initial[0] && p[1] == initial[1]),
@@ -282,6 +300,22 @@ pub fn is_valid_with_tones(keys: &[u16], tones: &[u8]) -> bool {
         keys: keys.to_vec(),
         tones: tones.to_vec(),
         has_tone_info: true, // Enforce modifier requirements
+        allow_foreign_consonants: false,
+    };
+    validate(&snap).is_valid()
+}
+
+/// Quick check if buffer could be valid Vietnamese (with modifier info and foreign consonants option)
+pub fn is_valid_with_tones_and_foreign(
+    keys: &[u16],
+    tones: &[u8],
+    allow_foreign_consonants: bool,
+) -> bool {
+    let snap = BufferSnapshot {
+        keys: keys.to_vec(),
+        tones: tones.to_vec(),
+        has_tone_info: true,
+        allow_foreign_consonants,
     };
     validate(&snap).is_valid()
 }
@@ -292,6 +326,13 @@ pub fn is_valid_with_tones(keys: &[u16], tones: &[u8]) -> bool {
 /// Use is_valid_with_tones() for complete validation.
 pub fn is_valid(buffer_keys: &[u16]) -> bool {
     let snap = BufferSnapshot::from_keys(buffer_keys.to_vec());
+    validate(&snap).is_valid()
+}
+
+/// Quick check if buffer could be valid Vietnamese with foreign consonants option
+pub fn is_valid_with_foreign(buffer_keys: &[u16], allow_foreign_consonants: bool) -> bool {
+    let snap =
+        BufferSnapshot::from_keys_with_foreign(buffer_keys.to_vec(), allow_foreign_consonants);
     validate(&snap).is_valid()
 }
 
@@ -312,11 +353,20 @@ const RULES_FOR_TRANSFORM: &[Rule] = &[
 /// Used by try_tone/try_stroke to validate buffer structure before transformation.
 /// Does NOT check vowel patterns since intermediate states like "aa" → "â" are valid.
 pub fn is_valid_for_transform(buffer_keys: &[u16]) -> bool {
+    is_valid_for_transform_with_foreign(buffer_keys, false)
+}
+
+/// Pre-transformation validation with foreign consonants option
+pub fn is_valid_for_transform_with_foreign(
+    buffer_keys: &[u16],
+    allow_foreign_consonants: bool,
+) -> bool {
     if buffer_keys.is_empty() {
         return false;
     }
 
-    let snap = BufferSnapshot::from_keys(buffer_keys.to_vec());
+    let snap =
+        BufferSnapshot::from_keys_with_foreign(buffer_keys.to_vec(), allow_foreign_consonants);
     let syllable = parse(&snap.keys);
 
     for rule in RULES_FOR_TRANSFORM {
