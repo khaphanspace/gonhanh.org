@@ -110,12 +110,15 @@ fn find_tone_targets(buf: &Buffer, key: u16, tone_value: u8, method: u8) -> Vec<
             // Issue #312: If ANY vowel in the buffer already has a tone (horn/circumflex/breve),
             // don't trigger same-vowel circumflex. The typed vowel should append as raw letter.
             // Example: "chưa" + "a" → "chưaa" (NOT "chưâ")
-            let any_vowel_has_tone = buf
+            // Issue #211: Also check for marks (sắc/huyền/hỏi/ngã/nặng) - if a vowel already
+            // has a mark, the typed vowel should append raw for extended vowel patterns.
+            // Example: "quá" + "a" → "quáa" (NOT "quấ")
+            let any_vowel_has_tone_or_mark = buf
                 .iter()
                 .filter(|c| keys::is_vowel(c.key))
-                .any(|c| c.has_tone());
+                .any(|c| c.has_tone() || c.has_mark());
 
-            if any_vowel_has_tone {
+            if any_vowel_has_tone_or_mark {
                 // Skip circumflex, return empty targets to append raw vowel
                 return targets;
             }

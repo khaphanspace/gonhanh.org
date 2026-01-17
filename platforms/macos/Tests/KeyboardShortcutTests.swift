@@ -230,7 +230,7 @@ final class KeyboardShortcutTests: XCTestCase {
     func testMatchesIgnoresNonModifierFlags() {
         let shortcut = KeyboardShortcut.default
         var flags = CGEventFlags.maskControl
-        flags.insert(CGEventFlags(rawValue: 0x100000))  // Non-modifier flag
+        flags.insert(.maskNumericPad)  // Non-modifier flag (numpad indicator)
         XCTAssertTrue(shortcut.matches(keyCode: 0x31, flags: flags))
     }
 
@@ -266,5 +266,35 @@ final class KeyboardShortcutTests: XCTestCase {
         var flags = CGEventFlags([.maskCommand, .maskShift])
         flags.insert(CGEventFlags(rawValue: 0x100000))
         XCTAssertTrue(shortcut.matchesModifierOnly(flags: flags))
+    }
+
+    // MARK: - Issue #157: Shift restore shortcut blocks uppercase typing
+
+    /// Issue #157: When Shift is set as restore shortcut (modifier-only),
+    /// typing Shift+A should NOT trigger restore - it should type uppercase 'A'.
+    /// Modifier-only shortcuts should only trigger on modifier release (flagsChanged),
+    /// not when a key is pressed with the modifier held (keyDown).
+    func testIssue157_ShiftRestoreShortcutShouldNotBlockUppercaseTyping() {
+        // Shift-only restore shortcut
+        let restoreShortcut = KeyboardShortcut(keyCode: 0xFFFF, modifiers: CGEventFlags.maskShift.rawValue)
+        XCTAssertTrue(restoreShortcut.isModifierOnly)
+
+        // Bug reproduction: matchesRestoreShortcut was returning true for Shift+A
+        // because matchesModifierOnly only checks flags, not keyCode.
+        // This caused restore to trigger instead of typing uppercase letter.
+
+        // The fix: matchesRestoreShortcut should return false for modifier-only
+        // shortcuts when called from keyDown context (with a key pressed).
+        // matchesModifierOnly(flags:) is meant for flagsChanged events only.
+
+        // When typing Shift+A (keyCode=0x00, flags=.maskShift):
+        // - matchesModifierOnly should still return true (flags match)
+        // - But matchesRestoreShortcut should return false (key is pressed)
+        let typingAWithShift = CGEventFlags.maskShift
+        XCTAssertTrue(restoreShortcut.matchesModifierOnly(flags: typingAWithShift))
+
+        // The matches(keyCode:flags:) should return false for modifier-only shortcuts
+        // (this already works correctly)
+        XCTAssertFalse(restoreShortcut.matches(keyCode: 0x00, flags: typingAWithShift))
     }
 }

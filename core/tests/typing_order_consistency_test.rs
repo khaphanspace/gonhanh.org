@@ -133,9 +133,6 @@ fn generate_typing_orders(word: &str) -> Vec<String> {
         }
     }
 
-    // Build base word (without tone and marks)
-    let base_word: String = parts.iter().map(|(b, _, _)| *b).collect();
-
     // Find final consonant position (after last vowel)
     let final_start = vowel_indices.last().map(|&i| i + 1);
     let has_final = final_start.map(|s| s < parts.len()).unwrap_or(false);

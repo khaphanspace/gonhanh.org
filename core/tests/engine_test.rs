@@ -1,7 +1,7 @@
 //! Engine Tests - Syllable parsing, validation, and transformation
 
 mod common;
-use common::{telex, vni};
+use common::{telex, telex_auto_restore, vni};
 use gonhanh_core::engine::Engine;
 
 // ============================================================
@@ -379,6 +379,131 @@ fn revert_tone_double_key() {
     telex(&[("aaa", "aa"), ("eee", "ee"), ("ooo", "oo")]);
 }
 
+// ============================================================
+// ISSUE #211: EXTENDED VOWEL TESTS
+// Behavior: After triple vowel revert, continue appending raw vowels
+// ============================================================
+
+#[test]
+fn extended_vowel_no_tone() {
+    // Issue #211: Extended vowels without tone marks
+    // aa → â (transform)
+    // aaa → aa (revert)
+    // aaaa → aaa (append)
+    telex(&[
+        // Single vowel
+        ("a", "a"),
+        ("o", "o"),
+        ("e", "e"),
+        // Double → transform to circumflex
+        ("aa", "â"),
+        ("oo", "ô"),
+        ("ee", "ê"),
+        // Triple → revert to double raw
+        ("aaa", "aa"),
+        ("ooo", "oo"),
+        ("eee", "ee"),
+        // 4+ → continue appending raw
+        ("aaaa", "aaa"),
+        ("aaaaa", "aaaa"),
+        ("oooo", "ooo"),
+        ("ooooo", "oooo"),
+        ("eeee", "eee"),
+        ("eeeee", "eeee"),
+    ]);
+}
+
+#[test]
+fn extended_vowel_with_tone_sac() {
+    // Issue #211: Extended vowels with sắc tone (s key)
+    // as → á
+    // asa → ấ (aa→â + tone)
+    // asaa → áa (revert, keep tone on first)
+    telex(&[
+        ("as", "á"),
+        ("asa", "ấ"),
+        ("asaa", "áa"),
+        ("asaaa", "áaa"),
+        ("asaaaa", "áaaa"),
+        ("es", "é"),
+        ("ese", "ế"),
+        ("esee", "ée"),
+        ("eseee", "éee"),
+        ("os", "ó"),
+        ("oso", "ố"),
+        ("osoo", "óo"),
+        ("osooo", "óoo"),
+    ]);
+}
+
+#[test]
+fn extended_vowel_with_tone_huyen() {
+    // Issue #211: Extended vowels with huyền tone (f key)
+    telex(&[("af", "à"), ("afa", "ầ"), ("afaa", "àa"), ("afaaa", "àaa")]);
+}
+
+#[test]
+fn extended_vowel_with_tone_hoi() {
+    // Issue #211: Extended vowels with hỏi tone (r key)
+    telex(&[("ar", "ả"), ("ara", "ẩ"), ("araa", "ảa"), ("araaa", "ảaa")]);
+}
+
+#[test]
+fn extended_vowel_with_tone_nga() {
+    // Issue #211: Extended vowels with ngã tone (x key)
+    telex(&[("ax", "ã"), ("axa", "ẫ"), ("axaa", "ãa"), ("axaaa", "ãaa")]);
+}
+
+#[test]
+fn extended_vowel_with_tone_nang() {
+    // Issue #211: Extended vowels with nặng tone (j key)
+    telex(&[("aj", "ạ"), ("aja", "ậ"), ("ajaa", "ạa"), ("ajaaa", "ạaa")]);
+}
+
+#[test]
+fn extended_vowel_with_consonant_prefix() {
+    // Issue #211: Extended vowels with consonant prefix
+    // ha → ha
+    // har → hả
+    // hara → hẩ (aa→â + tone)
+    // haraa → hảa (revert, keep tone)
+    telex(&[
+        ("h", "h"),
+        ("ha", "ha"),
+        ("har", "hả"),
+        ("hara", "hẩ"),
+        ("haraa", "hảa"),
+        ("haraaa", "hảaa"),
+        ("haraaaa", "hảaaa"),
+        // With nhé
+        ("nhe", "nhe"),
+        ("nhes", "nhé"),
+        ("nhese", "nhế"),
+        ("nhesee", "nhée"),
+        ("nheseee", "nhéee"),
+        ("nheseeee", "nhéeee"),
+    ]);
+}
+
+#[test]
+fn extended_vowel_with_auto_restore() {
+    // Issue #211: Extended vowels should work with auto-restore enabled
+    // When auto-restore is enabled, extended vowels should still work correctly
+    telex_auto_restore(&[
+        // Basic extended vowels (no space trigger - mid-word)
+        ("aaaa", "aaa"),
+        ("aaaaa", "aaaa"),
+        // Extended vowels with tone (no space trigger - mid-word)
+        ("asaaa", "áaa"),
+        ("asaaaa", "áaaa"),
+        // With space trigger - should not auto-restore since these are intentional
+        ("aaaa ", "aaa "),
+        ("asaaa ", "áaa "),
+        ("haraaa ", "hảaa "),
+        ("nheseee ", "nhéee "),
+    ]);
+}
+
 #[test]
 fn revert_mark_double_key() {
     // When mark is reverted, only the reverting key appears as a letter.
@@ -403,10 +528,13 @@ fn revert_stroke_double_key() {
 
 #[test]
 fn triple_same_key() {
-    // aaaa → aâ
+    // Issue #211: After triple revert, continue appending raw vowels
+    // aaaa → aaa (not aâ)
+    // Old behavior: aa→â, aaa→aa, aaaa→aâ (re-transform)
+    // New behavior: aa→â, aaa→aa, aaaa→aaa (append raw)
     let mut e = Engine::new();
     let result = common::type_word(&mut e, "aaaa");
-    assert_eq!(result, "aâ");
+    assert_eq!(result, "aaa");
 }
 
 // ============================================================

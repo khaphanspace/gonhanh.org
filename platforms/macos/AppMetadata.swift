@@ -76,7 +76,8 @@ enum SettingsKey {
     static let shortcuts = "gonhanh.shortcuts"
     static let autoWShortcut = "gonhanh.autoWShortcut"
     static let bracketShortcut = "gonhanh.bracketShortcut"
-    static let escRestore = "gonhanh.escRestore"
+    static let restoreShortcutEnabled = "gonhanh.escRestore"  // Keep old key for backward compat
+    static let restoreShortcut = "gonhanh.shortcut.restore"
     static let modernTone = "gonhanh.modernTone"
     static let englishAutoRestore = "gonhanh.englishAutoRestore"
     static let autoCapitalize = "gonhanh.autoCapitalize"
@@ -90,8 +91,11 @@ struct KeyboardShortcut: Codable, Equatable {
     var keyCode: UInt16
     var modifiers: UInt64  // CGEventFlags raw value
 
-    // Default: Ctrl+Space
+    // Default: Ctrl+Space (for toggle)
     static let `default` = KeyboardShortcut(keyCode: 0x31, modifiers: CGEventFlags.maskControl.rawValue)
+
+    // Default: ESC (for restore diacritics)
+    static let defaultRestore = KeyboardShortcut(keyCode: 0x35, modifiers: 0)
 
     var displayParts: [String] {
         var parts: [String] = []
@@ -180,6 +184,20 @@ struct KeyboardShortcut: Codable, Equatable {
     func save() {
         if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: SettingsKey.toggleShortcut)
+        }
+    }
+
+    static func loadRestoreShortcut() -> KeyboardShortcut {
+        guard let data = UserDefaults.standard.data(forKey: SettingsKey.restoreShortcut),
+              let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data) else {
+            return .defaultRestore
+        }
+        return shortcut
+    }
+
+    func saveAsRestoreShortcut() {
+        if let data = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(data, forKey: SettingsKey.restoreShortcut)
         }
     }
 

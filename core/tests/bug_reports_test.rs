@@ -1329,3 +1329,538 @@ fn issue159_bracket_continuous_typing() {
     assert_eq!(result2.action, 1, "'[' after 'ư' should produce output");
     assert_eq!(result2.chars[0], 'ơ' as u32, "][ should produce 'ươ'");
 }
+
+// =============================================================================
+// ISSUE #211: Extended vowel patterns - "asaaa" should produce "áaaa"
+// When typing extended vowels for emphasis in casual messaging,
+// the mark should stay on the first vowel and not jump around.
+// Example: "quá" + more 'a's should produce "quáa", "quáaa", etc.
+// =============================================================================
+
+#[test]
+fn issue211_extended_vowel_patterns() {
+    // Extended vowels with sắc tone
+    telex(&[
+        ("as", "á"),      // base case
+        ("asa", "ấ"),     // circumflex + mark
+        ("asaa", "áa"),   // revert circumflex, keep mark, add 'a'
+        ("asaaa", "áaa"), // mark stays on first 'a'
+        ("asaaaa", "áaaa"),
+    ]);
+
+    // Extended vowels with hỏi tone
+    telex(&[("ar", "ả"), ("ara", "ẩ"), ("araa", "ảa"), ("araaa", "ảaa")]);
+
+    // Extended vowels with "qu" initial
+    telex(&[
+        ("quas", "quá"),
+        ("quasa", "quấ"),
+        ("quasaa", "quáa"), // mark stays on first 'a' after 'qu'
+        ("quasaaa", "quáaa"),
+    ]);
+
+    // Extended vowels with "gi" initial - mark stays on first 'i'
+    telex(&[
+        ("gir", "gỉ"),
+        ("giri", "gỉi"), // mark stays on first 'i'
+        ("girii", "gỉii"),
+        ("gis", "gí"),
+        ("gisi", "gíi"),
+    ]);
+}
+
+// =============================================================================
+// ISSUE #230: Alternating pattern V-M-V-M (Therere → There)
+// https://github.com/khaphanspace/gonhanh.org/issues/230
+//
+// Core bug: "Therere" typed → should output "There" (second "re" reverts first)
+// Note: Simple "there" → "thể" is VALID Vietnamese, so it is NOT restored.
+// This is by design - only invalid Vietnamese buffers trigger restore.
+// =============================================================================
+
+#[test]
+fn issue230_there_space_duplicates_chars() {
+    use gonhanh_core::engine::Action;
+
+    // Test without auto_restore - "there" transforms to "thể"
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "there ");
+    println!("[no auto_restore] 'there ' -> '{}'", result);
+    assert_eq!(
+        result, "thể ",
+        "Without auto_restore, 'there' transforms to 'thể'"
+    );
+
+    // Test with auto_restore - "thể" is VALID VN, so no restore happens
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "there ");
+    println!(
+        "[auto_restore] 'there ' -> '{}' (thể is valid VN, keep)",
+        result2
+    );
+    assert_eq!(
+        result2, "thể ",
+        "'there ' produces 'thể ' - valid VN word, no restore"
+    );
+
+    // Debug step-by-step
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen = String::new();
+    let inputs = ['t', 'h', 'e', 'r', 'e', ' '];
+
+    println!("\n=== Issue #230 Step-by-step debug ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+    println!("Final screen: '{}' (expected: 'there ')", screen);
+}
+
+#[test]
+fn issue230_there_variants() {
+    // Test similar patterns. Note: "there" and "here" produce valid Vietnamese
+    // words (thể, hể), so they are NOT restored. Only "where" restores because
+    // "whể" is structurally invalid Vietnamese (wh is not a valid consonant).
+    telex_auto_restore(&[
+        ("there ", "thể "),   // Valid VN → keep Vietnamese
+        ("There ", "Thể "),   // Valid VN → keep Vietnamese
+        ("where ", "where "), // Invalid VN (wh) → restore to English
+        ("here ", "hể "),     // Valid VN → keep Vietnamese
+    ]);
+}
+
+#[test]
+fn issue230_debug_revert_difference() {
+    use gonhanh_core::engine::Action;
+
+    // Debug why "caoss" works but "herere" doesn't
+
+    println!("\n=== Debug: caoss (works) ===");
+    let mut e1 = Engine::new();
+    e1.set_english_auto_restore(true);
+    let mut screen1 = String::new();
+    for c in ['c', 'a', 'o', 's', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e1.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen1.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen1.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen1
+            );
+        } else {
+            screen1.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen1);
+        }
+    }
+    println!("Final caoss: '{}'", screen1);
+
+    println!("\n=== Debug: herere (fails) ===");
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let mut screen2 = String::new();
+    for c in ['h', 'e', 'r', 'e', 'r', 'e', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e2.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen2.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen2.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen2
+            );
+        } else {
+            screen2.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen2);
+        }
+    }
+    println!("Final herere: '{}'", screen2);
+
+    println!("\n=== Debug: laww (works) ===");
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen3 = String::new();
+    for c in ['l', 'a', 'w', 'w', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen3.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen3.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen3
+            );
+        } else {
+            screen3.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen3);
+        }
+    }
+    println!("Final laww: '{}'", screen3);
+
+    println!("\n=== Debug: therr (consecutive rr) ===");
+    let mut e4 = Engine::new();
+    e4.set_english_auto_restore(true);
+    let mut screen4 = String::new();
+    for c in ['t', 'h', 'e', 'r', 'r', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e4.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen4.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen4.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen4
+            );
+        } else {
+            screen4.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen4);
+        }
+    }
+    println!(
+        "Final therr: '{}' (expected: 'ther ' if consecutive rr works)",
+        screen4
+    );
+
+    println!("\n=== Debug: herer (single r revert then r) ===");
+    let mut e5 = Engine::new();
+    e5.set_english_auto_restore(true);
+    let mut screen5 = String::new();
+    for c in ['h', 'e', 'r', 'e', 'r', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e5.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen5.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen5.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen5
+            );
+        } else {
+            screen5.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen5);
+        }
+    }
+    println!("Final herer: '{}'", screen5);
+
+    println!("\n=== Debug: lists (s-t-s pattern) ===");
+    let mut e6 = Engine::new();
+    e6.set_english_auto_restore(true);
+    let mut screen6 = String::new();
+    for c in ['l', 'i', 's', 't', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e6.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen6.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen6.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen6
+            );
+        } else {
+            screen6.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen6);
+        }
+    }
+    println!(
+        "Final lists: '{}' (expected: 'list ' - s-t-s is like consecutive ss?)",
+        screen6
+    );
+
+    println!("\n=== Debug: miss (consecutive ss after vowel) ===");
+    let mut e7 = Engine::new();
+    e7.set_english_auto_restore(true);
+    let mut screen7 = String::new();
+    for c in ['m', 'i', 's', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e7.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen7.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen7.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen7
+            );
+        } else {
+            screen7.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen7);
+        }
+    }
+    println!("Final miss: '{}' (expected: 'mis ')", screen7);
+}
+
+#[test]
+fn issue230_therere_exact_input() {
+    use gonhanh_core::engine::Action;
+
+    // Exact user input from issue: T-h-e-r-e-r-e (7 chars)
+    // User reports: displays "there", then space → "Therere"
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    let mut screen = String::new();
+    let inputs = ['T', 'h', 'e', 'r', 'e', 'r', 'e', ' '];
+
+    println!("\n=== Issue #230 Exact Input: Therere ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let caps = c.is_uppercase();
+        let r = e.on_key(key, caps, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("Final: 'Therere ' -> '{}' (expected: 'There ')", screen);
+
+    // BUG: Current behavior restores raw input "Therere " instead of displayed "There "
+    //
+    // Analysis:
+    // - User typed 7 chars: T-h-e-r-e-r-e
+    // - Screen showed 5 chars: "There" (Vietnamese transforms collapsed rr→r)
+    // - User saw "There", was happy, pressed space
+    // - Auto-restore outputs "Therere" (raw input) - WRONG!
+    //
+    // Expected behavior:
+    // - If displayed buffer is valid English word → keep it (no restore)
+    // - If displayed buffer is Vietnamese → restore to raw input
+    //
+    // "There" is valid English, so it should stay as "There "
+    assert_eq!(
+        screen, "There ",
+        "BUG: Should keep displayed 'There ', not restore to raw 'Therere '"
+    );
+}
+
+// =============================================================================
+// ISSUE #230 Extended Cases: Auto-restore decision matrix
+// =============================================================================
+
+#[test]
+fn issue230_case_analysis() {
+    use gonhanh_core::utils::type_word;
+
+    // Helper to test with auto_restore enabled
+    let test = |input: &str, expected: &str, description: &str| {
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+        let result = type_word(&mut e, input);
+        println!(
+            "[{}] '{}' -> '{}' (expected: '{}')",
+            description, input, result, expected
+        );
+        (result, expected.to_string(), description.to_string())
+    };
+
+    let cases = vec![
+        // Case 1: Raw=EN(long), Displayed=EN(short) - both valid English
+        // User typed extra chars that got collapsed, displayed is valid EN
+        // Expected: Keep displayed (user saw it and was happy)
+        test("Therere ", "There ", "Raw=Therere, Disp=There, both EN"),
+        // Case 2: Raw=EN, Displayed=VN - thể is VALID Vietnamese
+        // Expected: Keep Vietnamese (buffer valid VN → no restore)
+        test("there ", "thể ", "Raw=there, Disp=thể, VN valid"),
+        // Case 3: No transform - raw = displayed
+        // Expected: Keep as-is
+        test("hello ", "hello ", "Raw=Disp=hello, no change"),
+        // Case 4: Vietnamese word - no restore needed
+        // Expected: Keep Vietnamese
+        test("không ", "không ", "Vietnamese word, keep VN"),
+        // Case 5: "view" → "vieư" - invalid VN, restore to EN
+        test("view ", "view ", "Raw=view, Disp=vieư, restore EN"),
+        // Case 6: Uppercase - "THERE" → "THỂ" (valid VN, keep)
+        test("THERE ", "THỂ ", "Uppercase THERE"),
+        // Case 7: TRICKY - "theme" → "thêm" (both valid!)
+        // "theme" is English, "thêm" is Vietnamese (means "add")
+        // Current design: "thêm" is valid VN → keep VN
+        // This is a known limitation - words valid in both languages
+        test("theme ", "thêm ", "theme→thêm, BOTH valid, keep VN"),
+        // Case 8: Longer word - "wherever"
+        test("wherever ", "wherever ", "Long word wherever"),
+        // Case 9: Incomplete word - "happ" (not complete English)
+        // Raw is partial English, display might be VN-ish
+        test("happ ", "happ ", "Partial word happ"),
+        // Case 10: "here" → "hể" - valid VN, keep Vietnamese
+        test("here ", "hể ", "here→hể (VN valid)"),
+        // Case 11: "where" - common English word
+        test("where ", "where ", "Common word where"),
+        // Case 12: Mixed case "ThErE" → "ThỂ" - valid VN, keep Vietnamese
+        test("ThErE ", "ThỂ ", "Mixed case ThErE→ThỂ"),
+        // === REVERT CASES ===
+        // When user types double modifier (rr, ss, ff, etc.) it reverts the mark
+
+        // Case 13: "herere" - hẻ → hể → her (revert) → here
+        // Displayed: "here", Raw: "herere"
+        test("herere ", "here ", "herere→here (revert)"),
+        // Case 14: "serese" - different modifiers (r then s), no revert happens
+        // No alternating pattern (r≠s), transforms don't revert
+        test("serese ", "serese ", "serese (no revert, r≠s)"),
+        // Case 15: "theref" - thể → thểf? or revert?
+        // Testing tone revert: adding 'f' after 'r' mark
+        test("theref ", "theref ", "theref (f after r)"),
+        // Case 16: "therer" - thể → ther (r reverts) → therr?
+        test("therer ", "ther ", "therer→ther (double r)"),
+        // Case 17: "herer" - hể → her (revert) → herr?
+        test("herer ", "her ", "herer→her (double r)"),
+        // Case 18: "aree" - vowel doubling (ee), not mark revert
+        // Different pattern than V-M-V-M, no alternating revert
+        test("aree ", "aree ", "aree (ee vowel, no revert)"),
+        // Case 19: "caoss" - cáo → caos (ss reverts)
+        test("caoss ", "caos ", "caoss→caos (ss revert)"),
+        // Case 20: "laww" - law → lă → law (ww reverts)
+        test("laww ", "law ", "laww→law (ww revert)"),
+    ];
+
+    // Print summary table
+    println!("\n=== Issue #230 Case Analysis Summary ===");
+    println!(
+        "{:<12} {:<15} {:<15} {:<6}",
+        "Input", "Expected", "Actual", "Pass?"
+    );
+    println!("{}", "-".repeat(50));
+
+    let mut failures = Vec::new();
+    for (actual, expected, desc) in &cases {
+        let pass = actual == expected;
+        println!(
+            "{:<12} {:<15} {:<15} {}",
+            desc.split(',').next().unwrap_or("?"),
+            expected,
+            actual,
+            if pass { "✓" } else { "✗" }
+        );
+        if !pass {
+            failures.push((desc.clone(), expected.clone(), actual.clone()));
+        }
+    }
+
+    if !failures.is_empty() {
+        println!("\n=== Failures ===");
+        for (desc, expected, actual) in &failures {
+            println!("FAIL: {} - expected '{}', got '{}'", desc, expected, actual);
+        }
+        panic!("{} test cases failed", failures.len());
+    }
+}

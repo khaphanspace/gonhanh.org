@@ -37,7 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.perAppMode: true,
             SettingsKey.autoWShortcut: true,
             SettingsKey.bracketShortcut: false,
-            SettingsKey.escRestore: false,
+            SettingsKey.restoreShortcutEnabled: false,
             SettingsKey.modernTone: true,
             SettingsKey.englishAutoRestore: false,
             SettingsKey.autoCapitalize: false,

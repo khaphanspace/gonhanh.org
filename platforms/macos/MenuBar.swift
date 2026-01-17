@@ -272,7 +272,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setModernTone(appState.modernTone)
         RustBridge.setSkipWShortcut(!appState.autoWShortcut)
         RustBridge.setBracketShortcut(appState.bracketShortcut)
-        RustBridge.setEscRestore(appState.escRestore)
+        RustBridge.setRestoreShortcutEnabled(appState.restoreShortcutEnabled)
         RustBridge.setEnglishAutoRestore(appState.englishAutoRestore)
         RustBridge.setAutoCapitalize(appState.autoCapitalize)
 

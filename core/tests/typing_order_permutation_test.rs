@@ -183,13 +183,9 @@ fn decompose_char(c: char) -> (char, Option<char>, Option<char>) {
 struct SyllableParts {
     /// Initial consonant(s): b, c, ch, d, đ(dd), g, gh, gi, h, k, kh, l, m, n, ng, ngh, nh, p, ph, q, r, s, t, th, tr, v, x
     initial: String,
-    /// Whether initial has stroke (đ → dd)
-    has_stroke: bool,
     /// Vowel nucleus - list of (base_vowel, mark_type) pairs
     /// mark_type: None=plain, Some('a')=circumflex-a, Some('e')=circumflex-e, Some('o')=circumflex-o, Some('w')=horn/breve
     vowels: Vec<(char, Option<char>)>,
-    /// Which vowel index carries the tone (usually the main vowel)
-    tone_vowel_idx: Option<usize>,
     /// Tone mark: s=sắc, f=huyền, r=hỏi, x=ngã, j=nặng
     tone: Option<char>,
     /// Final consonant(s): c, ch, m, n, ng, nh, p, t
@@ -209,10 +205,8 @@ fn parse_syllable(word: &str) -> Option<SyllableParts> {
     }
 
     let mut initial = String::new();
-    let mut has_stroke = false;
     let mut vowels: Vec<(char, Option<char>)> = Vec::new();
     let mut tone: Option<char> = None;
-    let mut tone_vowel_idx: Option<usize> = None;
     let mut final_cons = String::new();
 
     let mut in_vowel_section = false;
@@ -224,7 +218,6 @@ fn parse_syllable(word: &str) -> Option<SyllableParts> {
         if !in_vowel_section && !base_is_vowel {
             // Initial consonant section
             if mark == Some('d') || mark == Some('D') {
-                has_stroke = true;
                 initial.push(base);
                 initial.push(base); // dd for đ
             } else {
@@ -245,7 +238,6 @@ fn parse_syllable(word: &str) -> Option<SyllableParts> {
 
             if char_tone.is_some() {
                 tone = char_tone;
-                tone_vowel_idx = Some(vowels.len() - 1);
             }
         } else {
             // Final consonant section
@@ -253,17 +245,9 @@ fn parse_syllable(word: &str) -> Option<SyllableParts> {
         }
     }
 
-    // If we have vowels but no tone position determined, set to main vowel
-    if !vowels.is_empty() && tone_vowel_idx.is_none() && tone.is_some() {
-        // Default to first vowel for single, or determine by Vietnamese rules
-        tone_vowel_idx = Some(0);
-    }
-
     Some(SyllableParts {
         initial,
-        has_stroke,
         vowels,
-        tone_vowel_idx,
         tone,
         final_cons,
     })
@@ -659,7 +643,6 @@ fn horn_uo_patterns() {
         ("người", vec!["nguoiw", "nguowi", "nguwowi"]),
     ];
 
-    let mut all_passed = true;
     let mut passed_count = 0;
     let mut failed_count = 0;
 
@@ -678,7 +661,6 @@ fn horn_uo_patterns() {
                     result.trim(),
                     expected
                 );
-                all_passed = false;
                 failed_count += 1;
             }
         }
