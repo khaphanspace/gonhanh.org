@@ -5,6 +5,16 @@
 
 namespace GoNhanh {
 
+// Send backspace key events to delete characters
+// This is more reliable than deleteSurroundingText for XIM-based applications
+static void sendBackspaces(fcitx::InputContext* ic, int count) {
+    for (int i = 0; i < count; ++i) {
+        // Forward BackSpace key press and release
+        // Use fcitx::Key with KeySym enum (FcitxKey_BackSpace)
+        ic->forwardKey(fcitx::Key(FcitxKey_BackSpace));
+    }
+}
+
 // Load method from config file
 static InputMethod loadMethodFromConfig() {
     const char* home = std::getenv("HOME");
@@ -144,20 +154,19 @@ void GoNhanhEngine::keyEvent(const fcitx::InputMethodEntry& entry,
         return;
     }
 
-    GONHANH_DEBUG() << "Result: backspace=" << backspace << " text=\"" << text << "\"";
+    // Filter the key first (don't let original key through)
+    keyEvent.filterAndAccept();
 
-    // Delete characters (backspace)
+    // Delete characters using forwardKey(BackSpace)
+    // This works reliably with XIM protocol (terminals) unlike deleteSurroundingText
     if (backspace > 0) {
-        ic->deleteSurroundingText(-backspace, backspace);
+        sendBackspaces(ic, backspace);
     }
 
     // Commit new text
     if (!text.empty()) {
         ic->commitString(text);
     }
-
-    // Filter the key (don't let original key through)
-    keyEvent.filterAndAccept();
 }
 
 void GoNhanhEngine::setMethod(InputMethod method) {
