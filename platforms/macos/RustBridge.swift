@@ -109,6 +109,7 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 private enum InjectionMethod {
     case fast           // Default: backspace + text with minimal delays
     case slow           // Terminals/Electron: backspace + text with higher delays
+    case charByChar     // Safari Google Docs: backspace + text character-by-character
     case selection      // Browser address bars: Shift+Left select + type replacement
     case autocomplete   // Spotlight fallback: Forward Delete + backspace + text via proxy
     case selectAll      // Select All + Replace: Cmd+A + type full buffer (for autocomplete apps)
@@ -190,6 +191,8 @@ private class TextInjector {
             injectViaAXWithFallback(bs: bs, text: text, proxy: proxy)
         case .selectAll:
             injectViaSelectAll(proxy: proxy)
+        case .charByChar:
+            injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
         case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
         case .passthrough:
@@ -204,7 +207,8 @@ private class TextInjector {
     // MARK: - Injection Methods
 
     /// Standard backspace injection: delete N chars, then type replacement
-    private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
+    /// Set charByChar=true for character-by-character mode (slower but more reliable for some apps like Safari Google Docs)
+    private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), charByChar: Bool = false) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
         for _ in 0..<bs {
@@ -213,7 +217,7 @@ private class TextInjector {
         }
         if bs > 0 { usleep(delays.1) }
 
-        postText(text, source: src, delay: delays.2)
+        postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
     }
 
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
@@ -407,12 +411,13 @@ private class TextInjector {
     }
 
     /// Post text in chunks (CGEvent has 20-char limit)
-    private func postText(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil) {
+    /// Set chunkSize=1 for character-by-character mode (slower but more reliable for some apps)
+    private func postText(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil, chunkSize: Int = 20) {
         let utf16 = Array(text.utf16)
         var offset = 0
 
         while offset < utf16.count {
-            let end = min(offset + 20, utf16.count)
+            let end = min(offset + chunkSize, utf16.count)
             let chunk = Array(utf16[offset..<end])
 
             guard let dn = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
@@ -1480,6 +1485,11 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     ]
     if browsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return cached(.selection, (0, 0, 0)) }
     if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { Log.method("sel:jb"); return cached(.selection, (0, 0, 0)) }
+
+    // Safari content areas (Google Docs, etc.) - character-by-character with high delays
+    if bundleId == "com.apple.Safari" || bundleId == "com.apple.SafariTechnologyPreview" {
+        Log.method("char:safari"); return cached(.charByChar, (0, 0, 0))
+    }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
     if bundleId == "com.microsoft.Excel" { Log.method("slow:excel"); return cached(.slow, (3000, 8000, 3000)) }
