@@ -6,6 +6,9 @@
 IDI_TRAY_ICON ICON "icon.ico"
 IDI_APP_LOGO ICON "logo.ico"
 
+// PNG Logo
+IDR_LOGO_PNG PNG "logo.png"
+
 // DPI Awareness Manifest
 1 RT_MANIFEST "manifest.xml"
 

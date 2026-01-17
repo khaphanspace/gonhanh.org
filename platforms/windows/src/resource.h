@@ -4,6 +4,9 @@
 #define IDI_TRAY_ICON       101
 #define IDI_APP_LOGO        102
 
+// PNG Resources
+#define IDR_LOGO_PNG        103
+
 // Menus
 #define IDM_ENABLE          201
 #define IDM_TELEX           202

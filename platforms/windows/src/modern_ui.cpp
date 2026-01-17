@@ -1,7 +1,7 @@
 #include "modern_ui.h"
-#include <uxtheme.h>
+#include <shlwapi.h>
 
-#pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "shlwapi.lib")
 
 namespace gonhanh {
 namespace ui {
@@ -14,8 +14,6 @@ static bool themeCacheValid = false;
 struct ToggleData {
     bool isOn;
     bool isHovered;
-    bool isPressed;
-    float animProgress; // 0.0 = off, 1.0 = on
 };
 
 bool IsDarkMode() {
@@ -41,9 +39,26 @@ const Theme& GetTheme() {
     return IsDarkMode() ? DarkTheme : LightTheme;
 }
 
+float GetDpiScale(HWND hwnd) {
+    HDC hdc = GetDC(hwnd);
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(hwnd, hdc);
+    return dpi / 96.0f;
+}
+
+int Scale(int value, HWND hwnd) {
+    return static_cast<int>(value * GetDpiScale(hwnd));
+}
+
+int Scale(int value, float dpiScale) {
+    return static_cast<int>(value * dpiScale);
+}
+
 void InitGdiPlus() {
-    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-    Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    if (!gdiplusToken) {
+        Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+        Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    }
 }
 
 void ShutdownGdiPlus() {
@@ -57,9 +72,6 @@ void DrawRoundedRect(HDC hdc, const RECT& rect, int radius, COLORREF fill, COLOR
     Gdiplus::Graphics g(hdc);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
-    int width = rect.right - rect.left;
-    int height = rect.bottom - rect.top;
-
     Gdiplus::GraphicsPath path;
     path.AddArc(rect.left, rect.top, radius * 2, radius * 2, 180, 90);
     path.AddArc(rect.right - radius * 2, rect.top, radius * 2, radius * 2, 270, 90);
@@ -67,57 +79,13 @@ void DrawRoundedRect(HDC hdc, const RECT& rect, int radius, COLORREF fill, COLOR
     path.AddArc(rect.left, rect.bottom - radius * 2, radius * 2, radius * 2, 90, 90);
     path.CloseFigure();
 
-    // Fill
-    Gdiplus::SolidBrush brush(Gdiplus::Color(
-        GetRValue(fill), GetGValue(fill), GetBValue(fill)));
+    Gdiplus::SolidBrush brush(Gdiplus::Color(GetRValue(fill), GetGValue(fill), GetBValue(fill)));
     g.FillPath(&brush, &path);
 
-    // Border
     if (border != fill) {
-        Gdiplus::Pen pen(Gdiplus::Color(
-            GetRValue(border), GetGValue(border), GetBValue(border)), 1.0f);
+        Gdiplus::Pen pen(Gdiplus::Color(GetRValue(border), GetGValue(border), GetBValue(border)), 1.0f);
         g.DrawPath(&pen, &path);
     }
-}
-
-void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, bool isOn, bool isHovered) {
-    const Theme& theme = GetTheme();
-
-    Gdiplus::Graphics g(hdc);
-    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-
-    // Track dimensions
-    int trackWidth = width;
-    int trackHeight = height;
-    int trackRadius = trackHeight / 2;
-
-    // Track color
-    COLORREF trackColor = isOn ? theme.toggleOn : theme.toggleOff;
-    if (isHovered && !isOn) {
-        trackColor = RGB(
-            min(255, GetRValue(trackColor) + 20),
-            min(255, GetGValue(trackColor) + 20),
-            min(255, GetBValue(trackColor) + 20)
-        );
-    }
-
-    // Draw track
-    RECT trackRect = { x, y, x + trackWidth, y + trackHeight };
-    DrawRoundedRect(hdc, trackRect, trackRadius, trackColor, trackColor);
-
-    // Knob dimensions
-    int knobPadding = 2;
-    int knobSize = trackHeight - knobPadding * 2;
-    int knobX = isOn ? (x + trackWidth - knobSize - knobPadding) : (x + knobPadding);
-    int knobY = y + knobPadding;
-
-    // Draw knob shadow
-    Gdiplus::SolidBrush shadowBrush(Gdiplus::Color(30, 0, 0, 0));
-    g.FillEllipse(&shadowBrush, knobX, knobY + 1, knobSize, knobSize);
-
-    // Draw knob
-    Gdiplus::SolidBrush knobBrush(Gdiplus::Color(255, 255, 255));
-    g.FillEllipse(&knobBrush, knobX, knobY, knobSize, knobSize);
 }
 
 void DrawText(HDC hdc, const wchar_t* text, const RECT& rect, COLORREF color, int fontSize, bool bold, UINT align) {
@@ -126,12 +94,8 @@ void DrawText(HDC hdc, const wchar_t* text, const RECT& rect, COLORREF color, in
         0, 0, 0,
         bold ? FW_SEMIBOLD : FW_NORMAL,
         FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE,
-        L"Segoe UI"
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI"
     );
 
     HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
@@ -145,14 +109,82 @@ void DrawText(HDC hdc, const wchar_t* text, const RECT& rect, COLORREF color, in
     DeleteObject(hFont);
 }
 
-void DrawDivider(HDC hdc, int x, int y, int width) {
+// Windows 11 style toggle switch
+void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, bool isOn, bool isHovered) {
     const Theme& theme = GetTheme();
-    HPEN pen = CreatePen(PS_SOLID, 1, theme.divider);
-    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
-    MoveToEx(hdc, x, y, NULL);
-    LineTo(hdc, x + width, y);
-    SelectObject(hdc, oldPen);
-    DeleteObject(pen);
+
+    Gdiplus::Graphics g(hdc);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+    int trackRadius = height / 2;
+
+    // Track color - Windows 11 blue when on, gray when off
+    COLORREF trackColor = isOn ? theme.toggleOn : theme.toggleOff;
+
+    // Hover effect
+    if (isHovered && !isOn) {
+        trackColor = RGB(
+            min(255, GetRValue(trackColor) + 30),
+            min(255, GetGValue(trackColor) + 30),
+            min(255, GetBValue(trackColor) + 30)
+        );
+    }
+
+    // Draw track (pill shape)
+    Gdiplus::GraphicsPath trackPath;
+    trackPath.AddArc(x, y, height, height, 90, 180);
+    trackPath.AddArc(x + width - height, y, height, height, 270, 180);
+    trackPath.CloseFigure();
+
+    Gdiplus::SolidBrush trackBrush(Gdiplus::Color(
+        GetRValue(trackColor), GetGValue(trackColor), GetBValue(trackColor)));
+    g.FillPath(&trackBrush, &trackPath);
+
+    // Knob position
+    int knobPadding = 3;
+    int knobSize = height - knobPadding * 2;
+    int knobX = isOn ? (x + width - knobSize - knobPadding) : (x + knobPadding);
+    int knobY = y + knobPadding;
+
+    // Draw knob shadow
+    Gdiplus::SolidBrush shadowBrush(Gdiplus::Color(40, 0, 0, 0));
+    g.FillEllipse(&shadowBrush, knobX, knobY + 1, knobSize, knobSize);
+
+    // Draw knob (white circle)
+    Gdiplus::SolidBrush knobBrush(Gdiplus::Color(
+        GetRValue(theme.toggleKnob), GetGValue(theme.toggleKnob), GetBValue(theme.toggleKnob)));
+    g.FillEllipse(&knobBrush, knobX, knobY, knobSize, knobSize);
+}
+
+void DrawPngFromResource(HDC hdc, int resourceId, int x, int y, int width, int height) {
+    HINSTANCE hInst = GetModuleHandle(NULL);
+
+    // Find and load resource
+    HRSRC hRes = FindResourceW(hInst, MAKEINTRESOURCEW(resourceId), L"PNG");
+    if (!hRes) return;
+
+    HGLOBAL hData = LoadResource(hInst, hRes);
+    if (!hData) return;
+
+    void* pData = LockResource(hData);
+    DWORD dataSize = SizeofResource(hInst, hRes);
+    if (!pData || !dataSize) return;
+
+    // Create IStream from memory
+    IStream* pStream = SHCreateMemStream((const BYTE*)pData, dataSize);
+    if (!pStream) return;
+
+    // Load image using GDI+
+    Gdiplus::Image* image = Gdiplus::Image::FromStream(pStream);
+    pStream->Release();
+
+    if (image && image->GetLastStatus() == Gdiplus::Ok) {
+        Gdiplus::Graphics g(hdc);
+        g.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+        g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g.DrawImage(image, x, y, width, height);
+        delete image;
+    }
 }
 
 // Toggle switch window procedure
@@ -161,7 +193,7 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
     switch (msg) {
         case WM_CREATE: {
-            data = new ToggleData{ false, false, false, 0.0f };
+            data = new ToggleData{ false, false };
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)data);
             return 0;
         }
@@ -184,18 +216,17 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             HBITMAP memBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
             HBITMAP oldBitmap = (HBITMAP)SelectObject(memDC, memBitmap);
 
-            // Fill background (transparent - use parent bg)
-            const Theme& theme = GetTheme();
-            HBRUSH bgBrush = CreateSolidBrush(theme.cardBg);
+            // Fill with parent background
+            HWND parent = GetParent(hwnd);
+            HBRUSH bgBrush = (HBRUSH)SendMessage(parent, WM_CTLCOLORSTATIC, (WPARAM)memDC, (LPARAM)hwnd);
+            if (!bgBrush) bgBrush = (HBRUSH)GetStockObject(WHITE_BRUSH);
             FillRect(memDC, &rect, bgBrush);
-            DeleteObject(bgBrush);
 
             // Draw toggle
             DrawToggleSwitch(memDC, 0, 0, rect.right, rect.bottom,
                 data ? data->isOn : false,
                 data ? data->isHovered : false);
 
-            // Blit to screen
             BitBlt(hdc, 0, 0, rect.right, rect.bottom, memDC, 0, 0, SRCCOPY);
 
             SelectObject(memDC, oldBitmap);
@@ -206,16 +237,9 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             return 0;
         }
 
-        case WM_LBUTTONDOWN: {
-            if (data) data->isPressed = true;
-            SetCapture(hwnd);
-            return 0;
-        }
-
         case WM_LBUTTONUP: {
-            if (data && data->isPressed) {
+            if (data) {
                 data->isOn = !data->isOn;
-                data->isPressed = false;
                 InvalidateRect(hwnd, NULL, FALSE);
 
                 // Notify parent
@@ -225,7 +249,6 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
                         (WPARAM)GetDlgCtrlID(hwnd), (LPARAM)data->isOn);
                 }
             }
-            ReleaseCapture();
             return 0;
         }
 
@@ -255,7 +278,7 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-void RegisterCustomControls(HINSTANCE hInstance) {
+void RegisterToggleSwitchClass(HINSTANCE hInstance) {
     WNDCLASSEXW wc = { sizeof(wc) };
     wc.lpfnWndProc = ToggleSwitchProc;
     wc.hInstance = hInstance;
@@ -265,10 +288,15 @@ void RegisterCustomControls(HINSTANCE hInstance) {
 }
 
 HWND CreateToggleSwitch(HWND parent, int x, int y, int id, bool initialState) {
+    // DPI-scaled toggle size
+    float dpi = GetDpiScale(parent);
+    int width = Scale(44, dpi);
+    int height = Scale(20, dpi);
+
     HWND hwnd = CreateWindowExW(
         0, TOGGLE_SWITCH_CLASS, NULL,
         WS_CHILD | WS_VISIBLE,
-        x, y, 51, 31,  // macOS toggle size
+        x, y, width, height,
         parent, (HMENU)(INT_PTR)id,
         GetModuleHandle(NULL), NULL
     );
