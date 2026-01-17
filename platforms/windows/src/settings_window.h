@@ -23,26 +23,36 @@ private:
     void SaveSettings();
     void ApplySettings();
 
+    // Painting
+    void PaintWindow(HDC hdc);
+    void PaintSidebar(HDC hdc);
+    void PaintCards(HDC hdc);
+    void PaintCardContent(HDC hdc);
+    void DrawSettingsRow(HDC hdc, int x, int y, int width, const wchar_t* title, const wchar_t* subtitle);
+
     static INT_PTR CALLBACK DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-    static LRESULT CALLBACK HotkeyProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR data);
+    static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     HWND hwnd_ = nullptr;
     bool visible_ = false;
 
-    // Control handles
-    HWND chkEnabled_;
-    HWND cmbMethod_;
-    HWND chkWShortcut_;
-    HWND chkBracket_;
-    HWND chkEscRestore_;
-    HWND chkAutoStart_;
-    HWND chkPerApp_;
-    HWND chkAutoRestore_;
-    HWND chkSound_;
-    HWND chkModern_;
-    HWND chkCapitalize_;
-    HWND btnShortcuts_;
-    HWND txtHotkey_;
+    // Toggle switch handles
+    HWND toggleEnabled_ = nullptr;
+    HWND toggleWShortcut_ = nullptr;
+    HWND toggleBracket_ = nullptr;
+    HWND toggleAutoStart_ = nullptr;
+    HWND togglePerApp_ = nullptr;
+    HWND toggleAutoRestore_ = nullptr;
+    HWND toggleSound_ = nullptr;
+    HWND toggleModernTone_ = nullptr;
+    HWND toggleCapitalize_ = nullptr;
+
+    // Other controls
+    HWND cmbMethod_ = nullptr;
+    HWND btnShortcuts_ = nullptr;
+
+    // Card rectangles for painting
+    RECT cards_[4] = {};
 };
 
 } // namespace gonhanh

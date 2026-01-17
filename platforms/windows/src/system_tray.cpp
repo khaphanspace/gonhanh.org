@@ -29,8 +29,8 @@ bool SystemTray::Create(HWND hwnd) {
     // Load icon
     nid_.hIcon = LoadIconW(GetModuleHandle(NULL), MAKEINTRESOURCEW(IDI_TRAY_ICON));
 
-    // Set tooltip
-    wcscpy_s(nid_.szTip, L"Gõ Nhanh - Bộ gõ tiếng Việt");
+    // Set tooltip (Unicode escapes for Vietnamese)
+    wcscpy_s(nid_.szTip, L"G\x00F5 Nhanh - B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t");
 
     // Add to system tray
     if (Shell_NotifyIconW(NIM_ADD, &nid_)) {
@@ -54,12 +54,12 @@ void SystemTray::UpdateIcon() {
 
     // Update tooltip based on current state
     auto& settings = Settings::Instance();
-    std::wstring tooltip = L"Gõ Nhanh - ";
+    std::wstring tooltip = L"G\x00F5 Nhanh - ";
 
     if (settings.enabled) {
         tooltip += (settings.method == 0) ? L"Telex" : L"VNI";
     } else {
-        tooltip += L"Tắt";
+        tooltip += L"T\x1EAFt";
     }
 
     wcscpy_s(nid_.szTip, tooltip.c_str());
@@ -75,9 +75,9 @@ void SystemTray::ShowMenu() {
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
 
-    // Enable/Disable toggle
+    // Enable/Disable toggle (Unicode escapes for Vietnamese)
     AppendMenuW(menu, MF_STRING | (settings.enabled ? MF_CHECKED : 0),
-                IDM_ENABLE, L"Bật tiếng Việt");
+                IDM_ENABLE, L"B\x1EADt ti\x1EBFng Vi\x1EC7t");
 
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
@@ -87,17 +87,17 @@ void SystemTray::ShowMenu() {
                 IDM_TELEX, L"Telex");
     AppendMenuW(methodMenu, MF_STRING | (settings.method == 1 ? MF_CHECKED : 0),
                 IDM_VNI, L"VNI");
-    AppendMenuW(menu, MF_STRING | MF_POPUP, (UINT_PTR)methodMenu, L"Kiểu gõ");
+    AppendMenuW(menu, MF_STRING | MF_POPUP, (UINT_PTR)methodMenu, L"Ki\x1EC3u g\x00F5");
 
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // Settings, About, Exit
-    AppendMenuW(menu, MF_STRING, IDM_SETTINGS, L"Cài đặt...");
-    AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"Giới thiệu");
+    AppendMenuW(menu, MF_STRING, IDM_SETTINGS, L"C\x00E0i \x0111\x1EB7t...");
+    AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"Gi\x1EDBi thi\x1EC7u");
 
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    AppendMenuW(menu, MF_STRING, IDM_EXIT, L"Thoát");
+    AppendMenuW(menu, MF_STRING, IDM_EXIT, L"Tho\x00E1t");
 
     // Get cursor position
     POINT pt;
