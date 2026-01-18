@@ -677,7 +677,7 @@ struct UpdateBadgeView: View {
         .background(Capsule().fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
         .onHover { h in
             hovered = h
-            if status.isAvailable { if h { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
         .onTapGesture {
             guard !status.isChecking else { return }
@@ -1121,18 +1121,19 @@ struct SystemPageView: View {
         }
     }
 
+    @State private var changelogHovered = false
+
     @ViewBuilder
     private var changelogLink: some View {
         Link(destination: URL(string: "\(AppMetadata.repository)/releases")!) {
-            HStack(spacing: 4) {
-                Text("Xem thay đổi")
-                Image(systemName: "arrow.up.forward.square")
-            }
-            .font(.system(size: 11))
-            .foregroundColor(Color(NSColor.secondaryLabelColor))
+            Text("Xem thay đổi")
+                .font(.system(size: 11))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+                .underline(changelogHovered)
         }
         .buttonStyle(.plain)
         .onHover { h in
+            changelogHovered = h
             if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
     }
