@@ -1532,10 +1532,12 @@ private class FocusChangeObserver {
                         if let frontmost = NSWorkspace.shared.frontmostApplication,
                            let frontBundleId = frontmost.bundleIdentifier,
                            frontBundleId != bundleId {
+                            Log.info("AX: panel close → \(frontBundleId)")
                             PerAppModeManager.shared.handlePanelClosed(previousApp: frontBundleId)
                         }
                     } else {
                         // Panel focused - handle as app switch
+                        Log.info("AX: panel \(bundleId)")
                         SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
                         SpecialPanelAppDetector.invalidateCache()
                         PerAppModeManager.shared.handleSpecialPanelAppActivated(bundleId)
@@ -1666,6 +1668,7 @@ class PerAppModeManager {
               bundleId.hasPrefix(Self.spotlightBundleId) else { return }
 
         // Spotlight is active - handle app switch
+        Log.info("AX: spotlight sync")
         SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
         SpecialPanelAppDetector.invalidateCache()
         handleAppSwitch(bundleId)
@@ -1673,6 +1676,7 @@ class PerAppModeManager {
 
     private func handleAppSwitch(_ bundleId: String) {
         guard bundleId != currentBundleId else { return }
+        Log.info("App: \(currentBundleId ?? "nil") → \(bundleId)")
 
         // Reset spotlightChecked when leaving any app (for next Spotlight detection)
         spotlightChecked = false
@@ -1699,6 +1703,7 @@ class PerAppModeManager {
               AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
 
         let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
+        Log.info("PerApp: \(mode ? "ON" : "OFF")")
         RustBridge.setEnabled(mode)
         AppState.shared.setEnabledSilently(mode)
         NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
