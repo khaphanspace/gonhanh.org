@@ -33,7 +33,6 @@ private enum Log {
     static func key(_ code: UInt16, _ result: @autoclosure () -> String) { guard isEnabled else { return }; write("K:\(code) → \(result())") }
     static func method(_ name: @autoclosure () -> String) { guard isEnabled else { return }; write("M: \(name())") }
     static func info(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("I: \(msg())") }
-    static func queue(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("Q: \(msg())") }
 }
 
 // MARK: - Constants
@@ -554,6 +553,8 @@ class RustBridge {
         // GATE: Only enable if input source is allowed, always allow disable
         let actualEnabled = enabled && InputSourceObserver.shared.isAllowedInputSource
         ime_enabled(actualEnabled)
+        // let caller = Thread.callStackSymbols.dropFirst().prefix(3).joined(separator: " <- ")
+        // Log.info("Enabled: \(actualEnabled) (requested: \(enabled)) caller: \(caller)")
         Log.info("Enabled: \(actualEnabled) (requested: \(enabled), allowed: \(InputSourceObserver.shared.isAllowedInputSource))")
     }
 
@@ -969,11 +970,10 @@ private func keyboardCallback(
     }
 
     // Check for special panel apps (Spotlight, Raycast) on keyDown only
-    // Skip if per-app mode disabled (fast check before async dispatch)
+    // IMPORTANT: Run synchronously BEFORE processing key to avoid race condition
+    // where buffer is cleared after key is processed but before next key arrives
     if type == .keyDown && AppState.shared.perAppModeEnabled {
-        DispatchQueue.main.async {
-            PerAppModeManager.shared.checkSpecialPanelApp()
-        }
+        PerAppModeManager.shared.checkSpecialPanelApp()
     }
 
     let flags = event.flags
@@ -1108,6 +1108,7 @@ private func keyboardCallback(
         let (method, delays) = detectMethod()
 
         if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+            Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
             if bs > 0 || !chars.isEmpty {
@@ -1211,6 +1212,7 @@ private func keyboardCallback(
 
         // First try Rust engine (handles immediate backspace-after-space)
         if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+            Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
             return nil
         }
@@ -1246,6 +1248,7 @@ private func keyboardCallback(
     }
 
     if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
         // Break keys (punctuation, not space): pass through or post synthetically
@@ -1256,6 +1259,9 @@ private func keyboardCallback(
             else { return Unmanaged.passUnretained(event) }
         }
         return nil
+    } else {
+        // Engine returned nil - log for debugging
+        Log.key(keyCode, "nil (passthrough)")
     }
 
     // For selectAll method: handle pass-through keys (space, punctuation, etc.)

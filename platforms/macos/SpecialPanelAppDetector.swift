@@ -83,8 +83,9 @@ class SpecialPanelAppDetector {
     /// Get the currently active special panel app (if any)
     /// Uses caching and fast-path to avoid expensive operations on every call
     static func getActiveSpecialPanelApp() -> String? {
-        // Check cache first
-        if let cached = Cache.get() { return cached }
+        // Check cache first - but only trust cached panel app results, not cached nil
+        // This ensures we always do a fresh check when transitioning TO a panel app
+        if let cached = Cache.get(), cached != nil { return cached }
 
         // Fast path: check focused element (single AX query)
         if let focusedApp = getFocusedSpecialPanelApp() {
@@ -94,7 +95,10 @@ class SpecialPanelAppDetector {
 
         // Slow path: full window scan (only if fast path failed)
         let result = getActiveSpecialPanelAppFullScan()
-        Cache.set(result)
+        // Only cache non-nil results to ensure we detect panel app opening quickly
+        if result != nil {
+            Cache.set(result)
+        }
         return result
     }
 
