@@ -968,10 +968,11 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // NOTE: Special panel app detection (Spotlight, Raycast) is now handled by
-    // FocusChangeObserver using AXObserver, which is event-driven and triggers
-    // BEFORE any keystroke. This eliminates both the race condition and the
-    // performance overhead of polling on every keystroke.
+    // Special panel app detection: AXObserver handles Raycast, but Spotlight
+    // doesn't fire AX notifications. Use lightweight sync check on first keyDown.
+    if type == .keyDown && AppState.shared.perAppModeEnabled {
+        PerAppModeManager.shared.checkSpotlightOnce()
+    }
 
     let flags = event.flags
 
@@ -1604,10 +1605,23 @@ private class FocusChangeObserver {
                 if let app = NSRunningApplication(processIdentifier: pid),
                    let bundleId = app.bundleIdentifier,
                    SpecialPanelAppDetector.isSpecialPanelApp(bundleId) {
-                    Log.info("AXObserver: \(bundleId) focused (notification: \(notification))")
-                    SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
-                    SpecialPanelAppDetector.invalidateCache()
-                    PerAppModeManager.shared.handleSpecialPanelAppActivated(bundleId)
+                    Log.info("AXObserver: \(bundleId) (notification: \(notification))")
+
+                    // When special panel app window is destroyed (closed), switch to actual frontmost app
+                    if notification == kAXUIElementDestroyedNotification as CFString {
+                        // Panel closed - check actual frontmost app
+                        if let frontmost = NSWorkspace.shared.frontmostApplication,
+                           let frontBundleId = frontmost.bundleIdentifier,
+                           frontBundleId != bundleId {
+                            Log.info("Panel closed, switching to: \(frontBundleId)")
+                            PerAppModeManager.shared.handlePanelClosed(previousApp: frontBundleId)
+                        }
+                    } else {
+                        // Panel focused - handle as app switch
+                        SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
+                        SpecialPanelAppDetector.invalidateCache()
+                        PerAppModeManager.shared.handleSpecialPanelAppActivated(bundleId)
+                    }
                 }
             }
         }
@@ -1620,10 +1634,14 @@ private class FocusChangeObserver {
 
         let appElement = AXUIElementCreateApplication(pid)
 
-        // Observe window creation and focus changes
+        // Observe multiple notification types to catch panel apps like Spotlight
+        // which may not fire standard window notifications
         AXObserverAddNotification(observer, appElement, kAXWindowCreatedNotification as CFString, nil)
         AXObserverAddNotification(observer, appElement, kAXFocusedWindowChangedNotification as CFString, nil)
         AXObserverAddNotification(observer, appElement, kAXApplicationActivatedNotification as CFString, nil)
+        AXObserverAddNotification(observer, appElement, kAXFocusedUIElementChangedNotification as CFString, nil)
+        AXObserverAddNotification(observer, appElement, kAXMainWindowChangedNotification as CFString, nil)
+        AXObserverAddNotification(observer, appElement, kAXUIElementDestroyedNotification as CFString, nil)
 
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
         observers[pid] = observer
@@ -1649,6 +1667,11 @@ class PerAppModeManager {
 
     private init() {}
 
+    /// Get the current frontmost app bundle ID (includes special panel apps like Spotlight)
+    func getCurrentBundleId() -> String? {
+        return currentBundleId
+    }
+
     /// Start observing frontmost app changes
     func start() {
         // IMPORTANT: NSWorkspace notifications are posted to NSWorkspace.shared.notificationCenter,
@@ -1670,12 +1693,24 @@ class PerAppModeManager {
         // eliminating the need to poll on every keystroke.
         FocusChangeObserver.shared.start()
 
-        // Save initial app state if per-app mode is enabled and app hasn't been saved yet
+        // Handle initial app state if per-app mode is enabled
         if AppState.shared.perAppModeEnabled,
            let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
             currentBundleId = bundleId
-            if !AppState.shared.hasPerAppMode(bundleId: bundleId) {
+            if AppState.shared.hasPerAppMode(bundleId: bundleId) {
+                // Restore saved mode for frontmost app on startup
+                let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
+                RustBridge.setEnabled(mode)
+                AppState.shared.setEnabledSilently(mode)
+                Log.info("Startup: restored \(bundleId) mode=\(mode)")
+                // Force menu bar update (async to ensure UI is ready)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
+                }
+            } else {
+                // New app: save current global state
                 AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
+                Log.info("Startup: saved new \(bundleId) mode=\(AppState.shared.isEnabled)")
             }
         }
 
@@ -1694,11 +1729,70 @@ class PerAppModeManager {
     /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
     /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
     func handleSpecialPanelAppActivated(_ bundleId: String) {
+        spotlightChecked = true  // Mark as checked (AXObserver detected it)
+        handleAppSwitch(bundleId)
+    }
+
+    /// Called when a special panel app (Spotlight, Raycast) closes.
+    /// Resets currentBundleId to the previous app so next open triggers proper mode restore.
+    func handlePanelClosed(previousApp: String) {
+        Log.info("Panel closed handler: switching from \(currentBundleId ?? "nil") to \(previousApp)")
+        // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
+        currentBundleId = previousApp
+        spotlightChecked = false
+
+        // Also restore per-app mode for the previous app
+        guard AppState.shared.perAppModeEnabled else { return }
+
+        if AppState.shared.hasPerAppMode(bundleId: previousApp) {
+            let mode = AppState.shared.getPerAppMode(bundleId: previousApp)
+            Log.info("Panel closed: restore \(previousApp) mode=\(mode)")
+            RustBridge.setEnabled(mode)
+            AppState.shared.setEnabledSilently(mode)
+            NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
+        }
+    }
+
+    /// Lightweight check for Spotlight only - called on first keystroke.
+    /// Spotlight doesn't fire AX notifications, so we need this fallback.
+    /// Uses flag to only check once per session (until next app switch).
+    private var spotlightChecked = false
+    private static let spotlightBundleId = "com.apple.Spotlight"
+
+    func checkSpotlightOnce() {
+        // Skip if already checked in this session
+        guard !spotlightChecked else { return }
+        spotlightChecked = true
+
+        // Quick check: is Spotlight the focused element?
+        let systemWide = AXUIElementCreateSystemWide()
+        var focusedElement: CFTypeRef?
+
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
+              let element = focusedElement else { return }
+
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(element as! AXUIElement, &pid) == .success, pid > 0,
+              let app = NSRunningApplication(processIdentifier: pid),
+              let bundleId = app.bundleIdentifier,
+              bundleId.hasPrefix(Self.spotlightBundleId) else { return }
+
+        // Spotlight is active - handle app switch
+        Log.info("Spotlight detected via sync check")
+        SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
+        SpecialPanelAppDetector.invalidateCache()
         handleAppSwitch(bundleId)
     }
 
     private func handleAppSwitch(_ bundleId: String) {
-        guard bundleId != currentBundleId else { return }
+        Log.info("AppSwitch: \(currentBundleId ?? "nil") → \(bundleId)")
+        guard bundleId != currentBundleId else {
+            Log.info("AppSwitch: skipped (same app)")
+            return
+        }
+
+        // Reset spotlightChecked when leaving any app (for next Spotlight detection)
+        spotlightChecked = false
         currentBundleId = bundleId
 
         Log.refresh()  // Re-check debug log file existence on app switch
@@ -1706,15 +1800,22 @@ class PerAppModeManager {
         TextInjector.shared.clearSessionBuffer()
         clearDetectionCache()  // Clear injection method cache on app switch
 
-        guard AppState.shared.perAppModeEnabled else { return }
+        guard AppState.shared.perAppModeEnabled else {
+            Log.info("AppSwitch: per-app mode disabled, skipped")
+            return
+        }
 
         if AppState.shared.hasPerAppMode(bundleId: bundleId) {
             // Known app: restore saved mode
             let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
+            Log.info("AppSwitch: restore \(bundleId) mode=\(mode)")
             RustBridge.setEnabled(mode)
             AppState.shared.setEnabledSilently(mode)
+            // Force menu bar update
+            NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
         } else {
             // New app: save current state so it will be remembered next time
+            Log.info("AppSwitch: save new \(bundleId) mode=\(AppState.shared.isEnabled)")
             AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
         }
     }
