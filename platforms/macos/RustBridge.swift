@@ -735,8 +735,9 @@ private func getWordToRestoreOnBackspace() -> String? {
     var focused: CFTypeRef?
 
     guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-          let el = focused,
-          let axEl = el as? AXUIElement else { return nil }
+          let el = focused else { return nil }
+    // swiftlint:disable:next force_cast
+    let axEl = el as! AXUIElement
 
     // Get text value
     var textValue: CFTypeRef?
@@ -746,7 +747,9 @@ private func getWordToRestoreOnBackspace() -> String? {
     // Get selected text range (cursor position)
     var rangeValue: CFTypeRef?
     guard AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success,
-          let rangeRef = rangeValue as? AXValue else { return nil }
+          let rv = rangeValue else { return nil }
+    // swiftlint:disable:next force_cast
+    let rangeRef = rv as! AXValue
 
     // Extract range from AXValue
     var range = CFRange(location: 0, length: 0)
@@ -1490,18 +1493,14 @@ private class FocusChangeObserver {
 
     /// Stop all observers
     func stop() {
-        if let obs = launchObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(obs)
-            launchObserver = nil
+        [launchObserver, terminateObserver].compactMap { $0 }.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
-        if let obs = terminateObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(obs)
-            terminateObserver = nil
-        }
+        launchObserver = nil
+        terminateObserver = nil
 
-        // Remove all AXObservers from run loop
-        for (_, observer) in observers {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        observers.values.forEach {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource($0), .defaultMode)
         }
         observers.removeAll()
     }
@@ -1602,27 +1601,17 @@ class PerAppModeManager {
         }
 
         // Start event-driven detection for special panel apps (Spotlight, Raycast)
-        // This uses AXObserver to detect when these apps show their window,
-        // eliminating the need to poll on every keystroke.
         FocusChangeObserver.shared.start()
 
         // Handle initial app state if per-app mode is enabled
-        if AppState.shared.perAppModeEnabled,
-           let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
-            currentBundleId = bundleId
-            if AppState.shared.hasPerAppMode(bundleId: bundleId) {
-                // Restore saved mode for frontmost app on startup
-                let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
-                RustBridge.setEnabled(mode)
-                AppState.shared.setEnabledSilently(mode)
-                // Force menu bar update (async to ensure UI is ready)
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
-                }
-            } else {
-                // New app: save current global state
-                AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
-            }
+        guard AppState.shared.perAppModeEnabled,
+              let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
+
+        currentBundleId = bundleId
+        if AppState.shared.hasPerAppMode(bundleId: bundleId) {
+            restorePerAppMode(for: bundleId)
+        } else {
+            AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
         }
     }
 
@@ -1648,16 +1637,7 @@ class PerAppModeManager {
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
-
-        // Also restore per-app mode for the previous app
-        guard AppState.shared.perAppModeEnabled else { return }
-
-        if AppState.shared.hasPerAppMode(bundleId: previousApp) {
-            let mode = AppState.shared.getPerAppMode(bundleId: previousApp)
-            RustBridge.setEnabled(mode)
-            AppState.shared.setEnabledSilently(mode)
-            NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
-        }
+        restorePerAppMode(for: previousApp)
     }
 
     /// Lightweight check for Spotlight only - called on first keystroke.
@@ -1676,11 +1656,11 @@ class PerAppModeManager {
         var focusedElement: CFTypeRef?
 
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
-              let element = focusedElement,
-              let axElement = element as? AXUIElement else { return }
+              let element = focusedElement else { return }
 
         var pid: pid_t = 0
-        guard AXUIElementGetPid(axElement, &pid) == .success, pid > 0,
+        // swiftlint:disable:next force_cast
+        guard AXUIElementGetPid(element as! AXUIElement, &pid) == .success, pid > 0,
               let app = NSRunningApplication(processIdentifier: pid),
               let bundleId = app.bundleIdentifier,
               bundleId.hasPrefix(Self.spotlightBundleId) else { return }
@@ -1706,16 +1686,22 @@ class PerAppModeManager {
         guard AppState.shared.perAppModeEnabled else { return }
 
         if AppState.shared.hasPerAppMode(bundleId: bundleId) {
-            // Known app: restore saved mode
-            let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
-            RustBridge.setEnabled(mode)
-            AppState.shared.setEnabledSilently(mode)
-            // Force menu bar update
-            NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
+            restorePerAppMode(for: bundleId)
         } else {
             // New app: save current state so it will be remembered next time
             AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
         }
+    }
+
+    /// Restore per-app mode for a bundle ID and update UI
+    private func restorePerAppMode(for bundleId: String) {
+        guard AppState.shared.perAppModeEnabled,
+              AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
+
+        let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
+        RustBridge.setEnabled(mode)
+        AppState.shared.setEnabledSilently(mode)
+        NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
     }
 }
 
