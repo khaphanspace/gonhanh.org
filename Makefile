@@ -1,4 +1,4 @@
-.PHONY: help all test format build build-linux build-windows clean setup install dmg release release-minor release-major
+.PHONY: help all test format build build-linux build-windows clean setup install dmg release release-minor release-major watch
 
 # Auto-versioning
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
@@ -16,7 +16,7 @@ help: ## Show this help
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;34mDevelopment:\033[0m"
-	@grep -E '^(test|format|build|build-linux|build-windows|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(test|format|watch|build|build-linux|build-windows|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-14s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "\033[1;33mSetup & Install:\033[0m"
 	@grep -E '^(setup|install):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
@@ -31,6 +31,11 @@ test: ## Run tests
 
 format: ## Format & lint
 	@cd core && cargo fmt && cargo clippy -- -D warnings
+
+watch: ## Watch debug logs (tail -f)
+	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
+	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
+	@tail -f /tmp/gonhanh_debug.log
 
 build: format ## Build core + macos app
 	@./scripts/build-core.sh

@@ -68,14 +68,18 @@ class AppState: ObservableObject {
         didSet {
             RustBridge.setEnabled(isEnabled)
             guard !isSilentUpdate else { return }
-            UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
+
             if perAppModeEnabled {
-                // Check if a special panel app (Spotlight, Raycast) is currently focused
-                if let activePanelApp = SpecialPanelAppDetector.getActiveSpecialPanelApp() {
-                    savePerAppMode(bundleId: activePanelApp, enabled: isEnabled)
+                // Per-app mode: only save per-app state, don't update global
+                // Global state stays as "default" for new apps
+                if let bundleId = PerAppModeManager.shared.getCurrentBundleId() {
+                    savePerAppMode(bundleId: bundleId, enabled: isEnabled)
                 } else if let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
                     savePerAppMode(bundleId: bundleId, enabled: isEnabled)
                 }
+            } else {
+                // Global mode: save global state
+                UserDefaults.standard.set(isEnabled, forKey: SettingsKey.enabled)
             }
         }
     }

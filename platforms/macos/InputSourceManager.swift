@@ -48,7 +48,23 @@ final class InputSourceObserver {
             .deliverImmediately
         )
 
-        handleChange()
+        // Initial check - only update display state, don't change enabled
+        // (PerAppModeManager already set the correct enabled state)
+        handleChangeInitial()
+    }
+
+    /// Initial check - only updates display character and allowed flag, doesn't change enabled state
+    private func handleChangeInitial() {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+            return
+        }
+
+        let currentId = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
+        lastInputSourceId = currentId
+        currentDisplayChar = getDisplayChar(from: source, id: currentId)
+        isAllowedInputSource = isInputSourceAllowed(source: source)
+        // Don't call setEnabled - let PerAppModeManager handle initial state
     }
 
     func stop() {
@@ -80,11 +96,10 @@ final class InputSourceObserver {
         isAllowedInputSource = isInputSourceAllowed(source: source)
 
         if isAllowedInputSource {
-            // Restore user preference
-            let userEnabled = UserDefaults.standard.bool(forKey: SettingsKey.enabled)
-            RustBridge.setEnabled(userEnabled)
+            // Restore user preference from AppState (supports per-app mode)
+            RustBridge.setEnabled(AppState.shared.isEnabled)
         } else {
-            // Force disable
+            // Force disable for non-Latin input sources
             RustBridge.setEnabled(false)
         }
 

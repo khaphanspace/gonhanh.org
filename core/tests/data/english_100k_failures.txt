@@ -890,6 +890,7 @@ kris	krí
 hoses	hoes
 postsecondary	potsecondary
 samaj	sậm
+rosario	rôải
 ast	át
 loco	lôc
 lans	lán

@@ -21,6 +21,7 @@ class SpecialPanelAppDetector {
     static let specialPanelApps: [String] = [
         "com.apple.Spotlight",
         "com.raycast.macos",
+        "com.runningwithcrayons.Alfred",  // Alfred launcher
         "com.apple.inputmethod.EmojiFunctionRowItem"
     ]
 
