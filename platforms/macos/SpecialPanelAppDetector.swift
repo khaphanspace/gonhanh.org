@@ -33,10 +33,13 @@ class SpecialPanelAppDetector {
     private enum Cache {
         static var result: String?
         static var timestamp: CFAbsoluteTime = 0
-        static let ttl: CFAbsoluteTime = 0.3  // 300ms
+        static let ttlPanel: CFAbsoluteTime = 0.3    // 300ms for panel app (stable)
+        static let ttlNil: CFAbsoluteTime = 0.05     // 50ms for nil (quick re-check)
 
-        static func get() -> String?? {  // Double optional: nil = miss, .some(nil) = cached nil
-            CFAbsoluteTimeGetCurrent() - timestamp < ttl ? .some(result) : nil
+        static func get() -> (value: String?, isHit: Bool) {
+            let age = CFAbsoluteTimeGetCurrent() - timestamp
+            let ttl = result != nil ? ttlPanel : ttlNil
+            return age < ttl ? (result, true) : (nil, false)
         }
 
         static func set(_ value: String?) {
@@ -83,9 +86,9 @@ class SpecialPanelAppDetector {
     /// Get the currently active special panel app (if any)
     /// Uses caching and fast-path to avoid expensive operations on every call
     static func getActiveSpecialPanelApp() -> String? {
-        // Check cache first - but only trust cached panel app results, not cached nil
-        // This ensures we always do a fresh check when transitioning TO a panel app
-        if let cached = Cache.get(), cached != nil { return cached }
+        // Check cache first - use different TTL for panel vs nil
+        let (cachedValue, isHit) = Cache.get()
+        if isHit { return cachedValue }
 
         // Fast path: check focused element (single AX query)
         if let focusedApp = getFocusedSpecialPanelApp() {
@@ -95,10 +98,7 @@ class SpecialPanelAppDetector {
 
         // Slow path: full window scan (only if fast path failed)
         let result = getActiveSpecialPanelAppFullScan()
-        // Only cache non-nil results to ensure we detect panel app opening quickly
-        if result != nil {
-            Cache.set(result)
-        }
+        Cache.set(result)  // Cache both nil and non-nil, with different TTL
         return result
     }
 
