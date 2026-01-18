@@ -497,42 +497,40 @@ jobs:
           git push
 
   build-windows:
-    if: false  # Temporarily disabled
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Build Rust Core
+      - name: Configure CMake
         run: |
-          cd core
-          cargo build --release --target x86_64-pc-windows-msvc
-          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
-                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
+          cd platforms/windows
+          cmake -B build -G "Visual Studio 17 2022" -A x64
 
-      - name: Build WPF App
+      - name: Build
         run: |
-          cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
+          cd platforms/windows
+          cmake --build build --config Release
 
       - name: Package
         run: |
           cd platforms/windows
           $V = "${{ github.ref_name }}".TrimStart('v')
-          Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
+          New-Item -ItemType Directory -Path publish -Force | Out-Null
+          Copy-Item "build/Release/gonhanh.exe" "publish/GoNhanh.exe"
+          Compress-Archive -Path "publish/GoNhanh.exe" -DestinationPath "GoNhanh-$V-win-x64.zip"
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-zip
-          path: platforms/windows/*.zip
+      - name: Upload to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd platforms/windows
+          $ZIP = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
+          gh release upload "${{ github.ref_name }}" $ZIP.Name --clobber

@@ -11,6 +11,7 @@ on:
         type: choice
         options:
           - macos
+          - windows
           - linux
           - all
       sign:
@@ -18,9 +19,13 @@ on:
         required: false
         default: false
         type: boolean
-  # Auto build DMG for PRs
+  # Auto build for PRs
   pull_request:
     branches: [main]
+    paths:
+      - 'core/**'
+      - 'platforms/macos/**'
+      - 'platforms/windows/**'
 
 permissions:
   contents: write
@@ -289,3 +294,87 @@ jobs:
           name: GoNhanh-${{ steps.version.outputs.version }}-Linux
           path: platforms/linux/*.tar.gz
           retention-days: 14
+
+  build-windows:
+    # For PR: run if platforms/windows changed. For manual: check platform input
+    if: ${{ github.event_name == 'pull_request' || inputs.platform == 'windows' || inputs.platform == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Configure CMake
+        run: |
+          cmake -S platforms/windows -B platforms/windows/build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: |
+          cmake --build platforms/windows/build --config Release
+
+      - name: Get version from latest tag
+        id: version
+        shell: bash
+        run: |
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          BASE_VERSION="${LATEST_TAG#v}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BUILD_NUM="${GITHUB_RUN_NUMBER}"
+          VERSION="${BASE_VERSION}-pre.${BUILD_NUM}.${SHORT_SHA}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $V = "${{ steps.version.outputs.version }}"
+          $ExePath = "platforms/windows/build/Release/gonhanh.exe"
+          $OutDir = "platforms/windows/publish"
+          $ZipName = "GoNhanh-$V-win-x64.zip"
+
+          New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+          Copy-Item $ExePath "$OutDir/GoNhanh.exe" -Force
+          Compress-Archive -Path "$OutDir/GoNhanh.exe" -DestinationPath "platforms/windows/$ZipName" -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoNhanh-${{ steps.version.outputs.version }}-Windows
+          path: platforms/windows/*.zip
+          retention-days: 14
+
+      - name: Comment on PR with artifact link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const shortSha = process.env.COMMIT_SHA.substring(0, 7);
+            const version = process.env.VERSION;
+            const prNumber = process.env.PR_NUMBER;
+            const runId = process.env.RUN_ID;
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            const body = [
+              '## Windows Build Ready',
+              '',
+              '| Commit | Version | Download |',
+              '|--------|---------|----------|',
+              `| \`${shortSha}\` | \`${version}\` | [**GoNhanh-${version}-Windows.zip**](${artifactUrl}#artifacts) |`,
+              '',
+              `> Build for commit ${process.env.COMMIT_SHA}`,
+              `> Artifact expires in 14 days`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: body
+            });
