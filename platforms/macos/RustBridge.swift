@@ -968,13 +968,10 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // Check for special panel apps (Spotlight, Raycast) on keyDown only
-    // Skip if per-app mode disabled (fast check before async dispatch)
-    if type == .keyDown && AppState.shared.perAppModeEnabled {
-        DispatchQueue.main.async {
-            PerAppModeManager.shared.checkSpecialPanelApp()
-        }
-    }
+    // NOTE: Special panel app detection (Spotlight, Raycast) is now handled by
+    // FocusChangeObserver using AXObserver, which is event-driven and triggers
+    // BEFORE any keystroke. This eliminates both the race condition and the
+    // performance overhead of polling on every keystroke.
 
     let flags = event.flags
 
@@ -1525,6 +1522,123 @@ private func sendReplacement(backspace bs: Int, chars: [Character], method: Inje
     TextInjector.shared.injectSync(bs: bs, text: str, method: method, delays: delays, proxy: proxy)
 }
 
+// MARK: - Focus Change Observer (AXObserver-based)
+
+/// Observes focus changes for special panel apps (Spotlight, Raycast) using AXObserver.
+/// Unlike polling on every keystroke, this is event-driven and triggers BEFORE any keystroke.
+private class FocusChangeObserver {
+    static let shared = FocusChangeObserver()
+
+    private var observers: [pid_t: AXObserver] = [:]
+    private var launchObserver: NSObjectProtocol?
+    private var terminateObserver: NSObjectProtocol?
+
+    private init() {}
+
+    /// Start observing special panel apps
+    func start() {
+        // Watch for special panel apps launching
+        launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let bundleId = app.bundleIdentifier,
+                  SpecialPanelAppDetector.isSpecialPanelApp(bundleId) else { return }
+            self?.observeApp(app)
+        }
+
+        // Watch for termination to clean up observers
+        terminateObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            self?.stopObserving(pid: app.processIdentifier)
+        }
+
+        // Observe already-running special panel apps (e.g., Spotlight is always running)
+        for bundleId in SpecialPanelAppDetector.specialPanelApps {
+            for app in NSRunningApplication.runningApplications(withBundleIdentifier: bundleId) {
+                observeApp(app)
+            }
+        }
+
+        Log.info("FocusChangeObserver started, observing \(observers.count) apps")
+    }
+
+    /// Stop all observers
+    func stop() {
+        if let obs = launchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+            launchObserver = nil
+        }
+        if let obs = terminateObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+            terminateObserver = nil
+        }
+
+        // Remove all AXObservers from run loop
+        for (_, observer) in observers {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        }
+        observers.removeAll()
+    }
+
+    /// Start observing a specific app
+    private func observeApp(_ app: NSRunningApplication) {
+        let pid = app.processIdentifier
+        guard observers[pid] == nil else { return }
+
+        var observer: AXObserver?
+
+        // Callback for AX notifications - must be a C function pointer
+        let callback: AXObserverCallback = { (_, element, notification, _) in
+            // Dispatch to main thread to avoid race conditions
+            DispatchQueue.main.async {
+                var pid: pid_t = 0
+                AXUIElementGetPid(element, &pid)
+
+                if let app = NSRunningApplication(processIdentifier: pid),
+                   let bundleId = app.bundleIdentifier,
+                   SpecialPanelAppDetector.isSpecialPanelApp(bundleId) {
+                    Log.info("AXObserver: \(bundleId) focused (notification: \(notification))")
+                    SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
+                    SpecialPanelAppDetector.invalidateCache()
+                    PerAppModeManager.shared.handleSpecialPanelAppActivated(bundleId)
+                }
+            }
+        }
+
+        let result = AXObserverCreate(pid, callback, &observer)
+        guard result == .success, let observer = observer else {
+            Log.info("Failed to create AXObserver for PID \(pid)")
+            return
+        }
+
+        let appElement = AXUIElementCreateApplication(pid)
+
+        // Observe window creation and focus changes
+        AXObserverAddNotification(observer, appElement, kAXWindowCreatedNotification as CFString, nil)
+        AXObserverAddNotification(observer, appElement, kAXFocusedWindowChangedNotification as CFString, nil)
+        AXObserverAddNotification(observer, appElement, kAXApplicationActivatedNotification as CFString, nil)
+
+        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        observers[pid] = observer
+
+        Log.info("Now observing special panel app PID \(pid) (\(app.bundleIdentifier ?? "unknown"))")
+    }
+
+    /// Stop observing a specific app
+    private func stopObserving(pid: pid_t) {
+        guard let observer = observers.removeValue(forKey: pid) else { return }
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        Log.info("Stopped observing PID \(pid)")
+    }
+}
+
 // MARK: - Per-App Mode Manager
 
 class PerAppModeManager {
@@ -1551,9 +1665,10 @@ class PerAppModeManager {
             self?.handleAppSwitch(bundleId)
         }
 
-        // NOTE: Removed mouse click monitor for checkSpecialPanelApp() - it was causing
-        // system-wide lag because CGWindowListCopyWindowInfo + AX queries run on EVERY click.
-        // Keyboard-based detection (in keyboardCallback) is sufficient for Spotlight/Raycast.
+        // Start event-driven detection for special panel apps (Spotlight, Raycast)
+        // This uses AXObserver to detect when these apps show their window,
+        // eliminating the need to poll on every keystroke.
+        FocusChangeObserver.shared.start()
 
         // Save initial app state if per-app mode is enabled and app hasn't been saved yet
         if AppState.shared.perAppModeEnabled,
@@ -1573,18 +1688,13 @@ class PerAppModeManager {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             self.observer = nil
         }
+        FocusChangeObserver.shared.stop()
     }
 
-    /// Check for special panel apps on keyboard events
-    /// Call this from the keyboard callback
-    func checkSpecialPanelApp() {
-        guard AppState.shared.perAppModeEnabled else { return }
-        
-        let (appChanged, newBundleId, _) = SpecialPanelAppDetector.checkForAppChange()
-        
-        if appChanged, let bundleId = newBundleId {
-            handleAppSwitch(bundleId)
-        }
+    /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
+    /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
+    func handleSpecialPanelAppActivated(_ bundleId: String) {
+        handleAppSwitch(bundleId)
     }
 
     private func handleAppSwitch(_ bundleId: String) {
