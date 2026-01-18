@@ -525,7 +525,6 @@ class RustBridge {
         guard !isInitialized else { return }
         ime_init()
         isInitialized = true
-        Log.info("Engine initialized")
     }
 
     /// Process a keystroke. Returns (backspace, chars, keyConsumed) or nil if no action.
@@ -545,62 +544,36 @@ class RustBridge {
         return (Int(r.backspace), chars, keyConsumed)
     }
 
-    static func setMethod(_ method: Int) {
-        ime_method(UInt8(method))
-        Log.info("Method: \(method == 0 ? "Telex" : "VNI")")
-    }
+    static func setMethod(_ method: Int) { ime_method(UInt8(method)) }
 
     static func setEnabled(_ enabled: Bool) {
         // GATE: Only enable if input source is allowed, always allow disable
-        let actualEnabled = enabled && InputSourceObserver.shared.isAllowedInputSource
-        ime_enabled(actualEnabled)
-        Log.info("Enabled: \(actualEnabled) (requested: \(enabled), allowed: \(InputSourceObserver.shared.isAllowedInputSource))")
+        ime_enabled(enabled && InputSourceObserver.shared.isAllowedInputSource)
     }
 
     /// Set whether to skip w→ư shortcut in Telex mode
-    static func setSkipWShortcut(_ skip: Bool) {
-        ime_skip_w_shortcut(skip)
-        Log.info("Skip W shortcut: \(skip)")
-    }
+    static func setSkipWShortcut(_ skip: Bool) { ime_skip_w_shortcut(skip) }
 
     /// Set whether bracket shortcuts are enabled: ] → ư, [ → ơ (Issue #159)
-    static func setBracketShortcut(_ enabled: Bool) {
-        ime_bracket_shortcut(enabled)
-        Log.info("Bracket shortcut: \(enabled)")
-    }
+    static func setBracketShortcut(_ enabled: Bool) { ime_bracket_shortcut(enabled) }
 
     /// Set whether restore shortcut is enabled
     /// NOTE: Enable in Rust engine so we can get restore data, but Swift controls when to trigger
-    static func setRestoreShortcutEnabled(_ enabled: Bool) {
-        ime_esc_restore(enabled)
-        Log.info("Restore shortcut enabled: \(enabled)")
-    }
+    static func setRestoreShortcutEnabled(_ enabled: Bool) { ime_esc_restore(enabled) }
 
     /// Set whether to enable free tone placement (skip validation)
-    static func setFreeTone(_ enabled: Bool) {
-        ime_free_tone(enabled)
-        Log.info("Free tone: \(enabled)")
-    }
+    static func setFreeTone(_ enabled: Bool) { ime_free_tone(enabled) }
 
     /// Set whether to use modern orthography for tone placement
-    static func setModernTone(_ modern: Bool) {
-        ime_modern(modern)
-        Log.info("Modern tone: \(modern)")
-    }
+    static func setModernTone(_ modern: Bool) { ime_modern(modern) }
 
     /// Set whether to enable English auto-restore (experimental)
     /// When enabled, automatically restores English words that were transformed
-    static func setEnglishAutoRestore(_ enabled: Bool) {
-        ime_english_auto_restore(enabled)
-        Log.info("English auto-restore: \(enabled)")
-    }
+    static func setEnglishAutoRestore(_ enabled: Bool) { ime_english_auto_restore(enabled) }
 
     /// Set whether to enable auto-capitalize after sentence-ending punctuation
     /// When enabled, capitalizes first letter after . ! ? Enter
-    static func setAutoCapitalize(_ enabled: Bool) {
-        ime_auto_capitalize(enabled)
-        Log.info("Auto-capitalize: \(enabled)")
-    }
+    static func setAutoCapitalize(_ enabled: Bool) { ime_auto_capitalize(enabled) }
 
     static func clearBuffer() { ime_clear() }
 
@@ -617,10 +590,7 @@ class RustBridge {
 
     /// Restore buffer from a Vietnamese word (for backspace-into-word editing)
     static func restoreWord(_ word: String) {
-        word.withCString { w in
-            ime_restore_word(w)
-        }
-        Log.info("Restored word: \(word)")
+        word.withCString { ime_restore_word($0) }
     }
 
     // MARK: - Shortcuts
@@ -628,26 +598,17 @@ class RustBridge {
     /// Add a shortcut to the engine
     static func addShortcut(trigger: String, replacement: String) {
         trigger.withCString { t in
-            replacement.withCString { r in
-                ime_add_shortcut(t, r)
-            }
+            replacement.withCString { r in ime_add_shortcut(t, r) }
         }
-        Log.info("Shortcut added: \(trigger) → \(replacement)")
     }
 
     /// Remove a shortcut from the engine
     static func removeShortcut(trigger: String) {
-        trigger.withCString { t in
-            ime_remove_shortcut(t)
-        }
-        Log.info("Shortcut removed: \(trigger)")
+        trigger.withCString { ime_remove_shortcut($0) }
     }
 
     /// Clear all shortcuts from the engine
-    static func clearShortcuts() {
-        ime_clear_shortcuts()
-        Log.info("Shortcuts cleared")
-    }
+    static func clearShortcuts() { ime_clear_shortcuts() }
 
     /// Sync shortcuts from UI to engine
     static func syncShortcuts(_ shortcuts: [(key: String, value: String, enabled: Bool)]) {
@@ -655,7 +616,6 @@ class RustBridge {
         for shortcut in shortcuts where shortcut.enabled {
             addShortcut(trigger: shortcut.key, replacement: shortcut.value)
         }
-        Log.info("Synced \(shortcuts.filter { $0.enabled }.count) shortcuts")
     }
 }
 
@@ -677,7 +637,6 @@ class KeyboardHookManager {
         guard AXIsProcessTrusted() else {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(opts)
-            Log.info("Requesting accessibility permission")
             return
         }
 
@@ -706,7 +665,6 @@ class KeyboardHookManager {
             isRunning = true
             setupShortcutObserver()
             startMouseMonitor()
-            Log.info("Hook started")
         }
     }
 
@@ -718,7 +676,6 @@ class KeyboardHookManager {
             TextInjector.shared.clearSessionBuffer()
             RustBridge.clearBufferAll()  // Clear everything including word history
             skipWordRestoreAfterClick = true
-            Log.info("Mouse event: cleared buffer, skip restore = true")
         }
     }
 
@@ -731,7 +688,6 @@ class KeyboardHookManager {
         runLoopSource = nil
         mouseMonitor = nil
         isRunning = false
-        Log.info("Hook stopped")
     }
 
     func getTap() -> CFMachPort? { eventTap }
@@ -779,54 +735,34 @@ private func getWordToRestoreOnBackspace() -> String? {
     var focused: CFTypeRef?
 
     guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-          let el = focused else {
-        Log.info("restore: no focused element")
-        return nil
-    }
-
-    let axEl = el as! AXUIElement
+          let el = focused,
+          let axEl = el as? AXUIElement else { return nil }
 
     // Get text value
     var textValue: CFTypeRef?
-    let textResult = AXUIElementCopyAttributeValue(axEl, kAXValueAttribute as CFString, &textValue)
-    guard textResult == .success, let text = textValue as? String, !text.isEmpty else {
-        Log.info("restore: no text value (err=\(textResult.rawValue))")
-        return nil
-    }
+    guard AXUIElementCopyAttributeValue(axEl, kAXValueAttribute as CFString, &textValue) == .success,
+          let text = textValue as? String, !text.isEmpty else { return nil }
 
     // Get selected text range (cursor position)
     var rangeValue: CFTypeRef?
-    let rangeResult = AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue)
-    guard rangeResult == .success else {
-        Log.info("restore: no range (err=\(rangeResult.rawValue))")
-        return nil
-    }
+    guard AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success,
+          let rangeRef = rangeValue as? AXValue else { return nil }
 
     // Extract range from AXValue
     var range = CFRange(location: 0, length: 0)
-    guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else {
-        Log.info("restore: can't extract range")
-        return nil
-    }
+    guard AXValueGetValue(rangeRef, .cfRange, &range) else { return nil }
 
     let cursorPos = range.location
-    Log.info("restore: cursor=\(cursorPos) text='\(text.prefix(50))...'")
     guard cursorPos > 0 else { return nil }
 
     let textChars = Array(text)
-    guard cursorPos <= textChars.count else {
-        Log.info("restore: cursor out of bounds")
-        return nil
-    }
+    guard cursorPos <= textChars.count else { return nil }
+
     let charBeforeCursor = textChars[cursorPos - 1]
-    Log.info("restore: charBefore='\(charBeforeCursor)'")
 
     // Only restore if we're about to delete the LAST space/punctuation before a word
     // i.e., cursor is at: "word |" (about to delete space and enter "word")
-    guard charBeforeCursor.isWhitespace || charBeforeCursor.isPunctuation else {
-        Log.info("restore: not at word boundary")
-        return nil
-    }
+    guard charBeforeCursor.isWhitespace || charBeforeCursor.isPunctuation else { return nil }
 
     // Check if there's a word before this space (not more spaces)
     var wordEnd = cursorPos - 1
@@ -836,17 +772,11 @@ private func getWordToRestoreOnBackspace() -> String? {
         wordEnd -= 1
     }
 
-    guard wordEnd > 0 else {
-        Log.info("restore: no word before spaces")
-        return nil
-    }
+    guard wordEnd > 0 else { return nil }
 
     // But we only want to restore when deleting THE LAST space before the word
     // If there are more spaces between cursor and word, don't restore yet
-    if wordEnd < cursorPos - 1 {
-        Log.info("restore: multiple spaces before word")
-        return nil  // More than one space/punct between cursor and word
-    }
+    if wordEnd < cursorPos - 1 { return nil }  // More than one space/punct between cursor and word
 
     // Find start of word
     var wordStart = wordEnd
@@ -865,13 +795,7 @@ private func getWordToRestoreOnBackspace() -> String? {
     }
     let isPureASCIILetters = word.allSatisfy { $0.isLetter && $0.isASCII }
 
-    if hasVietnameseDiacritics || isPureASCIILetters {
-        Log.info("restore: found word '\(word)'")
-        return word
-    }
-
-    Log.info("restore: word '\(word)' not Vietnamese")
-    return nil
+    return (hasVietnameseDiacritics || isPureASCIILetters) ? word : nil
 }
 
 private extension CGEventFlags {
@@ -919,12 +843,10 @@ func startRestoreShortcutRecording() {
 func setupShortcutObserver() {
     shortcutObserver = NotificationCenter.default.addObserver(forName: .shortcutChanged, object: nil, queue: .main) { _ in
         currentShortcut = KeyboardShortcut.load()
-        Log.info("Shortcut updated: \(currentShortcut.displayParts.joined())")
     }
     // Observer for restore shortcut changes
     NotificationCenter.default.addObserver(forName: .restoreShortcutChanged, object: nil, queue: .main) { _ in
         currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
-        Log.info("Restore shortcut updated: \(currentRestoreShortcut.displayParts.joined())")
     }
 }
 
@@ -952,7 +874,6 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
     let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
     let (method, delays) = detectMethod()
     if let (bs, chars, _) = RustBridge.processKey(keyCode: UInt16(KeyCode.esc), caps: caps, ctrl: ctrl, shift: shift) {
-        Log.info("Restore shortcut: backspace \(bs), chars '\(String(chars))'")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
     }
     TextInjector.shared.clearSessionBuffer()
@@ -1175,7 +1096,6 @@ private func keyboardCallback(
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         if let text = getTextFromFocusedElement() {
                             TextInjector.shared.setSessionBuffer(text)
-                            Log.info("Session buffer synced: \(text)")
                         } else {
                             TextInjector.shared.clearSessionBuffer()
                         }
@@ -1202,7 +1122,6 @@ private func keyboardCallback(
                 return nil
             } else {
                 // Session is empty (after Cmd+A, etc.) - pass through backspace to delete selection
-                Log.info("selectAll: pass through backspace (empty session)")
                 return Unmanaged.passUnretained(event)
             }
         }
@@ -1218,7 +1137,6 @@ private func keyboardCallback(
         // Skip restore if just clicked (user may be deleting a selection)
         if !skipWordRestoreAfterClick, let word = getWordToRestoreOnBackspace() {
             RustBridge.restoreWord(word)
-            Log.info("Restored word from screen: \(word)")
         }
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
 
@@ -1400,8 +1318,6 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     guard let bundleId = bundleId else { return (.fast, (200, 800, 500)) }
 
-    Log.info("detect: \(bundleId) role=\(role ?? "nil")")
-
     // Helper to cache and return result
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32)) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         DetectionCache.set(m, d); return (m, d)
@@ -1534,6 +1450,10 @@ private class FocusChangeObserver {
     private var launchObserver: NSObjectProtocol?
     private var terminateObserver: NSObjectProtocol?
 
+    /// Debounce: prevent rapid-fire processing from multiple AX notifications
+    private static var lastProcessedTime: CFAbsoluteTime = 0
+    private static let debounceInterval: CFAbsoluteTime = 0.05  // 50ms
+
     private init() {}
 
     /// Start observing special panel apps
@@ -1566,8 +1486,6 @@ private class FocusChangeObserver {
                 observeApp(app)
             }
         }
-
-        Log.info("FocusChangeObserver started, observing \(observers.count) apps")
     }
 
     /// Stop all observers
@@ -1597,6 +1515,11 @@ private class FocusChangeObserver {
 
         // Callback for AX notifications - must be a C function pointer
         let callback: AXObserverCallback = { (_, element, notification, _) in
+            // Debounce: skip if processed recently (prevents rapid-fire from multiple notifications)
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - FocusChangeObserver.lastProcessedTime > FocusChangeObserver.debounceInterval else { return }
+            FocusChangeObserver.lastProcessedTime = now
+
             // Dispatch to main thread to avoid race conditions
             DispatchQueue.main.async {
                 var pid: pid_t = 0
@@ -1605,15 +1528,11 @@ private class FocusChangeObserver {
                 if let app = NSRunningApplication(processIdentifier: pid),
                    let bundleId = app.bundleIdentifier,
                    SpecialPanelAppDetector.isSpecialPanelApp(bundleId) {
-                    Log.info("AXObserver: \(bundleId) (notification: \(notification))")
-
                     // When special panel app window is destroyed (closed), switch to actual frontmost app
                     if notification == kAXUIElementDestroyedNotification as CFString {
-                        // Panel closed - check actual frontmost app
                         if let frontmost = NSWorkspace.shared.frontmostApplication,
                            let frontBundleId = frontmost.bundleIdentifier,
                            frontBundleId != bundleId {
-                            Log.info("Panel closed, switching to: \(frontBundleId)")
                             PerAppModeManager.shared.handlePanelClosed(previousApp: frontBundleId)
                         }
                     } else {
@@ -1627,10 +1546,7 @@ private class FocusChangeObserver {
         }
 
         let result = AXObserverCreate(pid, callback, &observer)
-        guard result == .success, let observer = observer else {
-            Log.info("Failed to create AXObserver for PID \(pid)")
-            return
-        }
+        guard result == .success, let observer = observer else { return }
 
         let appElement = AXUIElementCreateApplication(pid)
 
@@ -1645,15 +1561,12 @@ private class FocusChangeObserver {
 
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
         observers[pid] = observer
-
-        Log.info("Now observing special panel app PID \(pid) (\(app.bundleIdentifier ?? "unknown"))")
     }
 
     /// Stop observing a specific app
     private func stopObserving(pid: pid_t) {
         guard let observer = observers.removeValue(forKey: pid) else { return }
         CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
-        Log.info("Stopped observing PID \(pid)")
     }
 }
 
@@ -1702,7 +1615,6 @@ class PerAppModeManager {
                 let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
                 RustBridge.setEnabled(mode)
                 AppState.shared.setEnabledSilently(mode)
-                Log.info("Startup: restored \(bundleId) mode=\(mode)")
                 // Force menu bar update (async to ensure UI is ready)
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
@@ -1710,11 +1622,8 @@ class PerAppModeManager {
             } else {
                 // New app: save current global state
                 AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
-                Log.info("Startup: saved new \(bundleId) mode=\(AppState.shared.isEnabled)")
             }
         }
-
-        Log.info("PerAppModeManager started")
     }
 
     /// Stop observing
@@ -1736,7 +1645,6 @@ class PerAppModeManager {
     /// Called when a special panel app (Spotlight, Raycast) closes.
     /// Resets currentBundleId to the previous app so next open triggers proper mode restore.
     func handlePanelClosed(previousApp: String) {
-        Log.info("Panel closed handler: switching from \(currentBundleId ?? "nil") to \(previousApp)")
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
@@ -1746,7 +1654,6 @@ class PerAppModeManager {
 
         if AppState.shared.hasPerAppMode(bundleId: previousApp) {
             let mode = AppState.shared.getPerAppMode(bundleId: previousApp)
-            Log.info("Panel closed: restore \(previousApp) mode=\(mode)")
             RustBridge.setEnabled(mode)
             AppState.shared.setEnabledSilently(mode)
             NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
@@ -1769,27 +1676,23 @@ class PerAppModeManager {
         var focusedElement: CFTypeRef?
 
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
-              let element = focusedElement else { return }
+              let element = focusedElement,
+              let axElement = element as? AXUIElement else { return }
 
         var pid: pid_t = 0
-        guard AXUIElementGetPid(element as! AXUIElement, &pid) == .success, pid > 0,
+        guard AXUIElementGetPid(axElement, &pid) == .success, pid > 0,
               let app = NSRunningApplication(processIdentifier: pid),
               let bundleId = app.bundleIdentifier,
               bundleId.hasPrefix(Self.spotlightBundleId) else { return }
 
         // Spotlight is active - handle app switch
-        Log.info("Spotlight detected via sync check")
         SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
         SpecialPanelAppDetector.invalidateCache()
         handleAppSwitch(bundleId)
     }
 
     private func handleAppSwitch(_ bundleId: String) {
-        Log.info("AppSwitch: \(currentBundleId ?? "nil") → \(bundleId)")
-        guard bundleId != currentBundleId else {
-            Log.info("AppSwitch: skipped (same app)")
-            return
-        }
+        guard bundleId != currentBundleId else { return }
 
         // Reset spotlightChecked when leaving any app (for next Spotlight detection)
         spotlightChecked = false
@@ -1800,22 +1703,17 @@ class PerAppModeManager {
         TextInjector.shared.clearSessionBuffer()
         clearDetectionCache()  // Clear injection method cache on app switch
 
-        guard AppState.shared.perAppModeEnabled else {
-            Log.info("AppSwitch: per-app mode disabled, skipped")
-            return
-        }
+        guard AppState.shared.perAppModeEnabled else { return }
 
         if AppState.shared.hasPerAppMode(bundleId: bundleId) {
             // Known app: restore saved mode
             let mode = AppState.shared.getPerAppMode(bundleId: bundleId)
-            Log.info("AppSwitch: restore \(bundleId) mode=\(mode)")
             RustBridge.setEnabled(mode)
             AppState.shared.setEnabledSilently(mode)
             // Force menu bar update
             NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
         } else {
             // New app: save current state so it will be remembered next time
-            Log.info("AppSwitch: save new \(bundleId) mode=\(AppState.shared.isEnabled)")
             AppState.shared.savePerAppMode(bundleId: bundleId, enabled: AppState.shared.isEnabled)
         }
     }
