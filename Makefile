@@ -41,6 +41,7 @@ build: format ## Build core + macos app
 	@./scripts/build-core.sh
 	@./scripts/build-macos.sh
 	@./scripts/build-windows.sh
+	@open platforms/macos/build/Release/GoNhanh.app
 
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh

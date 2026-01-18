@@ -36,11 +36,13 @@ class SoundManager {
 
 enum NavigationPage: String, CaseIterable {
     case settings = "Cài đặt"
+    case system = "Hệ thống"
     case about = "Giới thiệu"
 
     var icon: String {
         switch self {
         case .settings: return "gearshape"
+        case .system: return "slider.horizontal.3"
         case .about: return "bolt.fill"
         }
     }
@@ -143,6 +145,18 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var autoCheckUpdate: Bool = true {
+        didSet {
+            UserDefaults.standard.set(autoCheckUpdate, forKey: SettingsKey.autoCheckUpdate)
+        }
+    }
+
+    @Published var autoUpdate: Bool = true {
+        didSet {
+            UserDefaults.standard.set(autoUpdate, forKey: SettingsKey.autoUpdate)
+        }
+    }
+
     @Published var toggleShortcut: KeyboardShortcut {
         didSet {
             toggleShortcut.save()
@@ -182,6 +196,8 @@ class AppState: ObservableObject {
         englishAutoRestore = defaults.bool(forKey: SettingsKey.englishAutoRestore)
         autoCapitalize = defaults.bool(forKey: SettingsKey.autoCapitalize)
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
+        autoCheckUpdate = defaults.object(forKey: SettingsKey.autoCheckUpdate) == nil ? true : defaults.bool(forKey: SettingsKey.autoCheckUpdate)
+        autoUpdate = defaults.object(forKey: SettingsKey.autoUpdate) == nil ? true : defaults.bool(forKey: SettingsKey.autoUpdate)
 
         // Sync settings to Rust engine
         syncAllToEngine()
@@ -192,7 +208,7 @@ class AppState: ObservableObject {
         // Setup observers and services
         setupObservers()
         setupLaunchAtLoginMonitoring()
-        checkForUpdates()
+        if autoCheckUpdate { checkForUpdates() }
     }
 
     private func syncAllToEngine() {
@@ -429,20 +445,29 @@ struct SettingsRow<Content: View>: View {
 struct SettingsToggleRow: View {
     let title: String
     let subtitle: String?
+    let indented: Bool
     @Binding var isOn: Bool
 
-    init(_ title: String, subtitle: String? = nil, isOn: Binding<Bool>) {
+    init(_ title: String, subtitle: String? = nil, indented: Bool = false, isOn: Binding<Bool>) {
         self.title = title
         self.subtitle = subtitle
+        self.indented = indented
         self._isOn = isOn
     }
 
     var body: some View {
         SettingsRow {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13))
-                if let subtitle = subtitle {
-                    Text(subtitle).font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
+            HStack(spacing: 6) {
+                if indented {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 13))
+                    if let subtitle = subtitle {
+                        Text(subtitle).font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
+                    }
                 }
             }
             Spacer()
@@ -592,6 +617,11 @@ struct MainSettingsView: View {
                 SettingsPageView(appState: appState).padding(28)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .system:
+            ScrollView(showsIndicators: false) {
+                SystemPageView(appState: appState).padding(28)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .about:
             AboutPageView().padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -710,45 +740,43 @@ struct SettingsPageView: View {
                 inputMethodRow
                 if appState.currentMethod == .telex {
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ W thành Ư ở đầu từ", isOn: $appState.autoWShortcut)
+                    SettingsToggleRow("Gõ W → Ư ở đầu từ", indented: true, isOn: $appState.autoWShortcut)
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ ] thành Ư, [ thành Ơ", isOn: $appState.bracketShortcut)
+                    SettingsToggleRow("Gõ ] → Ư, [ → Ơ", indented: true, isOn: $appState.bracketShortcut)
+                    Divider().padding(.leading, 12)
+                    englishAutoRestoreRow
                 }
             }
             .cardBackground()
 
-            // Toggle shortcut & text expansion
+            // Toggle mode settings
             VStack(spacing: 0) {
                 ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
                                     isRecording: $isRecordingShortcut)
                 Divider().padding(.leading, 12)
+                SettingsToggleRow("Tự động bật/tắt theo ứng dụng", subtitle: "Ghi nhớ trạng thái riêng cho từng app", isOn: $appState.perAppModeEnabled)
+            }
+            .cardBackground()
+
+            // Text expansion
+            VStack(spacing: 0) {
                 shortcutsRow
             }
             .cardBackground()
 
-            // Other options
+            // Typing options
             VStack(spacing: 0) {
-                LaunchAtLoginToggleRow(appState: appState)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự chuyển chế độ theo ứng dụng", isOn: $appState.perAppModeEnabled)
-                Divider().padding(.leading, 12)
-                englishAutoRestoreRow
-            }
-            .cardBackground()
-
-            // Sound, tone and restore shortcut options
-            VStack(spacing: 0) {
-                SettingsToggleRow("Âm thanh chuyển ngôn ngữ", isOn: $appState.soundEnabled)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Đặt dấu kiểu mới (oà, uý)", isOn: $appState.modernTone)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự viết hoa đầu câu", isOn: $appState.autoCapitalize)
+                SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "oà thay vì òa, uý thay vì úy", isOn: $appState.modernTone)
                 Divider().padding(.leading, 12)
                 RestoreShortcutRecorderRow(
                     shortcut: $appState.restoreShortcut,
                     isEnabled: $appState.restoreShortcutEnabled,
                     isRecording: $isRecordingRestoreShortcut
                 )
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Tự viết hoa đầu câu", isOn: $appState.autoCapitalize)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Âm thanh khi bật/tắt", isOn: $appState.soundEnabled)
             }
             .cardBackground()
 
@@ -772,6 +800,9 @@ struct SettingsPageView: View {
     private var englishAutoRestoreRow: some View {
         SettingsRow {
             HStack(spacing: 6) {
+                Image(systemName: "arrow.turn.down.right")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 Text("Tự khôi phục từ tiếng Anh").font(.system(size: 13))
                 Link(destination: URL(string: "https://github.com/khaphanspace/gonhanh.org/issues/26")!) {
                     Text("Beta · Góp ý")
@@ -1017,6 +1048,120 @@ struct ShortcutsSheet: View {
     }
 }
 
+// MARK: - System Page
+
+struct SystemPageView: View {
+    @ObservedObject var appState: AppState
+    @State private var hovered = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Startup settings
+            VStack(spacing: 0) {
+                LaunchAtLoginToggleRow(appState: appState)
+            }
+            .cardBackground()
+
+            // Update settings
+            VStack(spacing: 0) {
+                SettingsToggleRow("Tự động kiểm tra cập nhật", isOn: $appState.autoCheckUpdate)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow(
+                    "Tự động cập nhật",
+                    subtitle: "Cài đặt khi khởi động lại ứng dụng",
+                    isOn: $appState.autoUpdate
+                )
+                Divider().padding(.leading, 12)
+                checkUpdateRow
+            }
+            .cardBackground()
+
+            Spacer()
+        }
+    }
+
+    @State private var rotation: Double = 0
+
+    private var checkUpdateRow: some View {
+        HStack {
+            Text("Phiên bản").font(.system(size: 13))
+            Spacer()
+            versionBadge
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
+        .contentShape(Rectangle())
+        .onHover { h in
+            hovered = h
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .onTapGesture { performCheck() }
+    }
+
+    private var versionBadge: some View {
+        HStack(spacing: 4) {
+            Text("v\(AppMetadata.version)")
+            statusIcon
+            if let text = statusText { Text(text) }
+        }
+        .font(.system(size: 11))
+        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color(NSColor.controlBackgroundColor).opacity(hovered ? 0.8 : 0.5)))
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch appState.updateStatus {
+        case .checking:
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .rotationEffect(.degrees(rotation))
+                .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
+                .onDisappear { rotation = 0 }
+        case .upToDate:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.green)
+        case .available:
+            Image(systemName: "arrow.up.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.orange)
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.orange)
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    private var statusText: String? {
+        switch appState.updateStatus {
+        case .idle: return "Kiểm tra"
+        case .checking: return "Kiểm tra"
+        case .upToDate: return "Mới nhất"
+        case .available: return "Cập nhật"
+        case .error: return "Thất bại"
+        }
+    }
+
+    private func performCheck() {
+        guard !appState.updateStatus.isChecking else { return }
+        if case .available = appState.updateStatus {
+            if case .available(let info) = UpdateManager.shared.state {
+                UpdateManager.shared.downloadUpdate(info)
+                NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
+            }
+        } else {
+            appState.checkForUpdates()
+        }
+    }
+}
+
 // MARK: - About Page
 
 struct AboutPageView: View {
@@ -1105,7 +1250,7 @@ struct ShortcutRecorderRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Phím tắt bật/tắt").font(.system(size: 13))
+                Text("Bật/tắt bằng phím tắt").font(.system(size: 13))
                 Text("Nhấn để thay đổi")
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
