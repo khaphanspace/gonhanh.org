@@ -1084,56 +1084,91 @@ struct SystemPageView: View {
 
     private var checkUpdateRow: some View {
         HStack {
-            Text("Phiên bản").font(.system(size: 13))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("Phiên bản \(AppMetadata.version)").font(.system(size: 13))
+                    statusBadge
+                }
+                changelogLink
+            }
             Spacer()
-            versionBadge
+            checkButton
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
         .contentShape(Rectangle())
-        .onHover { h in
-            hovered = h
-            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
-        .onTapGesture { performCheck() }
+        .onHover { hovered = $0 }
     }
 
-    private var versionBadge: some View {
-        HStack(spacing: 4) {
-            Text("v\(AppMetadata.version)")
+    @ViewBuilder
+    private var statusBadge: some View {
+        HStack(spacing: 3) {
             statusIcon
-            if let text = statusText { Text(text) }
+            if let text = statusText {
+                Text(text).font(.system(size: 11))
+            }
         }
-        .font(.system(size: 11))
-        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(Color(NSColor.controlBackgroundColor).opacity(hovered ? 0.8 : 0.5)))
+        .foregroundColor(statusColor)
+    }
+
+    private var statusColor: Color {
+        switch appState.updateStatus {
+        case .upToDate: return .green
+        case .available: return .orange
+        case .error: return .red
+        default: return Color(NSColor.secondaryLabelColor)
+        }
+    }
+
+    @ViewBuilder
+    private var changelogLink: some View {
+        Link(destination: URL(string: "\(AppMetadata.repository)/releases")!) {
+            HStack(spacing: 4) {
+                Text("Xem thay đổi")
+                Image(systemName: "arrow.up.forward.square")
+            }
+            .font(.system(size: 11))
+            .foregroundColor(Color(NSColor.secondaryLabelColor))
+        }
+        .buttonStyle(.plain)
+        .onHover { h in
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+    }
+
+    @ViewBuilder
+    private var checkButton: some View {
+        switch appState.updateStatus {
+        case .checking:
+            ProgressView()
+                .controlSize(.regular)
+        case .available:
+            Button("Cập nhật") { performUpdate() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+        default:
+            Button("Kiểm tra") { appState.checkForUpdates() }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+        }
     }
 
     @ViewBuilder
     private var statusIcon: some View {
         switch appState.updateStatus {
         case .checking:
-            Image(systemName: "arrow.clockwise.circle.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 10))
                 .rotationEffect(.degrees(rotation))
                 .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
                 .onDisappear { rotation = 0 }
         case .upToDate:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.green)
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 10))
         case .available:
-            Image(systemName: "arrow.up.circle.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.orange)
+            Image(systemName: "arrow.up.circle.fill").font(.system(size: 10))
         case .error:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.orange)
+            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
         case .idle:
             EmptyView()
         }
@@ -1141,23 +1176,18 @@ struct SystemPageView: View {
 
     private var statusText: String? {
         switch appState.updateStatus {
-        case .idle: return "Kiểm tra"
-        case .checking: return "Kiểm tra"
+        case .idle: return nil
+        case .checking: return "Đang kiểm tra..."
         case .upToDate: return "Mới nhất"
-        case .available: return "Cập nhật"
-        case .error: return "Thất bại"
+        case .available(let version): return "v\(version) có sẵn"
+        case .error: return "Lỗi kết nối"
         }
     }
 
-    private func performCheck() {
-        guard !appState.updateStatus.isChecking else { return }
-        if case .available = appState.updateStatus {
-            if case .available(let info) = UpdateManager.shared.state {
-                UpdateManager.shared.downloadUpdate(info)
-                NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
-            }
-        } else {
-            appState.checkForUpdates()
+    private func performUpdate() {
+        if case .available(let info) = UpdateManager.shared.state {
+            UpdateManager.shared.downloadUpdate(info)
+            NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
         }
     }
 }
