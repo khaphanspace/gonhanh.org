@@ -4,6 +4,7 @@
 param(
     [switch]$Clean,
     [switch]$Debug,
+    [switch]$Package,
     [switch]$Help
 )
 
@@ -15,6 +16,7 @@ if ($Help) {
     Write-Host "Options:"
     Write-Host "  -Clean    Remove existing build artifacts before building"
     Write-Host "  -Debug    Build with debug console enabled"
+    Write-Host "  -Package  Create ZIP package for distribution"
     Write-Host "  -Help     Show this help message"
     exit 0
 }
@@ -84,7 +86,7 @@ if ($IsNetworkDrive) {
 }
 
 # Configure CMake
-Write-Host "[1/3] Configuring CMake..."
+Write-Host "[1/2] Configuring CMake..."
 if (-not (Test-Path $LocalBuildDir)) {
     New-Item -ItemType Directory -Path $LocalBuildDir -Force | Out-Null
 }
@@ -104,13 +106,12 @@ cmake @cmakeArgs
 if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
 
 # Build
-Write-Host "[2/3] Building..."
+Write-Host "[2/2] Building..."
 $buildType = if ($Debug) { "Debug" } else { "Release" }
 cmake --build $LocalBuildDir --config $buildType
 if ($LASTEXITCODE -ne 0) { throw "CMake build failed" }
 
 # Copy to publish folder
-Write-Host "[3/3] Creating package..."
 $PublishDir = "$WindowsDir\publish"
 if (-not (Test-Path $PublishDir)) {
     New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
@@ -119,20 +120,22 @@ if (-not (Test-Path $PublishDir)) {
 $ExeSource = "$LocalBuildDir\$buildType\gonhanh.exe"
 if (Test-Path $ExeSource) {
     Copy-Item $ExeSource "$PublishDir\GoNhanh.exe" -Force
-    Write-Host "  Output: platforms/windows/publish/GoNhanh.exe"
-} else {
-    Write-Host "  Warning: gonhanh.exe not found at $ExeSource"
-}
-
-# Create ZIP package
-$ZipName = "GoNhanh-$VERSION-win-x64.zip"
-$ZipPath = "$WindowsDir\$ZipName"
-Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
-
-if (Test-Path "$PublishDir\GoNhanh.exe") {
-    Compress-Archive -Path "$PublishDir\*" -DestinationPath $ZipPath -Force
-    Write-Host "  Output: $ZipName"
 }
 
 Write-Host ""
 Write-Host "Build complete!"
+Write-Host "Output: platforms/windows/publish/GoNhanh.exe"
+
+# Create ZIP package only if -Package specified
+if ($Package) {
+    Write-Host ""
+    Write-Host "Creating package..."
+    $ZipName = "GoNhanh-$VERSION-win-x64.zip"
+    $ZipPath = "$WindowsDir\$ZipName"
+    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+
+    if (Test-Path "$PublishDir\GoNhanh.exe") {
+        Compress-Archive -Path "$PublishDir\GoNhanh.exe" -DestinationPath $ZipPath -Force
+        Write-Host "Package: platforms/windows/$ZipName"
+    }
+}

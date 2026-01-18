@@ -12,26 +12,34 @@
 #include "resource.h"
 
 static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
-static const UINT_PTR APP_SWITCH_TIMER_ID = 1;
+static HWINEVENTHOOK g_eventHook = nullptr;
+
+// Event-driven foreground app change detection (more efficient than timer polling)
+void CALLBACK WinEventProc(
+    HWINEVENTHOOK hWinEventHook,
+    DWORD event,
+    HWND hwnd,
+    LONG idObject,
+    LONG idChild,
+    DWORD dwEventThread,
+    DWORD dwmsEventTime
+) {
+    if (event == EVENT_SYSTEM_FOREGROUND) {
+        auto& settings = gonhanh::Settings::Instance();
+        if (settings.perApp) {
+            auto& appCompat = gonhanh::AppCompat::Instance();
+            std::wstring appName = appCompat.GetForegroundAppName();
+            if (!appName.empty()) {
+                gonhanh::PerAppMode::Instance().SwitchToApp(appName);
+            }
+        }
+    }
+}
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_TRAYICON:
             gonhanh::SystemTray::Instance().HandleMessage(wParam, lParam);
-            return 0;
-
-        case WM_TIMER:
-            if (wParam == APP_SWITCH_TIMER_ID) {
-                // Check for app switch and update per-app mode
-                auto& settings = gonhanh::Settings::Instance();
-                if (settings.perApp) {
-                    auto& appCompat = gonhanh::AppCompat::Instance();
-                    std::wstring appName = appCompat.GetForegroundAppName();
-                    if (!appName.empty()) {
-                        gonhanh::PerAppMode::Instance().SwitchToApp(appName);
-                    }
-                }
-            }
             return 0;
 
         case WM_COMMAND: {
@@ -135,8 +143,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         return 1;
     }
 
-    // Set timer for app switching detection (500ms interval)
-    SetTimer(hwnd, APP_SWITCH_TIMER_ID, 500, NULL);
+    // Set up event hook for app switching detection (event-driven, more efficient than timer)
+    g_eventHook = SetWinEventHook(
+        EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+        NULL,           // Hook procedure is in this process
+        WinEventProc,
+        0, 0,           // All processes and threads
+        WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
+    );
+    if (!g_eventHook) {
+        gonhanh::LogError(L"Failed to install WinEvent hook for app switching");
+    }
 
     // Install keyboard hook
     auto& hook = gonhanh::KeyboardHook::Instance();
@@ -164,7 +181,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     }
 
     // Cleanup
-    KillTimer(hwnd, APP_SWITCH_TIMER_ID);
+    if (g_eventHook) {
+        UnhookWinEvent(g_eventHook);
+    }
     tray.Destroy();
     hook.Uninstall();
     ime_clear_all();

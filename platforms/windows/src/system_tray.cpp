@@ -26,10 +26,12 @@ bool SystemTray::Create(HWND hwnd) {
     nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid_.uCallbackMessage = WM_TRAYICON;
 
-    // Load icon
-    nid_.hIcon = LoadIconW(GetModuleHandle(NULL), MAKEINTRESOURCEW(IDI_TRAY_ICON));
+    // Load small icon for system tray
+    int size = GetSystemMetrics(SM_CXSMICON);
+    nid_.hIcon = (HICON)LoadImageW(GetModuleHandle(NULL), MAKEINTRESOURCEW(IDI_TRAY_ICON),
+                                   IMAGE_ICON, size, size, LR_DEFAULTCOLOR);
 
-    // Set tooltip (Unicode escapes for Vietnamese)
+    // Set tooltip
     wcscpy_s(nid_.szTip, L"G\x00F5 Nhanh - B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t");
 
     // Add to system tray
@@ -38,7 +40,6 @@ bool SystemTray::Create(HWND hwnd) {
         UpdateIcon();
         return true;
     }
-
     return false;
 }
 

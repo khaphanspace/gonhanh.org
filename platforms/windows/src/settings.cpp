@@ -15,7 +15,7 @@ Settings& Settings::Instance() {
 void Settings::Load() {
     HKEY key;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_KEY, 0, KEY_READ, &key) != ERROR_SUCCESS) {
-        return;  // Use defaults if key doesn't exist
+        return;  // Use defaults
     }
 
     auto readDword = [&](const wchar_t* name, DWORD& value) {
@@ -57,15 +57,12 @@ void Settings::Load() {
     readDword(L"AutoCapitalize", temp);
     autoCapitalize = (temp != 0);
 
-    // Load shortcuts from REG_MULTI_SZ (dynamic allocation)
-    DWORD bufferSize = 0;
-    DWORD type;
-    // Query size first
+    // Load shortcuts from REG_MULTI_SZ
+    DWORD bufferSize = 0, type;
     if (RegQueryValueExW(key, L"Shortcuts", nullptr, &type, nullptr, &bufferSize) == ERROR_SUCCESS
-        && type == REG_MULTI_SZ && bufferSize > 0) {
-        // Allocate buffer dynamically
+        && type == REG_MULTI_SZ && bufferSize > sizeof(wchar_t)) {
         std::vector<wchar_t> buffer(bufferSize / sizeof(wchar_t));
-        if (RegQueryValueExW(key, L"Shortcuts", nullptr, &type, (LPBYTE)buffer.data(), &bufferSize) == ERROR_SUCCESS) {
+        if (RegQueryValueExW(key, L"Shortcuts", nullptr, nullptr, (LPBYTE)buffer.data(), &bufferSize) == ERROR_SUCCESS) {
             shortcuts.clear();
             const wchar_t* ptr = buffer.data();
             while (*ptr) {
@@ -116,25 +113,19 @@ void Settings::Save() {
             multiSz += shortcut.replacement + L'\0';
         }
     }
-    multiSz += L'\0';  // Double null terminator
-
+    multiSz += L'\0';
     RegSetValueExW(key, L"Shortcuts", 0, REG_MULTI_SZ,
                    (const BYTE*)multiSz.c_str(),
                    static_cast<DWORD>((multiSz.length() + 1) * sizeof(wchar_t)));
-
     RegCloseKey(key);
 
-    // Handle auto-start Registry key
+    // Handle auto-start
     HKEY runKey;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_RUN_KEY, 0, KEY_WRITE, &runKey) == ERROR_SUCCESS) {
         if (autoStart) {
             wchar_t exePath[MAX_PATH];
-            DWORD len = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-            if (len > 0 && len < MAX_PATH) {
-                // Quote path to prevent injection
-                std::wstring quotedPath = L"\"";
-                quotedPath += exePath;
-                quotedPath += L"\"";
+            if (GetModuleFileNameW(nullptr, exePath, MAX_PATH) > 0) {
+                std::wstring quotedPath = L"\"" + std::wstring(exePath) + L"\"";
                 RegSetValueExW(runKey, L"GoNhanh", 0, REG_SZ,
                               (const BYTE*)quotedPath.c_str(),
                               static_cast<DWORD>((quotedPath.length() + 1) * sizeof(wchar_t)));

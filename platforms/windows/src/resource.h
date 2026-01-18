@@ -1,6 +1,7 @@
 #pragma once
 
-// Icons
+// Icons (IDI_APPICON=1 required for exe icon)
+#define IDI_APPICON         1
 #define IDI_TRAY_ICON       101
 #define IDI_APP_LOGO        102
 

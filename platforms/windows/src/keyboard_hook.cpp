@@ -5,6 +5,14 @@ namespace gonhanh {
 
 static KeyboardHook* g_instance = nullptr;
 
+// RAII guard for reentrancy protection
+class ProcessingGuard {
+    bool& flag_;
+public:
+    explicit ProcessingGuard(bool& flag) : flag_(flag) { flag_ = true; }
+    ~ProcessingGuard() { flag_ = false; }
+};
+
 // VK→macOS keycode mapping verified against core/src/data/keys.rs
 static uint16_t VkToMacKeycode(DWORD vk) {
     // Letters A-Z
@@ -38,21 +46,19 @@ static uint16_t VkToMacKeycode(DWORD vk) {
     }
 }
 
-// Send backspaces via SendInput
+// Send backspaces via SendInput (batched for efficiency)
 static void SendBackspaces(int count) {
+    if (count <= 0 || count > 32) return;
+
+    INPUT inputs[64] = {};  // 32 backspaces * 2 events (down + up)
     for (int i = 0; i < count; ++i) {
-        INPUT input = {};
-        input.type = INPUT_KEYBOARD;
-        input.ki.wVk = VK_BACK;
-
-        // Key down
-        input.ki.dwFlags = 0;
-        SendInput(1, &input, sizeof(INPUT));
-
-        // Key up
-        input.ki.dwFlags = KEYEVENTF_KEYUP;
-        SendInput(1, &input, sizeof(INPUT));
+        inputs[i * 2].type = INPUT_KEYBOARD;
+        inputs[i * 2].ki.wVk = VK_BACK;
+        inputs[i * 2 + 1].type = INPUT_KEYBOARD;
+        inputs[i * 2 + 1].ki.wVk = VK_BACK;
+        inputs[i * 2 + 1].ki.dwFlags = KEYEVENTF_KEYUP;
     }
+    SendInput(count * 2, inputs, sizeof(INPUT));
 }
 
 // Send Unicode text via SendInput
@@ -118,7 +124,7 @@ KeyboardHook::~KeyboardHook() {
 }
 
 bool KeyboardHook::Install() {
-    if (hook_) return true;  // Already installed
+    if (hook_) return true;
 
     hook_ = SetWindowsHookEx(
         WH_KEYBOARD_LL,
@@ -192,10 +198,9 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
     bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 
-    // Call Rust engine
-    g_instance->processing_ = true;
+    // Call Rust engine with RAII reentrancy guard
+    ProcessingGuard guard(g_instance->processing_);
     ImeResultGuard result(ime_key_ext(keycode, caps, ctrl, shift));
-    g_instance->processing_ = false;
 
     if (!result) {
         return CallNextHookEx(NULL, nCode, wParam, lParam);

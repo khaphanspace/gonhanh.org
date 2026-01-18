@@ -3,13 +3,12 @@
 #include "../src/resource.h"
 
 // Icons
-IDI_TRAY_ICON ICON "icon.ico"
-IDI_APP_LOGO ICON "logo.ico"
+IDI_APPICON   ICON "app.ico"    // Main app icon (ID=1 for Task Manager/Explorer)
+IDI_TRAY_ICON ICON "app.ico"    // System tray
+IDI_APP_LOGO  ICON "app.ico"
 
-// PNG Logo
+// Resources
 IDR_LOGO_PNG PNG "logo.png"
-
-// DPI Awareness Manifest
 1 RT_MANIFEST "manifest.xml"
 
 // Dialog templates
@@ -40,12 +39,20 @@ PRODUCTVERSION 1,0,0,0
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904E4"
+        BLOCK "040904B0"
         BEGIN
-            VALUE "FileDescription", "Gõ Nhanh Vietnamese IME"
-            VALUE "ProductName", "Gõ Nhanh"
+            VALUE "FileDescription", "Go Nhanh - Vietnamese IME"
+            VALUE "ProductName", "Go Nhanh"
             VALUE "FileVersion", "1.0.0"
             VALUE "ProductVersion", "1.0.0"
+            VALUE "CompanyName", "GoNhanh"
+            VALUE "LegalCopyright", "MIT License"
+            VALUE "OriginalFilename", "GoNhanh.exe"
+            VALUE "InternalName", "GoNhanh"
         END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 0x04B0
     END
 END
