@@ -1100,7 +1100,7 @@ struct SystemPageView: View {
                 Divider().padding(.leading, 12)
                 SettingsToggleRow(
                     "Tự động cập nhật",
-                    subtitle: "Cài đặt khi khởi động lại ứng dụng",
+                    subtitle: "Tự tải và cài đặt ở nền khi có bản mới",
                     isOn: $appState.autoUpdate
                 )
                 Divider().padding(.leading, 12)
