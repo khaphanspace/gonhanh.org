@@ -1493,7 +1493,17 @@ impl Engine {
                         let is_uo_pattern = c1.key == keys::U && c2.key == keys::O;
                         let has_final = self.buf.get(pos2 + 1).is_some();
 
-                        if is_uo_pattern && !has_final {
+                        // Check if 'u' is preceded by 'Q' (qu-initial consonant cluster)
+                        // In "Qu-", the 'u' is part of the initial and should not get horn
+                        // Examples: "Quoiws" → "Quới" (not "Qưới"), "quốc" (not "qước")
+                        let preceded_by_q =
+                            pos1 > 0 && self.buf.get(pos1 - 1).map(|c| c.key) == Some(keys::Q);
+
+                        if preceded_by_q {
+                            // "Qu-" pattern - only second vowel gets horn
+                            target_positions.push(pos2);
+                            self.pending_u_horn_pos = None;
+                        } else if is_uo_pattern && !has_final {
                             // "uơ" pattern - only 'o' gets horn initially
                             // Set pending so 'u' gets horn if final consonant/vowel is added
                             target_positions.push(pos2);
