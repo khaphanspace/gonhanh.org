@@ -2308,10 +2308,12 @@ impl Engine {
                     // - Second vowel is at end (trigger position)
                     // - Has valid Vietnamese initial (skip English like "proposal")
                     // - No double initial (those work immediately without delay)
+                    // - User didn't just revert a circumflex (typing 3rd vowel to cancel)
                     if is_non_extending_final
                         && second_vowel_at_end
                         && has_valid_vietnamese_initial
                         && !has_vietnamese_double_initial
+                        && !self.had_circumflex_revert
                     {
                         // Skip delayed circumflex if raw_input is an English word
                         // This prevents "pasta" → "pất", "costa" → "côt", etc.
