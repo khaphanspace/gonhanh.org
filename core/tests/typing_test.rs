@@ -411,6 +411,9 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("dduowjckho", "đượckho"), // được + kho, mark should stay on ươ
     // Closed syllable - mark key after final consonant should be letter
     ("mowsicf", "mớicf"), // mới + c (final) + f (letter, NOT huyền on ớ)
+    ("mowficf", "mờicf"), // mời + c (final) + f (letter, same mark as first f)
+    // With double final (ch) - mark keys after should be letters
+    ("moiwschfs", "mớichfs"), // mới + ch (final) + f,s (letters)
 ];
 
 // ============================================================

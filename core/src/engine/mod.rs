@@ -2534,13 +2534,31 @@ impl Engine {
                 // Example: "serv" → "sẻv" → backspace → "sẻ" → 'r' should → "ser"
                 let is_vowel_at_end = pos + 1 >= self.buf.len();
 
-                if has_consonant_after || is_vowel_at_end {
-                    // Consonant after OR vowel at end: REVERT the mark (remove dấu)
-                    // "lists" → "lits", user typed s twice to undo the mark
-                    // "sẻ" → "se", user typed r after backspace to undo the mark
+                // Check if syllable is closed - consonant after LAST vowel (not just after pos)
+                // If closed AND mark is on earlier vowel, don't revert - pass through as letter
+                // Example: "mới" + "ch" + "f" + 's' → syllable closed, 's' is letter
+                let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+                let syllable_closed_with_final = self
+                    .buf
+                    .iter()
+                    .skip(last_vowel_pos + 1)
+                    .any(|ch| !keys::is_vowel(ch.key) && ch.key != keys::W);
+
+                // Only revert if syllable is NOT closed, or if vowel is at end
+                // Don't revert if user has moved past the syllable (has final consonant after last vowel)
+                if is_vowel_at_end {
+                    // Vowel at end: REVERT the mark (user explicitly wants to undo)
                     return Some(self.revert_mark(key, caps));
-                } else {
-                    // Vowels after (not at end): absorb (user double-tapped in same syllable)
+                } else if has_consonant_after && !syllable_closed_with_final {
+                    // Consonant after marked vowel BUT syllable not yet fully closed
+                    // This is the "lists" pattern - revert
+                    return Some(self.revert_mark(key, caps));
+                } else if syllable_closed_with_final && pos < last_vowel_pos {
+                    // Syllable closed AND mark is on earlier vowel - user moved on
+                    // Pass through as letter (return None to fall through)
+                    return None;
+                } else if !has_consonant_after {
+                    // Only vowels after: absorb (user double-tapped in same syllable)
                     // "roofif" → "rồi"
                     return Some(Result::send(0, &[]));
                 }
