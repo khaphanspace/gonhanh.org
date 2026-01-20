@@ -1546,6 +1546,33 @@ impl Engine {
             if is_switching {
                 // When switching, ONLY target vowels that already have a diacritic
                 // (don't add diacritics to plain vowels during switch)
+                //
+                // BUT: For Telex vowel-triggered circumflex (oo, aa, ee pattern), check for
+                // syllable boundary. If the syllable is closed (has final consonants after
+                // last vowel), don't switch tones - the typed vowel starts a new syllable.
+                // Example: "mờich" + 'o' → syllable closed with "ch", don't switch ờ→ồ
+                //
+                // This does NOT apply to VNI or Telex with explicit modifier keys (like 'w')
+                // because those are intentional corrections, not new syllable vowels.
+                let is_telex_vowel_trigger = self.method == 0
+                    && tone_type == ToneType::Circumflex
+                    && matches!(key, keys::A | keys::E | keys::O);
+
+                if is_telex_vowel_trigger {
+                    let vowels = self.collect_vowels();
+                    let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+                    let syllable_is_closed = self
+                        .buf
+                        .iter()
+                        .skip(last_vowel_pos + 1)
+                        .any(|ch| !keys::is_vowel(ch.key) && ch.key != keys::W);
+
+                    if syllable_is_closed {
+                        // Syllable is closed - don't switch tones, let vowel pass through as letter
+                        return None;
+                    }
+                }
+
                 for (i, c) in self.buf.iter().enumerate().rev() {
                     if targets.contains(&c.key) && c.tone != tone::NONE && c.tone != tone_val {
                         target_positions.push(i);

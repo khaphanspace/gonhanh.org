@@ -414,6 +414,8 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("mowficf", "mờicf"), // mời + c (final) + f (letter, same mark as first f)
     // With double final (ch) - mark keys after should be letters
     ("moiwschfs", "mớichfs"), // mới + ch (final) + f,s (letters)
+    // New syllable after closed syllable - vowel+w should NOT apply to previous
+    ("mowifchow", "mờichow"), // mời + ch (final) + ow (new syllable, w is letter)
 ];
 
 // ============================================================
