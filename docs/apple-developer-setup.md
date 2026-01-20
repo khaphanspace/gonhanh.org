@@ -92,13 +92,13 @@ Add these secrets:
 security find-identity -v -p codesigning
 
 # Build with Developer ID signing
-./scripts/build-macos.sh --sign
+./scripts/build/macos.sh --sign
 
 # Build with signing + notarization
 export APPLE_ID="your@email.com"
 export APPLE_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 export APPLE_TEAM_ID="XXXXXXXXXX"
-./scripts/build-macos.sh --notarize
+./scripts/build/macos.sh --notarize
 ```
 
 ### GitHub Actions
@@ -161,7 +161,7 @@ The following files have been updated for Apple Developer support:
 |------|---------|
 | `platforms/macos/GoNhanh.entitlements` | Development entitlements (with debug flags) |
 | `platforms/macos/GoNhanh.entitlements.production` | Production entitlements (hardened runtime) |
-| `scripts/build-macos.sh` | Added `--sign` and `--notarize` options |
+| `scripts/build/macos.sh` | Added `--sign` and `--notarize` options |
 | `.github/workflows/release.yml` | Code signing + notarization pipeline |
 | `.github/workflows/pre-release.yml` | Optional signing for PR builds |
 

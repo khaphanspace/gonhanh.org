@@ -38,9 +38,9 @@ watch: ## Watch debug logs (tail -f)
 	@tail -f /tmp/gonhanh_debug.log
 
 build: format ## Build core + macos app
-	@./scripts/build-core.sh
-	@./scripts/build-macos.sh
-	@./scripts/build-windows.sh
+	@./scripts/build/core.sh
+	@./scripts/build/macos.sh
+	@./scripts/build/windows.sh
 
 build-linux: format ## Build Linux (Fcitx5) addon
 	@cd platforms/linux && ./scripts/build.sh
@@ -53,19 +53,19 @@ clean: ## Clean build + settings
 	@echo "✅ Cleaned build artifacts + settings"
 
 setup: ## Setup dev environment
-	@./scripts/setup.sh
+	@./scripts/setup/macos.sh
 
 install: build ## Install app to /Applications
 	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
 
 dmg: build ## Create DMG installer
-	@./scripts/create-dmg-background.sh
-	@./scripts/create-dmg.sh
+	@./scripts/release/dmg-background.sh
+	@./scripts/release/dmg.sh
 
 release: ## Patch release (1.0.9 → 1.0.10)
 	@echo "$(TAG) → v$(NEXT_PATCH)"
 	@git add -A && git commit -m "release: v$(NEXT_PATCH)" --allow-empty
-	@./scripts/generate-release-notes.sh v$(NEXT_PATCH) > /tmp/release_notes.md
+	@./scripts/release/notes.sh v$(NEXT_PATCH) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_PATCH) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_PATCH)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
@@ -73,7 +73,7 @@ release: ## Patch release (1.0.9 → 1.0.10)
 release-minor: ## Minor release (1.0.9 → 1.1.0)
 	@echo "$(TAG) → v$(NEXT_MINOR)"
 	@git add -A && git commit -m "release: v$(NEXT_MINOR)" --allow-empty
-	@./scripts/generate-release-notes.sh v$(NEXT_MINOR) > /tmp/release_notes.md
+	@./scripts/release/notes.sh v$(NEXT_MINOR) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_MINOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MINOR)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
@@ -81,7 +81,7 @@ release-minor: ## Minor release (1.0.9 → 1.1.0)
 release-major: ## Major release (1.0.9 → 2.0.0)
 	@echo "$(TAG) → v$(NEXT_MAJOR)"
 	@git add -A && git commit -m "release: v$(NEXT_MAJOR)" --allow-empty
-	@./scripts/generate-release-notes.sh v$(NEXT_MAJOR) > /tmp/release_notes.md
+	@./scripts/release/notes.sh v$(NEXT_MAJOR) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_MAJOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MAJOR)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"

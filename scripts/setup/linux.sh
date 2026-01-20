@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gõ Nhanh Linux Installer
-# curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/setup/linux.sh | bash
 
 REPO="khaphanspace/gonhanh.org"
 TMP=$(mktemp -d)

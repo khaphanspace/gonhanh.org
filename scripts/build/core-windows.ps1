@@ -1,5 +1,5 @@
 # GoNhanh Windows Core Build Script
-# Run: powershell -ExecutionPolicy Bypass -File scripts/build-core-windows.ps1
+# Run: powershell -ExecutionPolicy Bypass -File scripts/build/core-windows.ps1
 
 param(
     [switch]$Release = $true,

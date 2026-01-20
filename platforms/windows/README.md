@@ -27,13 +27,13 @@ rustup target add x86_64-pc-windows-msvc
 ### 2. Run Setup Script
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1
+powershell -ExecutionPolicy Bypass -File scripts/setup/windows.ps1
 ```
 
 ### 3. Build Rust Core
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-core-windows.ps1
+powershell -ExecutionPolicy Bypass -File scripts/build/core-windows.ps1
 ```
 
 ### 4. Build WPF Application

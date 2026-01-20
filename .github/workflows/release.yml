@@ -231,7 +231,7 @@ jobs:
         run: |
           cd platforms/macos
           APP="build/Build/Products/Release/GoNhanh.app"
-          ../../scripts/create-dmg.sh "$APP"
+          ../../scripts/release/dmg.sh "$APP"
 
       - name: Get Tag Message
         id: tag_message
@@ -334,7 +334,7 @@ jobs:
         if: ${{ env.stapled == 'true' }}
         run: |
           mkdir -p platforms/macos/build
-          ./scripts/create-dmg.sh "GoNhanh.app"
+          ./scripts/release/dmg.sh "GoNhanh.app"
 
       - name: Update Release with Stapled DMG
         if: ${{ env.stapled == 'true' }}

@@ -172,7 +172,7 @@ jobs:
           V="${{ steps.version.outputs.version }}"
 
           # Create DMG (version already set, app already signed)
-          ../../scripts/create-dmg.sh "$APP" || {
+          ../../scripts/release/dmg.sh "$APP" || {
             # Fallback: simple DMG if script fails
             hdiutil create -volname "GoNhanh" -srcfolder "$APP" -ov -format UDZO "build/GoNhanh-${V}.dmg"
           }
