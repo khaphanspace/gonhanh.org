@@ -8,9 +8,9 @@ fi
 
 # Source .env file if exists (for Apple Developer credentials)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/../.env" ]; then
+if [ -f "$SCRIPT_DIR/../../scripts/.env" ]; then
     set -a
-    source "$SCRIPT_DIR/../.env"
+    source "$SCRIPT_DIR/../../scripts/.env"
     set +a
 fi
 
@@ -175,7 +175,7 @@ if [ "$SIGN_APP" = true ]; then
 fi
 
 # Build macOS app with xcodebuild
-cd "$(dirname "$0")/../platforms/macos"
+cd "$(dirname "$0")/../../platforms/macos"
 
 if [ -d "GoNhanh.xcodeproj" ]; then
     echo "Building with Xcode..."

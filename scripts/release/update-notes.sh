@@ -65,7 +65,7 @@ update_release() {
 
     # Generate new release notes
     local notes
-    notes=$("$SCRIPT_DIR/generate-release-notes.sh" "$version" "$from_ref" 2>/dev/null) || {
+    notes=$("$SCRIPT_DIR/notes.sh" "$version" "$from_ref" 2>/dev/null) || {
         error "Failed to generate notes for $version"
         return 1
     }

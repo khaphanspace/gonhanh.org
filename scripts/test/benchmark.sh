@@ -12,7 +12,7 @@ RUNS=3
 
 # Get project directory (parent of scripts/)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 log() {
     echo "$1" | tee -a "$RESULT_LOG"
