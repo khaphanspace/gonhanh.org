@@ -1371,90 +1371,78 @@ struct AutoCapitalizeExcludedAppsSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
-            if appState.autoCapitalizeExcludedApps.isEmpty && runningApps.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        excludedAppsSection
-                        if !runningApps.isEmpty {
-                            if !appState.autoCapitalizeExcludedApps.isEmpty {
-                                Divider().padding(.vertical, 8)
+            // Native-style header
+            Text("Loại trừ ứng dụng")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+
+            // Native List with sections
+            List {
+                if !appState.autoCapitalizeExcludedApps.isEmpty {
+                    Section {
+                        ForEach(Array(appState.autoCapitalizeExcludedApps).sorted(), id: \.self) { bundleId in
+                            ExcludedAppRow(bundleId: bundleId, isExcluded: true) {
+                                withAnimation { appState.includeAppInAutoCapitalize(bundleId) }
+                                loadRunningApps()
                             }
-                            runningAppsSection
                         }
+                        .onDelete { indexSet in
+                            let sorted = Array(appState.autoCapitalizeExcludedApps).sorted()
+                            for index in indexSet {
+                                appState.includeAppInAutoCapitalize(sorted[index])
+                            }
+                            loadRunningApps()
+                        }
+                    } header: {
+                        Text("Đang loại trừ")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                }
+
+                if !runningApps.isEmpty {
+                    Section {
+                        ForEach(runningApps, id: \.bundleId) { app in
+                            ExcludedAppRow(bundleId: app.bundleId, appName: app.name, appIcon: app.icon, isExcluded: false) {
+                                withAnimation { appState.excludeAppFromAutoCapitalize(app.bundleId) }
+                                loadRunningApps()
+                            }
+                        }
+                    } header: {
+                        Text("Ứng dụng đang chạy")
+                    }
+                }
+
+                if appState.autoCapitalizeExcludedApps.isEmpty && runningApps.isEmpty {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "app.badge.checkmark")
+                                .font(.system(size: 28))
+                                .foregroundColor(.secondary)
+                            Text("Chưa có ứng dụng nào")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                    }
                 }
             }
+            .listStyle(.inset)
+
             Divider()
-            footer
+
+            // Native button bar
+            HStack {
+                Spacer()
+                Button("Xong") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
-        .frame(width: 400, height: 360)
+        .frame(width: 420, height: 380)
         .onAppear { loadRunningApps() }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Loại trừ ứng dụng").font(.system(size: 15, weight: .semibold))
-            Text("Tự viết hoa đầu câu sẽ không hoạt động trong các ứng dụng này")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "app.badge.checkmark").font(.system(size: 32)).foregroundColor(.secondary)
-            Text("Chưa có ứng dụng nào").font(.system(size: 13)).foregroundColor(.secondary)
-            Text("Mở ứng dụng cần loại trừ rồi thêm vào danh sách").font(.system(size: 11)).foregroundColor(Color(NSColor.tertiaryLabelColor))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    @ViewBuilder
-    private var excludedAppsSection: some View {
-        if !appState.autoCapitalizeExcludedApps.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Đang loại trừ").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-                ForEach(Array(appState.autoCapitalizeExcludedApps).sorted(), id: \.self) { bundleId in
-                    ExcludedAppRow(bundleId: bundleId, isExcluded: true) {
-                        appState.includeAppInAutoCapitalize(bundleId)
-                        loadRunningApps()
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var runningAppsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ứng dụng đang chạy").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-            ForEach(runningApps, id: \.bundleId) { app in
-                ExcludedAppRow(bundleId: app.bundleId, appName: app.name, appIcon: app.icon, isExcluded: false) {
-                    appState.excludeAppFromAutoCapitalize(app.bundleId)
-                    loadRunningApps()
-                }
-            }
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Spacer()
-            Button("Xong") { dismiss() }
-                .keyboardShortcut(.escape, modifiers: [])
-        }
-        .font(.system(size: 12))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     private func loadRunningApps() {
@@ -1487,7 +1475,6 @@ struct ExcludedAppRow: View {
     var appIcon: NSImage?
     let isExcluded: Bool
     let action: () -> Void
-    @State private var hovered = false
 
     private var displayName: String {
         if let name = appName { return name }
@@ -1503,33 +1490,41 @@ struct ExcludedAppRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            if let icon = displayIcon {
-                Image(nsImage: icon)
-                    .resizable()
-                    .frame(width: 24, height: 24)
-            } else {
-                Image(systemName: "app.fill")
-                    .font(.system(size: 20))
+        HStack(spacing: 12) {
+            // App icon
+            Group {
+                if let icon = displayIcon {
+                    Image(nsImage: icon).resizable()
+                } else {
+                    Image(systemName: "app.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(width: 32, height: 32)
+
+            // App info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                Text(bundleId)
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
-                    .frame(width: 24, height: 24)
+                    .lineLimit(1)
             }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(displayName).font(.system(size: 12))
-                Text(bundleId).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1)
-            }
+
             Spacer()
+
+            // Action button
             Button(action: action) {
                 Image(systemName: isExcluded ? "minus.circle.fill" : "plus.circle.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: 18))
                     .foregroundColor(isExcluded ? .red : .accentColor)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : .clear))
-        .onHover { hovered = $0 }
+        .padding(.vertical, 4)
     }
 }
 
