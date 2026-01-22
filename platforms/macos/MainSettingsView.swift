@@ -133,7 +133,15 @@ class AppState: ObservableObject {
     @Published var autoCapitalize: Bool = false {
         didSet {
             UserDefaults.standard.set(autoCapitalize, forKey: SettingsKey.autoCapitalize)
-            RustBridge.setAutoCapitalize(autoCapitalize)
+            updateAutoCapitalizeEngine()
+        }
+    }
+
+    @Published var autoCapitalizeExcludedApps: Set<String> = [] {
+        didSet {
+            let array = Array(autoCapitalizeExcludedApps)
+            UserDefaults.standard.set(array, forKey: SettingsKey.autoCapitalizeExcludedApps)
+            updateAutoCapitalizeEngine()
         }
     }
 
@@ -188,6 +196,9 @@ class AppState: ObservableObject {
         modernTone = defaults.bool(forKey: SettingsKey.modernTone)
         englishAutoRestore = defaults.bool(forKey: SettingsKey.englishAutoRestore)
         autoCapitalize = defaults.bool(forKey: SettingsKey.autoCapitalize)
+        if let excludedApps = defaults.stringArray(forKey: SettingsKey.autoCapitalizeExcludedApps) {
+            autoCapitalizeExcludedApps = Set(excludedApps)
+        }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
 
@@ -211,8 +222,31 @@ class AppState: ObservableObject {
         RustBridge.setRestoreShortcutEnabled(restoreShortcutEnabled)
         RustBridge.setModernTone(modernTone)
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
-        RustBridge.setAutoCapitalize(autoCapitalize)
+        updateAutoCapitalizeEngine()
         RustBridge.setAllowForeignConsonants(allowForeignConsonants)
+    }
+
+    /// Update auto-capitalize engine state based on global setting and current app exclusion
+    func updateAutoCapitalizeEngine() {
+        let currentBundleId = PerAppModeManager.shared.getCurrentBundleId()
+            ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let isExcluded = currentBundleId.map { autoCapitalizeExcludedApps.contains($0) } ?? false
+        RustBridge.setAutoCapitalize(autoCapitalize && !isExcluded)
+    }
+
+    /// Check if an app is excluded from auto-capitalize
+    func isAppExcludedFromAutoCapitalize(_ bundleId: String) -> Bool {
+        autoCapitalizeExcludedApps.contains(bundleId)
+    }
+
+    /// Add an app to auto-capitalize exclusion list
+    func excludeAppFromAutoCapitalize(_ bundleId: String) {
+        autoCapitalizeExcludedApps.insert(bundleId)
+    }
+
+    /// Remove an app from auto-capitalize exclusion list
+    func includeAppInAutoCapitalize(_ bundleId: String) {
+        autoCapitalizeExcludedApps.remove(bundleId)
     }
 
     private func loadShortcuts() {
@@ -751,7 +785,7 @@ struct SettingsPageView: View {
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Đặt dấu kiểu mới (oà, uý)", isOn: $appState.modernTone)
                 Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự viết hoa đầu câu", isOn: $appState.autoCapitalize)
+                AutoCapitalizeRow(appState: appState)
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Cho phép z, w, j, f làm phụ âm", isOn: $appState.allowForeignConsonants)
                 Divider().padding(.leading, 12)
@@ -1284,6 +1318,218 @@ struct ShortcutsRowView: View {
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .onTapGesture { action() }
+    }
+}
+
+// MARK: - Auto Capitalize Row
+
+struct AutoCapitalizeRow: View {
+    @ObservedObject var appState: AppState
+    @State private var showSheet = false
+    @State private var hovered = false
+
+    var body: some View {
+        SettingsRow {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Tự động viết hoa đầu câu").font(.system(size: 13))
+                if appState.autoCapitalize {
+                    HStack(spacing: 4) {
+                        Text(subtitleText)
+                            .font(.system(size: 11))
+                            .foregroundColor(hovered ? .accentColor : Color(NSColor.secondaryLabelColor))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(hovered ? .accentColor : Color(NSColor.tertiaryLabelColor))
+                    }
+                    .onHover { hovered = $0 }
+                    .onTapGesture { showSheet = true }
+                }
+            }
+            Spacer()
+            Toggle("", isOn: $appState.autoCapitalize).toggleStyle(.switch).labelsHidden()
+        }
+        .sheet(isPresented: $showSheet) {
+            AutoCapitalizeExcludedAppsSheet(appState: appState)
+        }
+    }
+
+    private var subtitleText: String {
+        if appState.autoCapitalizeExcludedApps.isEmpty {
+            return "Loại trừ ứng dụng"
+        } else {
+            return "Loại trừ \(appState.autoCapitalizeExcludedApps.count) ứng dụng"
+        }
+    }
+}
+
+// MARK: - Auto Capitalize Excluded Apps Sheet
+
+struct AutoCapitalizeExcludedAppsSheet: View {
+    @ObservedObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var runningApps: [RunningAppInfo] = []
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            if appState.autoCapitalizeExcludedApps.isEmpty && runningApps.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        excludedAppsSection
+                        if !runningApps.isEmpty {
+                            if !appState.autoCapitalizeExcludedApps.isEmpty {
+                                Divider().padding(.vertical, 8)
+                            }
+                            runningAppsSection
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+            }
+            Divider()
+            footer
+        }
+        .frame(width: 400, height: 360)
+        .onAppear { loadRunningApps() }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Loại trừ ứng dụng").font(.system(size: 15, weight: .semibold))
+            Text("Tự viết hoa đầu câu sẽ không hoạt động trong các ứng dụng này")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "app.badge.checkmark").font(.system(size: 32)).foregroundColor(.secondary)
+            Text("Chưa có ứng dụng nào").font(.system(size: 13)).foregroundColor(.secondary)
+            Text("Mở ứng dụng cần loại trừ rồi thêm vào danh sách").font(.system(size: 11)).foregroundColor(Color(NSColor.tertiaryLabelColor))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var excludedAppsSection: some View {
+        if !appState.autoCapitalizeExcludedApps.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Đang loại trừ").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                ForEach(Array(appState.autoCapitalizeExcludedApps).sorted(), id: \.self) { bundleId in
+                    ExcludedAppRow(bundleId: bundleId, isExcluded: true) {
+                        appState.includeAppInAutoCapitalize(bundleId)
+                        loadRunningApps()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var runningAppsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Ứng dụng đang chạy").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+            ForEach(runningApps, id: \.bundleId) { app in
+                ExcludedAppRow(bundleId: app.bundleId, appName: app.name, appIcon: app.icon, isExcluded: false) {
+                    appState.excludeAppFromAutoCapitalize(app.bundleId)
+                    loadRunningApps()
+                }
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            Spacer()
+            Button("Xong") { dismiss() }
+                .keyboardShortcut(.escape, modifiers: [])
+        }
+        .font(.system(size: 12))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func loadRunningApps() {
+        let excluded = appState.autoCapitalizeExcludedApps
+        runningApps = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { app -> RunningAppInfo? in
+                guard let bundleId = app.bundleIdentifier,
+                      !excluded.contains(bundleId),
+                      bundleId != Bundle.main.bundleIdentifier else { return nil }
+                return RunningAppInfo(
+                    bundleId: bundleId,
+                    name: app.localizedName ?? bundleId,
+                    icon: app.icon
+                )
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+}
+
+struct RunningAppInfo {
+    let bundleId: String
+    let name: String
+    let icon: NSImage?
+}
+
+struct ExcludedAppRow: View {
+    let bundleId: String
+    var appName: String?
+    var appIcon: NSImage?
+    let isExcluded: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    private var displayName: String {
+        if let name = appName { return name }
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+            return app.localizedName ?? bundleId
+        }
+        return bundleId.components(separatedBy: ".").last ?? bundleId
+    }
+
+    private var displayIcon: NSImage? {
+        if let icon = appIcon { return icon }
+        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.icon
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let icon = displayIcon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(displayName).font(.system(size: 12))
+                Text(bundleId).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1)
+            }
+            Spacer()
+            Button(action: action) {
+                Image(systemName: isExcluded ? "minus.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(isExcluded ? .red : .accentColor)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : .clear))
+        .onHover { hovered = $0 }
     }
 }
 

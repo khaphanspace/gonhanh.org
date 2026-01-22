@@ -1708,6 +1708,9 @@ class PerAppModeManager {
         TextInjector.shared.clearSessionBuffer()
         clearDetectionCache()  // Clear injection method cache on app switch
 
+        // Update auto-capitalize state for new app (handles per-app exclusion)
+        AppState.shared.updateAutoCapitalizeEngine()
+
         guard AppState.shared.perAppModeEnabled else { return }
 
         if AppState.shared.hasPerAppMode(bundleId: bundleId) {
