@@ -487,6 +487,7 @@ loaf	loà
 vest	vét
 pius	píu
 tow	tơ
+dd	đ
 reefs	rế
 vor	vỏ
 reuse	rếu
@@ -2057,7 +2058,6 @@ guyer	guyẻ
 ganja	gận
 sws	sứ
 sif	sì
-comoros	cốm
 harre	hare
 bors	bó
 bair	bải
