@@ -2257,10 +2257,37 @@ impl Engine {
                 .map(|(i, c)| (i, c.key))
                 .collect();
 
-            // Check for exactly 2 vowels that are the same (a, e, or o for circumflex)
-            if vowel_positions.len() == 2 {
-                let (pos1, key1) = vowel_positions[0];
-                let (pos2, key2) = vowel_positions[1];
+            // Check for at least 2 vowels where the last two are the same (a, e, or o for circumflex)
+            // This handles words like "xuata" (x-u-a-t-a) where we have 3 vowels but the last two 'a's should trigger circumflex
+            // Only allow > 2 vowels case for exactly 3 vowels where:
+            // - First vowel is 'u' or 'i' (common in Vietnamese diphthongs like "ua", "uô", "ia", "iê")
+            // - First two vowels are adjacent (forming a diphthong like "ua" in xuata)
+            // - First vowel is different from the pair
+            // This prevents "roemer" → "roêm" (English word corruption)
+            let valid_multi_vowel_pattern = if vowel_positions.len() == 3 {
+                let (pos0, first_key) = vowel_positions[0];
+                let (pos1, second_key) = vowel_positions[1];
+                // First must be u/i (diphthong starter), different from pair, and adjacent
+                let is_diphthong_starter = matches!(first_key, keys::U | keys::I);
+                // Also check if first vowel already has any transformation (mark/tone)
+                // This prevents "mỉama" + r from triggering (ỉ already has mark)
+                let first_vowel_has_transform = self
+                    .buf
+                    .get(pos0)
+                    .is_some_and(|c| c.tone != 0 || c.mark != 0);
+                is_diphthong_starter
+                    && first_key != second_key
+                    && pos1 == pos0 + 1
+                    && !first_vowel_has_transform
+            } else {
+                // For > 3 vowels, don't trigger delayed circumflex
+                // For exactly 2 vowels, always valid (original behavior)
+                vowel_positions.len() == 2
+            };
+
+            if vowel_positions.len() >= 2 && valid_multi_vowel_pattern {
+                let (pos1, key1) = vowel_positions[vowel_positions.len() - 2];
+                let (pos2, key2) = vowel_positions[vowel_positions.len() - 1];
                 let is_circumflex_vowel = matches!(key1, keys::A | keys::E | keys::O);
 
                 // Check if first vowel already has circumflex - skip delayed circumflex if so
