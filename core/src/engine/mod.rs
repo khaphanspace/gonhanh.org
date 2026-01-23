@@ -4273,10 +4273,62 @@ impl Engine {
         // EXCEPTION: If buffer has stroke (đ), this is intentional Vietnamese
         // Example: "derde" → "để" has stroke, keep it (valid VN word)
         // Example: "law" → "lă" has no stroke, restore to "law" (English)
+        // EXCEPTION: If buffer is VALID Vietnamese with VN-specific marks (breve/horn/circumflex),
+        // AND W is NOT at final position (has consonants after W),
+        // AND W comes AFTER a vowel (medial position, not initial),
+        // skip restore. This handles patterns like "banwfg" → "bằng" where W is a vowel modifier.
+        // The pattern "a + consonants + w + finals" produces breve on 'a' (ă), which is valid Vietnamese.
+        // But "law", "saw", "raw" have W at end - these should restore to English.
+        // And "west", "water" have W at start - these should restore to English.
         if is_word_complete && self.has_english_modifier_pattern(true) && raw_input_valid_en {
             // Skip restore if buffer has stroke - user intentionally typed Vietnamese đ
             if !has_stroke {
-                return self.build_raw_chars();
+                // Skip restore if buffer is VALID Vietnamese with VN-specific marks
+                // AND W is not at final position (has consonants after W)
+                // AND W comes after a vowel (not at initial position)
+                // This handles "banwfg" → "bằng" but NOT "law" or "west"
+                let buffer_valid_vn = !self.is_buffer_invalid_vietnamese();
+
+                // Check if W is at end (final position) - English pattern like "law", "saw"
+                let w_at_end = self
+                    .raw_input
+                    .last()
+                    .map(|(k, _, _)| *k == keys::W)
+                    .unwrap_or(false);
+
+                // Find W position and check context
+                let w_pos = self.raw_input.iter().rposition(|(k, _, _)| *k == keys::W);
+
+                // Check if there are consonants after the last W in raw_input
+                // Pattern: "banwfg" has W at pos 3, then "fg" (consonants) - Vietnamese pattern
+                // Pattern: "law" has W at end - English pattern
+                let has_consonants_after_w = w_pos.is_some_and(|pos| {
+                    self.raw_input[pos + 1..].iter().any(|(k, _, _)| {
+                        keys::is_consonant(*k)
+                            && !matches!(*k, keys::S | keys::F | keys::R | keys::X | keys::J)
+                    })
+                });
+
+                // Check if W comes after a vowel (medial position, not initial)
+                // Pattern: "banwfg" has vowel 'a' before W (pos 1) → medial W → Vietnamese
+                // Pattern: "west" has W at pos 0 (initial) → no vowel before → English
+                let has_vowel_before_w = w_pos.is_some_and(|pos| {
+                    self.raw_input[..pos]
+                        .iter()
+                        .any(|(k, _, _)| keys::is_vowel(*k))
+                });
+
+                if buffer_valid_vn
+                    && has_vn_specific_mark
+                    && !w_at_end
+                    && has_consonants_after_w
+                    && has_vowel_before_w
+                {
+                    // Valid Vietnamese with VN marks, W not at end, consonants after W, vowel before W
+                    // Examples: "banwfg" → "bằng", "thanwfg" → "thằng"
+                } else {
+                    return self.build_raw_chars();
+                }
             }
         }
 
