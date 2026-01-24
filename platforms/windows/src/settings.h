@@ -25,6 +25,8 @@ public:
     bool sound = true;
     bool modernTone = false;
     bool autoCapitalize = false;
+    bool freeTone = false;
+    bool allowForeignConsonants = false;
 
     // Shortcuts list
     std::vector<Shortcut> shortcuts;

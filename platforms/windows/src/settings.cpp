@@ -57,6 +57,12 @@ void Settings::Load() {
     readDword(L"AutoCapitalize", temp);
     autoCapitalize = (temp != 0);
 
+    readDword(L"FreeTone", temp);
+    freeTone = (temp != 0);
+
+    readDword(L"AllowForeignConsonants", temp);
+    allowForeignConsonants = (temp != 0);
+
     // Load shortcuts from REG_MULTI_SZ
     DWORD bufferSize = 0, type;
     if (RegQueryValueExW(key, L"Shortcuts", nullptr, &type, nullptr, &bufferSize) == ERROR_SUCCESS
@@ -104,6 +110,8 @@ void Settings::Save() {
     writeDword(L"Sound", sound ? 1 : 0);
     writeDword(L"ModernTone", modernTone ? 1 : 0);
     writeDword(L"AutoCapitalize", autoCapitalize ? 1 : 0);
+    writeDword(L"FreeTone", freeTone ? 1 : 0);
+    writeDword(L"AllowForeignConsonants", allowForeignConsonants ? 1 : 0);
 
     // Save shortcuts as REG_MULTI_SZ
     std::wstring multiSz;
@@ -149,6 +157,8 @@ void Settings::ApplyToEngine() {
     ime_modern(modernTone);
     ime_english_auto_restore(autoRestore);
     ime_auto_capitalize(autoCapitalize);
+    ime_free_tone(freeTone);
+    ime_allow_foreign_consonants(allowForeignConsonants);
 
     // Clear and re-add all shortcuts
     ime_clear_shortcuts();

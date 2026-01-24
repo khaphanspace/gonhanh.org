@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <oleacc.h>  // For OBJID_WINDOW, OBJID_CLIENT constants
 #include "rust_bridge.h"
 #include "keyboard_hook.h"
 #include "system_tray.h"
@@ -12,9 +13,10 @@
 #include "resource.h"
 
 static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
-static HWINEVENTHOOK g_eventHook = nullptr;
+static HWINEVENTHOOK g_foregroundHook = nullptr;
+static HWINEVENTHOOK g_focusHook = nullptr;
 
-// Event-driven foreground app change detection (more efficient than timer polling)
+// Event-driven foreground app and focus change detection
 void CALLBACK WinEventProc(
     HWINEVENTHOOK hWinEventHook,
     DWORD event,
@@ -24,14 +26,26 @@ void CALLBACK WinEventProc(
     DWORD dwEventThread,
     DWORD dwmsEventTime
 ) {
+    auto& appCompat = gonhanh::AppCompat::Instance();
+
     if (event == EVENT_SYSTEM_FOREGROUND) {
+        // App switch - clear buffer and detection cache
+        ime_clear_all();
+        appCompat.ClearDetectionCache();
+
         auto& settings = gonhanh::Settings::Instance();
         if (settings.perApp) {
-            auto& appCompat = gonhanh::AppCompat::Instance();
             std::wstring appName = appCompat.GetForegroundAppName();
             if (!appName.empty()) {
                 gonhanh::PerAppMode::Instance().SwitchToApp(appName);
             }
+        }
+    } else if (event == EVENT_OBJECT_FOCUS) {
+        // Focus change within app - clear buffer to start fresh in new field
+        // Only clear if focus is on a window (idObject == OBJID_WINDOW or client)
+        if (idObject == OBJID_WINDOW || idObject == OBJID_CLIENT) {
+            ime_clear_all();
+            appCompat.ClearDetectionCache();
         }
     }
 }
@@ -143,16 +157,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         return 1;
     }
 
-    // Set up event hook for app switching detection (event-driven, more efficient than timer)
-    g_eventHook = SetWinEventHook(
+    // Set up event hooks for app switching and focus change detection
+    // Use separate hooks since EVENT_SYSTEM_FOREGROUND and EVENT_OBJECT_FOCUS are not contiguous
+    g_foregroundHook = SetWinEventHook(
         EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
         NULL,           // Hook procedure is in this process
         WinEventProc,
         0, 0,           // All processes and threads
         WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
     );
-    if (!g_eventHook) {
-        gonhanh::LogError(L"Failed to install WinEvent hook for app switching");
+    if (!g_foregroundHook) {
+        gonhanh::LogError(L"Failed to install foreground event hook");
+    }
+
+    g_focusHook = SetWinEventHook(
+        EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS,
+        NULL,
+        WinEventProc,
+        0, 0,
+        WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS
+    );
+    if (!g_focusHook) {
+        gonhanh::LogError(L"Failed to install focus event hook");
     }
 
     // Install keyboard hook
@@ -181,8 +207,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     }
 
     // Cleanup
-    if (g_eventHook) {
-        UnhookWinEvent(g_eventHook);
+    if (g_foregroundHook) {
+        UnhookWinEvent(g_foregroundHook);
+    }
+    if (g_focusHook) {
+        UnhookWinEvent(g_focusHook);
     }
     tray.Destroy();
     hook.Uninstall();

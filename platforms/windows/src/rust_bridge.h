@@ -32,6 +32,12 @@ extern "C" {
     void ime_add_shortcut(const char* trigger, const char* replacement);
     void ime_remove_shortcut(const char* trigger);
     void ime_clear_shortcuts();
+
+    // Additional features
+    void ime_free_tone(bool enabled);
+    void ime_allow_foreign_consonants(bool enabled);
+    int64_t ime_get_buffer(uint32_t* out, int64_t max_len);
+    void ime_restore_word(const char* word);
 }
 
 // RAII wrapper

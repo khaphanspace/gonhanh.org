@@ -1,5 +1,6 @@
 #include "keyboard_hook.h"
 #include "rust_bridge.h"
+#include "app_compat.h"
 
 namespace gonhanh {
 
@@ -12,6 +13,196 @@ public:
     explicit ProcessingGuard(bool& flag) : flag_(flag) { flag_ = true; }
     ~ProcessingGuard() { flag_ = false; }
 };
+
+// RAII guard for CRITICAL_SECTION
+class CriticalSectionGuard {
+    CRITICAL_SECTION& cs_;
+public:
+    explicit CriticalSectionGuard(CRITICAL_SECTION& cs) : cs_(cs) { EnterCriticalSection(&cs_); }
+    ~CriticalSectionGuard() { LeaveCriticalSection(&cs_); }
+};
+
+// ============================================================================
+// TextInjector Implementation
+// ============================================================================
+
+TextInjector& TextInjector::Instance() {
+    static TextInjector instance;
+    return instance;
+}
+
+TextInjector::TextInjector() {
+    InitializeCriticalSection(&cs_);
+}
+
+TextInjector::~TextInjector() {
+    DeleteCriticalSection(&cs_);
+}
+
+void TextInjector::MicrosecondSleep(uint32_t us) {
+    if (us == 0) return;
+
+    // For delays under 1ms, use busy-wait with QueryPerformanceCounter
+    // Sleep(1) has ~15ms minimum granularity on Windows
+    if (us < 1000) {
+        LARGE_INTEGER freq, start, now;
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&start);
+        double targetTicks = (double)us * freq.QuadPart / 1000000.0;
+        do {
+            QueryPerformanceCounter(&now);
+        } while ((now.QuadPart - start.QuadPart) < targetTicks);
+    } else {
+        // For larger delays, use Sleep (rounded up to ms)
+        Sleep((us + 999) / 1000);
+    }
+}
+
+void TextInjector::SendBackspaces(int count, uint32_t delayUs) {
+    if (count <= 0 || count > 32) return;
+
+    for (int i = 0; i < count; ++i) {
+        INPUT inputs[2] = {};
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = VK_BACK;
+        inputs[1].type = INPUT_KEYBOARD;
+        inputs[1].ki.wVk = VK_BACK;
+        inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+        SendInput(2, inputs, sizeof(INPUT));
+
+        if (delayUs > 0 && i < count - 1) {
+            MicrosecondSleep(delayUs);
+        }
+    }
+}
+
+void TextInjector::SendUnicodeText(const uint32_t* chars, uint8_t count, uint32_t delayUs) {
+    for (uint8_t i = 0; i < count; ++i) {
+        uint32_t cp = chars[i];
+
+        if (cp <= 0xFFFF) {
+            // BMP codepoint - single UTF-16 unit
+            INPUT input = {};
+            input.type = INPUT_KEYBOARD;
+            input.ki.wVk = 0;
+            input.ki.wScan = static_cast<WORD>(cp);
+
+            input.ki.dwFlags = KEYEVENTF_UNICODE;
+            SendInput(1, &input, sizeof(INPUT));
+
+            input.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+            SendInput(1, &input, sizeof(INPUT));
+        } else {
+            // Supplementary plane - surrogate pair
+            cp -= 0x10000;
+            WORD high = 0xD800 + static_cast<WORD>(cp >> 10);
+            WORD low = 0xDC00 + static_cast<WORD>(cp & 0x3FF);
+
+            INPUT inputs[4] = {};
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].ki.wScan = high;
+            inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
+
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].ki.wScan = high;
+            inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+
+            inputs[2].type = INPUT_KEYBOARD;
+            inputs[2].ki.wScan = low;
+            inputs[2].ki.dwFlags = KEYEVENTF_UNICODE;
+
+            inputs[3].type = INPUT_KEYBOARD;
+            inputs[3].ki.wScan = low;
+            inputs[3].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+
+            SendInput(4, inputs, sizeof(INPUT));
+        }
+
+        if (delayUs > 0 && i < count - 1) {
+            MicrosecondSleep(delayUs);
+        }
+    }
+}
+
+void TextInjector::Inject(int backspaceCount, const uint32_t* chars, uint8_t charCount) {
+    CriticalSectionGuard lock(cs_);
+
+    // Get injection method from app detection
+    auto detection = AppCompat::Instance().GetInjectionMethod();
+
+    switch (detection.method) {
+        case InjectionMethod::Selection:
+            InjectViaSelection(backspaceCount, chars, charCount, detection.timing);
+            break;
+        case InjectionMethod::Slow:
+        case InjectionMethod::Fast:
+        default:
+            InjectViaBackspace(backspaceCount, chars, charCount, detection.timing);
+            break;
+    }
+}
+
+void TextInjector::InjectViaBackspace(int backspaceCount, const uint32_t* chars, uint8_t charCount,
+                                       const InjectionTiming& timing) {
+    // Send backspaces with per-backspace delay
+    if (backspaceCount > 0) {
+        SendBackspaces(backspaceCount, timing.backspaceDelayUs);
+        MicrosecondSleep(timing.waitDelayUs);
+    }
+
+    // Send text with per-character delay
+    if (charCount > 0) {
+        SendUnicodeText(chars, charCount, timing.textDelayUs);
+    }
+}
+
+void TextInjector::InjectViaSelection(int backspaceCount, const uint32_t* chars, uint8_t charCount,
+                                       const InjectionTiming& timing) {
+    // Selection method: use Shift+Left to select characters, then type to replace
+    // This works better in address bars where backspace may navigate back
+
+    if (backspaceCount > 0) {
+        // Send Shift+Left 'backspaceCount' times to select text
+        for (int i = 0; i < backspaceCount; ++i) {
+            INPUT inputs[4] = {};
+
+            // Shift down
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].ki.wVk = VK_SHIFT;
+
+            // Left down
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].ki.wVk = VK_LEFT;
+
+            // Left up
+            inputs[2].type = INPUT_KEYBOARD;
+            inputs[2].ki.wVk = VK_LEFT;
+            inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+
+            // Shift up
+            inputs[3].type = INPUT_KEYBOARD;
+            inputs[3].ki.wVk = VK_SHIFT;
+            inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+
+            SendInput(4, inputs, sizeof(INPUT));
+
+            if (i < backspaceCount - 1) {
+                MicrosecondSleep(timing.backspaceDelayUs);
+            }
+        }
+
+        MicrosecondSleep(timing.waitDelayUs);
+    }
+
+    // Type replacement text (will replace selection)
+    if (charCount > 0) {
+        SendUnicodeText(chars, charCount, timing.textDelayUs);
+    }
+}
+
+// ============================================================================
+// KeyboardHook Implementation
+// ============================================================================
 
 // VK→macOS keycode mapping verified against core/src/data/keys.rs
 static uint16_t VkToMacKeycode(DWORD vk) {
@@ -43,72 +234,6 @@ static uint16_t VkToMacKeycode(DWORD vk) {
         case VK_OEM_4: return 0x21;  // [ key
         case VK_OEM_6: return 0x1E;  // ] key
         default: return 0xFF;  // Unknown
-    }
-}
-
-// Send backspaces via SendInput (batched for efficiency)
-static void SendBackspaces(int count) {
-    if (count <= 0 || count > 32) return;
-
-    INPUT inputs[64] = {};  // 32 backspaces * 2 events (down + up)
-    for (int i = 0; i < count; ++i) {
-        inputs[i * 2].type = INPUT_KEYBOARD;
-        inputs[i * 2].ki.wVk = VK_BACK;
-        inputs[i * 2 + 1].type = INPUT_KEYBOARD;
-        inputs[i * 2 + 1].ki.wVk = VK_BACK;
-        inputs[i * 2 + 1].ki.dwFlags = KEYEVENTF_KEYUP;
-    }
-    SendInput(count * 2, inputs, sizeof(INPUT));
-}
-
-// Send Unicode text via SendInput
-static void SendUnicodeText(const uint32_t* chars, uint8_t count) {
-    for (uint8_t i = 0; i < count; ++i) {
-        uint32_t cp = chars[i];
-
-        if (cp <= 0xFFFF) {
-            // BMP codepoint - single UTF-16 unit
-            INPUT input = {};
-            input.type = INPUT_KEYBOARD;
-            input.ki.wVk = 0;  // Use Unicode, not VK
-            input.ki.wScan = static_cast<WORD>(cp);
-
-            // Key down
-            input.ki.dwFlags = KEYEVENTF_UNICODE;
-            SendInput(1, &input, sizeof(INPUT));
-
-            // Key up
-            input.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-            SendInput(1, &input, sizeof(INPUT));
-        } else {
-            // Supplementary plane - surrogate pair
-            cp -= 0x10000;
-            WORD high = 0xD800 + static_cast<WORD>(cp >> 10);
-            WORD low = 0xDC00 + static_cast<WORD>(cp & 0x3FF);
-
-            INPUT inputs[4] = {};
-            // High surrogate down
-            inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki.wScan = high;
-            inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
-
-            // High surrogate up
-            inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki.wScan = high;
-            inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-
-            // Low surrogate down
-            inputs[2].type = INPUT_KEYBOARD;
-            inputs[2].ki.wScan = low;
-            inputs[2].ki.dwFlags = KEYEVENTF_UNICODE;
-
-            // Low surrogate up
-            inputs[3].type = INPUT_KEYBOARD;
-            inputs[3].ki.wScan = low;
-            inputs[3].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-
-            SendInput(4, inputs, sizeof(INPUT));
-        }
     }
 }
 
@@ -187,6 +312,40 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
         return CallNextHookEx(NULL, nCode, wParam, lParam);
     }
 
+    // Word tracking for restore functionality
+    bool isWordBoundary = (kb->vkCode == VK_SPACE ||
+                           kb->vkCode == VK_RETURN ||
+                           kb->vkCode == VK_TAB ||
+                           (kb->vkCode >= VK_OEM_1 && kb->vkCode <= VK_OEM_3) ||  // ;=,-./`
+                           (kb->vkCode >= VK_OEM_4 && kb->vkCode <= VK_OEM_7));   // [\]'
+
+    if (isWordBoundary && !g_instance->currentWord_.empty()) {
+        // Save completed word and mark as after space
+        g_instance->lastWord_ = g_instance->currentWord_;
+        g_instance->currentWord_.clear();
+        g_instance->afterSpace_ = true;
+    } else if (kb->vkCode == VK_BACK) {
+        // Handle backspace - check if we should restore word
+        if (g_instance->afterSpace_ && g_instance->currentWord_.empty() && !g_instance->lastWord_.empty()) {
+            // Backspace right after completing a word - restore it
+            std::string utf8Word = Utf16ToUtf8(g_instance->lastWord_);
+            if (!utf8Word.empty()) {
+                ime_restore_word(utf8Word.c_str());
+            }
+            g_instance->afterSpace_ = false;
+        } else if (!g_instance->currentWord_.empty()) {
+            // Remove last character from current word
+            g_instance->currentWord_.pop_back();
+        }
+        g_instance->afterSpace_ = false;
+    } else if (kb->vkCode >= 'A' && kb->vkCode <= 'Z') {
+        // Track letter for current word
+        g_instance->afterSpace_ = false;
+        // Note: actual character will be tracked after engine processes it
+    } else {
+        g_instance->afterSpace_ = false;
+    }
+
     // Convert VK to macOS keycode
     uint16_t keycode = VkToMacKeycode(kb->vkCode);
     if (keycode == 0xFF) {
@@ -225,13 +384,19 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
     OutputDebugStringW(logMsg.c_str());
 #endif
 
-    // Suppress original key
-    if (result->backspace > 0) {
-        SendBackspaces(result->backspace);
-    }
+    // Use TextInjector for app-aware text injection
+    TextInjector::Instance().Inject(result->backspace, result->chars, result->count);
 
+    // Update word tracking with output characters
     if (result->count > 0) {
-        SendUnicodeText(result->chars, result->count);
+        std::wstring output = Utf32ToUtf16(result->chars, result->count);
+        // If there were backspaces, adjust currentWord_ accordingly
+        if (result->backspace > 0 && !g_instance->currentWord_.empty()) {
+            size_t removeCount = (std::min)(static_cast<size_t>(result->backspace),
+                                            g_instance->currentWord_.size());
+            g_instance->currentWord_.erase(g_instance->currentWord_.size() - removeCount);
+        }
+        g_instance->currentWord_ += output;
     }
 
     return 1;  // Suppress original keystroke

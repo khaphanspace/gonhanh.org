@@ -91,4 +91,76 @@ bool AppCompat::NeedsSelectionMethod() {
     return false;
 }
 
+DetectionResult AppCompat::GetInjectionMethod() {
+    // Check if cache is valid (TTL not expired)
+    if (hasDetectionCache_) {
+        DWORD now = GetTickCount();
+        DWORD elapsed = now - cachedDetection_.timestamp;
+        if (elapsed < DETECTION_TTL_MS) {
+            return cachedDetection_;
+        }
+    }
+
+    // Cache miss or expired - detect and cache
+    std::wstring appName = GetForegroundAppName();
+    cachedDetection_ = DetectInjectionMethod(appName);
+    hasDetectionCache_ = true;
+
+    return cachedDetection_;
+}
+
+void AppCompat::ClearDetectionCache() {
+    hasDetectionCache_ = false;
+    cachedDetection_ = DetectionResult();
+}
+
+DetectionResult AppCompat::DetectInjectionMethod(const std::wstring& appName) {
+    // Convert to lowercase for case-insensitive comparison
+    std::wstring lower = appName;
+    for (auto& c : lower) {
+        c = towlower(c);
+    }
+
+    // Terminals: need slow injection (8000/25000/8000 µs)
+    if (lower == L"windowsterminal.exe" ||
+        lower == L"cmd.exe" ||
+        lower == L"powershell.exe" ||
+        lower == L"pwsh.exe" ||
+        lower == L"conhost.exe") {
+        return DetectionResult(InjectionMethod::Slow, 8000, 25000, 8000);
+    }
+
+    // VSCode-based editors: need slow injection
+    if (lower == L"code.exe" ||
+        lower == L"cursor.exe" ||
+        lower == L"code - insiders.exe" ||
+        lower == L"windsurf.exe") {
+        return DetectionResult(InjectionMethod::Slow, 8000, 25000, 8000);
+    }
+
+    // Electron chat apps: medium slow
+    if (lower == L"teams.exe" ||
+        lower == L"slack.exe" ||
+        lower == L"discord.exe" ||
+        lower == L"telegram.exe") {
+        return DetectionResult(InjectionMethod::Slow, 3000, 8000, 3000);
+    }
+
+    // Browsers: check if in address bar (future: UI Automation)
+    // For now, use selection method for browser address bars
+    // Note: This is a simplification - proper detection requires UI Automation
+    if (lower == L"chrome.exe" ||
+        lower == L"msedge.exe" ||
+        lower == L"firefox.exe" ||
+        lower == L"brave.exe" ||
+        lower == L"opera.exe") {
+        // For browsers, use slightly slower timing
+        // Address bar detection would require UI Automation
+        return DetectionResult(InjectionMethod::Fast, 500, 1500, 800);
+    }
+
+    // Default: fast injection (200/800/500 µs)
+    return DetectionResult(InjectionMethod::Fast, 200, 800, 500);
+}
+
 } // namespace gonhanh
