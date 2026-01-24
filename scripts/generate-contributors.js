@@ -205,7 +205,7 @@ async function fetchCommunityContributors() {
         users.set(login, {
           login,
           avatar: user.avatarUrl || user.avatar_url,
-          url: user.url || user.html_url,
+          url: user.html_url || user.url,
           count: 0,
         });
       }

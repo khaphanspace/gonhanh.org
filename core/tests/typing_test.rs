@@ -376,6 +376,8 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("aaa", "aa"),
     ("ooo", "oo"),
     ("aww", "aw"),
+    // Delayed circumflex revert + continue typing
+    ("dataas", "datas"), // data → dâta → data (revert) → datas
     // Change mark mid-word
     ("asf", "à"),
     ("afs", "á"),
@@ -1465,6 +1467,9 @@ const TELEX_HORN_PLACEMENT: &[(&str, &str)] = &[
     ("duowcj", "dược"), // dược - medicine (horn + nặng mark)
     ("muowif", "mười"), // mười - ten (horn + huyền mark on ờ)
     ("luowst", "lướt"), // lướt - to slide (final 't' triggers horn on 'u')
+    // "Qu-" initial pattern - 'u' is part of initial consonant, should NOT get horn
+    ("Quoiws", "Quới"), // Quới - name (NOT Qưới, 'u' is part of "Qu" initial)
+    ("quoocs", "quốc"), // quốc - country (NOT qướcc, 'u' is part of "Qu" initial)
 ];
 
 // ============================================================

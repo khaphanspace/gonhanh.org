@@ -487,6 +487,7 @@ loaf	loà
 vest	vét
 pius	píu
 tow	tơ
+dd	đ
 reefs	rế
 vor	vỏ
 reuse	rếu
@@ -1603,6 +1604,7 @@ dasa	dấ
 aur	ảu
 aap	âp
 densest	denst
+cuomo	cuôm
 mesmer	mểm
 mops	móp
 tars	tá
@@ -1895,6 +1897,7 @@ awt	ăt
 buts	bút
 okw	ơk
 charac	chẩc
+uomo	uôm
 vars	vá
 kir	kỉ
 lorn	lỏn
@@ -2057,7 +2060,6 @@ guyer	guyẻ
 ganja	gận
 sws	sứ
 sif	sì
-comoros	cốm
 harre	hare
 bors	bó
 bair	bải

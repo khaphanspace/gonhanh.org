@@ -771,6 +771,7 @@ fn delayed_circumflex_auto_restore_space() {
         ("toto ", "toto "),  // tôt (no mark) is NOT real VI → restore to English
         ("data ", "data "),  // dât (no mark) is NOT real VI → restore to English
         ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
+        ("dataas", "datas"), // Revert then mark: dataa → data, then 's' stays as letter
         ("noto ", "noto "),  // nôt (no mark) is NOT real VI → restore to English
         ("hete ", "hete "),  // hêt (no mark) is NOT real VI → restore to English
         ("tetee ", "tete "), // Revert: tetee → tete (circumflex reverted)

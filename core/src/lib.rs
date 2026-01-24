@@ -233,6 +233,20 @@ pub extern "C" fn ime_auto_capitalize(enabled: bool) {
     }
 }
 
+/// Enable/disable foreign consonants (z, w, j, f) as valid initial consonants.
+///
+/// When `enabled` is true, allows z, w, j, f as valid Vietnamese consonants
+/// for typing loanwords while still getting Vietnamese diacritics.
+/// When `enabled` is false (default), these letters are treated as invalid initials.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_allow_foreign_consonants(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_allow_foreign_consonants(enabled);
+    }
+}
+
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation).

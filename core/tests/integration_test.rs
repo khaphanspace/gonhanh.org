@@ -1685,6 +1685,19 @@ fn backspace_after_space_telex_change_mark() {
     );
 }
 
+/// Remove mark after space (khoongf + SPACE + < + z → không)
+/// Bug: 'z' was clearing buffer because it wasn't recognized as a modifier
+#[test]
+fn backspace_after_space_telex_remove_mark() {
+    let mut e = Engine::new();
+    // "khoongf" → "không", then space + backspace + "z" → "không" (remove huyền)
+    let result = type_word(&mut e, "khoongf <z");
+    assert_eq!(
+        result, "không",
+        "không + space + backspace + z should remove huyền → không"
+    );
+}
+
 /// Multiple backspaces to delete chars (doc + SPACE + << + j → dọ)
 #[test]
 fn backspace_after_space_multiple_backspace() {
@@ -3599,4 +3612,60 @@ fn shortcut_works_multiple_delete_retype_cycles() {
             e.on_key(keys::DELETE, false, false);
         }
     }
+}
+
+/// Issue #247: Standalone "Đ" should NOT be auto-restored to "DD" on break key
+/// When typing "DD" to get "Đ", pressing arrow key should keep "Đ", not revert to "DD"
+#[test]
+fn standalone_stroke_not_restored_on_break() {
+    // Test with arrow key (RIGHT)
+    let mut e = Engine::new();
+    e.set_method(0); // Telex
+    e.set_english_auto_restore(true);
+
+    // Type "DD" → should produce "Đ"
+    e.on_key(keys::D, true, false); // D (caps)
+    e.on_key(keys::D, true, false); // D (caps)
+
+    // Press RIGHT arrow (break key) - should NOT restore to "DD"
+    let r = e.on_key(keys::RIGHT, false, false);
+    assert_eq!(
+        r.action,
+        Action::None as u8,
+        "Standalone Đ should NOT be restored on arrow key"
+    );
+
+    // Test with space key
+    let mut e2 = Engine::new();
+    e2.set_method(0);
+    e2.set_english_auto_restore(true);
+
+    // Type "dd" → should produce "đ"
+    e2.on_key(keys::D, false, false);
+    e2.on_key(keys::D, false, false);
+
+    // Press SPACE - should NOT restore to "dd "
+    let r2 = e2.on_key(keys::SPACE, false, false);
+    assert_eq!(
+        r2.action,
+        Action::None as u8,
+        "Standalone đ should NOT be restored on space"
+    );
+
+    // Test with punctuation (DOT)
+    let mut e3 = Engine::new();
+    e3.set_method(0);
+    e3.set_english_auto_restore(true);
+
+    // Type "DD" → should produce "Đ"
+    e3.on_key(keys::D, true, false);
+    e3.on_key(keys::D, true, false);
+
+    // Press DOT (break key) - should NOT restore to "DD"
+    let r3 = e3.on_key(keys::DOT, false, false);
+    assert_eq!(
+        r3.action,
+        Action::None as u8,
+        "Standalone Đ should NOT be restored on punctuation"
+    );
 }
