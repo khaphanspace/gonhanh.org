@@ -29,6 +29,12 @@ pub const VALID_INITIALS_1: &[u16] = &[
     keys::X,
 ];
 
+/// Foreign consonants that can optionally be allowed as valid initials
+/// These letters (z, w, j, f) are not part of standard Vietnamese but are used
+/// in loanwords. When the "allow foreign consonants" option is enabled,
+/// these are treated as valid initial consonants.
+pub const FOREIGN_INITIALS: &[u16] = &[keys::Z, keys::W, keys::J, keys::F];
+
 /// Valid double initial consonants (11 digraphs)
 /// Note: Kr is included for ethnic minority place names (Krông Búk)
 pub const VALID_INITIALS_2: &[[u16; 2]] = &[

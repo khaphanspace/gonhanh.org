@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gkg": {
+      "type": "sse",
+      "url": "http://localhost:27495/mcp/sse"
+    }
+  }
+}

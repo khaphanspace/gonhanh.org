@@ -10,14 +10,21 @@ import AppKit
 private enum Log {
     private static let logPath = "/tmp/gonhanh_debug.log"
     private static var _enabled: Bool?
+    private static var perfTimer: Timer?
+    private static var keystrokeCount: UInt64 = 0
+
     static var isEnabled: Bool {
         if let cached = _enabled { return cached }
         _enabled = FileManager.default.fileExists(atPath: logPath)
+        if _enabled == true { startPerfLogging() }
         return _enabled!
     }
 
     /// Call to refresh enabled state (e.g., on app activation)
     static func refresh() { _enabled = nil }
+
+    /// Increment keystroke counter (for perf stats)
+    static func countKey() { keystrokeCount += 1 }
 
     private static func write(_ msg: @autoclosure () -> String) {
         guard isEnabled, let handle = FileHandle(forWritingAtPath: logPath) else { return }
@@ -30,7 +37,29 @@ private enum Log {
         handle.closeFile()
     }
 
-    static func key(_ code: UInt16, _ result: @autoclosure () -> String) { guard isEnabled else { return }; write("K:\(code) → \(result())") }
+    /// Start periodic performance logging (every 5 min)
+    private static func startPerfLogging() {
+        guard perfTimer == nil else { return }
+        logPerf()  // Log immediately on start
+        perfTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in logPerf() }
+    }
+
+    /// Log memory/thread stats
+    private static func logPerf() {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        if result == KERN_SUCCESS {
+            let mb = Double(info.resident_size) / 1024 / 1024
+            write("P: RAM=\(String(format: "%.1f", mb))MB keys=\(keystrokeCount)")
+        }
+    }
+
+    static func key(_ code: UInt16, _ result: @autoclosure () -> String) { guard isEnabled else { return }; countKey(); write("K:\(code) → \(result())") }
     static func method(_ name: @autoclosure () -> String) { guard isEnabled else { return }; write("M: \(name())") }
     static func info(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("I: \(msg())") }
     static func queue(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("Q: \(msg())") }
@@ -46,6 +75,10 @@ private enum KeyCode {
     static let rightArrow: CGKeyCode = 0x7C
     static let downArrow: CGKeyCode = 0x7D
     static let upArrow: CGKeyCode = 0x7E
+    static let home: CGKeyCode = 0x73
+    static let end: CGKeyCode = 0x77
+    static let pageUp: CGKeyCode = 0x74
+    static let pageDown: CGKeyCode = 0x79
     static let space: CGKeyCode = 0x31
     static let tab: CGKeyCode = 0x30
     static let returnKey: CGKeyCode = 0x24
@@ -501,6 +534,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, do
 @_silgen_name("ime_modern") private func ime_modern(_ modern: Bool)
 @_silgen_name("ime_english_auto_restore") private func ime_english_auto_restore(_ enabled: Bool)
 @_silgen_name("ime_auto_capitalize") private func ime_auto_capitalize(_ enabled: Bool)
+@_silgen_name("ime_allow_foreign_consonants") private func ime_allow_foreign_consonants(_ enabled: Bool)
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_clear_all") private func ime_clear_all()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
@@ -574,6 +608,13 @@ class RustBridge {
     /// Set whether to enable auto-capitalize after sentence-ending punctuation
     /// When enabled, capitalizes first letter after . ! ? Enter
     static func setAutoCapitalize(_ enabled: Bool) { ime_auto_capitalize(enabled) }
+
+    /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
+    /// When enabled, these letters are accepted as Vietnamese consonants for loanwords
+    static func setAllowForeignConsonants(_ enabled: Bool) {
+        ime_allow_foreign_consonants(enabled)
+        Log.info("Allow foreign consonants: \(enabled)")
+    }
 
     static func clearBuffer() { ime_clear() }
 
@@ -719,6 +760,7 @@ private var isRecordingShortcut = false
 private var recordingModifiers: CGEventFlags = []      // Current modifiers being held
 private var peakRecordingModifiers: CGEventFlags = []  // Peak modifiers during recording
 private var shortcutObserver: NSObjectProtocol?
+private var restoreShortcutObserver: NSObjectProtocol?
 /// Skip word restore after mouse click (user may be selecting/deleting text)
 /// Reset to false after first keystroke
 private var skipWordRestoreAfterClick = false
@@ -847,8 +889,7 @@ func setupShortcutObserver() {
     shortcutObserver = NotificationCenter.default.addObserver(forName: .shortcutChanged, object: nil, queue: .main) { _ in
         currentShortcut = KeyboardShortcut.load()
     }
-    // Observer for restore shortcut changes
-    NotificationCenter.default.addObserver(forName: .restoreShortcutChanged, object: nil, queue: .main) { _ in
+    restoreShortcutObserver = NotificationCenter.default.addObserver(forName: .restoreShortcutChanged, object: nil, queue: .main) { _ in
         currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
     }
 }
@@ -1062,16 +1103,21 @@ private func keyboardCallback(
     }
 
     // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
-    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+: select
+    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+Arrow: select
+    // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
     // All of these invalidate the current composition context
-    let arrowKeys: Set<UInt16> = [
+    let navigationKeys: Set<UInt16> = [
         UInt16(KeyCode.leftArrow),   // 0x7B
         UInt16(KeyCode.rightArrow),  // 0x7C
         UInt16(KeyCode.upArrow),     // 0x7E
         UInt16(KeyCode.downArrow),   // 0x7D
+        UInt16(KeyCode.home),        // 0x73
+        UInt16(KeyCode.end),         // 0x77
+        UInt16(KeyCode.pageUp),      // 0x74
+        UInt16(KeyCode.pageDown),    // 0x79
     ]
     let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
-    if arrowKeys.contains(keyCode) && hasModifier {
+    if navigationKeys.contains(keyCode) && hasModifier {
         RustBridge.clearBuffer()
         TextInjector.shared.clearSessionBuffer()
         return Unmanaged.passUnretained(event)
@@ -1266,6 +1312,7 @@ private func keyCodeToChar(keyCode: UInt16, shift: Bool) -> Character? {
 private enum DetectionCache {
     static var result: (method: InjectionMethod, delays: (UInt32, UInt32, UInt32))?
     static var timestamp: CFAbsoluteTime = 0
+    static var lastLoggedKey: String = ""  // Only log when method+app changes
     static let ttl: CFAbsoluteTime = 0.2  // 200ms
 
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
@@ -1274,9 +1321,14 @@ private enum DetectionCache {
         return (cached.method, cached.delays)
     }
 
-    static func set(_ method: InjectionMethod, _ delays: (UInt32, UInt32, UInt32)) {
+    static func set(_ method: InjectionMethod, _ delays: (UInt32, UInt32, UInt32), logKey: String) {
         result = (method, delays)
         timestamp = CFAbsoluteTimeGetCurrent()
+        // Only log when method+app combination changes
+        if logKey != lastLoggedKey {
+            lastLoggedKey = logKey
+            Log.method(logKey)
+        }
     }
 
     static func clear() {
@@ -1325,29 +1377,30 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     guard let bundleId = bundleId else { return (.fast, (200, 800, 500)) }
 
-    // Helper to cache and return result
-    func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32)) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-        DetectionCache.set(m, d); return (m, d)
+    // Helper to cache and return result (only logs when method+app changes)
+    func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
+        let logKey = "\(methodName) [\(bundleId)]"
+        DetectionCache.set(m, d, logKey: logKey); return (m, d)
     }
 
     // iPhone Mirroring (ScreenContinuity) - pass through all keys
     if bundleId == "com.apple.ScreenContinuity" {
-        Log.method("pass:iphone"); return cached(.passthrough, (0, 0, 0))
+        return cached(.passthrough, (0, 0, 0), "pass:iphone")
     }
 
     // Selection method for autocomplete UI elements
-    if role == "AXComboBox" { Log.method("sel:combo"); return cached(.selection, (0, 0, 0)) }
-    if role == "AXSearchField" { Log.method("sel:search"); return cached(.selection, (0, 0, 0)) }
+    if role == "AXComboBox" { return cached(.selection, (0, 0, 0), "sel:combo") }
+    if role == "AXSearchField" { return cached(.selection, (0, 0, 0), "sel:search") }
 
     // Spotlight - use AX API direct manipulation (macOS 13+)
     if bundleId == "com.apple.Spotlight" || bundleId == "com.apple.systemuiserver" {
-        Log.method("ax:spotlight"); return cached(.axDirect, (0, 0, 0))
+        return cached(.axDirect, (0, 0, 0), "ax:spotlight")
     }
 
     // Arc/Dia browser - use AX API for address bar
     let theBrowserCompany = ["company.thebrowser.Browser", "company.thebrowser.Arc", "company.thebrowser.dia"]
     if theBrowserCompany.contains(bundleId) && (role == "AXTextField" || role == "AXTextArea") {
-        Log.method("ax:arc"); return cached(.axDirect, (0, 0, 0))
+        return cached(.axDirect, (0, 0, 0), "ax:arc")
     }
 
     // Firefox-based browsers - use selection method for address bar (AXTextField)
@@ -1361,9 +1414,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     ]
     if firefoxBrowsers.contains(bundleId) {
         if role == "AXTextField" {
-            Log.method("sel:firefox"); return cached(.selection, (0, 0, 0))  // Address bar
+            return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
         } else {
-            Log.method("slow:firefox"); return cached(.slow, (3000, 8000, 3000))  // Content area
+            return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
         }
     }
 
@@ -1404,39 +1457,41 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.duckduckgo.macos.browser",  // DuckDuckGo
         "com.openai.atlas"               // ChatGPT Atlas
     ]
-    if browsers.contains(bundleId) && role == "AXTextField" { Log.method("sel:browser"); return cached(.selection, (0, 0, 0)) }
-    if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { Log.method("sel:jb"); return cached(.selection, (0, 0, 0)) }
+    if browsers.contains(bundleId) && role == "AXTextField" { return cached(.selection, (0, 0, 0), "sel:browser") }
+    if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { return cached(.selection, (0, 0, 0), "sel:jb") }
 
     // Safari content areas (Google Docs, etc.) - character-by-character with high delays
     if bundleId == "com.apple.Safari" || bundleId == "com.apple.SafariTechnologyPreview" {
-        Log.method("char:safari"); return cached(.charByChar, (0, 0, 0))
+        return cached(.charByChar, (0, 0, 0), "char:safari")
     }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
-    if bundleId == "com.microsoft.Excel" { Log.method("slow:excel"); return cached(.slow, (3000, 8000, 3000)) }
-    if bundleId == "com.microsoft.Word" { Log.method("slow:word"); return cached(.slow, (3000, 8000, 3000)) }
+    if bundleId == "com.microsoft.Excel" { return cached(.slow, (3000, 8000, 3000), "slow:excel") }
+    if bundleId == "com.microsoft.Word" { return cached(.slow, (3000, 8000, 3000), "slow:word") }
 
     // Electron apps - higher delays for Monaco editor
-    if bundleId == "com.todesktop.230313mzl4w4u92" { Log.method("slow:claude"); return cached(.slow, (8000, 15000, 8000)) }
-    if bundleId == "notion.id" { Log.method("slow:notion"); return cached(.slow, (12000, 25000, 12000)) }
+    if bundleId == "com.todesktop.230313mzl4w4u92" { return cached(.slow, (8000, 15000, 8000), "slow:claude") }
+    if bundleId == "notion.id" { return cached(.slow, (12000, 25000, 12000), "slow:notion") }
 
-    // Warp terminal - higher delays
-    if bundleId == "dev.warp.Warp-Stable" { Log.method("slow:warp"); return cached(.slow, (8000, 15000, 8000)) }
-
-    // Terminal/IDE apps - conservative delays
-    let terminals = [
+    // Code editors & terminals - higher delays for Monaco/Electron-based apps
+    // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
+    let codeApps = [
+        // VSCode-based IDEs
+        "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
+        "com.visualstudio.code.oss", "com.vscodium",
+        // Terminals
+        "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
         "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
-        "com.github.wez.wezterm", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
-        "co.zeit.hyper", "org.tabby", "com.raphaelamorim.rio", "com.termius-dmg.mac",
-        "com.microsoft.VSCode", "com.google.antigravity", "dev.zed.Zed",
-        "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
+        "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
+        "com.raphaelamorim.rio", "com.termius-dmg.mac",
+        // Other code editors
+        "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
     ]
-    if terminals.contains(bundleId) { Log.method("slow:term"); return cached(.slow, (3000, 8000, 3000)) }
-    if bundleId.hasPrefix("com.jetbrains") { Log.method("slow:jb"); return cached(.slow, (3000, 8000, 3000)) }
+    if codeApps.contains(bundleId) { return cached(.slow, (8000, 25000, 8000), "slow:code") }
+    if bundleId.hasPrefix("com.jetbrains") { return cached(.slow, (8000, 25000, 8000), "slow:jb") }
 
     // Default: safe delays
-    Log.method("default")
-    return cached(.fast, (1000, 3000, 1500))
+    return cached(.fast, (1000, 3000, 1500), "default")
 }
 
 private func sendReplacement(backspace bs: Int, chars: [Character], method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
@@ -1690,6 +1745,9 @@ class PerAppModeManager {
         RustBridge.clearBuffer()
         TextInjector.shared.clearSessionBuffer()
         clearDetectionCache()  // Clear injection method cache on app switch
+
+        // Update auto-capitalize state for new app (handles per-app exclusion)
+        AppState.shared.updateAutoCapitalizeEngine()
 
         guard AppState.shared.perAppModeEnabled else { return }
 

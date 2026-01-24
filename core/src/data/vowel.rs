@@ -551,18 +551,28 @@ impl Phonology {
                     if k1 == pattern.v1 && k2 == pattern.v2 {
                         match pattern.placement {
                             HornPlacement::Both => {
-                                // Issue #133: Check if "uo" pattern is at end of syllable (no final)
-                                // If no final consonant/vowel after "uo", only apply horn to 'o'
-                                // Examples: "huow" → "huơ", "khuow" → "khuơ"
-                                // But: "duowc" → "dược", "muowif" → "mười" (both get horn)
-                                let has_final = buffer_keys.get(pos2 + 1).is_some();
-                                if k1 == keys::U && k2 == keys::O && !has_final {
-                                    // "uơ" pattern - only 'o' gets horn
+                                // Check if 'u' is preceded by 'Q' (qu-initial consonant cluster)
+                                // In "Qu-", the 'u' is part of the initial and should not get horn
+                                // Examples: "Quoiws" → "Quới" (not "Qưới"), "quốc" (not "qước")
+                                let preceded_by_q =
+                                    pos1 > 0 && buffer_keys.get(pos1 - 1).copied() == Some(keys::Q);
+                                if preceded_by_q {
+                                    // Only apply horn to the second vowel
                                     result.push(pos2);
                                 } else {
-                                    // "ươ" pattern - both get horn
-                                    result.push(pos1);
-                                    result.push(pos2);
+                                    // Issue #133: Check if "uo" pattern is at end of syllable (no final)
+                                    // If no final consonant/vowel after "uo", only apply horn to 'o'
+                                    // Examples: "huow" → "huơ", "khuow" → "khuơ"
+                                    // But: "duowc" → "dược", "muowif" → "mười" (both get horn)
+                                    let has_final = buffer_keys.get(pos2 + 1).is_some();
+                                    if k1 == keys::U && k2 == keys::O && !has_final {
+                                        // "uơ" pattern - only 'o' gets horn
+                                        result.push(pos2);
+                                    } else {
+                                        // "ươ" pattern - both get horn
+                                        result.push(pos1);
+                                        result.push(pos2);
+                                    }
                                 }
                             }
                             HornPlacement::First => {

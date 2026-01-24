@@ -81,10 +81,12 @@ enum SettingsKey {
     static let modernTone = "gonhanh.modernTone"
     static let englishAutoRestore = "gonhanh.englishAutoRestore"
     static let autoCapitalize = "gonhanh.autoCapitalize"
+    static let autoCapitalizeExcludedApps = "gonhanh.autoCapitalize.excludedApps"
     static let launchAtLoginUserDisabled = "gonhanh.launchAtLogin.userDisabled"
     static let soundEnabled = "gonhanh.soundEnabled"
     static let autoCheckUpdate = "gonhanh.update.autoCheck"
     static let autoUpdate = "gonhanh.update.auto"
+    static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
 }
 
 // MARK: - Keyboard Shortcut Model
