@@ -1591,8 +1591,23 @@ impl Engine {
                         self.buf.iter().filter(|c| keys::is_vowel(c.key)).collect();
 
                     let has_any_mark = vowel_chars.iter().any(|c| c.has_mark());
-                    let unique_vowel_types: std::collections::HashSet<u16> =
-                        vowel_chars.iter().map(|c| c.key).collect();
+
+                    // Check for gi-initial pattern: G + I at start where I is part of consonant cluster
+                    // In Vietnamese, "gi" is a consonant cluster, so "giấc" (giacsa) has only 1 vowel (a)
+                    // The I in "gi" should not be counted as a separate vowel type
+                    let is_gi_initial_here = self.buf.get(0).map(|c| c.key) == Some(keys::G)
+                        && self.buf.get(1).is_some_and(|c| c.key == keys::I);
+
+                    // Exclude I from vowel types if it's part of gi-initial
+                    let unique_vowel_types: std::collections::HashSet<u16> = if is_gi_initial_here {
+                        vowel_chars
+                            .iter()
+                            .filter(|c| c.key != keys::I)
+                            .map(|c| c.key)
+                            .collect()
+                    } else {
+                        vowel_chars.iter().map(|c| c.key).collect()
+                    };
                     let has_multiple_vowel_types = unique_vowel_types.len() > 1;
 
                     if has_any_mark && has_multiple_vowel_types {
@@ -1972,30 +1987,54 @@ impl Engine {
                                     // Check for gi-initial pattern: gi + a + C + a → giâ + C
                                     // In Vietnamese, "gi" is a consonant cluster, so "giama" → "giâm"
                                     // The I in "gi" is part of the initial, not a separate vowel
+                                    // For gi patterns, allow ANY single consonant final (not just t,m,p)
+                                    // because "gi" prefix already indicates Vietnamese intent
+                                    // Handle both 2-vowel (buffer: gi-a-m) and 3-vowel (buffer: gi-a-c-a) cases
+                                    let has_single_consonant_final = consonants_after.len() == 1;
+                                    let gi_effective_vowel_count = if is_gi_initial
+                                        && vowel_positions.len() >= 2
+                                        && vowel_positions[0].1 == keys::I
+                                        && vowel_positions[0].0 == 1
+                                    {
+                                        // Ignore I as it's part of gi-initial, count remaining vowels
+                                        vowel_positions.len() - 1
+                                    } else {
+                                        vowel_positions.len()
+                                    };
                                     let is_gi_initial_pattern = is_gi_initial
-                                        && vowel_positions.len() == 2  // I and A
+                                        && gi_effective_vowel_count == 1  // Only 1 effective vowel (excluding I from gi)
                                         && vowel_positions[0].1 == keys::I  // First is I (part of gi)
-                                        && vowel_positions[1].1 == key  // Second matches trigger
-                                        && is_same_vowel_trigger
-                                        && is_non_extending_final;
+                                        && is_same_vowel_trigger  // Trigger matches the vowel in buffer
+                                        && has_single_consonant_final; // Any single consonant final
 
                                     // Block if: has adjacent vowel (diphthong pattern) with non-extending final
                                     // UNLESS it's the specific 3-vowel diphthong pattern (xuata)
-                                    // OR it's the gi-initial pattern (giama)
+                                    // OR it's the gi-initial pattern (giama, giacsa, etc.)
                                     //
                                     // Also allow when target already has mark AND no adjacent vowel:
                                     // Pattern: V(mark) + C + V → Circumflex on first V, preserve mark
                                     // Example: "afma" → à + m + a → ầ + m (a with huyền gets circumflex)
+                                    // For gi-initial with mark, allow any single consonant final
                                     let allow_with_existing_mark = !has_any_adjacent_vowel
                                         && is_non_extending_final
                                         && self.buf.get(i).is_some_and(|c| c.mark > 0);
 
+                                    // Special case: gi-initial with mark allows any single consonant
+                                    let allow_gi_with_mark = is_gi_initial
+                                        && has_single_consonant_final
+                                        && self.buf.get(i).is_some_and(|c| c.mark > 0);
+
                                     if is_same_vowel_trigger
-                                        && is_non_extending_final
-                                        && (target_has_no_mark || allow_with_existing_mark)
+                                        && (is_non_extending_final
+                                            || is_gi_initial_pattern
+                                            || allow_gi_with_mark)
+                                        && (target_has_no_mark
+                                            || allow_with_existing_mark
+                                            || allow_gi_with_mark)
                                         && (!has_any_adjacent_vowel
                                             || is_valid_3_vowel_diphthong_pattern
-                                            || is_gi_initial_pattern)
+                                            || is_gi_initial_pattern
+                                            || allow_gi_with_mark)
                                     {
                                         // Apply circumflex to first vowel
                                         if let Some(c) = self.buf.get_mut(i) {
