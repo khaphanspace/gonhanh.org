@@ -1521,7 +1521,20 @@ impl Engine {
                         let preceded_by_q =
                             pos1 > 0 && self.buf.get(pos1 - 1).map(|c| c.key) == Some(keys::Q);
 
-                        if preceded_by_q {
+                        // Check for "quoa" pattern: Q + U + O + A
+                        // In this case, skip U+O compound and let phonology rules handle O+A
+                        // W should apply breve to A, not horn to O
+                        // Example: "quoắt" = qu + oă + t
+                        let has_a_after_o = self
+                            .buf
+                            .get(pos2 + 1)
+                            .map(|c| c.key == keys::A)
+                            .unwrap_or(false);
+
+                        if preceded_by_q && has_a_after_o {
+                            // Skip compound handling - let find_horn_target_with_switch handle it
+                            // This will trigger O+A breve pattern in phonology rules
+                        } else if preceded_by_q {
                             // "Qu-" pattern - only second vowel gets horn
                             target_positions.push(pos2);
                             self.pending_u_horn_pos = None;
