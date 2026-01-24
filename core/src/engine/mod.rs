@@ -894,16 +894,16 @@ impl Engine {
         // unless they're mark/tone keys (allow "ban" + restore + "s" → "bán")
         if self.restored_pending_clear && keys::is_letter(key) {
             let m = input::get(self.method);
-            let is_mark_or_tone = m.mark(key).is_some() || m.tone(key).is_some();
-            // Clear buffer when letter is NOT a mark/tone modifier:
+            let is_modifier = m.mark(key).is_some() || m.tone(key).is_some() || m.remove(key);
+            // Clear buffer when letter is NOT a modifier (mark/tone/remove):
             // - Vietnamese restored: clear on consonant (vowels may add diacritics)
-            // - ASCII restored: clear on any non-mark/tone letter (consonant OR vowel)
+            // - ASCII restored: clear on any non-modifier letter (consonant OR vowel)
             let should_clear = if self.restored_is_ascii {
-                // Pure ASCII: clear on any letter except mark/tone keys
-                !is_mark_or_tone
+                // Pure ASCII: clear on any letter except modifier keys
+                !is_modifier
             } else {
-                // Vietnamese: clear only on consonant that's not mark/tone
-                keys::is_consonant(key) && !is_mark_or_tone
+                // Vietnamese: clear only on consonant that's not a modifier
+                keys::is_consonant(key) && !is_modifier
             };
             if should_clear {
                 self.clear();
@@ -1919,13 +1919,56 @@ impl Engine {
                                             .buf
                                             .get(i + 1)
                                             .is_some_and(|ch| keys::is_vowel(ch.key));
+                                    // Check for valid 3-vowel pattern like "xuata" → "xuât", "buomo" → "buôm"
+                                    // Requirements:
+                                    // 1. Exactly 3 vowels total (2 in buffer + 1 trigger)
+                                    // 2. First vowel is 'u' with no transformation
+                                    // 3. Target is 'a' or 'o' (forming "ua"→"uâ" or "uo"→"uô" diphthong)
+                                    // 4. First two vowels are adjacent
+                                    // 5. Buffer length <= 4 (typical Vietnamese syllable size: C+V1+V2+C)
+                                    // 6. Initial consonant must be common Vietnamese pattern for this diphthong
+                                    //    Exclude: g, q (foreign gu- patterns), d (duomo is Italian)
+                                    // This specifically handles: xuất, tuất, luật, buồm, cuốn, muốn, etc.
+                                    let vowel_positions: Vec<(usize, u16)> = self
+                                        .buf
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|(_, c)| keys::is_vowel(c.key))
+                                        .map(|(pos, c)| (pos, c.key))
+                                        .collect();
+
+                                    // Check if initial consonant is likely foreign pattern
+                                    // g/q: "guatanamo", "quest"
+                                    // d: "duomo" (Italian), but Vietnamese "đ" uses stroke
+                                    let has_foreign_initial = self.buf.get(0).is_some_and(|ch| {
+                                        matches!(ch.key, keys::G | keys::Q | keys::D)
+                                    });
+
+                                    // Target must be 'a' or 'o' (circumflex vowels in ua/uo diphthongs)
+                                    let is_valid_circumflex_target =
+                                        matches!(key, keys::A | keys::O);
+
+                                    let is_valid_3_vowel_diphthong_pattern = self.buf.len() <= 4  // Max syllable size before trigger
+                                            && vowel_positions.len() == 2  // Only 2 in buffer, 3rd is being typed
+                                            && has_adjacent_vowel_before
+                                            && is_valid_circumflex_target  // Trigger must be 'a' or 'o'
+                                            && !has_foreign_initial  // Exclude foreign patterns
+                                            && self.buf.get(i - 1).is_some_and(|ch| {
+                                                ch.key == keys::U  // Only 'u' before target
+                                                    && ch.tone == 0
+                                                    && ch.mark == 0
+                                            })
+                                            && self.buf.get(i).is_some_and(|ch| ch.key == key); // Target matches trigger
+
                                     let has_any_adjacent_vowel =
                                         has_adjacent_vowel_before || has_adjacent_vowel_after;
                                     // Block if: has adjacent vowel (diphthong pattern) with non-extending final
+                                    // UNLESS it's the specific 3-vowel diphthong pattern (xuata)
                                     if is_same_vowel_trigger
                                         && is_non_extending_final
                                         && target_has_no_mark
-                                        && !has_any_adjacent_vowel
+                                        && (!has_any_adjacent_vowel
+                                            || is_valid_3_vowel_diphthong_pattern)
                                     {
                                         // Apply circumflex to first vowel
                                         if let Some(c) = self.buf.get_mut(i) {
@@ -2257,10 +2300,37 @@ impl Engine {
                 .map(|(i, c)| (i, c.key))
                 .collect();
 
-            // Check for exactly 2 vowels that are the same (a, e, or o for circumflex)
-            if vowel_positions.len() == 2 {
-                let (pos1, key1) = vowel_positions[0];
-                let (pos2, key2) = vowel_positions[1];
+            // Check for at least 2 vowels where the last two are the same (a, e, or o for circumflex)
+            // This handles words like "xuata" (x-u-a-t-a) where we have 3 vowels but the last two 'a's should trigger circumflex
+            // Only allow > 2 vowels case for exactly 3 vowels where:
+            // - First vowel is 'u' or 'i' (common in Vietnamese diphthongs like "ua", "uô", "ia", "iê")
+            // - First two vowels are adjacent (forming a diphthong like "ua" in xuata)
+            // - First vowel is different from the pair
+            // This prevents "roemer" → "roêm" (English word corruption)
+            let valid_multi_vowel_pattern = if vowel_positions.len() == 3 {
+                let (pos0, first_key) = vowel_positions[0];
+                let (pos1, second_key) = vowel_positions[1];
+                // First must be u/i (diphthong starter), different from pair, and adjacent
+                let is_diphthong_starter = matches!(first_key, keys::U | keys::I);
+                // Also check if first vowel already has any transformation (mark/tone)
+                // This prevents "mỉama" + r from triggering (ỉ already has mark)
+                let first_vowel_has_transform = self
+                    .buf
+                    .get(pos0)
+                    .is_some_and(|c| c.tone != 0 || c.mark != 0);
+                is_diphthong_starter
+                    && first_key != second_key
+                    && pos1 == pos0 + 1
+                    && !first_vowel_has_transform
+            } else {
+                // For > 3 vowels, don't trigger delayed circumflex
+                // For exactly 2 vowels, always valid (original behavior)
+                vowel_positions.len() == 2
+            };
+
+            if vowel_positions.len() >= 2 && valid_multi_vowel_pattern {
+                let (pos1, key1) = vowel_positions[vowel_positions.len() - 2];
+                let (pos2, key2) = vowel_positions[vowel_positions.len() - 1];
                 let is_circumflex_vowel = matches!(key1, keys::A | keys::E | keys::O);
 
                 // Check if first vowel already has circumflex - skip delayed circumflex if so
@@ -4203,10 +4273,62 @@ impl Engine {
         // EXCEPTION: If buffer has stroke (đ), this is intentional Vietnamese
         // Example: "derde" → "để" has stroke, keep it (valid VN word)
         // Example: "law" → "lă" has no stroke, restore to "law" (English)
+        // EXCEPTION: If buffer is VALID Vietnamese with VN-specific marks (breve/horn/circumflex),
+        // AND W is NOT at final position (has consonants after W),
+        // AND W comes AFTER a vowel (medial position, not initial),
+        // skip restore. This handles patterns like "banwfg" → "bằng" where W is a vowel modifier.
+        // The pattern "a + consonants + w + finals" produces breve on 'a' (ă), which is valid Vietnamese.
+        // But "law", "saw", "raw" have W at end - these should restore to English.
+        // And "west", "water" have W at start - these should restore to English.
         if is_word_complete && self.has_english_modifier_pattern(true) && raw_input_valid_en {
             // Skip restore if buffer has stroke - user intentionally typed Vietnamese đ
             if !has_stroke {
-                return self.build_raw_chars();
+                // Skip restore if buffer is VALID Vietnamese with VN-specific marks
+                // AND W is not at final position (has consonants after W)
+                // AND W comes after a vowel (not at initial position)
+                // This handles "banwfg" → "bằng" but NOT "law" or "west"
+                let buffer_valid_vn = !self.is_buffer_invalid_vietnamese();
+
+                // Check if W is at end (final position) - English pattern like "law", "saw"
+                let w_at_end = self
+                    .raw_input
+                    .last()
+                    .map(|(k, _, _)| *k == keys::W)
+                    .unwrap_or(false);
+
+                // Find W position and check context
+                let w_pos = self.raw_input.iter().rposition(|(k, _, _)| *k == keys::W);
+
+                // Check if there are consonants after the last W in raw_input
+                // Pattern: "banwfg" has W at pos 3, then "fg" (consonants) - Vietnamese pattern
+                // Pattern: "law" has W at end - English pattern
+                let has_consonants_after_w = w_pos.is_some_and(|pos| {
+                    self.raw_input[pos + 1..].iter().any(|(k, _, _)| {
+                        keys::is_consonant(*k)
+                            && !matches!(*k, keys::S | keys::F | keys::R | keys::X | keys::J)
+                    })
+                });
+
+                // Check if W comes after a vowel (medial position, not initial)
+                // Pattern: "banwfg" has vowel 'a' before W (pos 1) → medial W → Vietnamese
+                // Pattern: "west" has W at pos 0 (initial) → no vowel before → English
+                let has_vowel_before_w = w_pos.is_some_and(|pos| {
+                    self.raw_input[..pos]
+                        .iter()
+                        .any(|(k, _, _)| keys::is_vowel(*k))
+                });
+
+                if buffer_valid_vn
+                    && has_vn_specific_mark
+                    && !w_at_end
+                    && has_consonants_after_w
+                    && has_vowel_before_w
+                {
+                    // Valid Vietnamese with VN marks, W not at end, consonants after W, vowel before W
+                    // Examples: "banwfg" → "bằng", "thanwfg" → "thằng"
+                } else {
+                    return self.build_raw_chars();
+                }
             }
         }
 

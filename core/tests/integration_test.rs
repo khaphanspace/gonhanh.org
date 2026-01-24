@@ -1685,6 +1685,19 @@ fn backspace_after_space_telex_change_mark() {
     );
 }
 
+/// Remove mark after space (khoongf + SPACE + < + z → không)
+/// Bug: 'z' was clearing buffer because it wasn't recognized as a modifier
+#[test]
+fn backspace_after_space_telex_remove_mark() {
+    let mut e = Engine::new();
+    // "khoongf" → "không", then space + backspace + "z" → "không" (remove huyền)
+    let result = type_word(&mut e, "khoongf <z");
+    assert_eq!(
+        result, "không",
+        "không + space + backspace + z should remove huyền → không"
+    );
+}
+
 /// Multiple backspaces to delete chars (doc + SPACE + << + j → dọ)
 #[test]
 fn backspace_after_space_multiple_backspace() {

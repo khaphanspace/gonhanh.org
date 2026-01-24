@@ -1,41 +1,59 @@
-.PHONY: help all test format build build-linux clean setup install dmg release release-minor release-major watch
+# ============================================================================
+# Gõ Nhanh - Vietnamese Input Method Engine
+# ============================================================================
 
-# Auto-versioning
+.DEFAULT_GOAL := help
+
+# Version from git tag
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo v0.0.0)
 VER := $(subst v,,$(TAG))
 NEXT_PATCH := $(shell echo $(VER) | awk -F. '{print $$1"."$$2"."$$3+1}')
 NEXT_MINOR := $(shell echo $(VER) | awk -F. '{print $$1"."$$2+1".0"}')
 NEXT_MAJOR := $(shell echo $(VER) | awk -F. '{print $$1+1".0.0"}')
 
-# Default target
-.DEFAULT_GOAL := help
+# ============================================================================
+# Help
+# ============================================================================
 
-help: ## Show this help
+.PHONY: help
+help:
 	@echo "⚡ Gõ Nhanh - Vietnamese Input Method Engine"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "\033[1;34mDevelopment:\033[0m"
-	@grep -E '^(test|format|watch|build|build-linux|clean):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
+	@echo "\033[1;34mDev:\033[0m"
+	@echo "  \033[1;32mtest\033[0m        Run Rust tests"
+	@echo "  \033[1;32mformat\033[0m      Format + lint"
+	@echo "  \033[1;32mbuild\033[0m       Build + auto-open app"
+	@echo "  \033[1;32mbuild-linux\033[0m Build Linux Fcitx5"
+	@echo "  \033[1;32mclean\033[0m       Clean artifacts"
 	@echo ""
-	@echo "\033[1;33mSetup & Install:\033[0m"
-	@grep -E '^(setup|install):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-12s\033[0m %s\n", $$1, $$2}'
+	@echo "\033[1;35mDebug:\033[0m"
+	@echo "  \033[1;32mwatch\033[0m       Tail debug log"
+	@echo "  \033[1;32mperf\033[0m        Check RAM/leaks"
+	@echo ""
+	@echo "\033[1;33mInstall:\033[0m"
+	@echo "  \033[1;32msetup\033[0m       Setup dev environment"
+	@echo "  \033[1;32minstall\033[0m     Build + copy to /Applications"
+	@echo "  \033[1;32mdmg\033[0m         Create DMG installer"
 	@echo ""
 	@echo "\033[1;31mRelease:\033[0m"
-	@grep -E '^(release|release-minor|release-major|all):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1;32m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo "  \033[1;32mrelease\033[0m       Patch  $(TAG) → v$(NEXT_PATCH)"
+	@echo "  \033[1;32mrelease-minor\033[0m Minor  $(TAG) → v$(NEXT_MINOR)"
+	@echo "  \033[1;32mrelease-major\033[0m Major  $(TAG) → v$(NEXT_MAJOR)"
 
-all: test build ## Run test + build
+# ============================================================================
+# Development
+# ============================================================================
 
-test: ## Run tests
+.PHONY: test format build build-linux clean all
+all: test build
+
+test:
 	@cd core && cargo test
 
-format: ## Format & lint
+format:
 	@cd core && cargo fmt && cargo clippy -- -D warnings
-
-watch: ## Watch debug logs (tail -f)
-	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
-	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
-	@tail -f /tmp/gonhanh_debug.log
 
 build: format ## Build core + macos app
 	@./scripts/build/core.sh
@@ -43,7 +61,7 @@ build: format ## Build core + macos app
 	@./scripts/build/windows.sh
 	@open platforms/macos/build/Release/GoNhanh.app
 
-build-linux: format ## Build Linux (Fcitx5) addon
+build-linux: format
 	@cd platforms/linux && ./scripts/build.sh
 
 clean: ## Clean build + settings
@@ -53,15 +71,45 @@ clean: ## Clean build + settings
 	@defaults delete org.gonhanh.GoNhanh 2>/dev/null || true
 	@echo "✅ Cleaned build artifacts + settings"
 
+# ============================================================================
+# Debug
+# ============================================================================
+
+.PHONY: watch perf
+watch:
+	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
+	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
+	@tail -f /tmp/gonhanh_debug.log
+
+perf:
+	@PID=$$(pgrep -f "GoNhanh.app" | head -1); \
+	if [ -n "$$PID" ]; then \
+		echo "📊 GoNhanh (PID $$PID)"; \
+		ps -o rss=,vsz= -p $$PID | awk '{printf "RAM: %.1f MB | VSZ: %.0f MB\n", $$1/1024, $$2/1024}'; \
+		echo "Threads: $$(ps -M -p $$PID | tail -n +2 | wc -l | tr -d ' ')"; \
+		leaks $$PID 2>/dev/null | grep -E "(Physical|leaked)" | head -3; \
+	else echo "GoNhanh not running"; fi
+
+# ============================================================================
+# Install
+# ============================================================================
+
+.PHONY: setup install dmg
 setup: ## Setup dev environment
 	@./scripts/setup/macos.sh
 
-install: build ## Install app to /Applications
+install: build
 	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
 
 dmg: build ## Create DMG installer
 	@./scripts/release/dmg-background.sh
 	@./scripts/release/dmg.sh
+
+# ============================================================================
+# Release (auto-versioning from git tags)
+# ============================================================================
+
+.PHONY: release release-minor release-major
 
 release: ## Patch release (1.0.9 → 1.0.10)
 	@echo "$(TAG) → v$(NEXT_PATCH)"

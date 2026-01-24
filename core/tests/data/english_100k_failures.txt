@@ -1604,6 +1604,7 @@ dasa	dấ
 aur	ảu
 aap	âp
 densest	denst
+cuomo	cuôm
 mesmer	mểm
 mops	móp
 tars	tá
@@ -1896,6 +1897,7 @@ awt	ăt
 buts	bút
 okw	ơk
 charac	chẩc
+uomo	uôm
 vars	vá
 kir	kỉ
 lorn	lỏn
