@@ -148,12 +148,176 @@ extension MyClass: SomeProtocol { }
   }
   ```
 
+## C++ Coding Standards (Windows)
+
+### Language & Standard
+- **Standard**: C++20 (configured in CMakeLists.txt)
+- **Compiler**: MSVC v143 (Visual Studio 2022)
+- **Target**: Windows 10 Build 19041+ / Windows 11
+
+### Naming Conventions
+- **Namespaces**: `gonhanh` for all FFI utilities
+- **Functions**: `camelCase` for Windows API wrappers, `PascalCase` for classes
+- **Variables**: `camelCase` for locals, `m_camelCase` for members
+- **Constants**: `UPPER_CASE` for macros, `kConstantName` for compile-time constants
+
+### File Organization
+```cpp
+// Header: rust_bridge.h
+#pragma once
+#include <cstdint>
+#include <string>
+
+// 1. Extern C declarations (Rust FFI)
+extern "C" {
+    struct ImeResult { };
+    void ime_init();
+}
+
+// 2. RAII wrappers
+class ImeResultGuard { };
+
+// 3. Namespace utilities
+namespace gonhanh {
+    std::wstring Utf32ToUtf16(const uint32_t* chars, uint8_t count);
+}
+```
+
+### Memory Safety Principles
+
+**RAII (Resource Acquisition Is Initialization):**
+- Every resource (pointer, handle, etc.) has exactly one owner
+- Destructor guarantees cleanup (no manual `delete` calls)
+- No copy, explicit move semantics
+
+```cpp
+// ✅ Good: Automatic cleanup via scope
+{
+    ImeResultGuard result(ime_key(vkCode, caps, ctrl));
+    // ... process
+}  // ime_free() called automatically
+
+// ❌ Bad: Manual memory management
+ImeResult* result = ime_key(vkCode, caps, ctrl);
+// ... process
+ime_free(result);  // Easy to forget or leak on exception
+```
+
+**Delete Copy/Move Semantics:**
+```cpp
+class ImeResultGuard {
+public:
+    ImeResultGuard(const ImeResultGuard&) = delete;      // No copy
+    ImeResultGuard& operator=(const ImeResultGuard&) = delete;
+    ImeResultGuard(ImeResultGuard&&) = delete;            // No move
+    ImeResultGuard& operator=(ImeResultGuard&&) = delete;
+};
+```
+
+### UTF Conversion Standards
+
+**UTF-32 (Rust) ↔ UTF-16 (Windows):**
+- **Input**: UTF-32 codepoints from Rust (BMP + supplementary planes)
+- **Output**: UTF-16 wstring (handles surrogate pairs automatically)
+- **Guarantee**: All Vietnamese characters fit in BMP (no surrogates needed)
+
+```cpp
+// Implementation pattern
+std::wstring Utf32ToUtf16(const uint32_t* chars, uint8_t count) {
+    std::wstring result;
+    result.reserve(count * 2);  // Worst case: all surrogates
+
+    for (uint8_t i = 0; i < count; ++i) {
+        uint32_t cp = chars[i];
+        if (cp <= 0xFFFF) {
+            // BMP: direct mapping (99.9% of cases)
+            result.push_back(static_cast<wchar_t>(cp));
+        } else {
+            // Supplementary: UTF-16 surrogate pair
+            cp -= 0x10000;
+            result.push_back(static_cast<wchar_t>(0xD800 + (cp >> 10)));
+            result.push_back(static_cast<wchar_t>(0xDC00 + (cp & 0x3FF)));
+        }
+    }
+    return result;
+}
+```
+
+### Error Handling
+
+**No Exceptions in FFI Calls:**
+- FFI functions must not throw (Rust C ABI doesn't support unwinding)
+- Return null or sentinel values on error
+- Log via OutputDebugString for diagnostics
+
+```cpp
+// ✅ Good: Defensive, null-safe
+if (result && result->count > 0) {
+    std::wstring text = gonhanh::Utf32ToUtf16(result->chars, result->count);
+    // ... use text
+}
+
+// ❌ Bad: Assume non-null, crash on FFI error
+std::wstring text = gonhanh::Utf32ToUtf16(result->chars, result->count);
+```
+
+### Build & Optimization
+
+**CMakeLists.txt Configuration:**
+```cmake
+# MSVC static CRT (critical!)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+# Optimization flags
+target_compile_options(gonhanh PRIVATE /O1 /GL /GS-)
+target_link_options(gonhanh PRIVATE /LTCG /OPT:REF /OPT:ICF)
+```
+
+**Cargo.toml Profile:**
+```toml
+[profile.release]
+opt-level = "z"      # Size optimization
+lto = true           # Link-time optimization
+codegen-units = 1    # Better optimization
+strip = true         # Strip symbols
+panic = "abort"      # Smaller binary
+```
+
+### Testing
+
+**Manual Testing via main.cpp:**
+- FFI function calls with debug output
+- UTF conversion validation
+- Memory cleanup verification
+
+```cpp
+int WINAPI WinMain(...) {
+    ime_init();
+    ImeResultGuard result(ime_key(0, false, false));
+
+    if (result && result->count > 0) {
+        std::wstring text = gonhanh::Utf32ToUtf16(result->chars, result->count);
+        OutputDebugStringW(text.c_str());
+    }
+
+    ime_clear();
+    MessageBoxW(NULL, L"Test OK", L"Gõ Nhanh", MB_OK);
+    return 0;
+}
+```
+
+**Compile Check (no runtime required):**
+```powershell
+cmake --build build --config Release --target gonhanh
+# → gonhanh.exe ~5-8MB (includes Rust static lib + Windows APIs)
+```
+
 ## FFI (Foreign Function Interface) Conventions
 
 ### C ABI Compatibility
 - **Representation**: `#[repr(C)]` for all shared structs
 - **Types**: Use fixed-size types (u8, u16, u32, not usize)
-- **Alignment**: Match Rust layout exactly in Swift struct
+- **Alignment**: Match Rust layout exactly in C++/Swift struct
 
 ### Struct Layout (ImeResult Example)
 ```rust

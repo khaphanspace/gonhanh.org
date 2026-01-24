@@ -1,127 +1,111 @@
 #!/bin/bash
 set -e
 
-# GoNhanh Windows Build Script
-# Run on Windows with Git Bash or via CI/CD
+# GoNhanh Windows Build Script (CMake + Rust)
 
-# Source rustup environment
-if [ -f "$HOME/.cargo/env" ]; then
-    source "$HOME/.cargo/env"
-fi
-
-# Navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Check if running on Windows
-is_windows() {
-    [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]
-}
-
 # Parse arguments
-CLEAN_INSTALL=false
-for arg in "$@"; do
-    case $arg in
+CLEAN=false
+PACKAGE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --clean)
-            CLEAN_INSTALL=true
+            CLEAN=true
+            shift
+            ;;
+        --package|-p)
+            PACKAGE=true
             shift
             ;;
         --help|-h)
             echo "Usage: build-windows.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --clean    Remove existing build artifacts before building"
-            echo "  --help     Show this help message"
+            echo "  --clean      Clean build artifacts before building"
+            echo "  --package    Create ZIP package for distribution"
+            echo "  --help       Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  ./build-windows.sh              # Build only"
+            echo "  ./build-windows.sh --package    # Build and create ZIP"
             exit 0
+            ;;
+        *)
+            shift
             ;;
     esac
 done
 
-# Clean build artifacts
-if [ "$CLEAN_INSTALL" = true ]; then
-    echo "Cleaning build artifacts..."
+# Check Windows
+is_windows() {
+    [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]
+}
 
-    if is_windows; then
-        # Kill running GoNhanh processes
-        if tasklist 2>/dev/null | grep -qi "GoNhanh.exe"; then
-            echo "  Stopping GoNhanh.exe..."
-            taskkill //F //IM "GoNhanh.exe" 2>/dev/null || true
-            sleep 1
-        fi
-    fi
-
-    rm -rf "$PROJECT_ROOT/platforms/windows/GoNhanh/bin" 2>/dev/null || true
-    rm -rf "$PROJECT_ROOT/platforms/windows/GoNhanh/obj" 2>/dev/null || true
-    rm -rf "$PROJECT_ROOT/platforms/windows/publish" 2>/dev/null || true
-    rm -rf "$PROJECT_ROOT/core/target" 2>/dev/null || true
-    echo "  Done"
-    echo ""
+if ! is_windows; then
+    echo "Skipped: Not running on Windows"
+    exit 0
 fi
 
-# Get version from git tag
-GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+# Get version
+GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
 VERSION=${GIT_TAG#v}
 
 echo "Building GoNhanh for Windows"
 echo "Version: $VERSION"
 echo ""
 
-# Check platform
-if ! is_windows; then
-    echo "Skipped: Not running on Windows"
+# Build directory (outside project to avoid path issues)
+BUILD_DIR="$LOCALAPPDATA/gonhanh-build/windows"
+
+# Clean
+if [ "$CLEAN" = true ]; then
+    echo "Cleaning build artifacts..."
+    rm -rf "$BUILD_DIR"
+    rm -rf "$PROJECT_ROOT/core/target"
     echo ""
-    echo "This script requires Windows (Git Bash)."
-    echo "Use GitHub Actions for CI/CD builds."
-    exit 0
 fi
 
-# Build Rust core
-echo "[1/3] Building Rust core..."
-cd "$PROJECT_ROOT/core"
-cargo build --release --target x86_64-pc-windows-msvc
-
-mkdir -p "$PROJECT_ROOT/platforms/windows/GoNhanh/Native"
-cp "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" \
-   "$PROJECT_ROOT/platforms/windows/GoNhanh/Native/gonhanh_core.dll"
-echo "  Output: gonhanh_core.dll"
-
-# Build WPF app
-echo "[2/3] Building WPF app..."
-cd "$PROJECT_ROOT/platforms/windows/GoNhanh"
-
-if ! command -v dotnet &> /dev/null; then
-    echo "Error: .NET SDK not found"
-    echo "Install from: https://dotnet.microsoft.com/download"
-    exit 1
+# Configure CMake if needed
+if [ ! -f "$BUILD_DIR/gonhanh.vcxproj" ]; then
+    echo "[1/2] Configuring CMake..."
+    mkdir -p "$BUILD_DIR"
+    cd "$BUILD_DIR"
+    cmake "$PROJECT_ROOT/platforms/windows" -G "Visual Studio 17 2022" -A x64
+    echo ""
 fi
 
-dotnet publish -c Release -r win-x64 --self-contained false \
-    -p:Version="$VERSION" \
-    -p:FileVersion="$VERSION" \
-    -p:AssemblyVersion="${VERSION%%.*}.0.0.0" \
-    -o ../publish \
-    -v quiet
+# Build
+echo "[2/2] Building..."
+cd "$BUILD_DIR"
+cmake --build . --config Release --target gonhanh
 
-echo "  Output: platforms/windows/publish/"
-
-# Create ZIP package
-echo "[3/3] Creating package..."
-cd "$PROJECT_ROOT/platforms/windows"
-ZIP_NAME="GoNhanh-${VERSION}-win-x64.zip"
-rm -f "$ZIP_NAME" 2>/dev/null || true
-
-if command -v zip &> /dev/null; then
-    zip -rq "$ZIP_NAME" publish/*
-elif command -v 7z &> /dev/null; then
-    7z a -bso0 "$ZIP_NAME" publish/*
-else
-    echo "  Warning: zip/7z not found, skipping package"
-    ZIP_NAME=""
-fi
-
-if [ -n "$ZIP_NAME" ]; then
-    echo "  Output: $ZIP_NAME"
-fi
+# Copy to publish
+mkdir -p "$PROJECT_ROOT/platforms/windows/publish"
+cp "$BUILD_DIR/Release/gonhanh.exe" "$PROJECT_ROOT/platforms/windows/publish/GoNhanh.exe"
 
 echo ""
 echo "Build complete!"
+echo "Output: platforms/windows/publish/GoNhanh.exe"
+
+# Package if requested
+if [ "$PACKAGE" = true ]; then
+    echo ""
+    echo "Creating package..."
+    cd "$PROJECT_ROOT/platforms/windows"
+    ZIP_NAME="GoNhanh-${VERSION}-win-x64.zip"
+    rm -f "$ZIP_NAME" 2>/dev/null || true
+
+    if command -v zip &> /dev/null; then
+        zip -j "$ZIP_NAME" publish/GoNhanh.exe
+    elif command -v 7z &> /dev/null; then
+        7z a -bso0 "$ZIP_NAME" ./publish/GoNhanh.exe
+    else
+        echo "Warning: zip/7z not found, skipping package"
+        exit 0
+    fi
+
+    echo "Package: platforms/windows/$ZIP_NAME"
+fi

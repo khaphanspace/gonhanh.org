@@ -22,11 +22,12 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;34mDev:\033[0m"
-	@echo "  \033[1;32mtest\033[0m        Run Rust tests"
-	@echo "  \033[1;32mformat\033[0m      Format + lint"
-	@echo "  \033[1;32mbuild\033[0m       Build + auto-open app"
-	@echo "  \033[1;32mbuild-linux\033[0m Build Linux Fcitx5"
-	@echo "  \033[1;32mclean\033[0m       Clean artifacts"
+	@echo "  \033[1;32mtest\033[0m          Run Rust tests"
+	@echo "  \033[1;32mformat\033[0m        Format + lint"
+	@echo "  \033[1;32mbuild\033[0m         Build + auto-open app"
+	@echo "  \033[1;32mbuild-linux\033[0m   Build Linux Fcitx5"
+	@echo "  \033[1;32mbuild-windows\033[0m Build Windows app"
+	@echo "  \033[1;32mclean\033[0m         Clean artifacts"
 	@echo ""
 	@echo "\033[1;35mDebug:\033[0m"
 	@echo "  \033[1;32mwatch\033[0m       Tail debug log"
@@ -46,7 +47,7 @@ help:
 # Development
 # ============================================================================
 
-.PHONY: test format build build-linux clean all
+.PHONY: test format build build-linux build-windows clean all
 all: test build
 
 test:
@@ -65,6 +66,9 @@ build: format
 
 build-linux: format
 	@cd platforms/linux && ./scripts/build.sh
+
+build-windows:
+	@powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 
 clean:
 	@cd core && cargo clean
