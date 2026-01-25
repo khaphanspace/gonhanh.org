@@ -1,7 +1,7 @@
 # English 100k Failures - Tone Markers
 # Cause: words ending with s/f/r/x/j trigger tone marks
 # Format: WORD \t ACTUAL \t BUFFER
-# Total: 1255 (+ 148 both)
+# Total: 1256 (+ 148 both)
 #
 # WORD: English word typed
 # ACTUAL: engine output after space
@@ -608,6 +608,7 @@ doers	doé	doé
 sufis	súi	súi
 mois	mói	mói
 surer	suer	suer
+mems	mém	mém
 ris	rí	rí
 hoar	hoả	hoả
 ves	vé	vé

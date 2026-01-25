@@ -6868,10 +6868,13 @@ impl Engine {
                 // - *ím: bím, dím, mím, tím (initials: B, D, M, T)
                 // - *ém: kém, lém, ném, sém, tém (initials: K, L, N, S, T)
                 // English plurals: sims, rims, gems, hems (NOT Vietnamese words)
+                // Vietnamese CÍM/CÉM words (with sắc tone):
+                // - *ím: bím, dím, mím, tím (initials: B, D, M, T)
+                // - *ém: kém, lém, mém, ném, sém, tém (initials: K, L, M, N, S, T)
                 let is_vietnamese_cim_word = (c1 == keys::I
                     && matches!(c0, keys::B | keys::D | keys::M | keys::T))
                     || (c1 == keys::E
-                        && matches!(c0, keys::K | keys::L | keys::N | keys::S | keys::T));
+                        && matches!(c0, keys::K | keys::L | keys::M | keys::N | keys::S | keys::T));
 
                 if !is_vietnamese_cim_word {
                     // Not a known Vietnamese word → English plural pattern
