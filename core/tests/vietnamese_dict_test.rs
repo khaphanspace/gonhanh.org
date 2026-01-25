@@ -528,17 +528,14 @@ fn vietnamese_to_vni(vn: &str) -> String {
                 tone_marker = Some('5');
             }
 
-            // Regular character - flush tone marker first if any
+            // Regular character - just push (tone goes at END)
             _ => {
-                if let Some(t) = tone_marker.take() {
-                    result.push(t);
-                }
                 result.push(c);
             }
         }
     }
 
-    // Flush remaining tone marker
+    // Flush tone marker at END of word
     if let Some(t) = tone_marker {
         result.push(t);
     }
@@ -974,9 +971,9 @@ fn test_vietnamese_to_vni_conversion() {
     assert_eq!(vietnamese_to_vni("xin"), "xin");
     assert_eq!(vietnamese_to_vni("abaddon"), "abaddon");
 
-    // Tone marks only
+    // Tone marks only (tone at END of syllable)
     assert_eq!(vietnamese_to_vni("hòa"), "hoa2");
-    assert_eq!(vietnamese_to_vni("chào"), "cha2o");
+    assert_eq!(vietnamese_to_vni("chào"), "chao2");
 
     // Modifiers only
     assert_eq!(vietnamese_to_vni("đi"), "d9i");
@@ -985,7 +982,7 @@ fn test_vietnamese_to_vni_conversion() {
     assert_eq!(vietnamese_to_vni("ưa"), "u7a");
     assert_eq!(vietnamese_to_vni("âm"), "a6m");
 
-    // Combined: modifier + tone
+    // Combined: modifier + tone (tone at END of syllable)
     assert_eq!(vietnamese_to_vni("được"), "d9u7o7c5");
     assert_eq!(vietnamese_to_vni("việt"), "vie6t5");
     assert_eq!(vietnamese_to_vni("ấn"), "a6n1");

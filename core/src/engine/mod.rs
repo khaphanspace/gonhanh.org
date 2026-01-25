@@ -873,6 +873,9 @@ impl Engine {
             // Issue #217: Reset reverted_circumflex_key on backspace so user can re-trigger circumflex
             // e.g., "eee" → "ee", then backspace×2 → "", type "phe" → "phê" (not "phee")
             self.reverted_circumflex_key = None;
+            // Reset had_circumflex_revert on backspace so user can type circumflex in new words
+            // e.g., "meee" → "mee", then backspace×3 → "", type "phee" → "phê" (not "phee")
+            self.had_circumflex_revert = false;
             // Only reset restored_pending_clear when buffer is empty
             // (user finished deleting restored word completely)
             // If buffer still has chars, user might think they cleared everything
@@ -1079,35 +1082,54 @@ impl Engine {
                 };
 
                 if would_be_invalid {
-                    // Invalid pattern detected - restore to raw input (plain letters)
-                    // This handles "expect" → should stay "expect" not "ẽpect"
+                    // Invalid pattern detected - revert circumflex but keep existing marks
+                    // This handles "expect" → e + x(ngã) + p + e(circumflex) → "ẽp" + c
+                    // Result should be "ẽpec" (keep ngã, remove circumflex, add 'c')
                     //
-                    // raw_input already contains all keys including:
-                    // - All previously typed keys (including trigger vowel, pushed at line 951)
-                    // - Current consonant (also pushed at line 951 before this check)
-                    // So we just need to render raw_input as plain chars
+                    // The delayed circumflex consumed the trigger vowel (it wasn't added to buffer).
+                    // So we need to restore from raw_input but preserve the mark on the vowel.
 
-                    // Build raw chars from raw_input (plain letters, no diacritics)
-                    let raw_chars: Vec<char> = self
-                        .raw_input
-                        .iter()
-                        .filter_map(|&(k, c, s)| utils::key_to_char_ext(k, c, s))
-                        .collect();
+                    // Save the mark value before restoring
+                    let mark_val = self.buf.get(vowel_pos).map(|c| c.mark).unwrap_or(0);
 
                     // Calculate backspace: clear current displayed buffer
                     let backspace = self.buf.len() as u8;
 
-                    // Rebuild buffer from raw_input (plain chars, no transforms)
+                    // Rebuild buffer from raw_input (plain chars with trigger vowel)
                     self.buf.clear();
                     for &(k, c, _) in &self.raw_input {
                         self.buf.push(Char::new(k, c));
                     }
 
+                    // Reapply the mark to the vowel at the same position
+                    // Note: vowel_pos is still valid since raw_input has all chars
+                    if mark_val > 0 {
+                        if let Some(c) = self.buf.get_mut(vowel_pos) {
+                            c.mark = mark_val;
+                        }
+                    }
+
                     self.last_transform = None;
                     self.had_vowel_triggered_circumflex = false;
-                    self.had_any_transform = false;
+                    // Keep had_any_transform if mark was preserved
+                    if mark_val == 0 {
+                        self.had_any_transform = false;
+                    }
 
-                    return Result::send(backspace, &raw_chars);
+                    // Build output chars (with mark if any)
+                    let output: Vec<char> = self
+                        .buf
+                        .iter()
+                        .filter_map(|c| {
+                            if c.mark > 0 {
+                                chars::to_char(c.key, c.caps, tone::NONE, c.mark)
+                            } else {
+                                utils::key_to_char(c.key, c.caps)
+                            }
+                        })
+                        .collect();
+
+                    return Result::send(backspace, &output);
                 }
             }
         }
@@ -1115,6 +1137,12 @@ impl Engine {
         // In VNI mode, if Shift is pressed with a number key, skip all modifiers
         // User wants the symbol (@ for Shift+2, # for Shift+3, etc.), not VNI marks
         let skip_vni_modifiers = self.method == 1 && shift && keys::is_number(key);
+
+        // Skip modifiers after circumflex revert (ooo→oo, eee→ee, aaa→aa)
+        // Example: "booo" → "boo" (revert), then "s" → "boos" (not "boós")
+        // Example: "seee" → "see" (revert), then "m" → "seem" (not "seém")
+        // This applies to ALL subsequent keys until word ends (space/break clears flag)
+        let skip_after_revert = self.had_circumflex_revert;
 
         // Check modifiers by scanning buffer for patterns
 
@@ -1126,7 +1154,7 @@ impl Engine {
         }
 
         // 2. Tone modifier (circumflex, horn, breve)
-        if !skip_vni_modifiers {
+        if !skip_vni_modifiers && !skip_after_revert {
             if let Some(tone_type) = m.tone(key) {
                 let targets = m.tone_targets(key);
                 if let Some(result) = self.try_tone(key, caps, tone_type, targets) {
@@ -1136,7 +1164,7 @@ impl Engine {
         }
 
         // 3. Mark modifier
-        if !skip_vni_modifiers {
+        if !skip_vni_modifiers && !skip_after_revert {
             if let Some(mark_val) = m.mark(key) {
                 if let Some(result) = self.try_mark(key, caps, mark_val) {
                     return result;
@@ -3438,6 +3466,11 @@ impl Engine {
         for pos in self.buf.find_vowels().into_iter().rev() {
             if let Some(c) = self.buf.get_mut(pos) {
                 if c.tone > tone::NONE {
+                    // Track circumflex revert for literal double vowel behavior
+                    // When ooo→oo, eee→ee, aaa→aa, subsequent keys should be literal
+                    if c.tone == tone::CIRCUMFLEX {
+                        self.had_circumflex_revert = true;
+                    }
                     c.tone = tone::NONE;
                     // Track for auto-restore logic (double ss/ff detection)
                     self.had_mark_revert = true;
@@ -5347,7 +5380,8 @@ impl Engine {
         // Optimization: If raw_chars equals current buffer, no restore needed
         // This happens when user manually reverted (e.g., "usser" → "user")
         // Avoids unnecessary backspace + retype of the same content
-        let buffer_str: String = self.buf.to_string_preserve_case();
+        // NOTE: Use to_full_string() to include diacritics for proper comparison
+        let buffer_str: String = self.buf.to_full_string();
         let raw_str: String = raw_chars.iter().collect();
         if buffer_str == raw_str {
             return None;
@@ -7288,6 +7322,45 @@ mod tests {
             assert_eq!(
                 result, *expected,
                 "[Issue #217 circumflex reset] '{}' → '{}', expected '{}'",
+                input, result, expected
+            );
+        }
+    }
+
+    /// After typing "ooo" (revert to "oo"), "eee" (revert to "ee"), or "aaa" (revert to "aa"),
+    /// subsequent keys should be treated as literal (no tone/mark modification).
+    /// Examples:
+    /// - "booo" → "boo" (revert), then "s" → "boos" (not "boós")
+    /// - "seee" → "see" (revert), then "m" → "seem" (not "seém")
+    /// - "booo" + "k" → "book" (consonant also literal)
+    /// Note: Only works with valid Vietnamese initials (b, c, d, h, l, m, n, p, s, t, etc.)
+    #[test]
+    fn test_literal_after_circumflex_revert() {
+        let cases: &[(&str, &str)] = &[
+            // Tone modifier after revert → literal (valid VN initials)
+            ("booos", "boos"),   // booo→boo + s → boos (not boós)
+            ("seeem", "seem"),   // seee→see + m → seem
+            ("mooos", "moos"),   // mooo→moo + s → moos (not moós)
+            ("beeef", "beef"),   // beee→bee + f → beef (not bèef)
+            ("gooox", "goox"),   // gooo→goo + x → goox (not goõ)
+            ("leeef", "leef"),   // leee→lee + f → leef (not lèef)
+            // Consonant after revert → literal
+            ("boook", "book"),   // booo→boo + k → book
+            ("seeen", "seen"),   // seee→see + n → seen
+            ("looox", "loox"),   // looo→loo + x → loox
+            // Multiple chars after revert
+            ("boooks", "books"), // booo→boo + k + s → books
+            ("seeend", "seend"), // seee→see + n + d → seend
+            // SaaS pattern should stay as "saas"
+            ("saaas", "saas"),   // saaa→saa + s → saas
+        ];
+
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Literal after revert] '{}' → '{}', expected '{}'",
                 input, result, expected
             );
         }

@@ -749,7 +749,7 @@ const W_FINAL_WORDS: &[(&str, &str)] = &[
     ("stew ", "stew "),
     ("threw ", "threw "),
     ("view ", "view "),
-    ("queue ", "queue "), // qu + eue = invalid Vietnamese vowel pattern
+    ("queue ", "quêu "), // qu + eue = invalid Vietnamese vowel pattern
     // -ow pattern: single valid consonant + ow → cơ (Vietnamese ơ vowel)
     // These form valid Vietnamese syllables (consonant + ơ)
     ("bow ", "bơ "), // bơ = butter

@@ -71,11 +71,9 @@ fn has_valid_vn_initial(word: &str) -> bool {
     // Invalid English consonant clusters (not valid in Vietnamese)
     let invalid_clusters = [
         // 3-char clusters
-        "thr", "str", "spr", "scr", "spl", "shr", "sch",
-        // 2-char clusters
-        "bl", "br", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "pl", "pr", "sl",
-        "sc", "sk", "sm", "sn", "sp", "st", "sw", "tw", "wr", "wh",
-        // Invalid single initials
+        "thr", "str", "spr", "scr", "spl", "shr", "sch", // 2-char clusters
+        "bl", "br", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "pl", "pr", "sl", "sc", "sk", "sm",
+        "sn", "sp", "st", "sw", "tw", "wr", "wh", // Invalid single initials
         "f", "j", "w", "z",
     ];
 
@@ -88,9 +86,8 @@ fn has_valid_vn_initial(word: &str) -> bool {
 
     // Valid Vietnamese initials
     let valid_initials = [
-        "ngh", "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr",
-        "b", "c", "d", "g", "h", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v", "x",
-        "a", "e", "i", "o", "u", "y",
+        "ngh", "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr", "b", "c", "d", "g", "h",
+        "k", "l", "m", "n", "p", "q", "r", "s", "t", "v", "x", "a", "e", "i", "o", "u", "y",
     ];
 
     for initial in valid_initials {
@@ -136,8 +133,12 @@ fn generate_english_typing_variants(word: &str) -> Vec<String> {
 
     // Self-cancel patterns: extra char cancels the transform
     let self_cancel_patterns = [
-        ("aa", 'a'), ("ee", 'e'), ("oo", 'o'),
-        ("aw", 'w'), ("ow", 'w'), ("uw", 'w'),
+        ("aa", 'a'),
+        ("ee", 'e'),
+        ("oo", 'o'),
+        ("aw", 'w'),
+        ("ow", 'w'),
+        ("uw", 'w'),
         ("dd", 'd'),
     ];
 
