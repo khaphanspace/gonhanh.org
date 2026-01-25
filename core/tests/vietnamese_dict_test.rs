@@ -65,8 +65,16 @@ fn vietnamese_dictionary_coverage() {
         use std::fs::File;
         use std::io::Write;
         if let Ok(mut f) = File::create("tests/data/vietnamese_22k_failures.txt") {
+            writeln!(f, "# Vietnamese 22k Failures").ok();
+            writeln!(f, "# Format: INPUT \\t EXPECTED \\t ACTUAL").ok();
+            writeln!(f, "# Total failures: {}", failures.len()).ok();
+            writeln!(f, "#").ok();
+            writeln!(f, "# INPUT: telex input typed").ok();
+            writeln!(f, "# EXPECTED: correct Vietnamese word").ok();
+            writeln!(f, "# ACTUAL: engine output").ok();
+            writeln!(f).ok();
             for (input, expected, actual) in &failures {
-                let _ = writeln!(f, "{}\t{}\t{}", input, expected, actual);
+                writeln!(f, "{}\t{}\t{}", input, expected, actual).ok();
             }
         }
     }

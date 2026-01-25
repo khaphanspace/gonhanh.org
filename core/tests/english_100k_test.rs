@@ -157,16 +157,20 @@ fn english_100k_failures() {
             println!("\n... and {} more failures", failures.len() - 100);
         }
 
-        // Write full list to file
-        let failure_list: Vec<String> = failures
-            .iter()
-            .map(|(word, output)| format!("{}\t{}", word, output.trim()))
-            .collect();
-        fs::write(
-            "tests/data/english_100k_failures.txt",
-            failure_list.join("\n"),
-        )
-        .expect("Failed to write failures file");
+        // Write full list to file with headers
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::File::create("tests/data/english_100k_failures.txt") {
+            writeln!(f, "# English 100k Failures").ok();
+            writeln!(f, "# Format: WORD \\t ACTUAL").ok();
+            writeln!(f, "# Total failures: {}", failures.len()).ok();
+            writeln!(f, "#").ok();
+            writeln!(f, "# WORD: English word typed").ok();
+            writeln!(f, "# ACTUAL: engine output (expected: WORD + space)").ok();
+            writeln!(f).ok();
+            for (word, output) in &failures {
+                writeln!(f, "{}\t{}", word, output.trim()).ok();
+            }
+        }
         println!("\nFull list written to: tests/data/english_100k_failures.txt");
     }
 

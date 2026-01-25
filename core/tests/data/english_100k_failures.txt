@@ -1,3 +1,10 @@
+# English 100k Failures
+# Format: WORD \t ACTUAL
+# Total failures: 2677
+#
+# WORD: English word typed
+# ACTUAL: engine output (expected: WORD + space)
+
 of	ò
 is	í
 as	á
@@ -891,7 +898,6 @@ kris	krí
 hoses	hoes
 postsecondary	potsecondary
 samaj	sậm
-rosario	rôải
 ast	át
 loco	lôc
 lans	lán

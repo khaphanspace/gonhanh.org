@@ -1,0 +1,8 @@
+# Vietnamese 22k Failures
+# Format: INPUT \t EXPECTED \t ACTUAL
+# Total failures: 0
+#
+# INPUT: telex input typed
+# EXPECTED: correct Vietnamese word
+# ACTUAL: engine output
+

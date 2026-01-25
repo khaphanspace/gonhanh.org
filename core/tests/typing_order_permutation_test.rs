@@ -401,13 +401,32 @@ fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
         end_modifiers.push('d');
     }
 
+    // Check for ươ cluster (both u and o have horn marks)
+    // In Telex, a single 'w' at end applies horn to both u and o in ươ cluster
+    let has_horn_u = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
+    let has_horn_o = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+    let has_uwo_cluster = has_horn_u && has_horn_o;
+    let mut horn_w_added = false;
+
     // Add vowel marks
     for (v, mark) in vowels {
         if let Some(m) = mark {
             match m {
                 'w' => {
                     // Horn mark - add w
-                    end_modifiers.push('w');
+                    // For ươ cluster, only add ONE 'w' (not two)
+                    if has_uwo_cluster {
+                        if !horn_w_added {
+                            end_modifiers.push('w');
+                            horn_w_added = true;
+                        }
+                    } else {
+                        end_modifiers.push('w');
+                    }
                 }
                 _ => {
                     // Circumflex (aa, ee, oo) or breve (aw) - add the modifier char
