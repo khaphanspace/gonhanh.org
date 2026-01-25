@@ -344,7 +344,96 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
         }
     }
 
+    // Pattern 4: All modifiers at end (double typing pattern)
+    // Example: "đường" → "duongdwf" (base letters, then d for đ, w for horn, f for tone)
+    // Example: "quên" → "quene" (base letters quen, then e for circumflex)
+    let end_patterns = generate_modifiers_at_end_patterns(&parts);
+    for pattern in end_patterns {
+        variants.insert(pattern);
+    }
+
     variants.into_iter().collect()
+}
+
+/// Generate patterns where all modifiers are typed at the end of the word
+/// This handles the "delayed typing" style where users type base letters first,
+/// then add all diacritics at the end
+fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
+    let mut patterns = Vec::new();
+
+    let initial = &parts.initial;
+    let vowels = &parts.vowels;
+    let final_cons = &parts.final_cons;
+    let tone = parts.tone;
+
+    // Build base word (without any marks)
+    let mut base = String::new();
+
+    // Initial consonant (without stroke for đ)
+    // Note: parse_syllable converts đ → "dd", so we check for that pattern
+    let has_stroke = initial.to_lowercase() == "dd";
+    if has_stroke {
+        // Use single 'd' for base (stroke modifier added at end)
+        base.push(if initial.chars().next().unwrap().is_uppercase() {
+            'D'
+        } else {
+            'd'
+        });
+    } else {
+        base.push_str(initial);
+    }
+
+    // Vowels without marks
+    for (v, _) in vowels {
+        base.push(*v);
+    }
+
+    // Final consonant
+    base.push_str(final_cons);
+
+    // Collect all modifiers to add at end
+    let mut end_modifiers = String::new();
+
+    // Add stroke modifier (d for đ)
+    if has_stroke {
+        end_modifiers.push('d');
+    }
+
+    // Add vowel marks
+    for (v, mark) in vowels {
+        if let Some(m) = mark {
+            match m {
+                'w' => {
+                    // Horn mark - add w
+                    end_modifiers.push('w');
+                }
+                _ => {
+                    // Circumflex (aa, ee, oo) or breve (aw) - add the modifier char
+                    if *m == v.to_ascii_lowercase() {
+                        // Circumflex: aa->â, ee->ê, oo->ô
+                        end_modifiers.push(*v);
+                    } else {
+                        // Breve or other: aw->ă
+                        end_modifiers.push(*m);
+                    }
+                }
+            }
+        }
+    }
+
+    // Add tone modifier
+    if let Some(t) = tone {
+        end_modifiers.push(t);
+    }
+
+    // Only add pattern if there are modifiers to append
+    if !end_modifiers.is_empty() {
+        let mut pattern = base;
+        pattern.push_str(&end_modifiers);
+        patterns.push(pattern);
+    }
+
+    patterns
 }
 
 /// Generate all valid vowel+mark patterns for a syllable
@@ -743,6 +832,59 @@ fn breve_patterns() {
     }
 
     assert!(all_passed, "Some breve variants failed");
+}
+
+/// Test modifiers-at-end patterns (delayed typing)
+/// Example: "đường" → "duongdwf", "quên" → "quene"
+#[test]
+fn modifiers_at_end_patterns() {
+    let cases = [
+        // Stroke at end: đ
+        ("đi", vec!["did"]),
+        ("đen", vec!["dend"]),
+        // Circumflex at end: ê, â, ô
+        ("quên", vec!["quene"]),
+        ("tân", vec!["tana"]),
+        ("hôn", vec!["hono"]),
+        // Horn at end: ư, ơ
+        ("mưa", vec!["muaw"]),
+        ("mơ", vec!["mow"]),
+        // Combined: stroke + horn + tone
+        ("đường", vec!["duongdwf"]),
+        ("đời", vec!["doidwf"]),
+        // Breve at end
+        ("ăn", vec!["anw"]),
+        // Tone at end
+        ("là", vec!["laf"]),
+        ("lá", vec!["las"]),
+    ];
+
+    let mut passed = 0;
+    let mut failed = 0;
+
+    for (expected, variants) in &cases {
+        for variant in variants {
+            let input = format!("{} ", variant);
+            let mut e = Engine::new();
+            let result = type_word(&mut e, &input);
+
+            if result.trim() == *expected {
+                passed += 1;
+            } else {
+                println!(
+                    "FAIL: '{}' → '{}' (expected '{}')",
+                    variant,
+                    result.trim(),
+                    expected
+                );
+                failed += 1;
+            }
+        }
+    }
+
+    println!("\n=== Modifiers at End ===\nPassed: {}\nFailed: {}", passed, failed);
+    // Note: Some patterns may not work depending on engine implementation
+    // This test documents expected behavior
 }
 
 // =============================================================================

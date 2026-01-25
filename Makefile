@@ -31,7 +31,7 @@ help:
 	@echo "\033[1;32mDebug:\033[0m"
 	@echo "  watch       Tail debug log"
 	@echo "  perf        Check RAM/leaks"
-	@echo "  test-22k    Run heavy 22k tests (ignored by default)"
+	@echo "  test-22k    Run heavy 22k tests + gen typing orders"
 	@echo ""
 	@echo "\033[1;32mInstall:\033[0m"
 	@echo "  setup       Setup dev environment"
@@ -82,7 +82,7 @@ watch:
 	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
 	@tail -f /tmp/gonhanh_debug.log
 
-test-22k: ## Run heavy 22k tests (ignored by default)
+test-22k: ## Run heavy 22k tests + generate typing orders
 	@cd core && cargo test -- --ignored --nocapture
 
 perf:
