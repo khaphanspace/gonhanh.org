@@ -1,4 +1,22 @@
 # Vietnamese Telex Failures
 # Format: INPUT \t EXPECTED \t ACTUAL
-# Total failures: 0
+# Total failures: 18
 
+booongs	boóng	boongs
+booonsg	boóng	boonsg
+booosng	boóng	boosng
+chooofng	choòng	choofng
+chooonfg	choòng	choonfg
+chooongf	choòng	choongf
+cooocs	coóc	coocs
+cooosc	coóc	coosc
+gooofng	goòng	goofng
+gooonfg	goòng	goonfg
+gooongf	goòng	goongf
+mooocs	moóc	moocs
+mooosc	moóc	moosc
+sooocs	soóc	soocs
+sooosc	soóc	soosc
+tooofng	toòng	toofng
+tooonfg	toòng	toonfg
+tooongf	toòng	toongf
