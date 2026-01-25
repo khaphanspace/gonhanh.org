@@ -1,10 +1,9 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 1599
+# Total failures: 1541
 
 been	been	been	bên	bên
 see	see	see	sê	sê
-between	betweeen	between	betweeen	betwêen
 how	how	how	hơ	hơ
 now	now	now	nơ	nơ
 own	own	own	ơn	ơn
@@ -82,7 +81,6 @@ volunteers	volunteeers	volunteers	volunteeers	voluntêers
 deer	deer	deer	dể	dêr
 buddha	budddha	buddha	budddha	buđdha
 cow	cow	cow	cơ	cơ
-hollywood	hollywoood	hollywood	hollywoood	hollywôod
 peers	peers	peers	pế	pêrs
 deeds	deeds	deeds	đế	dêds
 borrowed	borrowwed	borrowed	borowwed	borrơwed
@@ -226,7 +224,6 @@ georgetown	georgetowwn	georgetown	georgetowwn	georgetơwn
 seafood	seafoood	seafood	seafoood	seafôod
 moor	moor	moor	mổ	môr
 deem	deem	deem	dêm	dêm
-newsweek	newsweeek	newsweek	newsweeek	newswêek
 housekeeping	housekeeeping	housekeeping	housekeeeping	housekêeping
 middleton	midddleton	middleton	midddleton	miđdleton
 sorrows	sorrowws	sorrows	sorowws	sorrơws
@@ -335,7 +332,6 @@ genteel	genteeel	genteel	genteeel	gentêel
 bookkeeping	boookkeeeping	bookkeeping	bookkeeeping	bôokkêeping
 burrow	burroww	burrow	buroww	burrơw
 chimpanzees	chimpanzeees	chimpanzees	chimpanzeees	chimpanzêes
-redwood	redwoood	redwood	redwoood	redwôod
 bathrooms	bathroooms	bathrooms	bathroooms	bathrôoms
 bibliobazaar	bibliobazaaar	bibliobazaar	bibliobazaaar	bibliobazâar
 bungalow	bungaloww	bungalow	bungaloww	bungalơw
@@ -345,7 +341,6 @@ hee	hee	hee	hê	hê
 handbooks	handboooks	handbooks	handboooks	handbôoks
 homeowners	homeowwners	homeowners	homeowwners	homeơwners
 narrows	narrowws	narrows	narowws	narrơws
-seaweed	seawweeed	seaweed	seaweeed	seăwêed
 gallows	gallowws	gallows	gallowws	gallơws
 superpower	superpowwer	superpower	superpowwer	superpơwer
 buddies	budddies	buddies	budddies	buđdies
@@ -378,9 +373,8 @@ outlaws	outlawws	outlaws	outlawws	outlăws
 mohawk	mohawwk	mohawk	mohawwk	mohăwk
 ow	ow	ow	ơ	ơ
 biofeedback	biofeeedback	biofeedback	biofeeedback	biofêedback
-lockwood	lockwoood	lockwood	lockwoood	lockwôod
 renee	renee	renee	rene	renê
-halloween	hallowweeen	halloween	hallowweeen	hallơwêen
+halloween	hallowween	halloween	hallowween	hallơwên
 borrows	borrowws	borrows	borowws	borrơws
 buddhas	budddhas	buddhas	budddhas	buđdhas
 chimpanzee	chimpanzeee	chimpanzee	chimpanzeee	chimpanzêe
@@ -392,7 +386,6 @@ beets	beets	beets	bết	bêts
 middlemen	midddlemen	middlemen	midddlemen	miđdlemen
 hallowed	hallowwed	hallowed	hallowwed	hallơwed
 chattanooga	chattanoooga	chattanooga	chattanoooga	chattanôoga
-norwood	norwoood	norwood	nỏood	norwôod
 norwood	norwood	norwood	nỏod	norwôd
 rupee	rupeee	rupee	rupeee	rupêe
 selfhood	selfhoood	selfhood	selfhoood	selfhôod
@@ -436,7 +429,6 @@ middletown	midddletowwn	middletown	midddletowwn	miđdletơwn
 ludlow	ludloww	ludlow	ludloww	ludlơw
 sundown	sundowwn	sundown	sundowwn	sundơwn
 cauliflower	cauliflowwer	cauliflower	cauliflowwer	cauliflơwer
-heywood	heywoood	heywood	heywoood	heywôod
 detainees	detaineees	detainees	detaineees	detainêes
 budd	buddd	budd	buddd	buđd
 lagoons	lagooons	lagoons	lagooons	lagôons
@@ -449,13 +441,11 @@ cookbook	coookboook	cookbook	cookboook	côokbôok
 ladd	laddd	ladd	laddd	lađd
 levee	leveee	levee	leveee	levêe
 saloons	salooons	saloons	salooons	salôons
-collingwood	collingwoood	collingwood	collingwoood	collingwôod
 trodden	troddden	trodden	troddden	trođden
 narrowness	narrowwness	narrowness	narowwness	narrơwness
 muddled	mudddled	muddled	mudddled	muđdled
 gazetteer	gazetteeer	gazetteer	gazetteeer	gazettêer
 booms	booms	booms	bốm	bôms
-homewood	homewoood	homewood	homewoood	homewôod
 meddling	medddling	meddling	medddling	međdling
 roost	roost	roost	rốt	rôst
 lows	lows	lows	lớ	lơs
@@ -469,7 +459,6 @@ mee	mee	mee	mê	mê
 yorktown	yorktowwn	yorktown	yorktowwn	yorktơwn
 bigelow	bigeloww	bigelow	bigeloww	bigelơw
 sourcebook	sourceboook	sourcebook	sourceboook	sourcebôok
-cottonwood	cottonwoood	cottonwood	cottonwoood	cottonwôod
 beseech	beseeech	beseech	béeech	besêech
 beseech	beseech	beseech	béech	besêch
 voodoo	vooodooo	voodoo	voodooo	vôodôo
@@ -486,7 +475,6 @@ middleclass	midddleclass	middleclass	midddleclass	miđdleclass
 geddes	gedddes	geddes	gedddes	geđdes
 reddened	redddened	reddened	redddened	ređdened
 mukherjee	mukherjeee	mukherjee	mukherjeee	mukherjêe
-haywood	haywoood	haywood	haywoood	haywôod
 homeowner	homeowwner	homeowner	homeowwner	homeơwner
 gaap	gaap	gaap	gâp	gâp
 tallow	talloww	tallow	talloww	tallơw
@@ -570,7 +558,6 @@ charlestown	charlestowwn	charlestown	charlestowwn	charlestơwn
 peddlers	pedddlers	peddlers	pedddlers	peđdlers
 bungalows	bungalowws	bungalows	bungalowws	bungalơws
 maddening	madddening	maddening	madddening	mađdening
-eastwood	eastwoood	eastwood	eastwoood	eastwôod
 saar	saar	saar	sar	sâr
 outlooks	outloooks	outlooks	outloooks	outlôoks
 iaa	iaa	iaa	iâ	iâ
@@ -591,7 +578,6 @@ cee	ceee	cee	ceee	cêe
 kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki
 chee	chee	chee	chê	chê
 yee	yee	yee	yê	yê
-bittersweet	bittersweeet	bittersweet	bittersweeet	bitterswêet
 saddest	sadddest	saddest	sadddest	sađdest
 naa	naa	naa	nâ	nâ
 rudd	ruddd	rudd	ruddd	ruđd
@@ -619,10 +605,8 @@ hoot	hoot	hoot	hôt	hôt
 midtown	midtowwn	midtown	midtowwn	midtơwn
 rundown	rundowwn	rundown	rundowwn	rundơwn
 landowning	landowwning	landowning	landowwning	landơwning
-backwoods	backwooods	backwoods	backwooods	backwôods
 kidder	kiddder	kidder	kiddder	kiđder
 poop	poop	poop	pôp	pôp
-sandalwood	sandalwoood	sandalwood	sandalwoood	sandalwôod
 goo	goo	goo	gô	gô
 checkbook	checkboook	checkbook	checkboook	checkbôok
 peddling	pedddling	peddling	pedddling	peđdling
@@ -641,7 +625,6 @@ mutineers	mutineeers	mutineers	mutineeers	mutinêers
 leer	leer	leer	lể	lêr
 hydropower	hydropowwer	hydropower	hydropowwer	hydropơwer
 tomahawk	tomahawwk	tomahawk	tomahawwk	tomahăwk
-pharisee	phariseee	pharisee	pharise	pharisêe
 sulawesi	sulawwesi	sulawesi	sulawwesi	sulăwesi
 bailee	baileee	bailee	baileee	bailêe
 sassoon	sassooon	sassoon	sasooon	sassôon
@@ -652,7 +635,6 @@ cameroons	camerooons	cameroons	camerooons	camerôons
 ridding	riddding	ridding	riddding	riđding
 maddy	madddy	maddy	madddy	mađdy
 haddock	hadddock	haddock	hadddock	hađdock
-dogwood	dogwoood	dogwood	dogwoood	dogwôod
 caddy	cadddy	caddy	cadddy	cađdy
 guidebooks	guideboooks	guidebooks	guideboooks	guidebôoks
 cottonseed	cottonseeed	cottonseed	cottonseeed	cottonsêed
@@ -706,7 +688,6 @@ rowntree	rowwntreee	rowntree	rowntreee	rơwntrêe
 settee	setteee	settee	setteee	settêe
 vendee	vendeee	vendee	vendeee	vendêe
 seafloor	seaflooor	seafloor	seaflooor	seaflôor
-hetween	hetweeen	hetween	hetweeen	hetwêen
 kowloon	kowwlooon	kowloon	kowwlooon	kơwlôon
 quickbooks	quickboooks	quickbooks	quickboooks	quickbôoks
 kowalski	kowwalski	kowalski	kowwalski	kơwalski
@@ -788,7 +769,6 @@ redder	reddder	redder	reddder	ređder
 haan	haan	haan	hân	hân
 minnows	minnowws	minnows	minnowws	minnơws
 soong	soong	soong	sông	sông
-seaweeds	seawweeeds	seaweeds	seaweeeds	seăwêeds
 muldoon	muldooon	muldoon	muldooon	muldôon
 motown	motowwn	motown	motowwn	motơwn
 markowitz	markowwitz	markowitz	markowwitz	markơwitz
@@ -796,7 +776,6 @@ biilow	biiloww	biilow	biiloww	biilơw
 toddy	todddy	toddy	todddy	tođdy
 moskowitz	moskowwitz	moskowitz	moskowwitz	moskơwitz
 seventeenthcentury	seventeeenthcentury	seventeenthcentury	seventeeenthcentury	seventêenthcentury
-deadwood	deadwoood	deadwood	deadwoood	deadwôod
 reboot	rebooot	reboot	rebooot	rebôot
 geer	geeer	geer	geeer	gêer
 teaspoonful	teaspooonful	teaspoonful	teaspooonful	teaspôonful
@@ -804,7 +783,6 @@ buddhi	budddhi	buddhi	budddhi	buđdhi
 aarp	aarp	aarp	ẩp	ârp
 baddeley	badddeley	baddeley	badddeley	bađdeley
 yazoo	yazooo	yazoo	yazooo	yazôo
-redwoods	redwooods	redwoods	redwooods	redwôods
 callow	calloww	callow	calloww	callơw
 calloway	callowway	calloway	callowway	callơway
 aaf	aaf	aaf	ầ	âf
@@ -824,7 +802,6 @@ kooning	koooning	kooning	koooning	kôoning
 burrowed	burrowwed	burrowed	burowwed	burrơwed
 veneers	veneers	veneers	veners	venêrs
 disallowance	disallowwance	disallowance	disallowwance	disallơwance
-heartwood	heartwoood	heartwood	heartwoood	heartwôod
 oop	oop	oop	ôp	ôp
 buffoon	buffooon	buffoon	bufooon	buffôon
 ballooning	balloooning	ballooning	balloooning	ballôoning
@@ -855,7 +832,6 @@ aar	aar	aar	ẩ	âr
 deeps	deeps	deeps	dếp	dêps
 safflower	safflowwer	safflower	saflowwer	safflơwer
 newsreels	newsreeels	newsreels	newsreeels	newsrêels
-pulpwood	pulpwoood	pulpwood	pulpwoood	pulpwôod
 laddie	ladddie	laddie	ladddie	lađdie
 trapdoor	trapdooor	trapdoor	trapdooor	trapdôor
 seesaw	seeesaww	seesaw	seesaww	sêesăw
@@ -898,7 +874,6 @@ middlebury	midddlebury	middlebury	midddlebury	miđdlebury
 menominee	menomineee	menominee	menomineee	menominêe
 hornblower	hornblowwer	hornblower	hornblowwer	hornblơwer
 doon	doon	doon	dôn	dôn
-milkweed	milkweeed	milkweed	milkweeed	milkwêed
 lunchroom	lunchrooom	lunchroom	lunchrooom	lunchrôom
 eeo	eeo	eeo	êo	êo
 outgrowths	outgrowwths	outgrowths	outgrowwths	outgrơwths
@@ -924,10 +899,8 @@ mown	mown	mown	mơn	mơn
 ridder	riddder	ridder	riddder	riđder
 uwe	uwe	uwe	ưe	ưe
 veen	veen	veen	vên	vên
-cottonwoods	cottonwooods	cottonwoods	cottonwooods	cottonwôods
 kurosawa	kurosawwa	kurosawa	kurosawwa	kurosăwa
 qaddafi	qadddafi	qaddafi	qadddafi	qađdafi
-lakewood	lakewoood	lakewood	lakewoood	lakewôod
 coetzee	coetzeee	coetzee	coetzeee	coetzêe
 highspeed	highspeeed	highspeed	highspeeed	highspêed
 dowson	dowson	dowson	dốn	dơson
@@ -941,7 +914,6 @@ nawaz	nawaz	nawaz	na	năaz
 kanawha	kanawwha	kanawha	kanawwha	kanăwha
 bylaw	bylaww	bylaw	bylaww	bylăw
 barroom	barrooom	barroom	barooom	barrôom
-ringwood	ringwoood	ringwood	ringwoood	ringwôod
 ooooo	ooooooo	ooooo	oooooo	ôôôo
 ooooo	ooooo	ooooo	oooo	ôôo
 noo	noo	noo	nô	nô
@@ -965,7 +937,6 @@ sideshow	sideshoww	sideshow	sideshoww	sideshơw
 hipaa	hipaaa	hipaa	hipaaa	hipâa
 mahmood	mahmoood	mahmood	mahmoood	mahmôod
 billowed	billowwed	billowed	billowwed	billơwed
-horwood	horwoood	horwood	hỏood	horwôod
 horwood	horwood	horwood	hỏod	horwôd
 maddison	madddison	maddison	madddison	mađdison
 leeuwenhoek	leeeuwwenhoek	leeuwenhoek	leeuwwenhoek	lêeưwenhoek
@@ -993,7 +964,6 @@ marshmallows	marshmallowws	marshmallows	marshmallowws	marshmallơws
 barstow	barstoww	barstow	barstoww	barstơw
 peddle	pedddle	peddle	pedddle	peđdle
 courtrooms	courtroooms	courtrooms	courtroooms	courtrôoms
-ragweed	ragweeed	ragweed	ragweeed	ragwêed
 geelong	geeelong	geelong	geeelong	gêelong
 queenstown	queeenstowwn	queenstown	queenstowwn	quêenstơwn
 sewanee	sewaneee	sewanee	sewaneee	sewanêe
@@ -1018,9 +988,7 @@ karoo	karooo	karoo	karooo	karôo
 codebook	codeboook	codebook	codeboook	codebôok
 goatee	goateee	goatee	goateee	goatêe
 gazetteers	gazetteeers	gazetteers	gazetteeers	gazettêers
-boxwood	boxwoood	boxwood	bõood	boxwôod
 boxwood	boxwood	boxwood	bõod	boxwôd
-hopwood	hopwoood	hopwood	hopood	hopwôod
 hopwood	hopwood	hopwood	hopod	hopwôd
 muddling	mudddling	muddling	mudddling	muđdling
 hapgood	hapgoood	hapgood	hapgoood	hapgôod
@@ -1062,7 +1030,6 @@ hindoos	hindooos	hindoos	hindooos	hindôos
 coffeepot	coffeeepot	coffeepot	cofeeepot	coffêepot
 bedfellows	bedfellowws	bedfellows	bedfellowws	bedfellơws
 thurow	thurow	thurow	thuở	thurơ
-littlewood	littlewoood	littlewood	littlewoood	littlewôod
 peddled	pedddled	peddled	pedddled	peđdled
 piscataway	piscatawway	piscataway	piscatawway	piscatăway
 awt	awt	awt	ăt	ăt
@@ -1080,6 +1047,7 @@ goodfellow	gooodfelloww	goodfellow	goodfelloww	gôodfellơw
 pensees	penseees	pensees	pénees	pensêes
 pensees	pensees	pensees	pénes	pensês
 loons	loons	loons	lốn	lôns
+soiree	soireee	soiree	soire	soirêe
 hows	hows	hows	hớ	hơs
 bassoons	bassooons	bassoons	basooons	bassôons
 coops	coops	coops	cốp	côps
@@ -1107,10 +1075,8 @@ lampoon	lampooon	lampoon	lampooon	lampôon
 gowan	gowan	gowan	gơan	gơan
 gamekeeper	gamekeeeper	gamekeeper	gamekeeeper	gamekêeper
 pontoons	pontooons	pontoons	pontooons	pontôons
-hazelwood	hazelwoood	hazelwood	hazelwoood	hazelwôod
 kawamura	kawwamura	kawamura	kawwamura	kăwamura
 pawnees	pawwneees	pawnees	pawneees	păwnêes
-longwood	longwoood	longwood	longood	longwôod
 longwood	longwood	longwood	longod	longwôd
 poon	poon	poon	pôn	pôn
 midnineteenth	midnineteeenth	midnineteenth	midnineteeenth	midninetêenth
@@ -1131,7 +1097,6 @@ earnshaw	earnshaww	earnshaw	earnshaww	earnshăw
 backflow	backfloww	backflow	backfloww	backflơw
 meech	meech	meech	mêch	mêch
 letterbook	letterboook	letterbook	letterboook	letterbôok
-rockwood	rockwoood	rockwood	rockwoood	rockwôod
 redden	reddden	redden	reddden	ređden
 outlawry	outlawwry	outlawry	outlawwry	outlăwry
 perrow	perroww	perrow	peroww	perrơw
@@ -1192,7 +1157,6 @@ disempowered	disempowwered	disempowered	disempowwered	disempơwered
 noncooperative	noncoooperative	noncooperative	noncoooperative	noncôoperative
 hosokawa	hosokawwa	hosokawa	hosokawwa	hosokăwa
 macaw	macaw	macaw	măc	macă
-kenwood	kenwoood	kenwood	kenwoood	kenwôod
 legatees	legateees	legatees	legateees	legatêes
 koontz	kooontz	koontz	kooontz	kôontz
 paddlers	padddlers	paddlers	padddlers	pađdlers
@@ -1200,7 +1164,6 @@ oom	oom	oom	ôm	ôm
 siddhi	sidddhi	siddhi	sidddhi	siđdhi
 soddy	sodddy	soddy	sodddy	sođdy
 goddammit	godddammit	goddammit	godddammit	gođdammit
-daewoo	daewooo	daewoo	daewooo	daewôo
 aai	aaai	aai	aaai	âai
 aai	aai	aai	âi	âi
 hangchow	hangchoww	hangchow	hangchoww	hangchơw
@@ -1224,9 +1187,7 @@ hallows	hallowws	hallows	hallowws	hallơws
 selfawareness	selfawwareness	selfawareness	selfawwareness	selfăwareness
 geeta	geeeta	geeta	geeeta	gêeta
 bumblebee	bumblebeee	bumblebee	bumblebeee	bumblebêe
-gatewood	gatewoood	gatewood	gatewoood	gatewôod
 teem	teem	teem	têm	têm
-basswood	basswoood	basswood	baswoood	basswôod
 saleem	saleeem	saleem	saleeem	salêem
 daa	daa	daa	dâ	dâ
 pdd	pdd	pdd	pđ	pđ
@@ -1266,7 +1227,6 @@ tomorrows	tomorrowws	tomorrows	tomorrowws	tomorrơws
 chickasaws	chickasawws	chickasaws	chickasawws	chickasăws
 cedaw	cedaww	cedaw	cedaww	cedăw
 laa	laa	laa	lâ	lâ
-minesweepers	minesweeepers	minesweepers	minesweeepers	mineswêepers
 holyrood	holyroood	holyrood	holyroood	holyrôod
 oon	oon	oon	ôn	ôn
 reflow	refloww	reflow	refloww	reflơw
@@ -1284,7 +1244,6 @@ benteen	benteeen	benteen	benteeen	bentêen
 lowa	lowa	lowa	lơa	lơa
 miyazawa	miyazawwa	miyazawa	miyazawwa	miyazăwa
 kiddush	kidddush	kiddush	kidddush	kiđdush
-midweek	midweeek	midweek	midweeek	midwêek
 oost	oost	oost	ốt	ôst
 pamphleteers	pamphleteeers	pamphleteers	pamphleteeers	pamphletêers
 rickshaws	rickshawws	rickshaws	rickshawws	rickshăws
@@ -1296,7 +1255,6 @@ kawaguchi	kawwaguchi	kawaguchi	kawwaguchi	kăwaguchi
 racketeer	racketeeer	racketeer	racketeeer	racketêer
 kiddies	kidddies	kiddies	kidddies	kiđdies
 beddoes	bedddoes	beddoes	bedddoes	beđdoes
-betweens	betweeens	betweens	betweeens	betwêens
 mdd	mdd	mdd	mđ	mđ
 hiaa	hiaa	hiaa	hiâ	hiâ
 kathiawar	kathiawwar	kathiawar	kathiawwar	kathiăwar
@@ -1315,7 +1273,6 @@ holbrooke	holbroooke	holbrooke	holbroooke	holbrôoke
 towson	towson	towson	tốn	tơson
 teems	teems	teems	tếm	têms
 nonpoor	nonpooor	nonpoor	nonpooor	nonpôor
-goodwood	gooodwoood	goodwood	goodwoood	gôodwôod
 kiddo	kidddo	kiddo	kidddo	kiđdo
 raaf	raaf	raaf	rầ	râf
 metaanalysis	metaaanalysis	metaanalysis	metaaanalysis	metâanalysis
@@ -1347,9 +1304,7 @@ piltdown	piltdowwn	piltdown	piltdowwn	piltdơwn
 mazdoor	mazdooor	mazdoor	mazdooor	mazdôor
 helpee	helpeee	helpee	helpeee	helpêe
 booz	booz	booz	bo	bôz
-catherwood	catherwoood	catherwood	catherwoood	catherwôod
 diningroom	diningrooom	diningroom	diningrooom	diningrôom
-southwood	southwoood	southwood	southwoood	southwôod
 raa	raa	raa	râ	râ
 awn	awn	awn	ăn	ăn
 hooft	hooft	hooft	hồt	hôft
@@ -1363,10 +1318,8 @@ mittee	mitteee	mittee	mitteee	mittêe
 volksraad	volksraaad	volksraad	volksraaad	volksrâad
 poof	poof	poof	pồ	pôf
 superadded	superaddded	superadded	superaddded	superađded
-ravenswood	ravenswoood	ravenswood	ravenswoood	ravenswôod
 disempowerment	disempowwerment	disempowerment	disempowwerment	disempơwerment
 minow	minoww	minow	minoww	minơw
-packwood	packwoood	packwood	packwoood	packwôod
 cashflow	cashfloww	cashflow	cashfloww	cashflơw
 oaa	oaa	oaa	oâ	oâ
 nishikawa	nishikawwa	nishikawa	nishikawwa	nishikăwa
@@ -1389,8 +1342,6 @@ maumee	maumeee	maumee	maumeee	maumêe
 beseeched	beseeeched	beseeched	béeeched	besêeched
 beseeched	beseeched	beseeched	béeched	besêched
 lowdown	lowwdowwn	lowdown	lowdowwn	lơwdơwn
-tanglewood	tanglewoood	tanglewood	tanglewoood	tanglewôod
-pinewood	pinewoood	pinewood	pinewoood	pinewôod
 geert	geeert	geert	geeert	gêert
 boddy	bodddy	boddy	bodddy	bođdy
 tyree	tyreee	tyree	tyre	tyrêe
@@ -1409,7 +1360,6 @@ liebowitz	liebowwitz	liebowitz	liebowwitz	liebơwitz
 guffaw	guffaww	guffaw	gufaww	guffăw
 cooch	cooch	cooch	côch	côch
 kaaba	kaaaba	kaaba	kaaaba	kâaba
-cowperwood	cowwperwoood	cowperwood	cowperwoood	cơwperwôod
 madding	maddding	madding	maddding	mađding
 goshawk	goshawwk	goshawk	goshawwk	goshăwk
 bitterroot	bitterrooot	bitterroot	bitterrooot	bitterrôot
@@ -1442,7 +1392,6 @@ yellowknife	yellowwknife	yellowknife	yellowwknife	yellơwknife
 negligee	negligeee	negligee	negligeee	negligêe
 macqueen	macqueeen	macqueen	macqueeen	macquêen
 harrassowitz	harrassowwitz	harrassowitz	harrassowwitz	harrassơwitz
-linwood	linwoood	linwood	linwoood	linwôod
 lampooned	lampoooned	lampooned	lampoooned	lampôoned
 raintree	raintreee	raintree	raintreee	raintrêe
 victimhood	victimhoood	victimhood	victimhoood	victimhôod
@@ -1470,8 +1419,6 @@ riebeeck	riebeeeck	riebeeck	riebeeeck	riebêeck
 saddlebag	sadddlebag	saddlebag	sadddlebag	sađdlebag
 bowra	bowra	bowra	bởa	bơra
 haddington	hadddington	haddington	hadddington	hađdington
-roundwood	roundwoood	roundwood	roundwoood	roundwôod
-calderwood	calderwoood	calderwood	calderwoood	calderwôod
 soochow	sooochoww	soochow	soochoww	sôochơw
 ballrooms	ballroooms	ballrooms	ballroooms	ballrôoms
 markdowns	markdowwns	markdowns	markdowwns	markdơwns
@@ -1501,7 +1448,6 @@ peoplehood	peoplehoood	peoplehood	peoplehoood	peoplehôod
 keddie	kedddie	keddie	kedddie	keđdie
 teepee	teeepeee	teepee	teepeee	têepêe
 outgrowing	outgrowwing	outgrowing	outgrowwing	outgrơwing
-bollywood	bollywoood	bollywood	bollywoood	bollywôod
 fdd	fdd	fdd	fđ	fđ
 colebrooke	colebroooke	colebrooke	colebroooke	colebrôoke
 lebow	leboww	lebow	leboww	lebơw
@@ -1511,7 +1457,6 @@ tumbledown	tumbledowwn	tumbledown	tumbledowwn	tumbledơwn
 tralee	traleee	tralee	traleee	tralêe
 depauw	depauww	depauw	depauww	depaưw
 macaws	macaws	macaws	mắc	macăs
-logwood	logwoood	logwood	logwoood	logwôod
 bengalee	bengaleee	bengalee	bengaleee	bengalêe
 nightgowns	nightgowwns	nightgowns	nightgowwns	nightgơwns
 dershowitz	dershowwitz	dershowitz	dershowwitz	dershơwitz
@@ -1579,15 +1524,12 @@ oooooo	ooooooooo	oooooo	oooooooo	ôôôôo
 oooooo	oooooo	oooooo	ooooo	ôôô
 sacagawea	sacagawwea	sacagawea	sacagawwea	sacagăwea
 kalgoorlie	kalgooorlie	kalgoorlie	kalgooorlie	kalgôorlie
-beechwood	beeechwoood	beechwood	beechwoood	bêechwôod
 huw	huw	huw	hư	hư
 buddhaghosa	budddhaghosa	buddhaghosa	budddhaghosa	buđdhaghosa
 ballyhoo	ballyhooo	ballyhoo	ballyhooo	ballyhôo
 hiddenness	hidddenness	hiddenness	hidddenness	hiđdenness
 pooch	pooch	pooch	pôch	pôch
 choosers	choosers	choosers	chốe	chôsers
-kingswood	kingswoood	kingswood	kingswoood	kingswôod
-betweene	betweeene	betweene	betweeene	betwêene
 sydow	sydoww	sydow	sydoww	sydơw
 lithgow	lithgoww	lithgow	lithgoww	lithgơw
 khaddar	khadddar	khaddar	khadddar	khađdar

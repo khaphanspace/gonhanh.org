@@ -4157,21 +4157,49 @@ impl Engine {
         }
 
         // Issue #211: Skip auto-restore for extended vowel patterns
-        // When user types "áaa" or "hảaa", this is intentional Vietnamese (casual messaging)
-        // not English that needs to be restored. Detect by checking if:
-        // 1. reverted_circumflex_key is set (revert happened)
-        // 2. All vowels in buffer are the same key (extended pattern)
-        if self.reverted_circumflex_key.is_some() {
+        // When user types "áaa", "hảaa", "cưuuuuu", or "ơiiiiii", this is intentional Vietnamese
+        // (casual messaging) not English that needs to be restored.
+        //
+        // Check if buffer has HORN modifier (from 'w' key - intentional Vietnamese)
+        // AND has CONSECUTIVE extended vowels (like "uuuuu" or "iiiii")
+        //
+        // NOTE: Must be CONSECUTIVE - "WebSocket" has 'e' twice but not consecutive, should restore
+        // NOTE: reverted_circumflex_key handles the original Issue #211 case (áaa pattern)
+        //
+        // Examples:
+        //   "cuwuuuuus" → "cứuuuuu" → horn 'ư' (from w) + consecutive 'u's → keep Vietnamese
+        //   "owiiiiii" → "ơiiiiii" → horn 'ơ' (from w) + consecutive 'i's → keep Vietnamese
+        //   "WebSocket" → has 'W' (horn) but 'e's not consecutive → should restore to English
+        let has_horn_modifier = self.buf.iter().any(|c| c.tone == tone::HORN);
+
+        // Check for consecutive extended vowels: 3+ of the same vowel key in a row
+        // Require 3+ to distinguish from English words like "sweet" (ee), "swoon" (oo)
+        // Casual Vietnamese has many repeated vowels: ơiiiiii, cứuuuuu
+        let buf_chars: Vec<_> = self.buf.iter().collect();
+        let has_consecutive_extended_vowels = buf_chars.windows(3).any(|triple| {
+            keys::is_vowel(triple[0].key)
+                && keys::is_vowel(triple[1].key)
+                && keys::is_vowel(triple[2].key)
+                && triple[0].key == triple[1].key
+                && triple[1].key == triple[2].key
+        });
+
+        // Also check original Issue #211 pattern: reverted_circumflex + all vowels same key
+        let all_vowels_same = if self.reverted_circumflex_key.is_some() {
             let vowels: Vec<u16> = self
                 .buf
                 .iter()
                 .filter(|c| keys::is_vowel(c.key))
                 .map(|c| c.key)
                 .collect();
-            if vowels.len() >= 2 && vowels.iter().all(|&k| k == vowels[0]) {
-                // Extended vowel pattern - skip auto-restore
-                return None;
-            }
+            vowels.len() >= 2 && vowels.iter().all(|&k| k == vowels[0])
+        } else {
+            false
+        };
+
+        if (has_horn_modifier && has_consecutive_extended_vowels) || all_vowels_same {
+            // Extended vowel pattern - skip auto-restore
+            return None;
         }
 
         // VIETNAMESE PRIORITY: Only keep Vietnamese when buffer has Vietnamese-SPECIFIC marks
@@ -7338,21 +7366,21 @@ mod tests {
     fn test_literal_after_circumflex_revert() {
         let cases: &[(&str, &str)] = &[
             // Tone modifier after revert → literal (valid VN initials)
-            ("booos", "boos"),   // booo→boo + s → boos (not boós)
-            ("seeem", "seem"),   // seee→see + m → seem
-            ("mooos", "moos"),   // mooo→moo + s → moos (not moós)
-            ("beeef", "beef"),   // beee→bee + f → beef (not bèef)
-            ("gooox", "goox"),   // gooo→goo + x → goox (not goõ)
-            ("leeef", "leef"),   // leee→lee + f → leef (not lèef)
+            ("booos", "boos"), // booo→boo + s → boos (not boós)
+            ("seeem", "seem"), // seee→see + m → seem
+            ("mooos", "moos"), // mooo→moo + s → moos (not moós)
+            ("beeef", "beef"), // beee→bee + f → beef (not bèef)
+            ("gooox", "goox"), // gooo→goo + x → goox (not goõ)
+            ("leeef", "leef"), // leee→lee + f → leef (not lèef)
             // Consonant after revert → literal
-            ("boook", "book"),   // booo→boo + k → book
-            ("seeen", "seen"),   // seee→see + n → seen
-            ("looox", "loox"),   // looo→loo + x → loox
+            ("boook", "book"), // booo→boo + k → book
+            ("seeen", "seen"), // seee→see + n → seen
+            ("looox", "loox"), // looo→loo + x → loox
             // Multiple chars after revert
             ("boooks", "books"), // booo→boo + k + s → books
             ("seeend", "seend"), // seee→see + n + d → seend
             // SaaS pattern should stay as "saas"
-            ("saaas", "saas"),   // saaa→saa + s → saas
+            ("saaas", "saas"), // saaa→saa + s → saas
         ];
 
         for (input, expected) in cases {

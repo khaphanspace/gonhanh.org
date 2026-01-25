@@ -157,6 +157,7 @@ fn generate_english_typing_variants(word: &str) -> Vec<String> {
 }
 
 /// Insert cancel character after pattern occurrences
+/// Skip if double vowel (aa/ee/oo) is preceded by 'w' - horn/breve takes precedence
 fn insert_cancel_char(word: &str, pattern: &str, cancel_char: char) -> String {
     let mut result = String::new();
     let chars: Vec<char> = word.chars().collect();
@@ -167,14 +168,27 @@ fn insert_cancel_char(word: &str, pattern: &str, cancel_char: char) -> String {
         let remaining_lower = remaining.to_lowercase();
 
         if remaining_lower.starts_with(pattern) {
-            for j in 0..pattern.len() {
-                result.push(chars[i + j]);
-            }
-            // Preserve case of last pattern char for cancel char
-            if chars[i + pattern.len() - 1].is_uppercase() {
-                result.push(cancel_char.to_ascii_uppercase());
+            // Check if preceded by 'w' for double vowel patterns (aa/ee/oo)
+            // In this case, 'w' creates horn/breve, not circumflex, so no cancel needed
+            // Examples: harwood (w+oo), biweekly (w+ee), sapwood (w+oo)
+            let preceded_by_w =
+                i > 0 && chars[i - 1].to_ascii_lowercase() == 'w' && matches!(pattern, "aa" | "ee" | "oo");
+
+            if preceded_by_w {
+                // Skip cancel, just add the pattern as-is
+                for j in 0..pattern.len() {
+                    result.push(chars[i + j]);
+                }
             } else {
-                result.push(cancel_char);
+                for j in 0..pattern.len() {
+                    result.push(chars[i + j]);
+                }
+                // Preserve case of last pattern char for cancel char
+                if chars[i + pattern.len() - 1].is_uppercase() {
+                    result.push(cancel_char.to_ascii_uppercase());
+                } else {
+                    result.push(cancel_char);
+                }
             }
             i += pattern.len();
         } else {

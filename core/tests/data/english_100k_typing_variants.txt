@@ -4,7 +4,7 @@
 
 been	beeen,been
 see	seee,see
-between	betweeen,between
+between	between
 how	howw,how
 now	noww,now
 however	howwever,however
@@ -324,7 +324,7 @@ wool	wool
 cow	coww,cow
 downward	dowwnward,downward
 bloody	bloody
-hollywood	hollywoood,hollywood
+hollywood	hollywood
 peers	peeers,peers
 goodness	gooodness,goodness
 deeds	deeeds,deeds
@@ -845,7 +845,7 @@ deem	deeem,deem
 woodrow	woodrow
 lowe	lowwe,lowe
 sowing	sowwing,sowing
-newsweek	newsweeek,newsweek
+newsweek	newsweek
 housekeeping	housekeeeping,housekeeping
 middleton	midddleton,middleton
 aloof	aloof
@@ -1007,7 +1007,7 @@ poole	pooole,poole
 meek	meeek,meek
 blooms	blooms
 fleets	fleets
-hardwood	hardwoood,hardwood
+hardwood	hardwood
 oversee	oversee
 booming	boooming,booming
 teaspoons	teaspooons,teaspoons
@@ -1203,7 +1203,7 @@ tweed	tweed
 addictive	addictive
 seeding	seeeding,seeding
 owls	owls
-redwood	redwoood,redwood
+redwood	redwood
 absenteeism	absenteeism
 underwood	underwood
 shredded	shredded
@@ -1251,7 +1251,7 @@ knowles	knowles
 okinawa	okinawa
 roommate	rooommate,roommate
 rooting	roooting,rooting
-seaweed	seawweeed,seaweed
+seaweed	seawweed,seaweed
 greer	greer
 foote	foote
 gallows	gallowws,gallows
@@ -1335,9 +1335,9 @@ biofeedback	biofeeedback,biofeedback
 hooves	hoooves,hooves
 giddens	giddens
 carefree	carefreee,carefree
-lockwood	lockwoood,lockwood
+lockwood	lockwood
 renee	reneee,renee
-halloween	hallowweeen,halloween
+halloween	hallowween,halloween
 borrows	borrowws,borrows
 buddhas	budddhas,buddhas
 shutdown	shutdown
@@ -1369,7 +1369,7 @@ spawn	spawn
 sleepless	sleepless
 lawmakers	lawwmakers,lawmakers
 chattanooga	chattanoooga,chattanooga
-norwood	norwoood,norwood
+norwood	norwood
 plowed	plowed
 withdraws	withdraws
 toothed	tooothed,toothed
@@ -1551,7 +1551,7 @@ cookery	coookery,cookery
 unknowable	unknowable
 yawned	yawwned,yawned
 untoward	untoward
-heywood	heywoood,heywood
+heywood	heywood
 mckee	mckee
 maroon	marooon,maroon
 afrikaans	afrikaans
@@ -1593,7 +1593,7 @@ reestablished	reeestablished,reestablished
 afoot	afoot
 levee	leveee,levee
 saloons	salooons,saloons
-collingwood	collingwoood,collingwood
+collingwood	collingwood
 browned	browned
 grantee	grantee
 trodden	troddden,trodden
@@ -1617,7 +1617,7 @@ overpowered	overpowered
 shopkeeper	shopkeeper
 booms	boooms,booms
 dower	dowwer,dower
-homewood	homewoood,homewood
+homewood	homewood
 misdeeds	misdeeeds,misdeeds
 goode	gooode,goode
 meddling	medddling,meddling
@@ -1646,7 +1646,7 @@ yorktown	yorktowwn,yorktown
 bigelow	bigeloww,bigelow
 sourcebook	sourceboook,sourcebook
 preemptive	preemptive
-cottonwood	cottonwoood,cottonwood
+cottonwood	cottonwood
 coordinators	cooordinators,coordinators
 beseech	beseeech,beseech
 widowhood	widowhood
@@ -1693,7 +1693,7 @@ geddes	gedddes,geddes
 hoods	hooods,hoods
 flowery	flowery
 mower	mowwer,mower
-harwood	harwoood,harwood
+harwood	harwood
 reddened	redddened,reddened
 bloodless	bloodless
 mukherjee	mukherjeee,mukherjee
@@ -1701,7 +1701,7 @@ rookie	roookie,rookie
 weekday	weekday
 keene	keeene,keene
 tawny	tawwny,tawny
-haywood	haywoood,haywood
+haywood	haywood
 homeowner	homeowwner,homeowner
 sleepers	sleepers
 sisterhood	sisterhoood,sisterhood
@@ -1768,7 +1768,7 @@ pooh	poooh,pooh
 rowdy	rowwdy,rowdy
 baboons	babooons,baboons
 offshoot	offshoot
-hardwoods	hardwooods,hardwoods
+hardwoods	hardwoods
 preeminence	preeminence
 agreeably	agreeably
 bowlby	bowwlby,bowlby
@@ -1968,7 +1968,7 @@ bungalows	bungalowws,bungalows
 casebook	caseboook,casebook
 sweetie	sweetie
 maddening	madddening,maddening
-eastwood	eastwoood,eastwood
+eastwood	eastwood
 saar	saaar,saar
 bluetooth	bluetooth
 outlooks	outloooks,outlooks
@@ -2038,7 +2038,7 @@ overflows	overflows
 straddling	straddling
 foreshadowing	foreshadowing
 weevil	weevil
-rosewood	rosewoood,rosewood
+rosewood	rosewood
 cee	ceee,cee
 boosters	booosters,boosters
 deere	deeere,deere
@@ -2052,7 +2052,7 @@ rooftops	roooftops,rooftops
 yee	yeee,yee
 spoonful	spoonful
 cartoonist	cartooonist,cartoonist
-bittersweet	bittersweeet,bittersweet
+bittersweet	bittersweet
 booby	boooby,booby
 seeping	seeeping,seeping
 showroom	showroom
@@ -2154,16 +2154,16 @@ freeport	freeport
 greenleaf	greenleaf
 hooking	hoooking,hooking
 landowning	landowwning,landowning
-backwoods	backwooods,backwoods
+backwoods	backwoods
 kidder	kiddder,kidder
 poop	pooop,poop
-sandalwood	sandalwoood,sandalwood
+sandalwood	sandalwood
 goo	gooo,goo
 checkbook	checkboook,checkbook
 sheepishly	sheepishly
 rawlings	rawwlings,rawlings
 drooped	drooped
-kirkwood	kirkwoood,kirkwood
+kirkwood	kirkwood
 awning	awning
 peddling	pedddling,peddling
 bloods	bloods
@@ -2175,7 +2175,7 @@ breezy	breezy
 wheelbarrow	wheelbarrow
 showering	showering
 doorknob	dooorknob,doorknob
-softwood	softwoood,softwood
+softwood	softwood
 aladdin	aladdin
 schoolboys	schoolboys
 waddington	waddington
@@ -2267,7 +2267,7 @@ keeler	keeeler,keeler
 maddy	madddy,maddy
 haddock	hadddock,haddock
 lawgiver	lawwgiver,lawgiver
-dogwood	dogwoood,dogwood
+dogwood	dogwood
 proofing	proofing
 freeholders	freeholders
 leeks	leeeks,leeks
@@ -2455,7 +2455,7 @@ germantown	germantowwn,germantown
 mountaineer	mountaineeer,mountaineer
 returnees	returneees,returnees
 chickasaw	chickasaww,chickasaw
-biweekly	biweeekly,biweekly
+biweekly	biweekly
 scudder	scudder
 weedy	weedy
 screenings	screenings
@@ -2473,7 +2473,7 @@ adduct	adduct
 sweeper	sweeper
 lowenstein	lowwenstein,lowenstein
 trawlers	trawwlers,trawlers
-hetween	hetweeen,hetween
+hetween	hetween
 canaanites	canaaanites,canaanites
 kowloon	kowwlooon,kowloon
 crowing	crowing
@@ -2729,7 +2729,7 @@ blackpool	blackpool
 minnows	minnowws,minnows
 downers	dowwners,downers
 soong	sooong,soong
-seaweeds	seawweeeds,seaweeds
+seaweeds	seawweeds,seaweeds
 muldoon	muldooon,muldoon
 motown	motowwn,motown
 stoops	stoops
@@ -2764,7 +2764,7 @@ seventeenthcentury	seventeeenthcentury,seventeenthcentury
 snowman	snowman
 bladders	bladders
 unbeknownst	unbeknownst
-deadwood	deadwoood,deadwood
+deadwood	deadwood
 coolest	cooolest,coolest
 unbidden	unbidden
 reboot	rebooot,reboot
@@ -2793,7 +2793,7 @@ baddeley	badddeley,baddeley
 rooks	roooks,rooks
 yazoo	yazooo,yazoo
 jeering	jeering
-redwoods	redwooods,redwoods
+redwoods	redwoods
 scrapbooks	scrapbooks
 rawalpindi	rawwalpindi,rawalpindi
 footpaths	footpaths
@@ -2856,7 +2856,7 @@ burrowed	burrowwed,burrowed
 veneers	veneeers,veneers
 disallowance	disallowwance,disallowance
 footlights	footlights
-heartwood	heartwoood,heartwood
+heartwood	heartwood
 deeming	deeeming,deeming
 oop	ooop,oop
 weddell	weddell
@@ -2935,7 +2935,7 @@ deeps	deeeps,deeps
 speedometer	speedometer
 safflower	safflowwer,safflower
 newsreels	newsreeels,newsreels
-pulpwood	pulpwoood,pulpwood
+pulpwood	pulpwood
 laddie	ladddie,laddie
 trapdoor	trapdooor,trapdoor
 seesaw	seeesaww,seesaw
@@ -3011,7 +3011,7 @@ tooled	toooled,tooled
 cowie	cowwie,cowie
 straddles	straddles
 flowmeter	flowmeter
-sapwood	sapwoood,sapwood
+sapwood	sapwood
 seethed	seeethed,seethed
 elysees	elysees
 greenough	greenough
@@ -3084,7 +3084,7 @@ hornblower	hornblowwer,hornblower
 seele	seeele,seele
 doon	dooon,doon
 brawls	brawls
-milkweed	milkweeed,milkweed
+milkweed	milkweed
 reeducation	reeeducation,reeducation
 antifreeze	antifreeze
 brentwood	brentwood
@@ -3155,14 +3155,14 @@ ridder	riddder,ridder
 shaanxi	shaanxi
 uwe	uwe
 veen	veeen,veen
-cottonwoods	cottonwooods,cottonwoods
+cottonwoods	cottonwoods
 wootton	wootton
 kurosawa	kurosawwa,kurosawa
 staatliche	staatliche
 qaddafi	qadddafi,qaddafi
 footwork	footwork
 gleeful	gleeful
-lakewood	lakewoood,lakewood
+lakewood	lakewood
 coetzee	coetzeee,coetzee
 saavedra	saaavedra,saavedra
 highspeed	highspeeed,highspeed
@@ -3195,7 +3195,7 @@ footbridge	footbridge
 bylaw	bylaww,bylaw
 barroom	barrooom,barroom
 greenbelt	greenbelt
-ringwood	ringwoood,ringwood
+ringwood	ringwood
 ooooo	ooooooo,ooooo
 dowdy	dowwdy,dowdy
 sneezed	sneezed
@@ -3243,7 +3243,7 @@ mahmood	mahmoood,mahmood
 seaworthy	seawworthy,seaworthy
 wheeze	wheeze
 billowed	billowwed,billowed
-horwood	horwoood,horwood
+horwood	horwood
 maddison	madddison,maddison
 leeuwenhoek	leeeuwwenhoek,leeuwenhoek
 catawba	catawwba,catawba
@@ -3338,7 +3338,7 @@ fiddlers	fiddlers
 courtrooms	courtroooms,courtrooms
 windowed	windowed
 dawley	dawwley,dawley
-ragweed	ragweeed,ragweed
+ragweed	ragweed
 howards	howwards,howards
 scooters	scooters
 showrooms	showrooms
@@ -3409,7 +3409,7 @@ threeyear	threeyear
 codebook	codeboook,codebook
 goatee	goateee,goatee
 gazetteers	gazetteeers,gazetteers
-boxwood	boxwoood,boxwood
+boxwood	boxwood
 careening	careeening,careening
 stowell	stowell
 woodwinds	woodwinds
@@ -3418,7 +3418,7 @@ oogenesis	ooogenesis,oogenesis
 townsman	towwnsman,townsman
 freelancers	freelancers
 boorish	booorish,boorish
-hopwood	hopwoood,hopwood
+hopwood	hopwood
 igloo	igloo
 muddling	mudddling,muddling
 beekman	beeekman,beekman
@@ -3533,13 +3533,13 @@ hookup	hoookup,hookup
 europeenne	europeeenne,europeenne
 pawed	pawwed,pawed
 parolees	paroleees,parolees
-littlewood	littlewoood,littlewood
+littlewood	littlewood
 rootedness	roootedness,rootedness
 peddled	pedddled,peddled
 creeley	creeley
 rootstocks	roootstocks,rootstocks
 piscataway	piscatawway,piscataway
-dashwood	dashwoood,dashwood
+dashwood	dashwood
 beeper	beeeper,beeper
 awt	awt
 kiddie	kidddie,kiddie
@@ -3604,7 +3604,7 @@ pownall	powwnall,pownall
 goodfellow	gooodfelloww,goodfellow
 wardroom	wardroom
 flawlessly	flawlessly
-softwoods	softwooods,softwoods
+softwoods	softwoods
 granddaddy	granddaddy
 seawall	seawwall,seawall
 pensees	penseees,pensees
@@ -3711,12 +3711,12 @@ gamekeeper	gamekeeeper,gamekeeper
 proofreader	proofreader
 pontoons	pontooons,pontoons
 freemason	freemason
-hazelwood	hazelwoood,hazelwood
+hazelwood	hazelwood
 goodell	gooodell,goodell
 kawamura	kawwamura,kawamura
 brokaw	brokaw
 pawnees	pawwneees,pawnees
-longwood	longwoood,longwood
+longwood	longwood
 hooliganism	hoooliganism,hooliganism
 shree	shree
 preestablished	preestablished
@@ -3777,7 +3777,7 @@ backflow	backfloww,backflow
 meech	meeech,meech
 reeks	reeeks,reeks
 letterbook	letterboook,letterbook
-rockwood	rockwoood,rockwood
+rockwood	rockwood
 snowballs	snowballs
 goodson	gooodson,goodson
 toomey	tooomey,toomey
@@ -3954,7 +3954,7 @@ reebok	reeebok,reebok
 bootlegging	boootlegging,bootlegging
 macaw	macaww,macaw
 naaman	naaaman,naaman
-kenwood	kenwoood,kenwood
+kenwood	kenwood
 legatees	legateees,legatees
 lawrie	lawwrie,lawrie
 fanshawe	fanshawe
@@ -3977,9 +3977,9 @@ woodley	woodley
 leeper	leeeper,leeper
 feelingly	feelingly
 pawtucket	pawwtucket,pawtucket
-daewoo	daewooo,daewoo
+daewoo	daewoo
 aai	aaai,aai
-oakwood	oakwoood,oakwood
+oakwood	oakwood
 reexamining	reeexamining,reexamining
 hangchow	hangchoww,hangchow
 bowmen	bowwmen,bowmen
@@ -4036,7 +4036,7 @@ pawnshop	pawwnshop,pawnshop
 bumblebee	bumblebeee,bumblebee
 preschools	preschools
 awg	awg
-gatewood	gatewoood,gatewood
+gatewood	gatewood
 boothby	booothby,boothby
 teem	teeem,teem
 cookware	coookware,cookware
@@ -4044,7 +4044,7 @@ nowe	nowwe,nowe
 breslow	breslow
 seeth	seeeth,seeth
 goodlad	gooodlad,goodlad
-basswood	basswoood,basswood
+basswood	basswood
 goodale	gooodale,goodale
 keefer	keeefer,keefer
 slaw	slaw
@@ -4151,7 +4151,7 @@ cedaw	cedaww,cedaw
 wardlaw	wardlaw
 bawerk	bawwerk,bawerk
 laa	laaa,laa
-minesweepers	minesweeepers,minesweepers
+minesweepers	minesweepers
 blakeslee	blakeslee
 holyrood	holyroood,holyrood
 unlooked	unlooked
@@ -4206,7 +4206,7 @@ willowy	willowy
 miyazawa	miyazawwa,miyazawa
 kiddush	kidddush,kiddush
 lawd	lawwd,lawd
-midweek	midweeek,midweek
+midweek	midweek
 oost	ooost,oost
 goodchild	gooodchild,goodchild
 reefer	reeefer,reefer
@@ -4243,7 +4243,7 @@ racketeer	racketeeer,racketeer
 kiddies	kidddies,kiddies
 beddoes	bedddoes,beddoes
 beek	beeek,beek
-betweens	betweeens,betweens
+betweens	betweens
 crees	crees
 freeholder	freeholder
 toothy	tooothy,toothy
@@ -4303,7 +4303,7 @@ towson	towwson,towson
 teems	teeems,teems
 footballer	footballer
 nonpoor	nonpooor,nonpoor
-goodwood	gooodwoood,goodwood
+goodwood	gooodwood,goodwood
 kiddo	kidddo,kiddo
 factbook	factbook
 ingrown	ingrown
@@ -4411,12 +4411,12 @@ helpee	helpeee,helpee
 lawyering	lawwyering,lawyering
 gridded	gridded
 booz	boooz,booz
-catherwood	catherwoood,catherwood
+catherwood	catherwood
 eegs	eeegs,eegs
 diningroom	diningrooom,diningroom
 schoolhouses	schoolhouses
 fallowing	fallowing
-southwood	southwoood,southwood
+southwood	southwood
 awoken	awoken
 lawford	lawwford,lawford
 raa	raaa,raa
@@ -4428,18 +4428,18 @@ arakawa	arakawa
 elysee	elysee
 doody	dooody,doody
 steeplechase	steeplechase
-businessweek	businessweeek,businessweek
+businessweek	businessweek
 speedboat	speedboat
 hooft	hoooft,hooft
 rowbotham	rowwbotham,rowbotham
 cowhide	cowwhide,cowhide
-garwood	garwoood,garwood
+garwood	garwood
 duveen	duveeen,duveen
 greenham	greenham
 chickadees	chickadeees,chickadees
 dungarees	dungareees,dungarees
 kootenay	koootenay,kootenay
-northwood	northwoood,northwood
+northwood	northwood
 maass	maaass,maass
 patentees	patenteees,patentees
 inglewood	inglewood
@@ -4458,7 +4458,7 @@ poof	pooof,poof
 epizootic	epizootic
 superadded	superaddded,superadded
 sunscreens	sunscreeens,sunscreens
-ravenswood	ravenswoood,ravenswood
+ravenswood	ravenswood
 choosy	chooosy,choosy
 tweedy	tweedy
 clownish	clownish
@@ -4468,11 +4468,11 @@ doormat	dooormat,doormat
 deepseated	deeepseated,deepseated
 tootsie	toootsie,tootsie
 hoodwinked	hooodwinked,hoodwinked
-packwood	packwoood,packwood
+packwood	packwood
 screed	screed
 cashflow	cashfloww,cashflow
 shredder	shredder
-berween	berweeen,berween
+berween	berween
 oaa	oaaa,oaa
 steere	steere
 cooperativeness	coooperativeness,cooperativeness
@@ -4525,11 +4525,11 @@ beseeched	beseeeched,beseeched
 lowliness	lowwliness,lowliness
 mccawley	mccawley
 lowdown	lowwdowwn,lowdown
-tanglewood	tanglewoood,tanglewood
+tanglewood	tanglewood
 winnowed	winnowed
 stockroom	stockroom
 eerste	eeerste,eerste
-pinewood	pinewoood,pinewood
+pinewood	pinewood
 overawe	overawe
 geert	geeert,geert
 snowstorms	snowstorms
@@ -4585,7 +4585,7 @@ plowshares	plowshares
 ool	oool,ool
 cawley	cawwley,cawley
 pledgee	pledgee
-cowperwood	cowwperwoood,cowperwood
+cowperwood	cowwperwood,cowperwood
 rowohlt	rowwohlt,rowohlt
 rasheed	rasheeed,rasheed
 showplace	showplace
@@ -4603,7 +4603,7 @@ bookmaking	boookmaking,bookmaking
 scudding	scudding
 glidden	glidden
 heeling	heeeling,heeling
-harewood	harewoood,harewood
+harewood	harewood
 coddington	codddington,coddington
 shedd	shedd
 snowboarding	snowboarding
@@ -4697,7 +4697,7 @@ townland	towwnland,townland
 treeline	treeeline,treeline
 rowlatt	rowwlatt,rowlatt
 towle	towwle,towle
-linwood	linwoood,linwood
+linwood	linwood
 iooo	ioooo,iooo
 monooxygenase	monoooxygenase,monooxygenase
 aah	aaah,aah
@@ -4793,8 +4793,8 @@ sleeman	sleeman
 howley	howwley,howley
 consignees	consigneees,consignees
 bleeker	bleeker
-roundwood	roundwoood,roundwood
-calderwood	calderwoood,calderwood
+roundwood	roundwood
+calderwood	calderwood
 soochow	sooochoww,soochow
 snowbound	snowbound
 guwahati	guwwahati,guwahati
@@ -4877,7 +4877,7 @@ keddie	kedddie,keddie
 teepee	teeepeee,teepee
 wahoo	wahoo
 outgrowing	outgrowwing,outgrowing
-bollywood	bollywoood,bollywood
+bollywood	bollywood
 fdd	fdd
 colebrooke	colebroooke,colebrooke
 exmoor	exmoor
@@ -4924,7 +4924,7 @@ peeks	peeeks,peeks
 freethinking	freethinking
 waterwheel	waterwheel
 macaws	macawws,macaws
-logwood	logwoood,logwood
+logwood	logwood
 coombes	cooombes,coombes
 bengalee	bengaleee,bengalee
 nightgowns	nightgowwns,nightgowns
@@ -4943,7 +4943,7 @@ blowup	blowup
 woozy	woozy
 payees	payeees,payees
 fleeced	fleeced
-hurstwood	hurstwoood,hurstwood
+hurstwood	hurstwood
 lowcountry	lowwcountry,lowcountry
 landseer	landseeer,landseer
 overthrows	overthrows
@@ -5170,7 +5170,7 @@ teddington	tedddington,teddington
 oooooo	ooooooooo,oooooo
 sacagawea	sacagawwea,sacagawea
 kalgoorlie	kalgooorlie,kalgoorlie
-beechwood	beeechwoood,beechwood
+beechwood	beeechwood,beechwood
 reenacting	reeenacting,reenacting
 soone	sooone,soone
 cartwheels	cartwheeels,cartwheels
@@ -5192,10 +5192,10 @@ feely	feely
 aage	aaage,aage
 choosers	chooosers,choosers
 dhows	dhows
-kingswood	kingswoood,kingswood
+kingswood	kingswood
 screener	screener
 cheeseman	cheeeseman,cheeseman
-betweene	betweeene,betweene
+betweene	betweene
 woolfs	woolfs
 streeck	streeck
 cowman	cowwman,cowman
