@@ -563,7 +563,6 @@ fn foreign_word_could_no_mark() {
 }
 
 #[test]
-#[ignore] // TODO: Fix "woulds" → "ướuld" issue (w-o-u pattern incorrectly transformed)
 fn foreign_word_would_no_mark() {
     let mut e = Engine::new();
     e.set_english_auto_restore(true); // Enable experimental feature

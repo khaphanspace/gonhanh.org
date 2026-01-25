@@ -5086,6 +5086,24 @@ impl Engine {
             }
         }
 
+        // Check 7: "ươu" triphthong at word start (no initial) is INVALID Vietnamese
+        // Vietnamese syllables with "ươu" REQUIRE an initial consonant:
+        // - Valid: cươu, hươu, bươu (with initial)
+        // - Invalid: ươu (no initial - doesn't exist in Vietnamese)
+        // BUT "ươ" alone or with consonant final IS valid: ươ, ương, ươn, ươm
+        // This catches English words like "wou" → "ươu", "would" → "ươuld"
+        // Pattern: U+horn (ư) + O+horn (ơ) + U (plain) at word start
+        if buffer_keys.len() >= 3
+            && syllable.initial.is_empty()
+            && buffer_keys[0] == keys::U
+            && buffer_tones[0] == tone::HORN
+            && buffer_keys[1] == keys::O
+            && buffer_tones[1] == tone::HORN
+            && buffer_keys[2] == keys::U
+        {
+            return true; // ươu at word start without initial is invalid
+        }
+
         false
     }
 

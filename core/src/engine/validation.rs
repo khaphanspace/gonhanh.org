@@ -404,9 +404,16 @@ pub fn is_foreign_word_pattern(
         // First check if the overall pattern is a valid triphthong
         // This prevents false positives like [U, O, U] (ươu) being blocked
         // because it contains [O, U] substring
+        // EXCEPT: [U, O, U] (ươu) at word start (no initial) IS INVALID Vietnamese
+        // - Valid: cươu, hươu, bươu (with initial consonant)
+        // - Invalid: ươu (no initial - doesn't exist in Vietnamese)
         let is_valid_triphthong = vowels.len() == 3 && {
             let triple = [vowels[0], vowels[1], vowels[2]];
-            constants::VALID_TRIPHTHONGS.contains(&triple)
+            let is_in_list = constants::VALID_TRIPHTHONGS.contains(&triple);
+            // ươu without initial is foreign pattern (from "would", "wou")
+            let is_uou_without_initial =
+                triple == [keys::U, keys::O, keys::U] && syllable.initial.is_empty();
+            is_in_list && !is_uou_without_initial
         };
 
         // Check consecutive pairs for common foreign patterns
