@@ -434,7 +434,11 @@ fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
     let has_stroke = initial.to_lowercase() == "dd";
     let mut base = String::new();
     if has_stroke {
-        base.push(if initial.starts_with(|c: char| c.is_uppercase()) { 'D' } else { 'd' });
+        base.push(if initial.starts_with(|c: char| c.is_uppercase()) {
+            'D'
+        } else {
+            'd'
+        });
     } else {
         base.push_str(initial);
     }
@@ -453,8 +457,12 @@ fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
 
 /// Collect vowel modifiers (horn w, circumflex, breve)
 fn collect_vowel_mods(vowels: &[(char, Option<char>)]) -> Vec<char> {
-    let has_uwo = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'))
-        && vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+    let has_uwo = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'))
+        && vowels
+            .iter()
+            .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
 
     let mut mods = Vec::new();
     let mut horn_added = false;
@@ -553,7 +561,12 @@ fn generate_modifier_permutations(
             // All 6 permutations of (stroke, vowel_mods, tone)
             let (d, t) = (stroke.unwrap(), tone.unwrap());
             let orders: [(u8, u8, u8); 6] = [
-                (0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)
+                (0, 1, 2),
+                (0, 2, 1),
+                (1, 0, 2),
+                (1, 2, 0),
+                (2, 0, 1),
+                (2, 1, 0),
             ];
             for (a, b, c) in orders {
                 let mut p = base.to_string();
@@ -602,7 +615,8 @@ fn generate_circumflex_cancel_variants(parts: &SyllableParts) -> Vec<String> {
         let is_consecutive = i + 1 < vowels.len() && {
             let (v2, m2) = &vowels[i + 1];
             v.to_ascii_lowercase() == v2.to_ascii_lowercase()
-                && m.is_none() && m2.is_none()
+                && m.is_none()
+                && m2.is_none()
                 && matches!(v.to_ascii_lowercase(), 'a' | 'e' | 'o')
         };
 
@@ -631,7 +645,10 @@ fn generate_circumflex_cancel_variants(parts: &SyllableParts) -> Vec<String> {
     if parts.tone.is_some() && !parts.final_cons.is_empty() {
         patterns.push(format!(
             "{}{}{}{}",
-            parts.initial, vowel_str, parts.final_cons, parts.tone.unwrap()
+            parts.initial,
+            vowel_str,
+            parts.final_cons,
+            parts.tone.unwrap()
         ));
     }
 
@@ -648,16 +665,22 @@ fn generate_vowel_patterns(parts: &SyllableParts) -> Vec<String> {
     let mut patterns: HashSet<String> = HashSet::new();
 
     // Base pattern: vowels with marks immediately after
-    let base: String = vowels.iter()
+    let base: String = vowels
+        .iter()
         .flat_map(|(v, m)| std::iter::once(*v).chain(m.iter().copied()))
         .collect();
     patterns.insert(base);
 
     // Special case: ươ (horn on both u and o) - generate "uow" variant (w after o only)
-    let has_horn_u = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
-    let has_horn_o = vowels.iter().any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+    let has_horn_u = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
+    let has_horn_o = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
     if has_horn_u && has_horn_o {
-        let uow: String = vowels.iter()
+        let uow: String = vowels
+            .iter()
             .flat_map(|(v, m)| {
                 let is_horn_o = v.to_ascii_lowercase() == 'o' && *m == Some('w');
                 std::iter::once(*v).chain(if is_horn_o { Some('w') } else { None })
