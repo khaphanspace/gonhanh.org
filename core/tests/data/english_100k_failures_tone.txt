@@ -365,6 +365,7 @@ bins	bín	bín
 soar	soả	soả
 boers	boé	boé
 liens	lién	lién
+queues	quếu	quếu
 ics	íc	íc
 orr	or	or
 ij	ị	ị
@@ -419,7 +420,6 @@ qos	qó	qó
 swarms	sưám	sưám
 aix	ãi	ãi
 hereof	hềo	hềo
-estes	éestes	éets
 dif	dì	dì
 lamar	lẩm	lẩm
 sacs	sác	sác
@@ -462,7 +462,6 @@ epr	ẻp	ẻp
 nurs	nú	nú
 choirs	chói	chói
 hangar	hẩng	hẩng
-osmosis	óosmosis	óomsis
 gif	gì	gì
 wf	ừ	ừ
 hors	hó	hó
@@ -817,6 +816,7 @@ basf	bà	bà
 nys	ný	ný
 dyers	dyé	dyé
 mejor	mẻo	mẻo
+dufour	duỏu	duỏu
 ruf	rù	rù
 engr	ẻng	ẻng
 onr	ỏn	ỏn
@@ -840,6 +840,7 @@ chasms	chams	chams
 lef	lè	lè
 lus	lú	lú
 tarr	tar	tar
+rufous	ruóu	ruóu
 doj	dọ	dọ
 ojos	ố	ố
 escher	ểch	ểch
@@ -941,7 +942,6 @@ carus	cáu	cáu
 achr	ảch	ảch
 oes	oé	oé
 auras	ấu	ấu
-pastas	ppastas	páats
 dus	dú	dú
 trots	trót	trót
 tots	tót	tót
@@ -1360,7 +1360,7 @@ deeps	dếp	dếp
 coons	cốn	cốn
 moores	mốe	mốe
 boor	bổ	bổ
-aaas	aas	aas
+aaas	aá	aá
 coors	cố	cố
 kees	kế	kế
 coos	cố	cố
