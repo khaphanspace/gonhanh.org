@@ -31,6 +31,7 @@ help:
 	@echo "\033[1;32mDebug:\033[0m"
 	@echo "  watch       Tail debug log"
 	@echo "  perf        Check RAM/leaks"
+	@echo "  test-dict   Dictionary tests (VN: 100%, EN: 97%)"
 	@echo "  test-22k    Run heavy 22k tests + gen typing orders"
 	@echo "  test-100k   Run English 100k tests"
 	@echo ""
@@ -53,6 +54,7 @@ all: test build
 
 test:
 	@cd core && cargo test
+	@./scripts/test/dict.sh
 
 format:
 	@cd core && cargo fmt && cargo clippy -- -D warnings
@@ -77,7 +79,7 @@ clean: ## Clean build + settings
 # Debug
 # ============================================================================
 
-.PHONY: watch perf test-22k test-100k
+.PHONY: watch perf test-22k test-100k test-dict
 watch:
 	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
 	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
@@ -89,6 +91,9 @@ test-22k: ## Run heavy 22k tests + generate typing orders
 test-100k: ## Run English 100k tests
 	@cd core && cargo test --test english_100k_test -- --nocapture
 	@cd core && cargo test --test english_telex_patterns_test -- --nocapture
+
+test-dict: ## Run dictionary tests (VN: 100%, EN: 97%)
+	@./scripts/test/dict.sh
 
 perf:
 	@PID=$$(pgrep -f "GoNhanh.app" | head -1); \

@@ -48,10 +48,14 @@ fn vietnamese_dictionary_coverage() {
         0.0
     };
 
-    println!("\n=== Vietnamese Dictionary Test Results ===");
-    println!("Total words: {}", total);
-    println!("Passed: {} ({:.2}%)", passed, pass_rate);
-    println!("Failed: {}", failed);
+    println!("\n┌─────────────────────────────────────────┐");
+    println!("│       VIETNAMESE 22K RESULTS            │");
+    println!("├─────────────────────────────────────────┤");
+    println!("│ Total words     │ {:>20} │", total);
+    println!("│ Passed          │ {:>20} │", passed);
+    println!("│ Failed          │ {:>20} │", failed);
+    println!("│ Pass rate       │ {:>19.2}% │", pass_rate);
+    println!("└─────────────────────────────────────────┘");
 
     if !failures.is_empty() {
         println!("\n=== First {} Failures ===", failures.len().min(50));
@@ -80,10 +84,12 @@ fn vietnamese_dictionary_coverage() {
     }
 
     // Target: 100% pass rate
+    const MIN_PASS_RATE: f64 = 100.0;
     assert!(
-        pass_rate >= 99.0,
-        "Vietnamese pass rate {:.2}% is below 99% target. Failed {} out of {} words.",
+        pass_rate >= MIN_PASS_RATE,
+        "Vietnamese pass rate {:.2}% is below {:.0}% target. Failed {} out of {} words.",
         pass_rate,
+        MIN_PASS_RATE,
         failed,
         total
     );

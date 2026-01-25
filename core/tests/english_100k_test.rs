@@ -197,16 +197,23 @@ fn english_100k_failures() {
 
     let total_failures = tone_failures.len() + vowel_failures.len() + both_failures.len() + unknown_failures.len();
 
-    // Print summary
-    println!("\n=== ENGLISH 100K TEST RESULTS ===\n");
-    println!("Total words tested: {}", words.len());
-    println!("Total failures: {}", total_failures);
-    println!("Success rate: {:.2}%", (words.len() - total_failures) as f64 / words.len() as f64 * 100.0);
-    println!("\n=== BY CAUSE ===\n");
-    println!("Tone failures (s/f/r/x/j): {}", tone_failures.len());
-    println!("Vowel failures (aa/ee/oo/aw/ow/uw/dd): {}", vowel_failures.len());
-    println!("Both (tone + vowel): {}", both_failures.len());
-    println!("Unknown: {}", unknown_failures.len());
+    // Print summary table
+    let pass_rate = (words.len() - total_failures) as f64 / words.len() as f64 * 100.0;
+    println!("\n┌─────────────────────────────────────────┐");
+    println!("│         ENGLISH 100K RESULTS            │");
+    println!("├─────────────────────────────────────────┤");
+    println!("│ Total words     │ {:>20} │", words.len());
+    println!("│ Passed          │ {:>20} │", words.len() - total_failures);
+    println!("│ Failed          │ {:>20} │", total_failures);
+    println!("│ Pass rate       │ {:>19.2}% │", pass_rate);
+    println!("├─────────────────────────────────────────┤");
+    println!("│ BY CAUSE                                │");
+    println!("├─────────────────────────────────────────┤");
+    println!("│ Tone (s/f/r/x/j)│ {:>20} │", tone_failures.len());
+    println!("│ Vowel (aa/ee..) │ {:>20} │", vowel_failures.len());
+    println!("│ Both            │ {:>20} │", both_failures.len());
+    println!("│ Unknown         │ {:>20} │", unknown_failures.len());
+    println!("└─────────────────────────────────────────┘");
 
     // Show samples
     if !tone_failures.is_empty() {
@@ -274,7 +281,7 @@ fn english_100k_failures() {
     const MIN_PASS_RATE: f64 = 97.0;
     assert!(
         pass_rate >= MIN_PASS_RATE,
-        "English 100k pass rate {:.2}% is below threshold {:.1}%",
+        "English 100k pass rate {:.2}% is below threshold {:.0}%",
         pass_rate,
         MIN_PASS_RATE
     );
