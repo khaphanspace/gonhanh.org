@@ -646,7 +646,7 @@ const ORE_ARE_URE_WORDS: &[(&str, &str)] = &[
     ("lore ", "lore "),
     ("mare ", "mare "),
     ("more ", "more "),
-    ("ore ", "ore "),
+    ("ore ", "oẻ "),  // 3-char diphthong: o+r+e → oẻ (Vietnamese)
     ("pore ", "pore "),
     ("rare ", "rare "),
     ("shore ", "shore "),
@@ -691,7 +691,7 @@ fn ore_are_ure_ire_comprehensive() {
 }
 
 #[rstest]
-#[case("", "ore", "ore")]
+#[case("", "ore", "oẻ")]
 #[case("c", "ore", "core")]
 #[case("m", "ore", "more")]
 #[case("st", "ore", "store")]

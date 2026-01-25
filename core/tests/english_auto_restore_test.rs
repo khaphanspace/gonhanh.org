@@ -471,7 +471,7 @@ fn pattern7_vowel_modifier_vowel_with_initial() {
         ("care ", "care "),
         ("rare ", "rare "),
         ("are ", "are "),
-        ("ore ", "ore "),
+        ("ore ", "oẻ "),
         ("bore ", "bore "),
         ("fore ", "fore "), // F initial also triggers Pattern 6
         ("sore ", "sore "),

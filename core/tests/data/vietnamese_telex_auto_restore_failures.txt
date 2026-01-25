@@ -1,6 +1,6 @@
 # Vietnamese Telex Auto-Restore Failures (should not be restored)
 # Format: INPUT \t EXPECTED \t ACTUAL
-# Total failures: 29
+# Total failures: 25
 
 booongs	boóng	boongs
 booonsg	boóng	boonsg
@@ -13,14 +13,10 @@ cooosc	coóc	coosc
 gooofng	goòng	goofng
 gooonfg	goòng	goonfg
 gooongf	goòng	goongf
-ira	ỉa	ira
-iru	ỉu	iru
 lose	lóe	lose
 mems	mém	mems
 mooocs	moóc	moocs
 mooosc	moóc	moosc
-ofa	òa	ofa
-ore	ỏe	ore
 pacs	pác	pacs
 paps	páp	paps
 reset	rết	reset

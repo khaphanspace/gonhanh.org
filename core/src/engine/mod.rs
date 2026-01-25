@@ -5828,6 +5828,41 @@ impl Engine {
             }
         }
 
+        // Vietnamese diphthong with tone modifier in middle (3 chars)
+        // Pattern: vowel + tone_modifier + vowel → valid Vietnamese diphthong with tone
+        // Examples: "ira" → "ỉa", "ofa" → "òa", "ore" → "ỏe", "iru" → "ỉu"
+        // Only match VALID Vietnamese diphthongs (not all vowel pairs are valid)
+        if self.raw_input.len() == 3 {
+            let (k0, _, _) = self.raw_input[0];
+            let (k1, _, _) = self.raw_input[1];
+            let (k2, _, _) = self.raw_input[2];
+            if keys::is_vowel(k0) && tone_modifiers.contains(&k1) && keys::is_vowel(k2) {
+                // Check if this vowel pair is a valid Vietnamese diphthong
+                // Valid: ia, iu, ua, uo, oa, oe, oi, ai, ao, au, ay, ei, eo, eu
+                // Invalid: ue, ae, ie, io, ea, ou (these should restore to English)
+                let is_valid_diphthong = matches!(
+                    (k0, k2),
+                    (keys::I, keys::A)
+                        | (keys::I, keys::U)
+                        | (keys::U, keys::A)
+                        | (keys::U, keys::O)
+                        | (keys::O, keys::A)
+                        | (keys::O, keys::E)
+                        | (keys::O, keys::I)
+                        | (keys::A, keys::I)
+                        | (keys::A, keys::O)
+                        | (keys::A, keys::U)
+                        | (keys::A, keys::Y)
+                        | (keys::E, keys::I)
+                        | (keys::E, keys::O)
+                        | (keys::E, keys::U)
+                );
+                if is_valid_diphthong {
+                    return false; // Keep Vietnamese
+                }
+            }
+        }
+
         // Single vowel + modifiers only → valid Vietnamese (á, é, í, ó, ú, ý, etc.)
         // ALL single vowels with tone marks are valid Vietnamese words
         // Examples: "as" → "á", "es" → "é", "is" → "í", "or" → "ỏ", "us" → "ú"
