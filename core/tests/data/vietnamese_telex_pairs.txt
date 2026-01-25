@@ -1083,8 +1083,6 @@ boonsg	bống
 boonxg	bỗng
 booong	boong
 booongs	boóng
-booonsg	boóng
-booosng	boóng
 boopj	bộp
 boops	bốp
 boor	bổ
@@ -2725,8 +2723,6 @@ choonj	chộn
 choonrg	chổng
 choons	chốn
 choonsg	chống
-chooofng	choòng
-chooonfg	choòng
 chooongf	choòng
 choopj	chộp
 choops	chốp
@@ -3486,7 +3482,6 @@ coons	cốn
 coonsg	cống
 cooocs	coóc
 cooong	coong
-cooosc	coóc
 coopj	cộp
 coops	cốp
 coor	cổ
@@ -12431,8 +12426,6 @@ goon	gôn
 goonfg	gồng
 goong	gông
 goongf	gồng
-gooofng	goòng
-gooonfg	goòng
 gooongf	goòng
 goopj	gộp
 goor	gổ
@@ -17424,7 +17417,6 @@ moonjg	mộng
 moonrg	mổng
 moonsg	mống
 mooocs	moóc
-mooosc	moóc
 moor	mổ
 moorng	mổng
 moos	mố
@@ -24101,7 +24093,6 @@ soonrg	sổng
 soonsg	sống
 sooocs	soóc
 sooong	soong
-sooosc	soóc
 soopj	sộp
 soops	sốp
 soor	sổ
@@ -26481,8 +26472,6 @@ toonr	tổn
 toonrg	tổng
 toons	tốn
 toonsg	tống
-tooofng	toòng
-tooonfg	toòng
 tooong	toong
 tooongf	toòng
 toops	tốp

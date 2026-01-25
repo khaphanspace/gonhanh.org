@@ -1505,8 +1505,10 @@ impl Engine {
                 // Use is_valid() instead of is_valid_for_transform() to check vowel patterns
                 // This prevents "dea" + "d" → "đea" (invalid "ea" diphthong)
                 // BUT: Allow circumflex trigger patterns even if they look invalid now
+                // ALSO: Allow Vietnamese triple-o words (đoòng) which have literal double-o
                 if !has_circumflex_trigger_pattern
                     && !is_valid_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+                    && !self.is_vietnamese_triple_o_word()
                 {
                     return None;
                 }
@@ -1568,9 +1570,11 @@ impl Engine {
         // Allow stroke on initial consonant before vowel is typed (e.g., "dd" → "đ" then "đi")
         // Skip validation if free_tone mode is enabled
         // Also skip validation for circumflex trigger patterns (duoto → đuôt)
+        // Also skip validation for Vietnamese triple-o words (đoòng) which have literal double-o
         if !self.free_tone_enabled
             && has_vowel
             && !has_circumflex_trigger_pattern
+            && !self.is_vietnamese_triple_o_word()
             && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
         {
             return None;
@@ -5128,60 +5132,59 @@ impl Engine {
     /// Check if buffer matches a Vietnamese triple-o word pattern
     ///
     /// Vietnamese has rare words with literal double-o (not circumflex):
-    /// - boóng, choòng, coóc, đoòng, goòng, moóc, soóc, toòng
+    /// - boóng, choòng, đoòng, goòng, toòng → final is NG
+    /// - coóc, moóc, soóc → final is C
     ///
     /// When typing these words, user types triple-o (ooo) which reverts circumflex to oo.
     /// After revert, tone modifiers (s, f) should STILL be applied.
     /// This function identifies these patterns to allow tone modifier application.
+    ///
+    /// IMPORTANT: Must have valid final consonants (NG or C) to distinguish from English.
+    /// - "boong" + s → "boóng" ✓ (Vietnamese, has NG final)
+    /// - "boo" + s → "boos" ✓ (English, no valid final - skip tone)
     fn is_vietnamese_triple_o_word(&self) -> bool {
-        if self.buf.len() < 2 {
+        if self.buf.len() < 4 {
+            // Minimum: initial + OO + final (e.g., COOC = 4 chars)
             return false;
         }
 
         let keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+        let len = keys.len();
 
-        // Check for double O in buffer
-        let has_double_o = keys
-            .windows(2)
-            .any(|pair| pair[0] == keys::O && pair[1] == keys::O);
-        if !has_double_o {
+        // Check for valid finals: NG or C
+        // NG final: last two chars are N + G
+        // C final: last char is C
+        let has_ng_final = len >= 2 && keys[len - 2] == keys::N && keys[len - 1] == keys::G;
+        let has_c_final = keys[len - 1] == keys::C;
+
+        if !has_ng_final && !has_c_final {
             return false;
         }
 
-        // Valid initials for Vietnamese triple-o words:
-        // Single: B, C, G, M, S, T
-        // Double: CH, Đ (stroke D)
+        // Find double O position
+        let double_o_pos = keys
+            .windows(2)
+            .position(|pair| pair[0] == keys::O && pair[1] == keys::O);
+        if double_o_pos.is_none() {
+            return false;
+        }
+        let oo_pos = double_o_pos.unwrap();
+
+        // Check valid initials for Vietnamese triple-o words
         let first_key = keys[0];
 
-        // Check: [initial] + O + O (at positions 1,2 or 2,3 for CH)
-        // Single consonant initials: B, C, G, M, S, T
+        // Pattern: [initial] + OO at position 1,2 + final
+        // Single consonant initials: B, C, G, M, S, T, D
         if matches!(
             first_key,
-            keys::B | keys::C | keys::G | keys::M | keys::S | keys::T
-        ) && keys.len() >= 3
-            && keys[1] == keys::O
-            && keys[2] == keys::O
+            keys::B | keys::C | keys::G | keys::M | keys::S | keys::T | keys::D
+        ) && oo_pos == 1
         {
             return true;
         }
 
-        // CH initial: CH + O + O
-        if keys.len() >= 4
-            && first_key == keys::C
-            && keys[1] == keys::H
-            && keys[2] == keys::O
-            && keys[3] == keys::O
-        {
-            return true;
-        }
-
-        // Đ (stroke D) initial: D(stroke) + O + O
-        if keys.len() >= 3
-            && first_key == keys::D
-            && self.buf.iter().next().map(|c| c.stroke).unwrap_or(false)
-            && keys[1] == keys::O
-            && keys[2] == keys::O
-        {
+        // CH initial: CH + OO at position 2,3 + final
+        if first_key == keys::C && keys.len() >= 2 && keys[1] == keys::H && oo_pos == 2 {
             return true;
         }
 
@@ -7567,6 +7570,44 @@ mod tests {
             assert_eq!(
                 result, *expected,
                 "[Literal after revert] '{}' → '{}', expected '{}'",
+                input, result, expected
+            );
+        }
+    }
+
+    /// Vietnamese triple-o words should accept tone modifiers after circumflex revert.
+    /// These are rare Vietnamese words with literal double-o (not circumflex):
+    /// - boóng, choòng, coóc, đoòng, goòng, moóc, soóc, toòng
+    ///
+    /// IMPORTANT: Tone modifier must come AFTER final consonants (NG or C) for the
+    /// engine to recognize it as Vietnamese. This distinguishes from English words
+    /// like "boos", "books" where the letter after "oo" is literal.
+    ///
+    /// Typing order: [initial] + ooo + [final: ng/c] + [tone: s/f]
+    #[test]
+    fn test_vietnamese_triple_o_words() {
+        let cases: &[(&str, &str)] = &[
+            // Vietnamese triple-o words with sắc tone (s) - final before tone
+            ("booongs", "boóng"), // booo + ng + s → boóng
+            ("mooocs", "moóc"),   // mooo + c + s → moóc
+            ("sooocs", "soóc"),   // sooo + c + s → soóc
+            ("cooocs", "coóc"),   // cooo + c + s → coóc
+            // Vietnamese triple-o words with huyền tone (f) - final before tone
+            ("chooongf", "choòng"), // chooo + ng + f → choòng
+            ("gooongf", "goòng"),   // gooo + ng + f → goòng
+            ("tooongf", "toòng"),   // tooo + ng + f → toòng
+            // đoòng with stroke (dd) + triple-o
+            ("ddooongf", "đoòng"), // dd + ooo + ng + f → đoòng
+            // Alternative typing order: stroke at end
+            ("dooongfd", "đoòng"), // d + ooo + ng + f + d → đoòng (stroke at end)
+        ];
+
+        for (input, expected) in cases {
+            let mut e = Engine::new();
+            let result = type_word(&mut e, input);
+            assert_eq!(
+                result, *expected,
+                "[Vietnamese triple-o] '{}' → '{}', expected '{}'",
                 input, result, expected
             );
         }

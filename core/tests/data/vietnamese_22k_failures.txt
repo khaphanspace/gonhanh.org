@@ -1,12 +1,11 @@
 # Vietnamese 22k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL
-# Total failures: 8
+# Total failures: 7
 
 Blowing	Bloiwng	Blowing	Bloiwng
 dust	dust	dust	dút
 wind.	wind.	wind.	ưind.
-chòong	chooofng	chòong	choofng
-chòong	chooongf	chòong	choongf
+choòng	chooofng	choòng	choofng
 gòong	gooofng	gòong	goofng
-gòong	gooongf	gòong	goongf
+gòong	gooongf	gòong	goòng
 atom	aotm	atom	aotm
