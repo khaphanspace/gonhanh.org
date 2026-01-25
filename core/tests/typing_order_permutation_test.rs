@@ -352,7 +352,9 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
         variants.insert(pattern);
     }
 
-    variants.into_iter().collect()
+    let mut result: Vec<String> = variants.into_iter().collect();
+    result.sort(); // Ensure deterministic order
+    result
 }
 
 /// Generate patterns where all modifiers are typed at the end of the word
