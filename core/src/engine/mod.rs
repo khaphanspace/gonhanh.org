@@ -4157,12 +4157,13 @@ impl Engine {
         }
 
         // Issue #211: Skip auto-restore for extended character patterns
-        // When user types "ơiiiiii", "điiii", "ôiiii", "khôngggg", etc.
+        // When user types "ơiiiiii", "điiii", "ôiiii", "vàooooo", etc.
         // This is intentional Vietnamese (casual messaging) not English.
         //
         // Check if buffer has ANY Vietnamese-specific modifier:
         // - HORN: ơ, ư, ă (from 'w' key)
         // - CIRCUMFLEX: ô, â, ê (from double vowel)
+        // - MARK: sắc, huyền, hỏi, ngã, nặng (from s/f/r/x/j keys)
         // - STROKE: đ (from 'dd')
         // AND has CONSECUTIVE extended characters (3+ same key in a row)
         //
@@ -4174,10 +4175,11 @@ impl Engine {
         //   "owiiiiii" → "ơiiiiii" → horn + consecutive i's → keep Vietnamese
         //   "ooiiii" → "ôiiii" → circumflex + consecutive i's → keep Vietnamese
         //   "ddiiii" → "điiii" → stroke + consecutive i's → keep Vietnamese
-        //   "khongggg" → "không" + consecutive g's → keep Vietnamese
+        //   "vafooooo" → "vàooooo" → mark (huyền) + consecutive o's → keep Vietnamese
         let has_vn_specific_modifier = self.buf.iter().any(|c| {
             c.tone == tone::HORN      // ơ, ư, ă
                 || c.tone == tone::CIRCUMFLEX // ô, â, ê
+                || c.mark > 0         // sắc, huyền, hỏi, ngã, nặng
                 || c.key == keys::D && self.buf.iter().filter(|x| x.key == keys::D).count() == 0
                     && self.had_telex_transform // đ from dd
         });
