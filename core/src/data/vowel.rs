@@ -551,6 +551,16 @@ impl Phonology {
                     if k1 == pattern.v1 && k2 == pattern.v2 {
                         match pattern.placement {
                             HornPlacement::Both => {
+                                // Check for "uoa" pattern FIRST - takes priority over all other checks
+                                // When "uo" is followed by 'a', prefer breve on 'a' instead of horn on "uo"
+                                // Examples: "uoaw" → "uoă", "quoatws" → "quoắt" (not "quơát")
+                                let next_key = buffer_keys.get(pos2 + 1).copied();
+                                if k1 == keys::U && k2 == keys::O && next_key == Some(keys::A) {
+                                    // Return position of 'a' for breve
+                                    result.push(pos2 + 1);
+                                    return result;
+                                }
+
                                 // Check if 'u' is preceded by 'Q' (qu-initial consonant cluster)
                                 // In "Qu-", the 'u' is part of the initial and should not get horn
                                 // Examples: "Quoiws" → "Quới" (not "Qưới"), "quốc" (not "qước")
@@ -564,7 +574,8 @@ impl Phonology {
                                     // If no final consonant/vowel after "uo", only apply horn to 'o'
                                     // Examples: "huow" → "huơ", "khuow" → "khuơ"
                                     // But: "duowc" → "dược", "muowif" → "mười" (both get horn)
-                                    let has_final = buffer_keys.get(pos2 + 1).is_some();
+                                    let has_final = next_key.is_some();
+
                                     if k1 == keys::U && k2 == keys::O && !has_final {
                                         // "uơ" pattern - only 'o' gets horn
                                         result.push(pos2);
@@ -779,6 +790,21 @@ mod tests {
         assert_eq!(
             Phonology::find_tone_position(&vowels, false, true, false, false),
             0
+        );
+    }
+
+    #[test]
+    fn test_uoa_horn_pattern() {
+        // "uoa" + w → breve should go to 'a' (position 2), not horn to "uo"
+        // buffer_keys = [U, O, A], vowel_positions = [0, 1, 2]
+        let buffer_keys = vec![keys::U, keys::O, keys::A];
+        let vowel_positions = vec![0, 1, 2];
+        let result = Phonology::find_horn_positions(&buffer_keys, &vowel_positions);
+        // Should return position 2 (the 'a') for breve
+        assert_eq!(
+            result,
+            vec![2],
+            "uoa + w should apply breve to 'a' at position 2"
         );
     }
 }

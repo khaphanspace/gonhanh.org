@@ -1429,3 +1429,15 @@ fn ui_diphthong_typing_order() {
         ("nuis ", "núi "),
     ]);
 }
+
+#[test]
+fn uoa_breve_pattern() {
+    // "uoa" + "w" → "uoă" (breve applied to 'a')
+    // This is a valid Vietnamese triphthong pattern
+    telex(&[
+        ("aw", "ă"),          // Single a + w → ă (breve)
+        ("oaw", "oă"),        // Simple: oa + w → oă
+        ("uoaw", "uoă"),      // Triphthong: uoa + w → uoă (NOT ươa)
+        ("quoatws", "quoắt"), // Full word: quoắt
+    ]);
+}

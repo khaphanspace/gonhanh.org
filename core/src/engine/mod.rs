@@ -1521,7 +1521,13 @@ impl Engine {
                         let preceded_by_q =
                             pos1 > 0 && self.buf.get(pos1 - 1).map(|c| c.key) == Some(keys::Q);
 
-                        if preceded_by_q {
+                        // Special case: "uoa" pattern - when "uo" is followed by 'a',
+                        // skip compound handling and apply breve to 'a' instead
+                        // Example: "uoaw" → "uoă" (not "ươa")
+                        let next_key = self.buf.get(pos2 + 1).map(|c| c.key);
+                        if is_uo_pattern && next_key == Some(keys::A) {
+                            // Skip "uo" compound - will be handled by normal breve logic below
+                        } else if preceded_by_q {
                             // "Qu-" pattern - only second vowel gets horn
                             target_positions.push(pos2);
                             self.pending_u_horn_pos = None;
