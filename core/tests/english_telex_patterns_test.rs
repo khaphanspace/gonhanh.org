@@ -128,10 +128,12 @@ fn generate_english_typing_variants(word: &str) -> Vec<String> {
         return vec![word.to_string()];
     }
 
-    // Words with valid Vietnamese initial → both self-cancel and direct
     let lower = word.to_lowercase();
+    let chars: Vec<char> = lower.chars().collect();
 
     // Self-cancel patterns: extra char cancels the transform
+    // Only apply for patterns that are the PRIMARY vowel cluster
+    // Skip if there's another vowel BEFORE the pattern (indicates compound/longer structure)
     let self_cancel_patterns = [
         ("aa", 'a'),
         ("ee", 'e'),
@@ -142,10 +144,30 @@ fn generate_english_typing_variants(word: &str) -> Vec<String> {
         ("dd", 'd'),
     ];
 
+    let is_vowel = |c: char| "aeiou".contains(c);
+
     let mut self_cancel = word.to_string();
     for (pattern, cancel_char) in self_cancel_patterns {
-        if lower.contains(pattern) {
-            self_cancel = insert_cancel_char(&self_cancel, pattern, cancel_char);
+        if let Some(pos) = lower.find(pattern) {
+            // Check if there's a vowel BEFORE the pattern
+            // If yes, skip cancel (pattern is not the primary vowel)
+            // Examples:
+            //   "goon" - no vowel before 'oo' → generate cancel ✓
+            //   "career" - has 'a' before 'ee' → skip cancel ✓
+            //   "boom" - no vowel before 'oo' → generate cancel ✓
+            //   "doreen" - has 'o' before 'ee' → skip cancel ✓
+            //   "casebook" - has 'a','e' before 'oo' → skip cancel ✓
+            let has_vowel_before = chars[..pos].iter().any(|&c| is_vowel(c));
+
+            // The has_vowel_before check handles all cases:
+            // - "however" (h-ow-ever) → no vowel before 'ow' → generate cancel ✓
+            // - "below" (b-e-l-ow) → has 'e' before 'ow' → skip cancel ✓
+            // - "narrow" (n-a-rr-ow) → has 'a' before 'ow' → skip cancel ✓
+            // - "middle" (m-i-dd-le) → has 'i' before 'dd' → skip cancel ✓
+
+            if !has_vowel_before {
+                self_cancel = insert_cancel_char(&self_cancel, pattern, cancel_char);
+            }
         }
     }
 
