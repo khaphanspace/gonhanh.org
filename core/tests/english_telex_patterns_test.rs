@@ -396,22 +396,23 @@ fn test_english_telex_patterns_restore() {
             println!("{:<15} {:<12} {:<12} {:<12}", input, expected, actual, buffer);
         }
 
-        // Write failures to file for debugging
+        // Write failures to file
         use std::io::Write;
-        if let Ok(mut f) = std::fs::File::create("tests/data/english_100k_typing_variants_failures.txt") {
-            writeln!(f, "# English 100k Typing Variants Failures").ok();
+        if let Ok(mut f) = std::fs::File::create("tests/data/english_100k_failures_variants.txt") {
+            writeln!(f, "# English 100k Failures - Typing Variants").ok();
+            writeln!(f, "# Tests self-cancel patterns (schoool → school)").ok();
             writeln!(f, "# Format: INPUT \\t EXPECTED \\t ACTUAL \\t BUFFER").ok();
-            writeln!(f, "# Total failures: {}", failures.len()).ok();
+            writeln!(f, "# Total: {}", failures.len()).ok();
             writeln!(f, "#").ok();
-            writeln!(f, "# INPUT: what was typed").ok();
-            writeln!(f, "# EXPECTED: original English word").ok();
+            writeln!(f, "# INPUT: variant typed (e.g., schoool)").ok();
+            writeln!(f, "# EXPECTED: original English word (e.g., school)").ok();
             writeln!(f, "# ACTUAL: engine output").ok();
             writeln!(f, "# BUFFER: Vietnamese transform state").ok();
             writeln!(f).ok();
             for (input, expected, actual, buffer) in &failures {
                 writeln!(f, "{}\t{}\t{}\t{}", input, expected, actual, buffer).ok();
             }
-            println!("\nFull list: tests/data/english_100k_typing_variants_failures.txt");
+            println!("\nWritten to: tests/data/english_100k_failures_variants.txt");
         }
     }
 

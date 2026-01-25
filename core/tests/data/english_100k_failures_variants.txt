@@ -1,9 +1,10 @@
-# English 100k Typing Variants Failures
+# English 100k Failures - Typing Variants
+# Tests self-cancel patterns (schoool → school)
 # Format: INPUT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 3504
+# Total: 3504
 #
-# INPUT: what was typed
-# EXPECTED: original English word
+# INPUT: variant typed (e.g., schoool)
+# EXPECTED: original English word (e.g., school)
 # ACTUAL: engine output
 # BUFFER: Vietnamese transform state
 
