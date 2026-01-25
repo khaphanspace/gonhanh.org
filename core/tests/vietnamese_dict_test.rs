@@ -64,7 +64,7 @@ fn vietnamese_dictionary_coverage() {
     {
         use std::fs::File;
         use std::io::Write;
-        if let Ok(mut f) = File::create("tests/data/vietnamese_failures.txt") {
+        if let Ok(mut f) = File::create("tests/data/vietnamese_22k_failures.txt") {
             for (input, expected, actual) in &failures {
                 let _ = writeln!(f, "{}\t{}\t{}", input, expected, actual);
             }

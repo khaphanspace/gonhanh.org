@@ -32,6 +32,7 @@ help:
 	@echo "  watch       Tail debug log"
 	@echo "  perf        Check RAM/leaks"
 	@echo "  test-22k    Run heavy 22k tests + gen typing orders"
+	@echo "  test-100k   Run English 100k tests"
 	@echo ""
 	@echo "\033[1;32mInstall:\033[0m"
 	@echo "  setup       Setup dev environment"
@@ -76,7 +77,7 @@ clean: ## Clean build + settings
 # Debug
 # ============================================================================
 
-.PHONY: watch perf test-22k
+.PHONY: watch perf test-22k test-100k
 watch:
 	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
 	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
@@ -84,6 +85,10 @@ watch:
 
 test-22k: ## Run heavy 22k tests + generate typing orders
 	@cd core && cargo test -- --ignored --nocapture
+
+test-100k: ## Run English 100k tests
+	@cd core && cargo test --test english_100k_test -- --nocapture
+	@cd core && cargo test --test english_telex_patterns_test -- --nocapture
 
 perf:
 	@PID=$$(pgrep -f "GoNhanh.app" | head -1); \
