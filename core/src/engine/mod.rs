@@ -6874,7 +6874,10 @@ impl Engine {
                 let is_vietnamese_cim_word = (c1 == keys::I
                     && matches!(c0, keys::B | keys::D | keys::M | keys::T))
                     || (c1 == keys::E
-                        && matches!(c0, keys::K | keys::L | keys::M | keys::N | keys::S | keys::T));
+                        && matches!(
+                            c0,
+                            keys::K | keys::L | keys::M | keys::N | keys::S | keys::T
+                        ));
 
                 if !is_vietnamese_cim_word {
                     // Not a known Vietnamese word → English plural pattern
