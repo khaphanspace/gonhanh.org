@@ -1142,7 +1142,8 @@ impl Engine {
         // Example: "booo" → "boo" (revert), then "s" → "boos" (not "boós")
         // Example: "seee" → "see" (revert), then "m" → "seem" (not "seém")
         // This applies to ALL subsequent keys until word ends (space/break clears flag)
-        let skip_after_revert = self.had_circumflex_revert;
+        // EXCEPTION: Vietnamese triple-o words (boóng, choòng, đoòng, etc.) should still accept modifiers
+        let skip_after_revert = self.had_circumflex_revert && !self.is_vietnamese_triple_o_word();
 
         // Check modifiers by scanning buffer for patterns
 
@@ -5119,6 +5120,69 @@ impl Engine {
             && buffer_keys[2] == keys::U
         {
             return true; // ươu at word start without initial is invalid
+        }
+
+        false
+    }
+
+    /// Check if buffer matches a Vietnamese triple-o word pattern
+    ///
+    /// Vietnamese has rare words with literal double-o (not circumflex):
+    /// - boóng, choòng, coóc, đoòng, goòng, moóc, soóc, toòng
+    ///
+    /// When typing these words, user types triple-o (ooo) which reverts circumflex to oo.
+    /// After revert, tone modifiers (s, f) should STILL be applied.
+    /// This function identifies these patterns to allow tone modifier application.
+    fn is_vietnamese_triple_o_word(&self) -> bool {
+        if self.buf.len() < 2 {
+            return false;
+        }
+
+        let keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
+
+        // Check for double O in buffer
+        let has_double_o = keys
+            .windows(2)
+            .any(|pair| pair[0] == keys::O && pair[1] == keys::O);
+        if !has_double_o {
+            return false;
+        }
+
+        // Valid initials for Vietnamese triple-o words:
+        // Single: B, C, G, M, S, T
+        // Double: CH, Đ (stroke D)
+        let first_key = keys[0];
+
+        // Check: [initial] + O + O (at positions 1,2 or 2,3 for CH)
+        // Single consonant initials: B, C, G, M, S, T
+        if matches!(
+            first_key,
+            keys::B | keys::C | keys::G | keys::M | keys::S | keys::T
+        ) && keys.len() >= 3
+            && keys[1] == keys::O
+            && keys[2] == keys::O
+        {
+            return true;
+        }
+
+        // CH initial: CH + O + O
+        if keys.len() >= 4
+            && first_key == keys::C
+            && keys[1] == keys::H
+            && keys[2] == keys::O
+            && keys[3] == keys::O
+        {
+            return true;
+        }
+
+        // Đ (stroke D) initial: D(stroke) + O + O
+        if keys.len() >= 3
+            && first_key == keys::D
+            && self.buf.iter().next().map(|c| c.stroke).unwrap_or(false)
+            && keys[1] == keys::O
+            && keys[2] == keys::O
+        {
+            return true;
         }
 
         false

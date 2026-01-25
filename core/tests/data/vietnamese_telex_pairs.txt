@@ -16123,7 +16123,6 @@ lorwn	lởn
 los	ló
 losc	lóc
 losco	lốc
-lose	lóe
 losi	lói
 losio	lối
 losiw	lới
@@ -21169,10 +21168,8 @@ owxm	ỡm
 oxmw	ỡm
 oxwm	ỡm
 pa	pa
-pacs	pác
 pan	pan
 pao	pao
-paps	páp
 pasc	pác
 pasp	páp
 pe	pe
@@ -22757,7 +22754,6 @@ rese	rế
 resech	rếch
 resen	rến
 resep	rếp
-reset	rết
 resn	rén
 resne	rến
 reso	réo
@@ -23810,7 +23806,6 @@ sawst	sắt
 sawtj	sặt
 sawts	sắt
 sawxn	sẵn
-sax	sã
 saxam	sẫm
 saxi	sãi
 saxma	sẫm
@@ -24964,7 +24959,6 @@ tesp	tép
 test	tét
 teste	tết
 tesue	tếu
-tete	têt
 tetes	tết
 tetj	tẹt
 tets	tét
