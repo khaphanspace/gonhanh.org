@@ -5304,8 +5304,8 @@ impl Engine {
     ///
     /// For partial patterns (no final), we only match triple-o word initials.
     fn is_vietnamese_triple_o_word(&self) -> bool {
-        if self.buf.len() < 3 {
-            // Minimum: initial + OO (e.g., BOO = 3 chars for partial)
+        if self.buf.len() < 2 {
+            // Minimum: OO (2 chars for vowel-initial pattern) or initial + OO (3 chars)
             return false;
         }
 
@@ -5339,7 +5339,11 @@ impl Engine {
         let ch_initial_match =
             first_key == keys::C && len >= 2 && keys[1] == keys::H && oo_pos == 2;
 
-        if !single_initial_match && !ch_initial_match {
+        // Vowel-initial: OO at position 0 (no consonant initial)
+        // Example: "ooosng" → "oóng", "ooosfng" → "oòng"
+        let vowel_initial_match = first_key == keys::O && oo_pos == 0;
+
+        if !single_initial_match && !ch_initial_match && !vowel_initial_match {
             return false;
         }
 
@@ -5352,10 +5356,12 @@ impl Engine {
         // Allow: B, CH, D, G, T, S (Vietnamese triple-o patterns)
         // B is included: "booos" → "boó" (mark applied, auto-restored if consonant follows)
         // Exclude: C, M (collide with English "coos", "moos")
+        // Also allow vowel-initial: "ooo" → "oo" + tone
         let oo_at_end = oo_pos + 2 == len;
         let safe_partial_initial =
             matches!(first_key, keys::B | keys::D | keys::G | keys::T | keys::S);
-        (ch_initial_match || (safe_partial_initial && single_initial_match)) && oo_at_end
+        (ch_initial_match || vowel_initial_match || (safe_partial_initial && single_initial_match))
+            && oo_at_end
     }
 
     /// Check if raw_input is valid English (for unified auto-restore logic)
@@ -7781,6 +7787,10 @@ mod tests {
             ("dooongfd", "đoòng"), // d + ooo + ng + f + d → đoòng (stroke at end)
             // Typing order: mark BEFORE double-o (b + o + s + oo + ng)
             ("bosoong", "boóng"), // b + o + s + oo + ng → boóng (mark before oo)
+            // Vowel-initial triple-o words (no consonant initial)
+            ("ooosng", "oóng"), // ooo + s + ng → oóng
+            ("ooofng", "oòng"), // ooo + f + ng → oòng
+            ("ooongs", "oóng"), // ooo + ng + s → oóng (tone after final)
         ];
 
         for (input, expected) in cases {

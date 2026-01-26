@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 491
+# Total failures: 492
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -410,6 +410,7 @@ awacs	awacs	awacs	ấc	ăacs
 laa	laa	laa	lâ	lâ
 oon	oon	oon	ôn	ôn
 lowa	lowa	lowa	lơa	lơa
+oost	ooost	oost	oót	ôost
 oost	oost	oost	ốt	ôst
 deedee	deeedeee	deedee	deedeee	dêedêe
 deedee	deedee	deedee	đêee	dêdê
