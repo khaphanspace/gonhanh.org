@@ -23,6 +23,8 @@ struct UpdateView: View {
             availableView(info)
         case .downloading(let progress):
             downloadingView(progress)
+        case .readyToInstall:
+            readyToInstallView
         case .installing:
             installingView
         case .error(let message):
@@ -258,6 +260,43 @@ struct UpdateView: View {
             }
             .buttonStyle(.plain)
             .foregroundColor(Color(NSColor.secondaryLabelColor))
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 32)
+    }
+
+    private var readyToInstallView: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.1))
+                    .frame(width: 64, height: 64)
+
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .font(.system(size: 36))
+                    .foregroundColor(.orange)
+            }
+
+            VStack(spacing: 8) {
+                Text("Sẵn sàng cập nhật")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(NSColor.labelColor))
+
+                Text("Nhấn nút bên dưới để khởi động lại")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+            }
+
+            Button {
+                updateManager.installReadyUpdate()
+            } label: {
+                Text("Khởi động lại để cập nhật")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 200)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
             .padding(.top, 8)
         }
         .padding(.horizontal, 32)

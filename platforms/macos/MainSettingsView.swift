@@ -36,13 +36,11 @@ class SoundManager {
 
 enum NavigationPage: String, CaseIterable {
     case settings = "Cài đặt"
-    case system = "Hệ thống"
     case about = "Giới thiệu"
 
     var icon: String {
         switch self {
         case .settings: return "gearshape"
-        case .system: return "slider.horizontal.3"
         case .about: return "bolt.fill"
         }
     }
@@ -51,11 +49,12 @@ enum NavigationPage: String, CaseIterable {
 // MARK: - Update Status
 
 enum UpdateStatus: Equatable {
-    case idle, checking, upToDate, available(String), downloading(Double), installing, error
+    case idle, checking, upToDate, available(String), downloading(Double), readyToInstall, installing, error
 
     var isChecking: Bool { if case .checking = self { return true }; return false }
     var isAvailable: Bool { if case .available = self { return true }; return false }
     var isDownloading: Bool { if case .downloading = self { return true }; return false }
+    var isReadyToInstall: Bool { if case .readyToInstall = self { return true }; return false }
     var isInstalling: Bool { if case .installing = self { return true }; return false }
     var isBusy: Bool { isChecking || isDownloading || isInstalling }
 
@@ -315,10 +314,11 @@ class AppState: ObservableObject {
         case .checking: updateStatus = .checking
         case .available(let info):
             updateStatus = .available(info.version)
-            // Auto-update if enabled
-            if autoUpdate { UpdateManager.shared.downloadUpdate(info) }
+            // Auto-download if auto-check is enabled
+            if autoCheckUpdate { UpdateManager.shared.downloadUpdate(info) }
         case .upToDate: updateStatus = .upToDate
         case .downloading(let progress): updateStatus = .downloading(progress)
+        case .readyToInstall: updateStatus = .readyToInstall
         case .installing: updateStatus = .installing
         case .error: updateStatus = .error
         }
@@ -538,8 +538,27 @@ struct SettingsToggleRow: View {
 
 struct KeyCap: View {
     let text: String
+
+    private var displayText: String {
+        switch text {
+        // Modifiers
+        case "⌃": return "⌃ control"
+        case "⌥": return "⌥ option"
+        case "⇧": return "⇧ shift"
+        case "⌘": return "⌘ command"
+        case "fn": return "fn"
+        // Special keys
+        case "Esc", "⎋": return "⎋ esc"
+        case "Tab", "⇥": return "⇥ tab"
+        case "Space", "␣": return "␣ space"
+        case "Return", "↩": return "↩ return"
+        case "Delete", "⌫": return "⌫ delete"
+        default: return text
+        }
+    }
+
     var body: some View {
-        Text(text)
+        Text(displayText)
             .font(.system(size: 11, weight: .medium))
             .foregroundColor(Color(NSColor.secondaryLabelColor))
             .padding(.horizontal, 6)
@@ -706,6 +725,11 @@ struct MainSettingsView: View {
 
             Spacer()
 
+            // Update ready button - show when download complete
+            if appState.updateStatus.isReadyToInstall {
+                updateReadyButton
+            }
+
             VStack(spacing: 4) {
                 ForEach(NavigationPage.allCases, id: \.self) { page in
                     NavButton(page: page, isSelected: selectedPage == page) { selectedPage = page }
@@ -716,6 +740,26 @@ struct MainSettingsView: View {
         }
     }
 
+    private var updateReadyButton: some View {
+        Button {
+            UpdateManager.shared.installReadyUpdate()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12))
+                Text("Khởi động lại để cập nhật")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(Color.orange))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
+    }
+
     // MARK: - Content
 
     @ViewBuilder
@@ -724,11 +768,6 @@ struct MainSettingsView: View {
         case .settings:
             ScrollView(showsIndicators: false) {
                 SettingsPageView(appState: appState).padding(28)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .system:
-            ScrollView(showsIndicators: false) {
-                SystemPageView(appState: appState).padding(28)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .about:
@@ -752,6 +791,7 @@ struct UpdateBadgeView: View {
         case .upToDate: return "Mới nhất"
         case .available: return "Cập nhật"
         case .downloading(let p): return "Tải \(Int(p * 100))%"
+        case .readyToInstall: return "Sẵn sàng"
         case .installing: return "Cài đặt..."
         case .error: return "Thất bại"
         }
@@ -762,6 +802,7 @@ struct UpdateBadgeView: View {
         case .upToDate: return ("checkmark.circle.fill", .green)
         case .available: return ("arrow.up.circle.fill", .orange)
         case .downloading: return ("arrow.down.circle.fill", .blue)
+        case .readyToInstall: return ("arrow.clockwise.circle.fill", .orange)
         case .installing: return ("gearshape.circle.fill", .blue)
         case .error: return ("exclamationmark.triangle.fill", .orange)
         default: return nil
@@ -907,6 +948,14 @@ struct SettingsPageView: View {
                 shortcutsRow
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Âm thanh khi bật/tắt", isOn: $appState.soundEnabled)
+            }
+            .cardBackground()
+
+            // Hệ thống
+            VStack(spacing: 0) {
+                LaunchAtLoginToggleRow(appState: appState)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Tự động kiểm tra cập nhật", isOn: $appState.autoCheckUpdate)
             }
             .cardBackground()
 
@@ -1164,174 +1213,6 @@ struct ShortcutsSheet: View {
     }
 }
 
-// MARK: - System Page
-
-struct SystemPageView: View {
-    @ObservedObject var appState: AppState
-    @State private var hovered = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Startup settings
-            VStack(spacing: 0) {
-                LaunchAtLoginToggleRow(appState: appState)
-            }
-            .cardBackground()
-
-            // Update settings
-            VStack(spacing: 0) {
-                SettingsToggleRow("Tự động kiểm tra cập nhật", isOn: $appState.autoCheckUpdate)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow(
-                    "Tự động cập nhật",
-                    subtitle: "Tự tải và cài đặt ở nền khi có bản mới",
-                    isOn: $appState.autoUpdate
-                )
-                Divider().padding(.leading, 12)
-                checkUpdateRow
-            }
-            .cardBackground()
-
-            Spacer()
-        }
-    }
-
-    @State private var rotation: Double = 0
-
-    private var checkUpdateRow: some View {
-        VStack(spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("Phiên bản \(AppMetadata.version)").font(.system(size: 13))
-                        statusBadge
-                    }
-                    changelogLink
-                }
-                Spacer()
-                checkButton
-            }
-
-            // Download progress bar
-            if let progress = appState.updateStatus.downloadProgress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .tint(.blue)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
-        .contentShape(Rectangle())
-        .onHover { hovered = $0 }
-    }
-
-    @ViewBuilder
-    private var statusBadge: some View {
-        HStack(spacing: 3) {
-            statusIcon
-            if let text = statusText {
-                Text(text).font(.system(size: 11))
-            }
-        }
-        .foregroundColor(statusColor)
-    }
-
-    private var statusColor: Color {
-        switch appState.updateStatus {
-        case .upToDate: return .green
-        case .available: return .orange
-        case .downloading, .installing: return .blue
-        case .error: return .red
-        default: return Color(NSColor.secondaryLabelColor)
-        }
-    }
-
-    @State private var changelogHovered = false
-
-    @ViewBuilder
-    private var changelogLink: some View {
-        Link(destination: URL(string: "\(AppMetadata.repository)/releases")!) {
-            Text("Xem thay đổi")
-                .font(.system(size: 11))
-                .foregroundColor(Color(NSColor.secondaryLabelColor))
-                .underline(changelogHovered)
-        }
-        .buttonStyle(.plain)
-        .onHover { h in
-            changelogHovered = h
-            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
-    }
-
-    @ViewBuilder
-    private var checkButton: some View {
-        switch appState.updateStatus {
-        case .checking:
-            ProgressView()
-                .controlSize(.regular)
-        case .available:
-            Button("Cập nhật") { performUpdate() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-        case .downloading:
-            Button("Hủy") { UpdateManager.shared.cancelDownload() }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-        case .installing:
-            ProgressView()
-                .controlSize(.regular)
-        default:
-            Button("Kiểm tra") { appState.checkForUpdates() }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-        }
-    }
-
-    @ViewBuilder
-    private var statusIcon: some View {
-        switch appState.updateStatus {
-        case .checking:
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 10))
-                .rotationEffect(.degrees(rotation))
-                .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
-                .onDisappear { rotation = 0 }
-        case .upToDate:
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 10))
-        case .available:
-            Image(systemName: "arrow.up.circle.fill").font(.system(size: 10))
-        case .downloading:
-            Image(systemName: "arrow.down.circle.fill").font(.system(size: 10))
-        case .installing:
-            Image(systemName: "gearshape.circle.fill").font(.system(size: 10))
-        case .error:
-            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
-        case .idle:
-            EmptyView()
-        }
-    }
-
-    private var statusText: String? {
-        switch appState.updateStatus {
-        case .idle: return nil
-        case .checking: return "Đang kiểm tra..."
-        case .upToDate: return "Mới nhất"
-        case .available(let version): return "v\(version) có sẵn"
-        case .downloading(let p): return "Đang tải \(Int(p * 100))%"
-        case .installing: return "Đang cài đặt..."
-        case .error: return "Lỗi kết nối"
-        }
-    }
-
-    private func performUpdate() {
-        if case .available(let info) = UpdateManager.shared.state {
-            UpdateManager.shared.downloadUpdate(info)
-            NotificationCenter.default.post(name: .showUpdateWindow, object: nil)
-        }
-    }
-}
-
 // MARK: - About Page
 
 struct AboutPageView: View {
@@ -1347,18 +1228,18 @@ struct AboutPageView: View {
             HStack(spacing: 12) {
                 AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
                 AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
-                AboutLink(icon: "heart", title: "Ủng hộ", url: AppMetadata.sponsorURL)
+                AboutLink(icon: "heart.fill", title: "Ủng hộ", url: AppMetadata.sponsorURL, iconColor: .pink)
             }
             Spacer()
-            VStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    Text("Phát triển bởi").foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    AuthorLink(name: AppMetadata.author, url: AppMetadata.authorLinkedin)
-                }
-                .font(.system(size: 12))
-                Text("Từ Việt Nam với ❤️").font(.system(size: 11)).foregroundColor(Color(NSColor.tertiaryLabelColor))
+            HStack(spacing: 4) {
+                Text("Phát triển bởi").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                AuthorLink(name: AppMetadata.author, url: AppMetadata.authorLinkedin)
+                Text("và").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                AuthorLink(name: "Cộng đồng", url: "\(AppMetadata.repository)/blob/main/CONTRIBUTORS.md")
+                Text("từ Việt Nam với tất cả ❤️").foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
-            .padding(.bottom, 8)
+            .font(.system(size: 12))
+            .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -1368,12 +1249,15 @@ struct AboutLink: View {
     let icon: String
     let title: String
     let url: String
+    var iconColor: Color? = nil
     @State private var hovered = false
 
     var body: some View {
         Link(destination: URL(string: url)!) {
             VStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 18))
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(iconColor)
                 Text(title).font(.system(size: 11))
             }
             .frame(width: 80, height: 60)
@@ -1603,16 +1487,11 @@ struct AutoCapitalizeRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Tự viết hoa đầu câu").font(.system(size: 13))
                 if appState.autoCapitalize {
-                    HStack(spacing: 4) {
-                        Text(subtitleText)
-                            .font(.system(size: 11))
-                            .foregroundColor(hovered ? .accentColor : Color(NSColor.secondaryLabelColor))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundColor(hovered ? .accentColor : Color(NSColor.tertiaryLabelColor))
-                    }
-                    .onHover { hovered = $0 }
-                    .onTapGesture { showSheet = true }
+                    Text(subtitleText)
+                        .font(.system(size: 11))
+                        .foregroundColor(hovered ? Color(NSColor.labelColor) : Color(NSColor.secondaryLabelColor))
+                        .onHover { hovered = $0 }
+                        .onTapGesture { showSheet = true }
                 }
             }
             Spacer()
