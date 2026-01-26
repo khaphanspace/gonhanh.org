@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 490
+# Total failures: 491
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -436,6 +436,7 @@ eets	eets	eets	ết	êts
 poof	poof	poof	pồ	pôf
 oaa	oaa	oaa	oâ	oâ
 kaw	kaww	kaw	kaww	kăw
+doodling	dooodling	doodling	dooling	dôodling
 thaws	thaws	thaws	thắ	thăs
 kawashima	kawwashima	kawashima	kawwashima	kăwashima
 kuwaitis	kuwwaitis	kuwaitis	kuwwaitis	kưwaitis

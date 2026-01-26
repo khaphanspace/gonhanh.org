@@ -1020,7 +1020,13 @@ impl Engine {
             let mut buf_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
             buf_keys.push(key);
 
-            if !is_valid(&raw_keys) && !is_valid(&buf_keys) {
+            // EXCEPTION: Vietnamese triple-o words (đoòng, etc.)
+            // These have literal double-o which fails standard validation,
+            // but they are valid Vietnamese words when completing the pattern
+            // Example: buffer [đ,o,o] + 'n' → "đoon" - part of đoòng pattern
+            let is_triple_o_word = self.is_vietnamese_triple_o_word();
+
+            if !is_valid(&raw_keys) && !is_valid(&buf_keys) && !is_triple_o_word {
                 // Invalid pattern - revert stroke and rebuild from raw_input
                 if let Some(raw_chars) = self.build_raw_chars() {
                     // Calculate backspace: screen shows buffer content (e.g., "đe")
@@ -7608,6 +7614,11 @@ mod tests {
             ("tooongf", "toòng"),   // tooo + ng + f → toòng
             // đoòng with stroke (dd) + triple-o
             ("ddooongf", "đoòng"), // dd + ooo + ng + f → đoòng
+            ("dooongdf", "đoòng"),
+            ("dooodngf", "đoòng"),
+            ("dooodfng", "đoòng"),
+            ("dooofdng", "đoòng"),
+            ("dooongfd", "đoòng"),
             // Alternative typing order: stroke at end
             ("dooongfd", "đoòng"), // d + ooo + ng + f + d → đoòng (stroke at end)
         ];
