@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/../platforms/macos/dmg-resources"
+OUTPUT_DIR="$SCRIPT_DIR/../../platforms/macos/dmg-resources"
 mkdir -p "$OUTPUT_DIR"
 
 # DMG window dimensions

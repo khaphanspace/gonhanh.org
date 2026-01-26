@@ -95,11 +95,10 @@ gonhanh.org/
 │       └── libgonhanh_core.so    # Compiled Rust shared library (x86_64)
 │
 ├── scripts/                     # Build automation
-│   ├── setup.sh                # Environment setup (installs Rust, arms cargo-nextest)
-│   ├── build-core.sh           # Build universal Rust library (arm64 + x86_64)
-│   ├── build-macos.sh          # Build macOS SwiftUI app + DMG
-│   ├── build-windows.ps1       # PowerShell build script for Windows
-│   └── generate-release-notes.sh # Release notes generator
+│   ├── build/                  # Build scripts (core.sh, macos.sh, windows.sh)
+│   ├── setup/                  # Setup scripts (macos.sh, windows.ps1, linux.sh)
+│   ├── release/                # Release (dmg.sh, notes.sh, contributors.js)
+│   └── test/                   # Test scripts (benchmark.sh, typing.swift)
 │
 ├── Makefile                    # Main build targets
 ├── .github/workflows/          # CI/CD automation

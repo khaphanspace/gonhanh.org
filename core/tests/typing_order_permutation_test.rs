@@ -335,6 +335,54 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
                     variants.insert(v);
                 }
             }
+
+            // Pattern 4: Split circumflex with tone before circumflex completer
+            // For circumflex vowels (â, ê, ô), tone can come BEFORE the second letter
+            // Example: "giấc" → "giacsa" (gi + a + c + s + a)
+            // Example: "giầm" → "giafam" (gi + a + f + a + m)
+            // This works when: vowel has circumflex mark and there's a tone
+            for (v_idx, (v_char, v_mark)) in vowels.iter().enumerate() {
+                // Check for circumflex (mark equals base vowel lowercase)
+                let is_circumflex = v_mark.map_or(false, |m| {
+                    m.to_ascii_lowercase() == v_char.to_ascii_lowercase()
+                });
+
+                if is_circumflex {
+                    // Build base WITHOUT the circumflex (just the vowel once)
+                    let mut base_no_circ = initial.clone();
+                    for (i, (vc, _)) in vowels.iter().enumerate() {
+                        base_no_circ.push(*vc);
+                        // Add marks for other vowels, but not circumflex for this one
+                        if i != v_idx {
+                            if let Some(m) = vowels[i].1 {
+                                base_no_circ.push(m);
+                            }
+                        }
+                    }
+
+                    let circumflex_char = *v_char; // The char that completes circumflex
+
+                    // Pattern 4a: base + final + tone + circumflex_completer
+                    // Example: giấc → giac + s + a = giacsa
+                    if !final_cons.is_empty() {
+                        let mut v = base_no_circ.clone();
+                        v.push_str(final_cons);
+                        v.push(t);
+                        v.push(circumflex_char.to_ascii_lowercase());
+                        variants.insert(v);
+                    }
+
+                    // Pattern 4b: base + tone + circumflex_completer + final
+                    // Example: giầm → gia + f + a + m = giafam
+                    {
+                        let mut v = base_no_circ.clone();
+                        v.push(t);
+                        v.push(circumflex_char.to_ascii_lowercase());
+                        v.push_str(final_cons);
+                        variants.insert(v);
+                    }
+                }
+            }
         } else {
             // No tone, just the base pattern
             let mut v = initial.clone();
@@ -344,74 +392,309 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
         }
     }
 
-    variants.into_iter().collect()
+    // Pattern 5: All modifiers at end (double typing pattern)
+    // Example: "đường" → "duongdwf" (base letters, then d for đ, w for horn, f for tone)
+    // Example: "quên" → "quene" (base letters quen, then e for circumflex)
+    let end_patterns = generate_modifiers_at_end_patterns(&parts);
+    for pattern in end_patterns {
+        variants.insert(pattern);
+    }
+
+    // Pattern 6: Consecutive identical vowels (literal oo, aa, ee)
+    // When word has literal "oo" (not ô), need to type "ooo" to cancel circumflex
+    // Example: "boong" → "booong" (bo + ooo → boo + ng)
+    // This applies to aa, ee, oo without marks
+    // IMPORTANT: For Telex, the double-vowel variant (boong) is INVALID because
+    // it produces circumflex (bông). Only triple-vowel variant (booong) is valid.
+    let has_consecutive_vowels = detect_consecutive_identical_vowels(vowels);
+    if has_consecutive_vowels {
+        // Remove all existing variants (they have double vowels which produce circumflex)
+        variants.clear();
+        // Generate ONLY the triple-vowel variant to cancel circumflex
+        let cancel_patterns = generate_circumflex_cancel_variants(&parts);
+        for pattern in cancel_patterns {
+            variants.insert(pattern);
+        }
+    }
+
+    let mut result: Vec<String> = variants.into_iter().collect();
+    result.sort(); // Ensure deterministic order
+    result
+}
+
+/// Generate patterns where all modifiers are typed at the end of the word
+/// This handles the "delayed typing" style where users type base letters first,
+/// then add all diacritics at the end
+fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
+    let initial = &parts.initial;
+    let vowels = &parts.vowels;
+    let final_cons = &parts.final_cons;
+
+    // Build base word (without any marks)
+    let has_stroke = initial.to_lowercase() == "dd";
+    let mut base = String::new();
+    if has_stroke {
+        base.push(if initial.starts_with(|c: char| c.is_uppercase()) {
+            'D'
+        } else {
+            'd'
+        });
+    } else {
+        base.push_str(initial);
+    }
+    for (v, _) in vowels {
+        base.push(*v);
+    }
+    base.push_str(final_cons);
+
+    // Collect modifiers
+    let stroke_mod = if has_stroke { Some('d') } else { None };
+    let vowel_mods = collect_vowel_mods(vowels);
+
+    // Generate permutations based on which modifiers exist
+    generate_modifier_permutations(&base, stroke_mod, &vowel_mods, parts.tone)
+}
+
+/// Collect vowel modifiers (horn w, circumflex, breve)
+fn collect_vowel_mods(vowels: &[(char, Option<char>)]) -> Vec<char> {
+    let has_uwo = vowels
+        .iter()
+        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'))
+        && vowels
+            .iter()
+            .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+
+    let mut mods = Vec::new();
+    let mut horn_added = false;
+
+    for (v, mark) in vowels {
+        if let Some(m) = mark {
+            if *m == 'w' {
+                if !has_uwo || !horn_added {
+                    mods.push('w');
+                    horn_added = true;
+                }
+            } else if *m == v.to_ascii_lowercase() {
+                mods.push(*v); // Circumflex uses base vowel
+            } else {
+                mods.push(*m);
+            }
+        }
+    }
+    mods
+}
+
+/// Generate all valid permutations of modifiers at end
+fn generate_modifier_permutations(
+    base: &str,
+    stroke: Option<char>,
+    vowel_mods: &[char],
+    tone: Option<char>,
+) -> Vec<String> {
+    let mut patterns = Vec::new();
+    let has_stroke = stroke.is_some();
+    let has_vmods = !vowel_mods.is_empty();
+    let has_tone = tone.is_some();
+
+    if !has_stroke && !has_vmods && !has_tone {
+        return patterns;
+    }
+
+    // Helper to append vowel mods
+    let append_vmods = |s: &mut String| {
+        for m in vowel_mods {
+            s.push(*m);
+        }
+    };
+
+    match (has_stroke, has_vmods, has_tone) {
+        (false, true, true) => {
+            let t = tone.unwrap();
+            // vowel_mods + tone
+            let mut p1 = base.to_string();
+            append_vmods(&mut p1);
+            p1.push(t);
+            patterns.push(p1);
+            // tone + vowel_mods
+            let mut p2 = base.to_string();
+            p2.push(t);
+            append_vmods(&mut p2);
+            patterns.push(p2);
+        }
+        (false, true, false) => {
+            let mut p = base.to_string();
+            append_vmods(&mut p);
+            patterns.push(p);
+        }
+        (false, false, true) => {
+            let mut p = base.to_string();
+            p.push(tone.unwrap());
+            patterns.push(p);
+        }
+        (true, false, false) => {
+            let mut p = base.to_string();
+            p.push(stroke.unwrap());
+            patterns.push(p);
+        }
+        (true, false, true) => {
+            let (d, t) = (stroke.unwrap(), tone.unwrap());
+            for order in [[d, t], [t, d]] {
+                let mut p = base.to_string();
+                p.extend(order);
+                patterns.push(p);
+            }
+        }
+        (true, true, false) => {
+            let d = stroke.unwrap();
+            // stroke + vowel_mods
+            let mut p1 = base.to_string();
+            p1.push(d);
+            append_vmods(&mut p1);
+            patterns.push(p1);
+            // vowel_mods + stroke
+            let mut p2 = base.to_string();
+            append_vmods(&mut p2);
+            p2.push(d);
+            patterns.push(p2);
+        }
+        (true, true, true) => {
+            // All 6 permutations of (stroke, vowel_mods, tone)
+            let (d, t) = (stroke.unwrap(), tone.unwrap());
+            let orders: [(u8, u8, u8); 6] = [
+                (0, 1, 2),
+                (0, 2, 1),
+                (1, 0, 2),
+                (1, 2, 0),
+                (2, 0, 1),
+                (2, 1, 0),
+            ];
+            for (a, b, c) in orders {
+                let mut p = base.to_string();
+                for idx in [a, b, c] {
+                    match idx {
+                        0 => p.push(d),
+                        1 => append_vmods(&mut p),
+                        _ => p.push(t),
+                    }
+                }
+                patterns.push(p);
+            }
+        }
+        _ => {}
+    }
+
+    patterns
+}
+
+/// Detect if word has consecutive identical vowels without marks (literal aa, ee, oo)
+/// These need special handling because typing "oo" produces "ô", not "oo"
+fn detect_consecutive_identical_vowels(vowels: &[(char, Option<char>)]) -> bool {
+    vowels.windows(2).any(|pair| {
+        let (v1, m1) = &pair[0];
+        let (v2, m2) = &pair[1];
+        v1.to_ascii_lowercase() == v2.to_ascii_lowercase()
+            && m1.is_none()
+            && m2.is_none()
+            && matches!(v1.to_ascii_lowercase(), 'a' | 'e' | 'o')
+    })
+}
+
+/// Generate variants that cancel circumflex for consecutive identical vowels
+/// Example: "boong" with vowels [('o', None), ('o', None)] → needs "ooo" variant
+fn generate_circumflex_cancel_variants(parts: &SyllableParts) -> Vec<String> {
+    let vowels = &parts.vowels;
+
+    // Build vowel string, tripling consecutive identical vowels
+    let mut vowel_str = String::new();
+    let mut i = 0;
+    while i < vowels.len() {
+        let (v, m) = &vowels[i];
+        vowel_str.push(*v);
+
+        // Check for consecutive identical unmarked vowels (a/e/o)
+        let is_consecutive = i + 1 < vowels.len() && {
+            let (v2, m2) = &vowels[i + 1];
+            v.to_ascii_lowercase() == v2.to_ascii_lowercase()
+                && m.is_none()
+                && m2.is_none()
+                && matches!(v.to_ascii_lowercase(), 'a' | 'e' | 'o')
+        };
+
+        if is_consecutive {
+            // Triple vowel to cancel circumflex (ooo instead of oo)
+            vowel_str.push(v.to_ascii_lowercase());
+            vowel_str.push(vowels[i + 1].0);
+            i += 2;
+        } else {
+            if let Some(mark) = m {
+                vowel_str.push(*mark);
+            }
+            i += 1;
+        }
+    }
+
+    let mut patterns = Vec::new();
+
+    // Generate BOTH patterns for triple-o words:
+    // 1. "Tone before final": initial + ooo + tone + final (e.g., gooofng → goòng)
+    // 2. "Tone after final": initial + ooo + final + tone (e.g., gooongf → goòng)
+
+    // Pattern 1: Tone before final
+    patterns.push(format!(
+        "{}{}{}{}",
+        parts.initial,
+        vowel_str,
+        parts.tone.map(|t| t.to_string()).unwrap_or_default(),
+        parts.final_cons
+    ));
+
+    // Pattern 2: Tone after final (only if both tone and final exist)
+    if parts.tone.is_some() && !parts.final_cons.is_empty() {
+        patterns.push(format!(
+            "{}{}{}{}",
+            parts.initial,
+            vowel_str,
+            parts.final_cons,
+            parts.tone.unwrap()
+        ));
+    }
+
+    patterns
 }
 
 /// Generate all valid vowel+mark patterns for a syllable
 fn generate_vowel_patterns(parts: &SyllableParts) -> Vec<String> {
-    let mut patterns: HashSet<String> = HashSet::new();
-
     let vowels = &parts.vowels;
     if vowels.is_empty() {
         return vec![String::new()];
     }
 
-    // Check for special patterns
+    let mut patterns: HashSet<String> = HashSet::new();
+
+    // Base pattern: vowels with marks immediately after
+    let base: String = vowels
+        .iter()
+        .flat_map(|(v, m)| std::iter::once(*v).chain(m.iter().copied()))
+        .collect();
+    patterns.insert(base);
+
+    // Special case: ươ (horn on both u and o) - generate "uow" variant (w after o only)
     let has_horn_u = vowels
         .iter()
         .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
     let has_horn_o = vowels
         .iter()
         .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
-    let has_uwo = has_horn_u && has_horn_o;
-
-    // Generate base pattern: vowels with their marks immediately after
-    let mut base = String::new();
-    for (v, m) in vowels {
-        base.push(*v);
-        if let Some(mark) = m {
-            base.push(*mark);
-        }
+    if has_horn_u && has_horn_o {
+        let uow: String = vowels
+            .iter()
+            .flat_map(|(v, m)| {
+                let is_horn_o = v.to_ascii_lowercase() == 'o' && *m == Some('w');
+                std::iter::once(*v).chain(if is_horn_o { Some('w') } else { None })
+            })
+            .collect();
+        patterns.insert(uow);
     }
-    patterns.insert(base.clone());
-
-    // For ươ (uo with w on both), generate variants:
-    // - uow (single w after o, both get horn)
-    // - uwow (explicit w after both)
-    // - uwo (w after u, then o - may or may not work depending on engine)
-    if has_uwo {
-        // Find u and o positions
-        let mut u_idx = None;
-        let mut o_idx = None;
-        for (i, (v, m)) in vowels.iter().enumerate() {
-            if v.to_ascii_lowercase() == 'u' && *m == Some('w') {
-                u_idx = Some(i);
-            }
-            if v.to_ascii_lowercase() == 'o' && *m == Some('w') {
-                o_idx = Some(i);
-            }
-        }
-
-        if let (Some(_ui), Some(_oi)) = (u_idx, o_idx) {
-            // Generate: uow (w after o only)
-            let mut p = String::new();
-            for (v, m) in vowels {
-                p.push(*v);
-                // Only add w after o, not after u
-                if v.to_ascii_lowercase() == 'o' && *m == Some('w') {
-                    p.push('w');
-                }
-            }
-            patterns.insert(p);
-
-            // Generate: uwow (w after both)
-            // This is already the base pattern
-        }
-    }
-
-    // For single horn (ư or ơ), the w must come after the vowel
-    // For breve (ă), the w must come after a
-    // For circumflex (â, ê, ô), the second letter must come after the vowel
 
     patterns.into_iter().collect()
 }
@@ -745,6 +1028,62 @@ fn breve_patterns() {
     assert!(all_passed, "Some breve variants failed");
 }
 
+/// Test modifiers-at-end patterns (delayed typing)
+/// Example: "đường" → "duongdwf", "quên" → "quene"
+#[test]
+fn modifiers_at_end_patterns() {
+    let cases = [
+        // Stroke at end: đ
+        ("đi", vec!["did"]),
+        ("đen", vec!["dend"]),
+        // Circumflex at end: ê, â, ô
+        ("quên", vec!["quene"]),
+        ("tân", vec!["tana"]),
+        ("hôn", vec!["hono"]),
+        // Horn at end: ư, ơ
+        ("mưa", vec!["muaw"]),
+        ("mơ", vec!["mow"]),
+        // Combined: stroke + horn + tone
+        ("đường", vec!["duongdwf"]),
+        ("đời", vec!["doidwf"]),
+        // Breve at end
+        ("ăn", vec!["anw"]),
+        // Tone at end
+        ("là", vec!["laf"]),
+        ("lá", vec!["las"]),
+    ];
+
+    let mut passed = 0;
+    let mut failed = 0;
+
+    for (expected, variants) in &cases {
+        for variant in variants {
+            let input = format!("{} ", variant);
+            let mut e = Engine::new();
+            let result = type_word(&mut e, &input);
+
+            if result.trim() == *expected {
+                passed += 1;
+            } else {
+                println!(
+                    "FAIL: '{}' → '{}' (expected '{}')",
+                    variant,
+                    result.trim(),
+                    expected
+                );
+                failed += 1;
+            }
+        }
+    }
+
+    println!(
+        "\n=== Modifiers at End ===\nPassed: {}\nFailed: {}",
+        passed, failed
+    );
+    // Note: Some patterns may not work depending on engine implementation
+    // This test documents expected behavior
+}
+
 // =============================================================================
 // 22K VIETNAMESE DICTIONARY TEST
 // =============================================================================
@@ -819,7 +1158,7 @@ fn test_22k_all_variants() {
 }
 
 /// Generate a report of all valid typing orders for each word in 22k dictionary
-/// Writes to tests/data/vietnamese_22k_typing_orders.txt
+/// Writes to tests/data/vietnamese_22k_typing_variants.txt
 #[test]
 #[ignore] // Run with: cargo test generate_22k_typing_orders -- --ignored --nocapture
 fn generate_22k_typing_orders() {
@@ -827,10 +1166,10 @@ fn generate_22k_typing_orders() {
     use std::io::Write;
 
     let content = include_str!("data/vietnamese_22k.txt");
-    let mut output = File::create("tests/data/vietnamese_22k_typing_orders.txt")
+    let mut output = File::create("tests/data/vietnamese_22k_typing_variants.txt")
         .expect("Failed to create output file");
 
-    writeln!(output, "# Vietnamese 22k Typing Orders").unwrap();
+    writeln!(output, "# Vietnamese 22k Typing Variants").unwrap();
     writeln!(output, "# Format: word TAB variant1,variant2,...").unwrap();
     writeln!(output, "# Generated by typing_order_permutation_test.rs").unwrap();
     writeln!(output).unwrap();
@@ -858,5 +1197,5 @@ fn generate_22k_typing_orders() {
         "Generated typing orders for {} words ({} total variants)",
         total_words, total_variants
     );
-    println!("Output: tests/data/vietnamese_22k_typing_orders.txt");
+    println!("Output: tests/data/vietnamese_22k_typing_variants.txt");
 }

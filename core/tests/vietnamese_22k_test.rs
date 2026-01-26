@@ -335,11 +335,11 @@ fn vietnamese_22k_coverage() {
     }
 
     // Write failures to file
-    if let Ok(mut f) = File::create("tests/data/vietnamese_failures.txt") {
+    if let Ok(mut f) = File::create("tests/data/vietnamese_22k_failures.txt") {
         for (word, telex, expected, actual) in &failures {
             let _ = writeln!(f, "{}\t{}\t{}\t{}", word, telex, expected, actual);
         }
-        println!("\nFailures written to tests/data/vietnamese_failures.txt");
+        println!("\nFailures written to tests/data/vietnamese_22k_failures.txt");
     }
 
     // CI threshold: fail if pass rate drops below 99.5%

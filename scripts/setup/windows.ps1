@@ -1,5 +1,5 @@
 # GoNhanh Windows Development Setup Script
-# Run: powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1
+# Run: powershell -ExecutionPolicy Bypass -File scripts/setup/windows.ps1
 
 Write-Host "GoNhanh Windows Setup" -ForegroundColor Cyan
 Write-Host "=====================" -ForegroundColor Cyan
@@ -50,4 +50,4 @@ if (Test-Path $vsWhere) {
 }
 
 Write-Host "`nSetup complete!" -ForegroundColor Green
-Write-Host "Run 'scripts/build-core-windows.ps1' to build the Rust core library." -ForegroundColor Cyan
+Write-Host "Run 'scripts/build/core-windows.ps1' to build the Rust core library." -ForegroundColor Cyan

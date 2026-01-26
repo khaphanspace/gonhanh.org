@@ -189,7 +189,7 @@ Chi tiết: [docs/core-engine-algorithm.md](docs/core-engine-algorithm.md) | [do
 
 ```bash
 # Setup (chạy 1 lần)
-./scripts/setup.sh
+./scripts/setup/macos.sh
 
 # Development
 make test      # Chạy tests

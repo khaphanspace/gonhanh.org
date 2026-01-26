@@ -8,7 +8,7 @@ fi
 
 echo "🦀 Building Rust core..."
 
-cd "$(dirname "$0")/../core"
+cd "$(dirname "$0")/../../core"
 
 # Build for macOS (universal binary)
 echo "Building for aarch64-apple-darwin..."

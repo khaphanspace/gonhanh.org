@@ -1,0 +1,4 @@
+# Vietnamese Telex Auto-Restore Failures (should not be restored)
+# Format: INPUT \t EXPECTED \t ACTUAL
+# Total failures: 0
+

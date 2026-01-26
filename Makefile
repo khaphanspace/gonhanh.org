@@ -21,26 +21,29 @@ help:
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "\033[1;34mDev:\033[0m"
-	@echo "  \033[1;32mtest\033[0m        Run Rust tests"
-	@echo "  \033[1;32mformat\033[0m      Format + lint"
-	@echo "  \033[1;32mbuild\033[0m       Build + auto-open app"
-	@echo "  \033[1;32mbuild-linux\033[0m Build Linux Fcitx5"
-	@echo "  \033[1;32mclean\033[0m       Clean artifacts"
+	@echo "\033[1;32mDev:\033[0m"
+	@echo "  test        Run Rust tests"
+	@echo "  format      Format + lint"
+	@echo "  build       Build + auto-open app"
+	@echo "  build-linux Build Linux Fcitx5"
+	@echo "  clean       Clean artifacts"
 	@echo ""
-	@echo "\033[1;35mDebug:\033[0m"
-	@echo "  \033[1;32mwatch\033[0m       Tail debug log"
-	@echo "  \033[1;32mperf\033[0m        Check RAM/leaks"
+	@echo "\033[1;32mDebug:\033[0m"
+	@echo "  watch       Tail debug log"
+	@echo "  perf        Check RAM/leaks"
+	@echo "  test-dict   Dictionary tests (VN: 100%, EN: 97%)"
+	@echo "  test-22k    Run heavy 22k tests + gen typing orders"
+	@echo "  test-100k   Run English 100k tests"
 	@echo ""
-	@echo "\033[1;33mInstall:\033[0m"
-	@echo "  \033[1;32msetup\033[0m       Setup dev environment"
-	@echo "  \033[1;32minstall\033[0m     Build + copy to /Applications"
-	@echo "  \033[1;32mdmg\033[0m         Create DMG installer"
+	@echo "\033[1;32mInstall:\033[0m"
+	@echo "  setup       Setup dev environment"
+	@echo "  install     Build + copy to /Applications"
+	@echo "  dmg         Create DMG installer"
 	@echo ""
-	@echo "\033[1;31mRelease:\033[0m"
-	@echo "  \033[1;32mrelease\033[0m       Patch  $(TAG) → v$(NEXT_PATCH)"
-	@echo "  \033[1;32mrelease-minor\033[0m Minor  $(TAG) → v$(NEXT_MINOR)"
-	@echo "  \033[1;32mrelease-major\033[0m Major  $(TAG) → v$(NEXT_MAJOR)"
+	@echo "\033[1;32mRelease:\033[0m"
+	@echo "  release       Patch  $(TAG) → v$(NEXT_PATCH)"
+	@echo "  release-minor Minor  $(TAG) → v$(NEXT_MINOR)"
+	@echo "  release-major Major  $(TAG) → v$(NEXT_MAJOR)"
 
 # ============================================================================
 # Development
@@ -51,36 +54,46 @@ all: test build
 
 test:
 	@cd core && cargo test
+	@./scripts/test/dict.sh
 
 format:
 	@cd core && cargo fmt && cargo clippy -- -D warnings
 
-build: format
-	@./scripts/build-core.sh
-	@./scripts/build-macos.sh
-	@./scripts/build-windows.sh
-	@pkill -f "GoNhanh.app" 2>/dev/null || true
-	@sleep 1
+build: format ## Build core + macos app
+	@./scripts/build/core.sh
+	@./scripts/build/macos.sh
+	@./scripts/build/windows.sh
 	@open platforms/macos/build/Release/GoNhanh.app
 
 build-linux: format
 	@cd platforms/linux && ./scripts/build.sh
 
-clean:
+clean: ## Clean build + settings
 	@cd core && cargo clean
-	@rm -rf platforms/macos/build platforms/linux/build
+	@rm -rf platforms/macos/build
+	@rm -rf platforms/linux/build
 	@defaults delete org.gonhanh.GoNhanh 2>/dev/null || true
-	@echo "✅ Cleaned"
+	@echo "✅ Cleaned build artifacts + settings"
 
 # ============================================================================
 # Debug
 # ============================================================================
 
-.PHONY: watch perf
+.PHONY: watch perf test-22k test-100k test-dict
 watch:
 	@rm -f /tmp/gonhanh_debug.log && touch /tmp/gonhanh_debug.log
 	@echo "📋 Watching /tmp/gonhanh_debug.log (Ctrl+C to stop)"
 	@tail -f /tmp/gonhanh_debug.log
+
+test-22k: ## Run heavy 22k tests + generate typing orders
+	@cd core && cargo test -- --ignored --nocapture
+
+test-100k: ## Run English 100k tests
+	@cd core && cargo test --test english_100k_test -- --nocapture
+	@cd core && cargo test --test english_telex_patterns_test -- --nocapture
+
+test-dict: ## Run dictionary tests (VN: 100%, EN: 97%)
+	@./scripts/test/dict.sh
 
 perf:
 	@PID=$$(pgrep -f "GoNhanh.app" | head -1); \
@@ -96,15 +109,15 @@ perf:
 # ============================================================================
 
 .PHONY: setup install dmg
-setup:
-	@./scripts/setup.sh
+setup: ## Setup dev environment
+	@./scripts/setup/macos.sh
 
 install: build
 	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
 
-dmg: build
-	@./scripts/create-dmg-background.sh
-	@./scripts/create-dmg.sh
+dmg: build ## Create DMG installer
+	@./scripts/release/dmg-background.sh
+	@./scripts/release/dmg.sh
 
 # ============================================================================
 # Release (auto-versioning from git tags)
@@ -112,20 +125,26 @@ dmg: build
 
 .PHONY: release release-minor release-major
 
-define do_release
-	@echo "$(TAG) → v$(1)"
-	@git add -A && git commit -m "release: v$(1)" --allow-empty
-	@./scripts/generate-release-notes.sh v$(1) > /tmp/release_notes.md
-	@git tag -a v$(1) -F /tmp/release_notes.md --cleanup=verbatim
-	@git push origin main v$(1)
+release: ## Patch release (1.0.9 → 1.0.10)
+	@echo "$(TAG) → v$(NEXT_PATCH)"
+	@git add -A && git commit -m "release: v$(NEXT_PATCH)" --allow-empty
+	@./scripts/release/notes.sh v$(NEXT_PATCH) > /tmp/release_notes.md
+	@git tag -a v$(NEXT_PATCH) -F /tmp/release_notes.md --cleanup=verbatim
+	@git push origin main v$(NEXT_PATCH)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
-endef
 
-release:
-	$(call do_release,$(NEXT_PATCH))
+release-minor: ## Minor release (1.0.9 → 1.1.0)
+	@echo "$(TAG) → v$(NEXT_MINOR)"
+	@git add -A && git commit -m "release: v$(NEXT_MINOR)" --allow-empty
+	@./scripts/release/notes.sh v$(NEXT_MINOR) > /tmp/release_notes.md
+	@git tag -a v$(NEXT_MINOR) -F /tmp/release_notes.md --cleanup=verbatim
+	@git push origin main v$(NEXT_MINOR)
+	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
 
-release-minor:
-	$(call do_release,$(NEXT_MINOR))
-
-release-major:
-	$(call do_release,$(NEXT_MAJOR))
+release-major: ## Major release (1.0.9 → 2.0.0)
+	@echo "$(TAG) → v$(NEXT_MAJOR)"
+	@git add -A && git commit -m "release: v$(NEXT_MAJOR)" --allow-empty
+	@./scripts/release/notes.sh v$(NEXT_MAJOR) > /tmp/release_notes.md
+	@git tag -a v$(NEXT_MAJOR) -F /tmp/release_notes.md --cleanup=verbatim
+	@git push origin main v$(NEXT_MAJOR)
+	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"

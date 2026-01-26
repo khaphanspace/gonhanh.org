@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR/.."
+PROJECT_ROOT="$SCRIPT_DIR/../.."
 MACOS_DIR="$PROJECT_ROOT/platforms/macos"
 DMG_RESOURCES="$MACOS_DIR/dmg-resources"
 

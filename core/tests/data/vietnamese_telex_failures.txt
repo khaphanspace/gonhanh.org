@@ -1,0 +1,4 @@
+# Vietnamese Telex Failures
+# Format: INPUT \t EXPECTED \t ACTUAL
+# Total failures: 0
+

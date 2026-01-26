@@ -93,7 +93,7 @@ jobs:
           # Create output directory (script writes to platforms/macos/build/)
           mkdir -p platforms/macos/build
 
-          ./scripts/create-dmg.sh "GoNhanh.app"
+          ./scripts/release/dmg.sh "GoNhanh.app"
           ls -la platforms/macos/build/*.dmg
 
       - name: Update Release Asset

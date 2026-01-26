@@ -36,7 +36,7 @@ jobs:
       - name: Generate contributors
         env:
           GITHUB_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
-        run: node scripts/generate-contributors.js
+        run: node scripts/release/contributors.js
 
       - name: Commit if changed
         run: |

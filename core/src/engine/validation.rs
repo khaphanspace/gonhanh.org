@@ -401,24 +401,63 @@ pub fn is_foreign_word_pattern(
     if syllable.vowel.len() >= 2 {
         let vowels: Vec<u16> = syllable.vowel.iter().map(|&i| buffer_keys[i]).collect();
 
+        // First check if the overall pattern is a valid triphthong
+        // This prevents false positives like [U, O, U] (ươu) being blocked
+        // because it contains [O, U] substring
+        // EXCEPT: [U, O, U] (ươu) at word start (no initial) IS INVALID Vietnamese
+        // - Valid: cươu, hươu, bươu (with initial consonant)
+        // - Invalid: ươu (no initial - doesn't exist in Vietnamese)
+        let is_valid_triphthong = vowels.len() == 3 && {
+            let triple = [vowels[0], vowels[1], vowels[2]];
+            let is_in_list = constants::VALID_TRIPHTHONGS.contains(&triple);
+            // ươu without initial is foreign pattern (from "would", "wou")
+            let is_uou_without_initial =
+                triple == [keys::U, keys::O, keys::U] && syllable.initial.is_empty();
+            is_in_list && !is_uou_without_initial
+        };
+
         // Check consecutive pairs for common foreign patterns
         // This catches "ou" within longer sequences like "ưou" (from "would")
-        for window in vowels.windows(2) {
-            let pair = [window[0], window[1]];
-            // "ou" and "yo" are common in English but never valid in Vietnamese
-            if pair == [keys::O, keys::U] || pair == [keys::Y, keys::O] {
-                return true;
+        // BUT skip if the overall pattern is a valid Vietnamese triphthong
+        if !is_valid_triphthong {
+            for window in vowels.windows(2) {
+                let pair = [window[0], window[1]];
+                // "ou" and "yo" are common in English but never valid in Vietnamese
+                if pair == [keys::O, keys::U] || pair == [keys::Y, keys::O] {
+                    return true;
+                }
             }
         }
 
         let is_valid_pattern = match vowels.len() {
             2 => {
                 let pair = [vowels[0], vowels[1]];
-                constants::VALID_DIPHTHONGS.contains(&pair)
+                // Same-vowel pairs (AA, EE, OO) are Telex circumflex patterns, not foreign
+                // These are intermediate states: "boo" → "bô" with circumflex pending
+                let is_same_vowel_circumflex =
+                    pair[0] == pair[1] && matches!(pair[0], keys::A | keys::E | keys::O);
+                is_same_vowel_circumflex || constants::VALID_DIPHTHONGS.contains(&pair)
             }
             3 => {
-                let triple = [vowels[0], vowels[1], vowels[2]];
-                constants::VALID_TRIPHTHONGS.contains(&triple)
+                // Check for circumflex trigger pattern: V1 + V2 + V2 or V1 + V1 + V2
+                // Example: [U, O, O] → after circumflex becomes [U, Ô] which is valid
+                // Example: [U, A, A] → after circumflex becomes [U, Â] which is valid
+                let last_two_same =
+                    vowels[1] == vowels[2] && matches!(vowels[2], keys::A | keys::E | keys::O);
+                let first_two_same =
+                    vowels[0] == vowels[1] && matches!(vowels[0], keys::A | keys::E | keys::O);
+
+                if last_two_same {
+                    // After circumflex on V2, pattern becomes [V1, V2^] - check if valid diphthong
+                    let resulting_diphthong = [vowels[0], vowels[1]];
+                    constants::VALID_DIPHTHONGS.contains(&resulting_diphthong)
+                } else if first_two_same {
+                    // After circumflex on V1, pattern becomes [V1^, V2] - check if valid diphthong
+                    let resulting_diphthong = [vowels[0], vowels[2]];
+                    constants::VALID_DIPHTHONGS.contains(&resulting_diphthong)
+                } else {
+                    is_valid_triphthong
+                }
             }
             _ => false,
         };

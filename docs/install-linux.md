@@ -3,7 +3,7 @@
 ## Cài đặt
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
+curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/setup/linux.sh | bash
 ```
 
 Đăng xuất và đăng nhập lại để hoàn tất.
