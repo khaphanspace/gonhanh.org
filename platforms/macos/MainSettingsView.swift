@@ -1665,14 +1665,11 @@ struct AutoCapitalizeExcludedAppsSheet: View {
                             icon: app.icon,
                             isExcluded: appState.autoCapitalizeExcludedApps.contains(app.bundleId)
                         ) { isExcluded in
-                            withAnimation {
-                                if isExcluded {
-                                    appState.excludeAppFromAutoCapitalize(app.bundleId)
-                                } else {
-                                    appState.includeAppInAutoCapitalize(app.bundleId)
-                                }
+                            if isExcluded {
+                                appState.excludeAppFromAutoCapitalize(app.bundleId)
+                            } else {
+                                appState.includeAppInAutoCapitalize(app.bundleId)
                             }
-                            reloadApps()
                         }
                     }
                 }
@@ -1682,10 +1679,11 @@ struct AutoCapitalizeExcludedAppsSheet: View {
             SheetToolbar()
         }
         .frame(width: 460, height: 400)
-        .onAppear { reloadApps() }
+        .onAppear { loadApps() }
     }
 
-    private func reloadApps() {
+    /// Load and sort apps only on appear - no re-sorting on toggle
+    private func loadApps() {
         let excluded = appState.autoCapitalizeExcludedApps
 
         // Get running apps
@@ -1711,7 +1709,7 @@ struct AutoCapitalizeExcludedAppsSheet: View {
             }
         }
 
-        // Sort: excluded first, then alphabetically
+        // Sort once: excluded first, then alphabetically
         allApps = apps.sorted { a, b in
             let aExcluded = excluded.contains(a.bundleId)
             let bExcluded = excluded.contains(b.bundleId)
