@@ -1,494 +1,2676 @@
-# English 100k Typing Variants Failures
-# Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 490
-
-been	been	been	bên	bên
-see	see	see	sê	sê
-how	how	how	hơ	hơ
-now	now	now	nơ	nơ
-own	own	own	ơn	ơn
-down	down	down	dơn	dơn
-too	too	too	tô	tô
-seen	seen	seen	sên	sên
-low	low	low	lơ	lơ
-room	room	room	rôm	rôm
-seems	seems	seems	sếm	sêms
-soon	soon	soon	sôn	sôn
-poor	poor	poor	pổ	pôr
-town	town	town	tơn	tơn
-seem	seem	seem	sêm	sêm
-door	door	door	dổ	dôr
-laws	laws	laws	lắ	lăs
-meet	meet	meet	mêt	mêt
-tree	tree	tree	trê	trê
-trees	trees	trees	trế	três
-choose	choose	choose	chốe	chôse
-troops	troops	troops	trốp	trôps
-queen	queen	queen	quên	quên
-root	root	root	rôt	rôt
-row	row	row	rơ	rơ
-lee	lee	lee	lê	lê
-rooms	rooms	rooms	rốm	rôms
-moon	moon	moon	môn	môn
-towns	towns	towns	tớn	tơns
-roots	roots	roots	rốt	rôts
-sees	sees	sees	sế	sês
-doors	doors	doors	dố	dôrs
-roof	roof	roof	rồ	rôf
-loose	loose	loose	lốe	lôse
-loop	loop	loop	lôp	lôp
-thee	thee	thee	thê	thê
-moore	moore	moore	mổe	môre
-beer	beer	beer	bể	bêr
-choosing	chooosing	choosing	chooing	chôosing
-deemed	deeemed	deemed	đeeme	dêemed
-keeps	keeps	keeps	kếp	kêps
-dawn	dawn	dawn	dăn	dăn
-bow	bow	bow	bơ	bơ
-rows	rows	rows	rớ	rơs
-peer	peer	peer	pể	pêr
-meets	meets	meets	mết	mêts
-deer	deer	deer	dể	dêr
-cow	cow	cow	cơ	cơ
-peers	peers	peers	pế	pêrs
-deeds	deeds	deeds	đế	dêds
-deed	deed	deed	đê	dêd
-keen	keen	keen	kên	kên
-beef	beef	beef	bề	bêf
-noon	noon	noon	nôn	nôn
-boots	boots	boots	bốt	bôts
-boom	boom	boom	bôm	bôm
-aa	aa	aa	â	â
-cows	cows	cows	cớ	cơs
-downtown	dowwntowwn	downtown	downtowwn	dơwntơwn
-doorway	doorway	doorway	dơảy	dôrway
-lawn	lawn	lawn	lăn	lăn
-chooses	chooses	chooses	chốe	chôses
-bee	bee	bee	bê	bê
-poorer	poorer	poorer	pổe	pôrer
-boot	boot	boot	bôt	bôt
-loops	loops	loops	lốp	lôps
-owns	owns	owns	ớn	ơns
-bees	bees	bees	bế	bês
-reef	reef	reef	rề	rêf
-gown	gown	gown	gơn	gơn
-hawk	hawk	hawk	hăk	hăk
-troop	troop	troop	trôp	trôp
-queer	queer	queer	quể	quêr
-boost	boost	boost	bốt	bôst
-oo	oo	oo	ô	ô
-teen	teen	teen	tên	tên
-teens	teens	teens	tến	têns
-roofs	roofs	roofs	rố	rôfs
-eec	eec	eec	êc	êc
-kuwait	kuwwait	kuwait	kuwwait	kưwait
-goose	goose	goose	gốe	gôse
-cheer	cheer	cheer	chể	chêr
-queens	queens	queens	quến	quêns
-downs	downs	downs	dớn	dơns
-poorest	poorest	poorest	pôét	pôrest
-doom	doom	doom	dôm	dôm
-ee	ee	ee	ê	ê
-dow	dow	dow	dơ	dơ
-vow	vow	vow	vơ	vơ
-bows	bows	bows	bớ	bơs
-sown	sown	sown	sơn	sơn
-dee	dee	dee	dê	dê
-vows	vows	vows	vớ	vơs
-sow	sow	sow	sơ	sơ
-loom	loom	loom	lôm	lôm
-ooo	ooo	ooo	oo	ôo
-tow	tow	tow	tơ	tơ
-dd	dd	dd	đ	đ
-reefs	reefs	reefs	rế	rêfs
-geese	geeese	geese	geeese	gêese
-tee	tee	tee	tê	tê
-moor	moor	moor	mổ	môr
-deem	deem	deem	dêm	dêm
-gaas	gaas	gaas	gấ	gâs
-monsoon	monsoon	monsoon	mónon	monsôn
-boon	boon	boon	bôn	bôn
-moose	moose	moose	mốe	môse
-een	een	een	ên	ên
-cheers	cheers	cheers	chế	chêrs
-dodd	dodd	dodd	dod	dođ
-nee	nee	nee	nê	nê
-aaa	aaa	aaa	aa	âa
-looms	looms	looms	lốm	lôms
-moors	moors	moors	mố	môrs
-loosen	loosen	loosen	lôén	lôsen
-beech	beech	beech	bêch	bêch
-hawks	hawks	hawks	hắk	hăks
-gee	geee	gee	geee	gêe
-beet	beet	beet	bêt	bêt
-ddt	ddt	ddt	đt	đt
-lawns	lawns	lawns	lắn	lăns
-beers	beers	beers	bế	bêrs
-rees	rees	rees	rế	rês
-veneer	veneer	veneer	vener	venêr
-canaan	canaan	canaan	canan	canân
-voor	voor	voor	vổ	vôr
-haas	haas	haas	hấ	hâs
-seer	seer	seer	sể	sêr
-musee	musee	musee	múee	musê
-referee	referee	referee	rểee	referê
-woo	woo	woo	uô	wô
-chow	chow	chow	chơ	chơ
-hoop	hoop	hoop	hôp	hôp
-gowns	gowns	gowns	gớn	gơns
-deems	deems	deems	dếm	dêms
-soot	soot	soot	sôt	sôt
-rowan	rowan	rowan	rơan	rơan
-moons	moons	moons	mốn	môns
-cowan	cowan	cowan	cơan	cơan
-hee	hee	hee	hê	hê
-pow	pow	pow	pơ	pơ
-loo	loo	loo	lô	lô
-loot	loot	loot	lôt	lôt
-boo	boo	boo	bô	bô
-doorways	doorways	doorways	dơáy	dôrways
-moot	moot	moot	môt	môt
-pawn	pawn	pawn	păn	păn
-bylaws	bylawws	bylaws	bylawws	bylăws
-ow	ow	ow	ơ	ơ
-renee	renee	renee	rene	renê
-hoof	hoof	hoof	hồ	hôf
-beets	beets	beets	bết	bêts
-norwood	norwood	norwood	nỏod	norwôd
-leech	leech	leech	lêch	lêch
-lees	lees	lees	lế	lês
-pee	pee	pee	pê	pê
-coop	coop	coop	côp	côp
-saws	saws	saws	sắ	săs
-geertz	geeertz	geertz	geeertz	gêertz
-cocoon	cocoon	cocoon	cocon	cocôn
-booze	booze	booze	boe	bôze
-ree	ree	ree	rê	rê
-coo	coo	coo	cô	cô
-coon	coon	coon	côn	côn
-seers	seers	seers	sế	sêrs
-cookbook	coookboook	cookbook	cookboook	côokbôok
-booms	booms	booms	bốm	bôms
-roost	roost	roost	rốt	rôst
-lows	lows	lows	lớ	lơs
-puree	puree	puree	pủee	purê
-hoops	hoops	hoops	hốp	hôps
-noose	noose	noose	nốe	nôse
-mee	mee	mee	mê	mê
-beseech	beseech	beseech	béech	besêch
-voodoo	vooodooo	voodoo	voodooo	vôodôo
-uaw	uaw	uaw	ưa	uă
-hoofs	hoofs	hoofs	hố	hôfs
-mow	mow	mow	mơ	mơ
-gaap	gaap	gaap	gâp	gâp
-looser	looser	looser	lổe	lôser
-aas	aas	aas	ấ	âs
-soo	soo	soo	sô	sô
-meer	meer	meer	mể	mêr
-aan	aan	aan	ân	ân
-heen	heen	heen	hên	hên
-loon	loon	loon	lôn	lôn
-sows	sows	sows	sớ	sơs
-hoo	hoo	hoo	hô	hô
-kee	kee	kee	kê	kê
-noaa	noaa	noaa	noâ	noâ
-referees	referees	referees	rểees	referês
-reengineering	reeengineeering	reengineering	reengineeering	rêenginêering
-doo	doo	doo	dô	dô
-typhoon	typhooon	typhoon	typhooon	typhôon
-veer	veer	veer	vể	vêr
-moo	moo	moo	mô	mô
-ghee	ghee	ghee	ghê	ghê
-caa	caa	caa	câ	câ
-saar	saar	saar	sar	sâr
-iaa	iaa	iaa	iâ	iâ
-kuwaiti	kuwwaiti	kuwaiti	kuwwaiti	kưwaiti
-ooze	ooze	ooze	oe	ôze
-sawn	sawn	sawn	săn	săn
-dodds	dodds	dodds	đó	dođs
-pawns	pawns	pawns	pắn	păns
-cee	ceee	cee	ceee	cêe
-kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki
-chee	chee	chee	chê	chê
-yee	yee	yee	yê	yê
-naa	naa	naa	nâ	nâ
-roos	roos	roos	rố	rôs
-loos	loos	loos	lố	lôs
-mawr	mawr	mawr	mẳ	măr
-uw	uw	uw	ư	ư
-maas	maas	maas	mấ	mâs
-vee	vee	vee	vê	vê
-hoot	hoot	hoot	hôt	hôt
-poop	poop	poop	pôp	pôp
-goo	goo	goo	gô	gô
-tycoon	tycooon	tycoon	tycooon	tycôon
-tees	tees	tees	tế	tês
-leer	leer	leer	lể	lêr
-baa	baa	baa	bâ	bâ
-saa	saa	saa	sâ	sâ
-dawns	dawns	dawns	dắn	dăns
-cocoons	cocoons	cocoons	cocons	cocôns
-dowd	dowd	dowd	đơ	dơd
-roo	roo	roo	rô	rô
-koo	kooo	koo	kooo	kôo
-poore	poore	poore	pổe	pôre
-dde	dde	dde	đe	đe
-gooch	gooch	gooch	gôch	gôch
-kowloon	kowwloon	kowloon	kowwloon	kơwlôn
-kowalski	kowwalski	kowalski	kowwalski	kơwalski
-maa	maa	maa	mâ	mâ
-paa	paa	paa	pâ	pâ
-meerut	meerut	meerut	mểut	mêrut
-nowak	nowak	nowak	nơak	nơak
-moos	moos	moos	mố	môs
-seeps	seeps	seeps	sếp	sêps
-enfeebled	enfeebled	enfeebled	ènebled	enfêbled
-woof	woof	woof	uồ	wôf
-poo	poo	poo	pô	pô
-pensee	pensee	pensee	péne	pensê
-heer	heer	heer	hể	hêr
-aac	aac	aac	âc	âc
-cookbooks	coookboooks	cookbooks	cookboooks	côokbôoks
-choo	choo	choo	chô	chô
-haar	haar	haar	hẩ	hâr
-oops	oops	oops	ốp	ôps
-naar	naar	naar	nẩ	nâr
-iee	iee	iee	iê	iê
-ddc	ddc	ddc	đc	đc
-neem	neem	neem	nêm	nêm
-haan	haan	haan	hân	hân
-soong	soong	soong	sông	sông
-geer	geeer	geer	geeer	gêer
-aarp	aarp	aarp	ẩp	ârp
-aaf	aaf	aaf	ầ	âf
-toot	toot	toot	tôt	tôt
-dds	dds	dds	đs	đs
-ees	ees	ees	ế	ês
-monsoons	monsoons	monsoons	mónons	monsôns
-kooning	koooning	kooning	koooning	kôoning
-veneers	veneers	veneers	veners	venêrs
-oop	oop	oop	ôp	ôp
-saarc	saarc	saarc	sẩc	sârc
-oeec	oeec	oeec	oêc	oêc
-oooo	oooooo	oooo	ooooo	ôôô
-oooo	oooo	oooo	ooo	ôô
-noor	noor	noor	nổ	nôr
-gow	gow	gow	gơ	gơ
-eez	eez	eez	e	êz
-lycee	lyceee	lycee	lyceee	lycêe
-dda	dda	dda	đa	đa
-aar	aar	aar	ẩ	âr
-deeps	deeps	deeps	dếp	dêps
-coons	coons	coons	cốn	côns
-tepee	tepee	tepee	tepe	tepê
-taa	taa	taa	tâ	tâ
-aap	aap	aap	âp	âp
-chaffee	chaffee	chaffee	chafee	chaffê
-doon	doon	doon	dôn	dôn
-eeo	eeo	eeo	êo	êo
-ddd	ddd	ddd	dd	đd
-cyclooxygenase	cycloooxygenase	cyclooxygenase	cycloooxygenase	cyclôoxygenase
-kawai	kawwai	kawai	kawwai	kăwai
-haa	haa	haa	hâ	hâ
-ddl	ddl	ddl	đl	đl
-typhoons	typhooons	typhoons	typhooons	typhôons
-moores	moores	moores	mốe	môres
-mown	mown	mown	mơn	mơn
-uwe	uwe	uwe	ưe	ưe
-veen	veen	veen	vên	vên
-dowson	dowson	dowson	dốn	dơson
-kool	koool	kool	koool	kôol
-boor	boor	boor	bổ	bôr
-eee	eee	eee	ee	êe
-deen	deen	deen	dên	dên
-nawaz	nawaz	nawaz	na	năaz
-bylaw	bylaww	bylaw	bylaww	bylăw
-ooooo	ooooooo	ooooo	oooooo	ôôôo
-ooooo	ooooo	ooooo	oooo	ôôo
-noo	noo	noo	nô	nô
-kook	koook	kook	koook	kôok
-goon	goon	goon	gôn	gôn
-aat	aat	aat	ât	ât
-aaas	aaas	aaas	aas	âas
-peet	peet	peet	pêt	pêt
-coors	coors	coors	cố	côrs
-horwood	horwood	horwood	hỏod	horwôd
-kees	kees	kees	kế	kês
-trow	trow	trow	trơ	trơ
-geek	geeek	geek	geeek	gêek
-coos	coos	coos	cố	côs
-mowat	mowat	mowat	mơat	mơat
-geelong	geeelong	geelong	geeelong	gêelong
-baas	baas	baas	bấ	bâs
-powwow	powwwoww	powwow	powwoww	pơwwơw
-powwow	powwow	powwow	powow	pơwơ
-coot	coot	coot	côt	côt
-dees	dees	dees	dế	dês
-aws	aws	aws	ắ	ăs
-boxwood	boxwood	boxwood	bõod	boxwôd
-hopwood	hopwood	hopwood	hopod	hopwôd
-boos	boos	boos	bố	bôs
-tdd	tdd	tdd	tđ	tđ
-maar	maar	maar	mẩ	mâr
-queers	queers	queers	quế	quêrs
-gaa	gaa	gaa	gâ	gâ
-tycoons	tycooons	tycoons	tycooons	tycôons
-veers	veers	veers	vế	vêrs
-beekeeping	beeekeeeping	beekeeping	beekeeeping	bêekêeping
-oozes	oozes	oozes	oé	ôzes
-toots	toots	toots	tốt	tôts
-goons	goons	goons	gốn	gôns
-hoots	hoots	hoots	hốt	hôts
-seest	seest	seest	sết	sêst
-thurow	thurow	thurow	thuở	thurơ
-awt	awt	awt	ăt	ăt
-oot	oot	oot	ôt	ôt
-pensees	pensees	pensees	pénes	pensês
-loons	loons	loons	lốn	lôns
-hows	hows	hows	hớ	hơs
-coops	coops	coops	cốp	côps
-koopmans	kooopmans	koopmans	kooopmans	kôopmans
-refereed	refereed	refereed	rểeed	referêd
-toon	toon	toon	tôn	tôn
-neer	neer	neer	nể	nêr
-hooray	hooray	hooray	hôảy	hôray
-chooser	chooser	chooser	chổe	chôser
-tows	tows	tows	tớ	tơs
-koop	kooop	koop	kooop	kôop
-gowan	gowan	gowan	gơan	gơan
-kawamura	kawwamura	kawamura	kawwamura	kăwamura
-longwood	longwood	longwood	longod	longwôd
-poon	poon	poon	pôn	pôn
-ddp	ddp	ddp	đp	đp
-kawakami	kawwakami	kawakami	kawwakami	kăwakami
-aau	aau	aau	âu	âu
-aam	aam	aam	âm	âm
-oort	oort	oort	ổt	ôrt
-meech	meech	meech	mêch	mêch
-owi	owi	owi	ơi	ơi
-typee	typeee	typee	typeee	typêe
-eet	eet	eet	êt	êt
-leet	leet	leet	lêt	lêt
-vdd	vdd	vdd	vđ	vđ
-lowi	lowi	lowi	lơi	lơi
-geen	geeen	geen	geeen	gêen
-nonfood	nonfood	nonfood	nònod	nonfôd
-koopman	kooopman	koopman	kooopman	kôopman
-goof	gooof	goof	goò	gôof
-goof	goof	goof	gồ	gôf
-beekeepers	beeekeeepers	beekeepers	beekeeepers	bêekêepers
-meow	meow	meow	meơ	meơ
-paar	paar	paar	pẩ	pâr
-beeps	beeps	beeps	bếp	bêps
-boons	boons	boons	bốn	bôns
-macaw	macaw	macaw	măc	macă
-koontz	kooontz	koontz	kooontz	kôontz
-oom	oom	oom	ôm	ôm
-aai	aaai	aai	aaai	âai
-aai	aai	aai	âi	âi
-goodlooking	gooodloooking	goodlooking	goodloooking	gôodlôoking
-dooms	dooms	dooms	dốm	dôms
-kow	koww	kow	koww	kơw
-peeps	peeps	peeps	pếp	pêps
-oor	oor	oor	ổ	ôr
-geeta	geeeta	geeta	geeeta	gêeta
-teem	teem	teem	têm	têm
-daa	daa	daa	dâ	dâ
-pdd	pdd	pdd	pđ	pđ
-awk	awk	awk	ăk	ăk
-veneered	veneered	veneered	venered	venêred
-heeft	heeft	heeft	hềt	hêft
-hooch	hooch	hooch	hôch	hôch
-aaaa	aaaaaa	aaaa	aaaaa	âââ
-aaaa	aaaa	aaaa	aaa	ââ
-ceecs	ceeecs	ceecs	ceeecs	cêecs
-eer	eer	eer	ể	êr
-bdd	bdd	bdd	bđ	bđ
-maat	maat	maat	mât	mât
-awacs	awacs	awacs	ấc	ăacs
-laa	laa	laa	lâ	lâ
-oon	oon	oon	ôn	ôn
-lowa	lowa	lowa	lơa	lơa
-oost	oost	oost	ốt	ôst
-deedee	deeedeee	deedee	deedeee	dêedêe
-deedee	deedee	deedee	đêee	dêdê
-kawaguchi	kawwaguchi	kawaguchi	kawwaguchi	kăwaguchi
-mdd	mdd	mdd	mđ	mđ
-hiaa	hiaa	hiaa	hiâ	hiâ
-beekeeper	beeekeeeper	beekeeper	beekeeeper	bêekêeper
-geez	geeez	geez	geeez	gêez
-duree	duree	duree	dủee	durê
-towson	towson	towson	tốn	tơson
-teems	teems	teems	tếm	têms
-raaf	raaf	raaf	rầ	râf
-swoops	swoops	swoops	suốp	swôps
-cowpox	cowpox	cowpox	cỗp	cơpox
-kawabata	kawwabata	kawabata	kawwabata	kăwabata
-hoon	hoon	hoon	hôn	hôn
-ddi	ddi	ddi	đi	đi
-booz	booz	booz	bo	bôz
-raa	raa	raa	râ	râ
-awn	awn	awn	ăn	ăn
-hooft	hooft	hooft	hồt	hôft
-kootenay	koootenay	kootenay	koootenay	kôotenay
-eets	eets	eets	ết	êts
-poof	poof	poof	pồ	pôf
-oaa	oaa	oaa	oâ	oâ
-kaw	kaww	kaw	kaww	kăw
-doodling	dooodling	doodling	dooling	dôodling
-thaws	thaws	thaws	thắ	thăs
-kawashima	kawwashima	kawashima	kawwashima	kăwashima
-kuwaitis	kuwwaitis	kuwaitis	kuwwaitis	kưwaitis
-geeks	geeeks	geeks	geeeks	gêeks
-mees	mees	mees	mế	mês
-haart	haart	haart	hẩt	hârt
-beseeched	beseeched	beseeched	béeched	besêched
-lowdown	lowwdowwn	lowdown	lowdowwn	lơwdơwn
-geert	geeert	geert	geeert	gêert
-tyree	tyreee	tyree	tyre	tyrêe
-tyree	tyree	tyree	tỷee	tyrê
-owa	owa	owa	ơa	ơa
-eero	eero	eero	ểo	êro
-gawk	gawk	gawk	găk	găk
-cooch	cooch	cooch	côch	côch
-kaaba	kaaaba	kaaba	kaaaba	kâaba
-oroonoko	oroonoko	oroonoko	ỏonoko	orônoko
-hoodoo	hooodooo	hoodoo	hoodooo	hôodôo
-awwa	awwa	awwa	awa	ăwa
-oooh	oooh	oooh	ooh	ôoh
-pauw	pauw	pauw	paư	paư
-chowk	chowk	chowk	chơk	chơk
-looses	looses	looses	lốe	lôses
-khoo	khoo	khoo	khô	khô
-howson	howson	howson	hốn	hơson
-bowra	bowra	bowra	bởa	bơra
-koon	kooon	koon	kooon	kôon
-oooooooo	oooooooooooo	oooooooo	ooooooooooo	ôôôôôô
-oooooooo	oooooooo	oooooooo	ooooooo	ôôôô
-bybee	bybeee	bybee	bybeee	bybêe
-daan	daan	daan	dân	dân
-teepee	teeepeee	teepee	teepeee	têepêe
-fdd	fdd	fdd	fđ	fđ
-roon	roon	roon	rôn	rôn
-macaws	macaws	macaws	mắc	macăs
-wallflower	wallflower	wallflower	ửàlllowe	wallflơer
-nees	nees	nees	nế	nês
-usaaf	usaaf	usaaf	uầ	usâf
-powis	powis	powis	pới	pơis
-lydda	lyddda	lydda	lyddda	lyđda
-kaa	kaaa	kaa	kaaa	kâa
-koos	kooos	koos	kooos	kôos
-aways	aways	aways	ấy	ăays
-lowbrow	lowwbroww	lowbrow	lowbroww	lơwbrơw
-coots	coots	coots	cốt	côts
-gees	geees	gees	geees	gêes
-lown	lown	lown	lơn	lơn
-daws	daws	daws	dắ	dăs
-roop	roop	roop	rôp	rôp
-oooooo	ooooooooo	oooooo	oooooooo	ôôôôo
-oooooo	oooooo	oooooo	ooooo	ôôô
-huw	huw	huw	hư	hư
-pooch	pooch	pooch	pôch	pôch
-choosers	choosers	choosers	chốe	chôsers
-sydow	sydoww	sydow	sydoww	sydơw
-coosa	coosa	coosa	cốa	côsa
+of	ò
+is	í
+as	á
+was	ứa
+this	thí
+or	ỏ
+his	hí
+her	hẻ
+has	há
+there	thể
+if	ì
+been	bên
+these	thế
+its	ít
+see	sê
+most	mót
+did	đi
+how	hơ
+those	thoé
+now	nơ
+must	mút
+own	ơn
+us	ú
+down	dơn
+here	hể
+too	tô
+thus	thú
+war	ửa
+off	of
+last	lát
+best	bét
+seen	sên
+days	dáy
+terms	tém
+major	mảo
+sense	sến
+low	lơ
+room	rôm
+air	ải
+term	tẻm
+past	pát
+cost	cót
+test	tét
+seems	sếm
+basis	bái
+turn	tủn
+nor	nỏ
+six	sĩ
+soon	sôn
+says	sáy
+tax	tã
+poor	pổ
+lost	lót
+town	tơn
+seem	sêm
+door	dổ
+rest	rét
+list	lít
+yes	yé
+ask	ák
+post	pót
+laws	lắ
+meet	mêt
+chief	chiè
+sir	sỉ
+der	dẻ
+born	bỏn
+box	bõ
+car	cả
+des	dé
+paris	pái
+died	đie
+sex	sẽ
+gas	gá
+arms	ám
+hair	hải
+tree	trê
+trust	trút
+uses	ues
+mary	mảy
+piece	piêc
+trees	trế
+choose	chốe
+w	ư
+les	lé
+arm	ảm
+bar	bả
+coast	coát
+chosen	choén
+lies	lié
+sets	sét
+troops	trốp
+los	ló
+pieces	piếc
+queen	quên
+mere	mể
+chair	chải
+root	rôt
+won	ươn
+cast	cát
+sons	són
+vast	vát
+host	hót
+theme	thêm
+row	rơ
+lee	lê
+vary	vảy
+rooms	rốm
+moon	môn
+turns	tún
+axis	ái
+towns	tớn
+roots	rốt
+poems	poém
+usa	úa
+ex	ẽ
+sees	sế
+chest	chét
+aircraft	aicraft
+lips	líp
+trans	trán
+runs	rún
+honor	hổn
+cars	cá
+songs	sóng
+bus	bú
+virus	víu
+loans	loán
+worst	ướt
+dust	dút
+busy	buý
+doors	dố
+hero	hẻo
+roof	rồ
+wars	ứa
+verse	vế
+chose	choé
+loose	lốe
+loop	lôp
+est	ét
+das	dá
+corn	cỏn
+harm	hảm
+res	ré
+max	mã
+mix	mĩ
+tons	tón
+dans	dán
+guns	gún
+maps	máp
+dad	đa
+pairs	pái
+themes	thếm
+marry	mary
+es	é
+bias	bía
+marx	mã
+ties	tié
+norms	nóm
+phys	phý
+defend	đền
+thee	thê
+moore	mổe
+worn	ưởn
+sur	sủ
+lots	lót
+beer	bể
+refuse	rếu
+bars	bá
+poets	poét
+rays	ráy
+las	lá
+lens	lén
+er	ẻ
+keeps	kếp
+ix	ĩ
+bits	bít
+rats	rát
+moses	moes
+boats	boát
+dawn	dăn
+para	pẩ
+thereof	thềo
+susan	súan
+burst	bút
+bow	bơ
+guest	guét
+rows	rớ
+buyer	buyẻ
+tries	trié
+rises	ries
+burn	bủn
+cuts	cút
+peer	pể
+chiefs	chié
+doses	does
+dense	dến
+pays	páy
+ussr	usr
+guys	guý
+posts	pots
+horn	hỏn
+quest	quét
+meets	mết
+sins	sín
+deer	dể
+dies	dié
+ist	ít
+trips	tríp
+chaos	cháo
+chairs	chái
+cow	cơ
+burns	bún
+torn	tỏn
+tips	típ
+peers	pế
+hans	hán
+deeds	đế
+hers	hé
+norm	nỏm
+vis	ví
+rests	rets
+disc	díc
+lungs	lúng
+tense	tến
+norway	nơảy
+nest	nét
+deed	đê
+keen	kên
+cups	cúp
+beef	bề
+donor	dổn
+noon	nôn
+boots	bốt
+laura	lẩu
+ar	ả
+quasi	quái
+sums	súm
+boom	bôm
+dos	dó
+cats	cát
+mama	mâm
+ins	ín
+charm	chảm
+ref	rè
+auf	àu
+buyers	buyé
+os	ó
+gary	gảy
+dis	dí
+photos	phốt
+aa	â
+sits	sít
+cows	cớ
+loses	loes
+gaps	gáp
+ir	ỉ
+lest	lét
+mar	mả
+ass	as
+doorway	dơảy
+wax	ữa
+nuts	nút
+exert	ểt
+mars	má
+barn	bản
+museums	mueums
+bis	bí
+ser	sẻ
+lets	lét
+ups	úp
+chips	chíp
+aus	áu
+curse	cué
+roses	roes
+wa	ưa
+burma	buảm
+lawn	lăn
+chooses	chốe
+cox	cõ
+nos	nó
+refuses	rếu
+cues	cué
+aux	ãu
+irs	í
+bee	bê
+poorer	pổe
+boot	bôt
+diana	diân
+lisa	lía
+maya	mây
+toes	toé
+var	vả
+tops	tóp
+loops	lốp
+sara	sẩ
+luis	lúi
+hits	hít
+congo	công
+owns	ớn
+mist	mít
+tor	tỏ
+cor	cỏ
+taxi	tãi
+pierce	piểc
+guru	gủu
+tis	tí
+horns	hón
+tens	tén
+bees	bế
+imf	ìm
+buses	bues
+nasa	nấ
+rosa	roá
+choir	chỏi
+hips	híp
+poses	poes
+lust	lút
+reef	rề
+donors	dốn
+hats	hát
+ses	sé
+wu	ưu
+gown	gơn
+af	à
+ana	ân
+coats	coát
+thirst	thít
+diets	diét
+dots	dót
+worms	ướm
+hawk	hăk
+traps	tráp
+sofa	soà
+mais	mái
+esp	ép
+caps	cáp
+worm	ưởm
+tore	toẻ
+thief	thiè
+xix	xĩ
+goats	goát
+bury	buỷ
+hairs	hái
+troop	trôp
+myers	myé
+nets	nét
+queer	quể
+mast	mát
+boost	bốt
+ngos	ngó
+cans	cán
+oo	ô
+conf	còn
+teen	tên
+teens	tến
+lays	láy
+como	côm
+honors	hốn
+tier	tiẻ
+roofs	rố
+roar	roả
+sans	sán
+basins	bains
+cas	cá
+sworn	sưởn
+homo	hôm
+pest	pét
+eec	êc
+lasts	lats
+tar	tả
+mis	mí
+afro	ảo
+ox	õ
+goose	gốe
+pier	piẻ
+buys	buý
+visa	vía
+bosom	bốm
+cos	có
+nuns	nún
+casts	cats
+carr	car
+hast	hát
+cheer	chể
+nests	nets
+aura	ẩu
+dwarf	dừa
+toast	toát
+apr	ảp
+queens	quến
+downs	dớn
+basics	baics
+cops	cóp
+raja	rậ
+dams	dám
+nur	nủ
+hist	hít
+rama	râm
+yr	ỷ
+poorest	pôét
+char	chả
+dir	dỉ
+gangs	gáng
+ere	ể
+ax	ã
+dues	dué
+cores	coé
+huts	hút
+rust	rút
+pores	poé
+chores	choé
+wm	ưm
+dana	dân
+coasts	coats
+boast	boát
+wo	ươ
+pests	pets
+mw	mư
+doom	dôm
+ee	ê
+rex	rẽ
+bust	bút
+niece	niêc
+dyes	dyé
+surf	sù
+sw	sư
+rene	rên
+ef	è
+lorenzo	lôen
+nw	nư
+morse	moé
+hangs	háng
+bois	bói
+ans	án
+dar	dả
+dow	dơ
+vow	vơ
+ter	tẻ
+roast	roát
+nora	noả
+herr	her
+wt	ưt
+mas	má
+casa	cấ
+bows	bớ
+www	ww
+urn	ủn
+aj	ạ
+turf	tù
+mir	mỉ
+sown	sơn
+oj	ọ
+dee	dê
+charms	chám
+vows	vớ
+gujarat	guẩt
+rosen	roén
+dist	dít
+boris	bói
+laos	láo
+dessert	desert
+raj	rạ
+poisson	poison
+oats	oát
+thorn	thỏn
+chef	chè
+doris	dói
+oxen	oẽn
+ther	thẻ
+quart	quảt
+sow	sơ
+ester	ểt
+wong	ương
+bats	bát
+lor	lỏ
+lois	lói
+loom	lôm
+sus	sú
+ooo	oo
+gis	gí
+cons	cón
+ores	oé
+piers	pié
+majors	máo
+loaf	loà
+vest	vét
+pius	píu
+tow	tơ
+dd	đ
+reefs	rế
+vor	vỏ
+reuse	rếu
+ras	rá
+lama	lâm
+tee	tê
+muse	mué
+pesos	péo
+beset	bết
+moor	mổ
+ur	ủ
+mats	mát
+bays	báy
+deem	dêm
+asa	ấ
+diese	diế
+liar	lỉa
+deduce	đêuc
+cures	cué
+boer	boẻ
+noses	noes
+wc	ưc
+postscript	potscript
+barr	bar
+paso	páo
+boron	bổn
+mer	mẻ
+esters	ết
+sachs	sách
+gaas	gấ
+dora	doả
+monsoon	mónon
+boon	bôn
+moose	mốe
+neue	nêu
+hirsch	hích
+ber	bẻ
+een	ên
+mono	môn
+cheers	chế
+sas	sá
+torso	tố
+trays	tráy
+taxa	tẫ
+cw	cư
+mores	moé
+mus	mú
+dodd	dod
+bas	bá
+guts	gút
+asp	áp
+gus	gú
+nero	nẻo
+nee	nê
+tara	tẩ
+inf	ìn
+verso	véo
+aaa	aa
+eros	éo
+thorax	thoã
+chaps	cháp
+moran	moản
+muir	mủi
+losers	loé
+looms	lốm
+dieser	diể
+moors	mố
+ver	vẻ
+loosen	lôén
+ws	ứ
+beech	bêch
+hawks	hắk
+dyed	đye
+bose	boé
+afar	ẩ
+mos	mó
+beet	bêt
+swarm	sưảm
+raf	rà
+oasis	oái
+sis	sí
+dyer	dyẻ
+thorns	thón
+bern	bẻn
+yer	yẻ
+uss	us
+ddt	đt
+hens	hén
+boxer	boẻ
+tres	tré
+err	er
+hasan	hấn
+cary	cảy
+lax	lã
+lex	lẽ
+hays	háy
+defends	đến
+taps	táp
+purest	puét
+boar	boả
+kits	kít
+def	dè
+hermes	hếm
+chests	chets
+lawns	lắn
+loser	loẻ
+distaste	diatste
+beers	bế
+pies	pié
+ama	âm
+vers	vé
+rees	rế
+har	hả
+lis	lí
+veneer	vener
+ems	ém
+nana	nân
+masons	maons
+sar	sả
+hier	hiẻ
+trojan	troạn
+rw	rư
+canaan	canan
+gasp	gáp
+boasts	boats
+trois	trói
+bur	bủ
+voor	vổ
+lorenz	loen
+pisa	pía
+haas	hấ
+barns	bán
+airs	ái
+tiers	tié
+gums	gúm
+ars	á
+kern	kẻn
+seer	sể
+dod	đo
+museo	muéo
+berne	bển
+mes	mé
+gays	gáy
+musee	múee
+ej	ẹ
+sono	sôn
+bets	bét
+woo	uô
+dw	dư
+buren	buẻn
+chow	chơ
+xerox	xẽo
+quran	quản
+noir	nỏi
+uns	ún
+hues	hué
+hoop	hôp
+gowns	gớn
+cora	coả
+vas	vá
+liszt	lit
+sores	soé
+deems	dếm
+yrs	ý
+misc	míc
+oars	oá
+soot	sôt
+dost	dót
+sufi	sùi
+ism	ím
+sox	sõ
+iff	if
+tris	trí
+dura	dủa
+huron	huỏn
+rowan	rơan
+harms	hám
+ers	é
+visas	vía
+mara	mẩ
+nas	ná
+pero	pẻo
+serfs	sé
+moons	mốn
+muses	mues
+dix	dĩ
+refs	ré
+bor	bỏ
+bosch	bóch
+chasm	chám
+voir	vỏi
+twas	tứa
+mori	mỏi
+assn	asn
+tex	tẽ
+pere	pể
+posits	poits
+hiram	hỉam
+wp	ưp
+vos	vó
+sens	sén
+norse	noé
+bins	bín
+cowan	cơan
+corral	coral
+hee	hê
+distasteful	diatsteful
+soar	soả
+gist	gít
+boers	boé
+liens	lién
+ics	íc
+orr	or
+ij	ị
+boas	boá
+meme	mêm
+hurst	hút
+taxis	tái
+mosaics	moaics
+rosary	roảy
+docs	dóc
+kraus	kráu
+hops	hóp
+dips	díp
+dwarfs	dứa
+pow	pơ
+loo	lô
+casas	cas
+ecr	ẻc
+masts	mats
+loot	lôt
+mists	mits
+durand	đuản
+heme	hêm
+uf	ù
+pharm	phảm
+ara	ẩ
+eps	ép
+hari	hải
+ganga	gâng
+masson	mason
+exec	ễc
+tins	tín
+oar	oả
+quark	quảk
+ons	ón
+wort	ưởt
+boo	bô
+doorways	dơáy
+bene	bên
+pw	pư
+moot	môt
+pawn	păn
+acs	ác
+dada	đâ
+emf	èm
+rams	rám
+sys	sý
+wj	ự
+denser	dển
+barre	bare
+chore	choẻ
+lori	lỏi
+causa	cấu
+ow	ơ
+mora	moả
+mari	mải
+ops	óp
+truer	truẻ
+musa	múa
+rana	rân
+chops	chóp
+suis	súi
+renee	rene
+usc	úc
+turnaround	tuanround
+baja	bậ
+postsynaptic	potsynaptic
+isp	íp
+soaps	soáp
+gust	gút
+lara	lẩ
+longs	lóng
+mustafa	muầt
+hoof	hồ
+mens	mén
+ture	tuẻ
+gw	gư
+beets	bết
+oas	oá
+norwood	nỏod
+lars	lá
+ams	ám
+parma	pẩm
+swans	sưán
+cusp	cúp
+hausa	hấu
+hosp	hóp
+leech	lêch
+desensitization	densitiation
+mor	mỏ
+theseus	thếu
+peso	péo
+vans	ván
+lees	lế
+oro	ổ
+ari	ải
+nara	nẩ
+oss	os
+osi	ói
+mira	mỉa
+pee	pê
+busch	búch
+horst	hót
+girard	giard
+ruse	rué
+mays	máy
+trieste	triết
+wk	ưk
+thor	thỏ
+ies	ié
+pari	pải
+gar	gả
+mans	mán
+hex	hẽ
+ess	es
+suns	sún
+trier	triẻ
+tw	tư
+qos	qó
+coop	côp
+vere	vể
+posse	pose
+lisp	líp
+ifn	ìn
+bw	bư
+swarms	sưám
+aix	ãi
+hereof	hềo
+saws	sắ
+estes	éestes
+uri	ủi
+dif	dì
+caro	cảo
+lamar	lẩm
+bari	bải
+dude	đue
+dirac	dỉac
+chakra	chẩk
+curfew	cừe
+sacs	sác
+purer	puer
+cara	cẩ
+vero	vẻo
+ajax	ẫ
+cocoon	cocon
+bono	bôn
+ips	íp
+booze	boe
+dieses	dies
+esr	ẻ
+ree	rê
+caso	cáo
+taos	táo
+tes	té
+dorm	dỏm
+esc	éc
+laps	láp
+rasa	rấ
+hasta	hất
+tern	tẻn
+moser	moẻ
+terse	tế
+reps	rép
+syst	sýt
+mosses	moses
+morn	mỏn
+surat	suảt
+lux	lũ
+vir	vỉ
+surest	suét
+mons	món
+ias	ía
+ros	ró
+trajan	trận
+coo	cô
+neuen	nêun
+didst	đít
+cur	củ
+chiapas	chíâp
+chefs	ché
+coon	côn
+seers	sế
+bos	bó
+sos	só
+nis	ní
+moro	mổ
+tarn	tản
+parr	par
+kris	krí
+hoses	hoes
+postsecondary	potsecondary
+samaj	sậm
+ast	át
+loco	lôc
+lans	lán
+rus	rú
+purana	puẩn
+dens	dén
+bir	bỉ
+garry	gary
+mana	mân
+truest	truét
+booms	bốm
+bans	bán
+diesem	diếm
+swaps	sưáp
+bursa	búa
+roost	rốt
+hoax	hoã
+mins	mín
+basingstoke	baingstoke
+lows	lớ
+aps	áp
+epr	ẻp
+nurs	nú
+choirs	chói
+hangar	hẩng
+puree	pủee
+hoops	hốp
+osmosis	óosmosis
+noose	nốe
+gif	gì
+mee	mê
+wf	ừ
+sari	sải
+beseech	béech
+hors	hó
+nox	nõ
+lys	lý
+ifs	í
+uaw	ưa
+hoofs	hố
+mow	mơ
+porn	pỏn
+asi	ái
+disarm	dỉam
+dais	dái
+ono	ôn
+tarsus	táu
+tas	tá
+taro	tảo
+sor	sỏ
+ys	ý
+doer	doẻ
+ims	ím
+desde	đế
+hara	hẩ
+lair	lải
+cosa	coá
+gaap	gâp
+perseus	pếu
+ets	ét
+vw	vư
+bums	búm
+twa	tưa
+anwar	ẩn
+lar	lả
+looser	lổe
+tongs	tóng
+liars	lía
+arya	ẩy
+bangs	báng
+verne	vển
+irma	ỉam
+nieces	niếc
+hw	hư
+quirk	quỉk
+coax	coã
+aas	ấ
+asm	ám
+usaf	ùa
+resp	rép
+parrish	parish
+ens	én
+tics	tíc
+iss	is
+moms	móm
+lynx	lỹn
+soo	sô
+dias	día
+eos	éo
+dore	doẻ
+busts	buts
+loren	loẻn
+lures	lué
+deren	dển
+dwyer	dưyẻ
+hos	hó
+serf	sè
+mises	mies
+ecj	ẹc
+darn	dản
+meer	mể
+vests	vets
+aan	ân
+ajar	ẩ
+ary	ảy
+coco	côc
+thorac	thoảc
+dido	đio
+heen	hên
+marr	mar
+lana	lân
+mies	mié
+hirst	hít
+doran	doản
+urns	ún
+loon	lôn
+eff	ef
+choses	choes
+lusaka	luấk
+huns	hún
+lw	lư
+moans	moán
+puri	pủi
+wn	ưn
+tamar	tẩm
+sows	sớ
+cher	chẻ
+gama	gâm
+rojas	roá
+perm	pẻm
+loro	lổ
+ese	ế
+hoo	hô
+kee	kê
+congr	cỏng
+irr	ir
+rostow	rớt
+corso	cố
+gusts	guts
+dade	đae
+hamas	hấm
+puranas	puấn
+toro	tổ
+quits	quít
+nots	nót
+boxers	boé
+noaa	noâ
+afm	àm
+maj	mạ
+taj	tạ
+cusps	cups
+misra	mỉa
+didn	đin
+ost	ót
+poco	pôc
+tiene	tiên
+twos	tướ
+arf	à
+nes	né
+nair	nải
+dor	dỏ
+ucs	úc
+diesen	diến
+haji	hại
+doo	dô
+basu	báu
+ker	kẻ
+tori	tỏi
+mots	mót
+bier	biẻ
+trojans	troán
+duran	duản
+lias	lía
+tur	tủ
+ner	nẻ
+rajya	rậy
+otros	ốt
+bores	boé
+afr	ả
+borer	boer
+dorado	đoảo
+veer	vể
+puis	púi
+uj	ụ
+dorn	dỏn
+gasps	gaps
+moo	mô
+haus	háu
+moray	moảy
+exe	ễ
+ust	út
+ghee	ghê
+chas	chá
+churn	chủn
+lusts	luts
+ius	íu
+mair	mải
+aia	âi
+caa	câ
+mex	mẽ
+icj	ịc
+sars	sá
+hus	hú
+meso	méo
+aca	âc
+thar	thả
+mujer	muẻ
+wwii	wii
+nyerere	nyere
+terns	tén
+nasir	nải
+amar	ẩm
+buns	bún
+rungs	rúng
+lif	lì
+tues	tué
+soes	soé
+husayn	huáyn
+mesons	meons
+roars	roá
+roms	róm
+bakr	bảk
+saar	sar
+iaa	iâ
+tits	tít
+puja	pụa
+nics	níc
+sura	sủa
+ipsa	íap
+sofas	soá
+xerxes	xế
+varna	vẩn
+maris	mái
+mets	mét
+ooze	oe
+sawn	săn
+sujet	suẹt
+usp	úp
+nama	nâm
+dur	dủ
+chir	chỉ
+vox	võ
+basra	bẩ
+dodds	đó
+asch	ách
+lamas	lấm
+musings	muings
+usr	ủ
+reste	rết
+barak	bẩk
+cots	cót
+dons	dón
+mesure	mểu
+meuse	mếu
+asc	ác
+nar	nả
+bora	boả
+hajj	haj
+toms	tóm
+vaux	vãu
+erst	ét
+mayr	mảy
+chee	chê
+terme	tểm
+yee	yê
+lira	lỉa
+gans	gán
+hora	hoả
+hoary	hoảy
+naa	nâ
+benes	bến
+masai	mấi
+roos	rố
+byers	byé
+hams	hám
+borax	boã
+dusts	duts
+loos	lố
+thais	thái
+vats	vát
+mawr	mẳ
+ais	ái
+chats	chát
+bestseller	betseller
+hor	hỏ
+toasts	toats
+dodson	đốn
+ocr	ỏc
+sama	sâm
+aswan	ấn
+sams	sám
+vax	vã
+theor	thẻo
+aff	af
+eso	éo
+defuse	dếu
+doers	doé
+sufis	súi
+cura	của
+mois	mói
+gaya	gây
+uw	ư
+iww	iw
+surer	suer
+bestselling	betselling
+maru	mảu
+ris	rí
+maas	mấ
+vee	vê
+hoot	hôt
+hoar	hoả
+ves	vé
+uar	ủa
+poop	pôp
+goo	gô
+ruts	rút
+vasa	vấ
+garza	gâ
+duns	dún
+ors	ó
+arr	ar
+sips	síp
+dara	dẩ
+ler	lẻ
+tana	tân
+cosmo	cốm
+hoes	hoé
+aro	ảo
+monogr	mổng
+maura	mẩu
+topos	tốp
+sirs	sí
+tos	tó
+ats	át
+cwt	cưt
+thos	thó
+erm	ẻm
+tof	tò
+tees	tế
+rosas	roas
+marais	mấi
+ene	ên
+ipr	ỉp
+sues	sué
+wor	ưở
+hir	hỉ
+leer	lể
+usn	ún
+tyr	tỷ
+cams	cám
+pasts	pats
+beret	bểt
+orsay	oáy
+mof	mò
+amr	ảm
+hana	hân
+baa	bâ
+saa	sâ
+murat	muảt
+aram	ẩm
+ries	rié
+bij	bị
+gur	gủ
+ospf	òp
+rer	rẻ
+mujeres	muế
+trams	trám
+ocs	óc
+varus	váu
+wot	ươt
+ori	ỏi
+dari	dải
+dawns	dắn
+varma	vẩm
+thieme	thiêm
+bask	bák
+neues	nếu
+nir	nỉ
+hof	hò
+dads	đá
+durst	dút
+manas	mấn
+tors	tó
+vara	vẩ
+casings	caings
+naps	náp
+cocoons	cocons
+poststructuralist	potstructuralist
+quests	quets
+ipx	ĩp
+dowd	đơ
+roo	rô
+hur	hủ
+hons	hón
+vern	vẻn
+voix	või
+cana	cân
+eof	èo
+norsk	nók
+basses	bases
+ajr	ả
+secs	séc
+sais	sái
+isps	ips
+charan	chẩn
+naca	nâc
+dijk	dịk
+lors	ló
+quasars	quấ
+nist	nít
+peruse	pếu
+conor	cổn
+nuer	nuẻ
+muerte	muểt
+goers	goé
+bast	bát
+vaca	vâc
+poore	pổe
+quis	quí
+chins	chín
+marat	mẩt
+bajo	bạo
+ochs	óch
+chakras	chấk
+pues	pué
+phasor	phảo
+bara	bẩ
+wwf	wf
+dde	đe
+gooch	gôch
+asr	ả
+pierces	piếc
+tus	tú
+surfers	sué
+termes	tếm
+doren	doẻn
+soars	soá
+thurs	thú
+ques	qué
+thiers	thié
+nasr	nả
+ecs	éc
+vari	vải
+itr	ỉt
+atr	ảt
+dado	đao
+susa	súa
+transsexual	transexual
+isr	ỉ
+maa	mâ
+paa	pâ
+ier	iẻ
+surfer	suẻ
+deuce	dêuc
+gats	gát
+chirac	chỉac
+kinshasa	kianhsa
+rips	ríp
+cose	coé
+meerut	mểut
+risc	ríc
+monro	mổn
+nowak	nơak
+kirsch	kích
+marys	máy
+saps	sáp
+neuer	nểu
+saf	sà
+yerkes	yếk
+anas	ấn
+macs	mác
+mur	mủ
+moos	mố
+bierce	biểc
+icr	ỉc
+moron	mổn
+perse	pế
+baur	bảu
+dodo	đô
+hes	hé
+vier	viẻ
+echr	ẻch
+darfur	dảu
+seeps	sếp
+duets	duét
+carre	care
+boars	boá
+manga	mâng
+enfeebled	ènebled
+basse	base
+woof	uồ
+cassino	casino
+ece	êc
+poo	pô
+pensee	péne
+hafiz	hai
+heer	hể
+bax	bã
+raya	rây
+haya	hây
+parris	paris
+isms	ims
+aac	âc
+cosas	coas
+heures	hếu
+thongs	thóng
+nomos	nốm
+choo	chô
+parsi	pái
+kiefer	kiể
+casi	cái
+haar	hẩ
+mayas	mấy
+hofer	hoẻ
+purser	puẻ
+vajra	vẩ
+mose	moé
+mesures	mếu
+luxor	luỏ
+boson	bốn
+myer	myẻ
+nies	nié
+oops	ốp
+dorsi	dói
+raju	rạu
+nix	nĩ
+pasa	pấ
+tapas	tấp
+sosa	soá
+ux	ũ
+cwa	cưa
+pura	pủa
+kira	kỉa
+rasp	ráp
+bes	bé
+dex	dẽ
+tures	tué
+mura	mủa
+longo	lông
+poststructuralism	potstructuralism
+armas	ấm
+dere	dể
+tomo	tôm
+ecf	èc
+naar	nẩ
+aran	ẩn
+neusner	nểun
+thana	thân
+swa	sưa
+iee	iê
+dorms	dóm
+baca	bâc
+pusan	puán
+vex	vẽ
+ddc	đc
+neem	nêm
+tir	tỉ
+urs	ú
+coxe	coẽ
+ters	té
+soir	sỏi
+tama	tâm
+lacs	lác
+asf	à
+engrs	éng
+lix	lĩ
+quays	quáy
+kips	kíp
+nary	nảy
+sira	sỉa
+tener	tển
+nuri	nủi
+derm	dẻm
+ufa	ùa
+rajan	rận
+dene	dên
+saran	sẩn
+haan	hân
+xor	xỏ
+luxe	luẽ
+soong	sông
+duras	dúa
+aos	áo
+lasch	lách
+dwt	dưt
+vets	vét
+masa	mấ
+bef	bè
+nast	nát
+tamas	tấm
+asn	án
+isc	íc
+atf	àt
+coram	coảm
+bosco	bốc
+rif	rì
+viene	viên
+choix	chõi
+inr	ỉn
+dosed	đoé
+soren	soẻn
+doesn	doén
+rots	rót
+carat	cẩt
+tojo	tộ
+aarp	ẩp
+giri	gỉi
+oren	oẻn
+menger	mểng
+corns	cón
+bers	bé
+durer	duer
+sana	sân
+sarai	sẩi
+aris	ái
+gongs	góng
+aja	ậ
+tans	tán
+baran	bẩn
+becher	bểch
+ietf	ièt
+aaf	ầ
+haj	hạ
+mips	míp
+gos	gó
+manx	mãn
+hurons	huón
+chiasm	chíam
+toot	tôt
+berets	bết
+yf	ỳ
+dds	đs
+cassio	casio
+ees	ế
+monsoons	mónons
+oxon	ỗn
+cus	cú
+truro	truỏ
+sof	sò
+lora	loả
+asw	ắ
+veneers	veners
+ror	rỏ
+oop	ôp
+gorse	goé
+darya	dẩy
+darauf	dầu
+saarc	sẩc
+ern	ẻn
+oeec	oêc
+orm	ỏm
+trw	trư
+oooo	ooo
+maxi	mãi
+daro	dảo
+noor	nổ
+memes	mếm
+gow	gơ
+eez	e
+kisan	kían
+ded	đe
+khasi	khái
+orf	ò
+raps	ráp
+gora	goả
+naf	nà
+saks	sák
+borers	boers
+corsair	coải
+dda	đa
+acr	ảc
+aar	ẩ
+disestablishment	diestablishment
+vies	vié
+deeps	dếp
+ucr	ủc
+trims	trím
+parsis	pái
+kharif	khài
+nasi	nái
+coons	cốn
+quire	quiẻ
+buf	bù
+icf	ìc
+dof	dò
+busses	buses
+queste	quết
+maf	mà
+quern	quẻn
+kruse	krué
+ots	ót
+seme	sêm
+tepee	tepe
+kremer	krểm
+samar	sẩm
+ayr	ảy
+ojo	ộ
+issa	isa
+heure	hểu
+taa	tâ
+sejm	sẹm
+saris	sái
+taux	tãu
+exo	ẽo
+tanf	tàn
+yj	ỵ
+acf	àc
+trist	trít
+dasa	dấ
+aur	ảu
+aap	âp
+densest	denst
+cuomo	cuôm
+mesmer	mểm
+mops	móp
+tars	tá
+byes	byé
+sarma	sẩm
+goran	goản
+quos	quó
+chaffee	chafee
+basf	bà
+nys	ný
+dyers	dyé
+mejor	mẻo
+tary	tảy
+aso	áo
+ruf	rù
+morarji	moarji
+engr	ẻng
+doon	dôn
+tryst	trýt
+onr	ỏn
+lissa	lisa
+posi	pói
+rasch	rách
+disp	díp
+coir	cỏi
+nayar	nẩy
+cosi	cói
+hwa	hưa
+cust	cút
+eeo	êo
+ddd	dd
+daf	dà
+oris	ói
+ifr	ỉ
+haa	hâ
+ura	ủa
+ista	íat
+quasar	quẩ
+ddl	đl
+diener	diển
+hori	hỏi
+soaks	soák
+dud	đu
+moores	mốe
+mown	mơn
+nef	nè
+bussy	busy
+afs	á
+chums	chúm
+rois	rói
+uwe	ưe
+veen	vên
+sways	sưáy
+pwm	pưm
+biens	bién
+sary	sảy
+pense	pến
+posen	poén
+dowson	dốn
+noirs	nói
+isn	ín
+coser	coẻ
+chasms	chams
+lef	lè
+lus	lú
+tarr	tar
+boor	bổ
+misma	míam
+corot	cổt
+doj	dọ
+ojos	ố
+porno	pổn
+eee	ee
+dede	đê
+escher	ểch
+deen	dên
+caf	cà
+apj	ạp
+nawaz	na
+marya	mẩy
+fetes	ffetes
+ooooo	oooo
+bongo	bông
+haram	hẩm
+noo	nô
+corsairs	coái
+astr	ảt
+tora	toả
+hama	hâm
+roxas	roá
+goon	gôn
+aat	ât
+veces	vếc
+iaf	ìa
+hefner	hển
+arif	ài
+aaas	aas
+hoists	hoits
+noms	nóm
+kronor	krổn
+peet	pêt
+hopf	hòp
+aircrew	aicrew
+naxos	náo
+pwa	pưa
+thins	thín
+dudes	đué
+thes	thé
+coors	cố
+hox	hõ
+bufo	buò
+dama	dâm
+senge	sêng
+horwood	hỏod
+wsc	ức
+murata	muẩt
+kees	kế
+taf	tà
+lief	liè
+trow	trơ
+haps	háp
+loams	loám
+nore	noẻ
+suri	sủi
+arai	ẩi
+guar	gủa
+buxom	buõm
+vocs	vóc
+loran	loản
+asap	ấp
+listserv	litserv
+coos	cố
+chuse	chué
+gins	gín
+usu	úu
+irm	ỉm
+nus	nú
+masao	mấo
+oxo	ỗ
+penser	pển
+rist	rít
+gana	gân
+lox	lõ
+cursors	cuó
+ranga	râng
+mowat	mơat
+tisza	tia
+pisan	pían
+ose	oé
+muons	muón
+tarsi	tái
+bons	bón
+bassin	basin
+bana	bân
+daud	đau
+hangars	hấng
+liana	liân
+rais	rái
+dword	đưở
+haran	hẩn
+wwi	wi
+twp	tưp
+hira	hỉa
+omo	ôm
+musics	muics
+dax	dã
+bist	bít
+rosch	róch
+aya	ây
+chasse	chase
+amf	àm
+hepes	hếp
+comr	cỏm
+wch	ưch
+sujets	suét
+emr	ẻm
+khans	khán
+leche	lêch
+roasts	roats
+damas	dấm
+erf	è
+bix	bĩ
+thats	thát
+hansa	hấn
+treks	trék
+baas	bấ
+powwow	powow
+cocos	cốc
+caja	cậ
+rojo	rộ
+ninja	nịan
+coot	côt
+postsurgical	potsurgical
+hijaz	hia
+dees	dế
+rast	rát
+mif	mì
+sarat	sẩt
+siete	siêt
+busi	búi
+poser	poẻ
+aws	ắ
+ists	its
+rar	rả
+keren	kển
+boxwood	bõod
+daya	dây
+inj	ịn
+berm	bẻm
+phos	phó
+moats	moát
+cursus	cúu
+cusa	cúa
+carats	cất
+mers	mé
+susy	suý
+hopwood	hopod
+syr	sỷ
+barua	bẩu
+ressources	resources
+garo	gảo
+cori	cỏi
+usw	ứ
+boro	bổ
+orn	ỏn
+versuche	vếuch
+anf	àn
+boos	bố
+tdd	tđ
+orfeo	oèo
+maar	mẩ
+asuras	ấu
+lajos	láo
+sere	sể
+tene	tên
+queers	quế
+quips	quíp
+deduces	đếuc
+wks	ứk
+duda	đua
+tox	tõ
+gaa	gâ
+hums	húm
+dux	dũ
+moir	mỏi
+wschr	ửch
+diene	diên
+susana	suấn
+saya	sây
+casus	cáu
+rafi	rài
+acrs	ác
+esf	è
+defused	đếu
+veers	vế
+quas	quá
+iar	ỉa
+dest	dét
+erster	ểt
+domo	dôm
+mors	mó
+exner	ển
+oozes	oé
+toots	tốt
+vira	vỉa
+goons	gốn
+hoots	hốt
+wfp	ừp
+seest	sết
+parra	para
+giorno	giổn
+nira	nỉa
+suf	sù
+ursa	úa
+perspex	pễp
+swf	sừ
+dori	dỏi
+coxa	coã
+nif	nì
+duro	duỏ
+thurow	thuở
+nene	nên
+pemex	pễm
+neces	nếc
+ocho	ôch
+corse	coé
+naso	náo
+gor	gỏ
+awt	ăt
+buts	bút
+okw	ơk
+charac	chẩc
+uomo	uôm
+vars	vá
+kir	kỉ
+lorn	lỏn
+kis	kí
+qw	qư
+pwr	pử
+asaf	ầ
+lems	lém
+carus	cáu
+vasc	vác
+achr	ảch
+oes	oé
+oot	ôt
+auras	ấu
+dure	duẻ
+pastas	ppastas
+chary	chảy
+afa	ầ
+rijn	rịn
+dus	dú
+trots	trót
+pensees	pénes
+loons	lốn
+hows	hớ
+tots	tót
+baru	bảu
+coops	cốp
+ursus	úu
+kronos	krốn
+aoa	âo
+esch	éch
+mics	míc
+cws	cứ
+bestsellers	betsellers
+thir	thỉ
+toon	tôn
+tarai	tẩi
+desc	déc
+darf	dà
+dafi	dài
+ois	ói
+tiere	tiể
+tufa	tùa
+dorso	dố
+maus	máu
+barat	bẩt
+cachar	cẩch
+neer	nể
+basta	bất
+mosm	móm
+pharma	phẩm
+hooray	hôảy
+pws	pứ
+rara	rẩ
+chooser	chổe
+maja	mậ
+corre	core
+tows	tớ
+duse	dué
+sirach	sỉach
+choson	chốn
+roams	roám
+ero	ẻo
+moxon	mỗn
+horan	hoản
+rusts	ruts
+heros	héo
+mims	mím
+erec	ểc
+gowan	gơan
+hore	hoẻ
+tanga	tâng
+erne	ển
+nasw	nắ
+meps	mép
+sats	sát
+emer	ểm
+tias	tía
+longwood	longod
+lof	lò
+hij	hị
+arn	ản
+menge	mêng
+poon	pôn
+teste	tết
+nisan	nían
+ues	ué
+tims	tím
+aif	ài
+dienes	diến
+coro	cổ
+lotos	lốt
+ddp	đp
+deme	dêm
+goer	goẻ
+bary	bảy
+oso	ố
+ustr	ủt
+iarc	ỉac
+aau	âu
+casos	cáo
+rost	rót
+aam	âm
+myr	mỷ
+tej	tẹ
+bajra	bẩ
+dacha	dâch
+oort	ổt
+pacha	pâch
+meech	mêch
+dorje	doẹ
+osc	óc
+gast	gát
+esops	eops
+asis	ái
+gaur	gảu
+tosa	toá
+owi	ơi
+khurasan	khuấn
+ansar	ẩn
+misr	mỉ
+tono	tôn
+vwf	vừ
+cwc	cưc
+afi	ài
+chars	chá
+lusk	lúk
+eet	êt
+swb	sưb
+leet	lêt
+rix	rĩ
+vdd	vđ
+lowi	lơi
+mums	múm
+uts	út
+hirer	hier
+sops	sóp
+buffing	bufing
+amax	ẫm
+cwm	cưm
+arawak	ẩk
+gyms	gým
+tost	tót
+herm	hẻm
+hwnd	hưnd
+ruses	rues
+gaf	gà
+rescher	rểch
+suas	súa
+carrol	carol
+khas	khá
+vaso	váo
+umw	ưm
+nips	níp
+asura	ẩu
+curfews	cứe
+horas	hoá
+nonfood	nònod
+guyer	guyẻ
+ganja	gận
+sws	sứ
+sif	sì
+harre	hare
+bors	bó
+bair	bải
+swp	sưp
+truisms	truims
+pharos	pháo
+tosi	tói
+nays	náy
+lorsch	lóch
+sexe	sễ
+goof	gồ
+pomo	pôm
+sers	sé
+meow	meơ
+paar	pẩ
+tura	tủa
+morons	mốn
+beeps	bếp
+nono	nôn
+boons	bốn
+wms	ứm
+duds	đú
+oms	óm
+muro	muỏ
+tif	tì
+uas	úa
+ders	dé
+macaw	măc
+rossa	rosa
+nueces	nuếc
+hys	hý
+doxa	doã
+bajaj	baj
+oom	ôm
+vix	vĩ
+haro	hảo
+ests	ets
+lujan	luạn
+lier	liẻ
+vips	víp
+aai	âi
+truax	trũa
+tisch	tích
+ury	uỷ
+dooms	dốm
+pwd	pưd
+marfa	mầ
+mier	miẻ
+majus	máu
+basi	bái
+wx	ữ
+cama	câm
+peeps	pếp
+rosenstein	roenstein
+quiere	quiể
+dois	dói
+oor	ổ
+mux	mũ
+cof	cò
+dorf	dò
+horm	hỏm
+nwfp	nừp
+teem	têm
+nof	nò
+qasr	qả
+daa	dâ
+pdd	pđ
+giese	giế
+awk	ăk
+chara	chẩ
+misa	mía
+veneered	venered
+bursar	bủa
+heeft	hềt
+ariz	ai
+hest	hét
+hooch	hôch
+risa	ría
+therm	thẻm
+aaaa	aaa
+apf	àp
+varnas	vấn
+saxo	são
+nuys	nuý
+soja	soạ
+pira	pỉa
+coef	coè
+naya	nây
+eer	ể
+aspx	ãp
+bdd	bđ
+sese	sế
+hijra	hỉa
+curs	cú
+asat	ất
+recs	réc
+ief	iè
+churns	chún
+vermes	vếm
+khama	khâm
+maat	mât
+chiefest	chiết
+orazio	ôai
+lista	líat
+ajc	ạc
+mamas	mấm
+tems	tém
+mox	mõ
+awacs	ấc
+curwen	cưẻn
+mansa	mấn
+barna	bẩn
+laa	lâ
+vois	vói
+chama	châm
+safa	sầ
+uris	úi
+oon	ôn
+imr	ỉm
+lais	lái
+buret	buẻt
+metes	mết
+amj	ạm
+usps	ups
+danda	đân
+tanah	tânh
+taran	tẩn
+chora	choả
+chur	chủ
+boren	boẻn
+roark	roảk
+lese	lế
+bots	bót
+lowa	lơa
+rosse	rose
+larus	láu
+posix	põi
+nias	nía
+meses	mes
+puer	puẻ
+esm	ém
+oost	ốt
+hese	hế
+nori	nỏi
+eor	ẻo
+wom	ươm
+duos	duó
+tux	tũ
+corsi	cói
+gari	gải
+nats	nát
+oaf	oà
+borja	boạ
+langs	láng
+kreps	krép
+ofi	òi
+hasa	hấ
+nux	nũ
+bere	bể
+corms	cóm
+roszak	roak
+ansa	ấn
+loris	lói
+rans	rán
+curso	cuó
+chere	chể
+dims	dím
+exerc	ểc
+sachar	sẩch
+lochs	lóch
+rasta	rất
+mdd	mđ
+hiaa	hiâ
+thur	thủ
+pongo	pông
+daran	dẩn
+maran	mẩn
+lir	lỉ
+vana	vân
+trias	tría
+trost	trót
+cari	cải
+borst	bót
+daraus	dấu
+usus	úu
+usca	uác
+etf	èt
+aspasia	áaspasia
+duree	dủee
+sauf	sàu
+musi	múi
+desensitized	densitied
+macha	mâch
+swets	sưét
+efs	é
+kes	ké
+saur	sảu
+towson	tốn
+boj	bọ
+teems	tếm
+gir	gỉ
+haf	hà
+lesch	léch
+thaf	thà
+etr	ẻt
+eme	êm
+khor	khỏ
+cays	cáy
+raaf	rầ
+mest	mét
+wsp	ứp
+garn	gản
+theos	théo
+basch	bách
+iprs	íp
+sacha	sâch
+swoops	suốp
+chaka	châk
+masi	mái
+eres	ế
+gierek	giểk
+wop	ươp
+nusa	núa
+papas	pấp
+mwd	mưd
+cowpox	cỗp
+chos	chó
+armrest	amrest
+techs	téch
+dej	dẹ
+borno	bổn
+iasc	íac
+hanssen	hansen
+hoon	hôn
+kins	kín
+gorer	goer
+vias	vía
+saro	sảo
+moana	moân
+orem	oẻm
+quires	quié
+quar	quả
+verry	very
+pana	pân
+ddi	đi
+sori	sỏi
+gara	gẩ
+pene	pên
+kerns	kén
+nisa	nía
+nwp	nưp
+maro	mảo
+acas	ấc
+booz	bo
+morais	moái
+inra	ỉan
+raa	râ
+awn	ăn
+gujrat	guảt
+kiran	kỉan
+worf	ườ
+nits	nít
+eure	ểu
+tras	trá
+soas	soá
+sanga	sâng
+euer	ểu
+hooft	hồt
+khana	khân
+eets	ết
+masc	mác
+chor	chỏ
+burs	bú
+irst	ít
+ifrs	í
+chari	chải
+poof	pồ
+efe	ề
+dard	đả
+itf	ìt
+gaor	gảo
+ofs	ó
+rosenstock	roenstock
+goren	goẻn
+wcs	ức
+tari	tải
+berns	bén
+usi	úi
+oaa	oâ
+mene	mên
+uart	uảt
+vif	vì
+gams	gám
+camas	cấm
+thaws	thắ
+mojo	mộ
+duas	dúa
+qur	qủ
+mees	mế
+uscs	ucs
+haart	hẩt
+afsc	ác
+musca	muác
+buri	bủi
+beseeched	béeched
+demes	dếm
+miers	mié
+mure	muẻ
+bori	bỏi
+harrold	harold
+esos	éo
+costo	cốt
+turan	tuản
+usk	úk
+saif	sài
+siraj	sịa
+baro	bảo
+tyree	tỷee
+hasp	háp
+peste	pết
+nws	nứ
+owa	ơa
+dusan	duán
+viana	viân
+anga	âng
+dono	dôn
+menezes	mến
+beste	bết
+dacs	dác
+caus	cáu
+eero	ểo
+dufay	duày
+sef	sè
+gawk	găk
+poro	pổ
+dered	để
+ches	ché
+charis	chái
+herne	hển
+vais	vái
+tury	tuỷ
+irf	ì
+rusch	rúch
+cooch	côch
+coj	cọ
+gits	gít
+thuja	thụa
+bwv	bưv
+gies	gié
+causas	cấu
+duer	duẻ
+usis	úi
+nanga	nâng
+osf	ò
+ofr	ỏ
+taxus	táu
+luso	luó
+thirsk	thík
+yere	yể
+sora	soả
+oroonoko	ỏonoko
+lianas	líân
+passo	paso
+transf	tràn
+puro	puỏ
+yx	ỹ
+miserere	miere
+musts	muts
+ufw	ừ
+awwa	awa
+qwl	qưl
+uji	ụi
+gierke	giểk
+sasa	sấ
+oooh	ooh
+nars	ná
+garay	gẩy
+mongo	mông
+conj	cọn
+soest	soét
+pauw	paư
+chowk	chơk
+postseason	potseason
+marwan	mẩn
+ojt	ọt
+sofer	soẻ
+suraj	sụa
+ganj	gạn
+chamar	chẩm
+baji	bại
+lairs	lái
+lary	lảy
+lwr	lử
+mischa	míach
+cassa	casa
+rias	ría
+tums	túm
+coif	còi
+seps	sép
+parus	páu
+homs	hóm
+safi	sài
+looses	lốe
+khoo	khô
+lesen	lến
+posto	pốt
+nere	nể
+anj	ạn
+armrests	amrests
+arna	ẩn
+howson	hốn
+peche	pêch
+paca	pâc
+bowra	bởa
+gorst	gót
+doms	dóm
+ajnr	ản
+chosa	choá
+kisch	kích
+ajay	ậy
+wus	ứu
+sarna	sẩn
+harar	har
+larix	lãi
+etfs	ét
+kyr	kỷ
+canr	cản
+thier	thiẻ
+leszek	lêk
+dusen	duén
+benj	bẹn
+dojo	dộ
+aras	ấ
+usna	uán
+marsyas	mấy
+asan	ấn
+naja	nậ
+sems	sém
+cofer	coẻ
+lene	lên
+paros	páo
+dese	dế
+huis	húi
+thys	thý
+tuns	tún
+bienes	biến
+maji	mại
+oooooooo	ooooooo
+gori	gỏi
+dendrogram	đenogram
+daan	dân
+pwn	pưn
+sero	sẻo
+pufa	pùa
+mef	mè
+caffe	cafe
+fdd	fđ
+laf	là
+nari	nải
+guis	gúi
+hern	hẻn
+sechs	séch
+pois	pói
+wps	ứp
+dern	dẻn
+quist	quít
+roon	rôn
+oems	oém
+hija	hịa
+otr	ỏt
+phasors	pháo
+aor	ảo
+parnas	pấn
+tiran	tỉan
+risse	rise
+nier	niẻ
+chana	chân
+naif	nài
+atas	ất
+macaws	mắc
+minx	mĩn
+hojo	hộ
+goest	goét
+oer	oẻ
+langa	lâng
+enfer	ển
+hongo	hông
+busta	buát
+dox	dõ
+dosi	dói
+pusat	puát
+nachr	nảch
+dudek	đuek
+nees	nế
+usaaf	uầ
+sirna	sỉan
+kier	kiẻ
+kamaraj	kkamaraj
+unf	ùn
+demers	dếm
+maur	mảu
+basa	bấ
+powis	pới
+mero	mẻo
+aircrafts	aicrafts
+aways	ấy
+rauf	ràu
+mys	mý
+coms	cóm
+wos	ướ
+somos	sốm
+osp	óp
+asps	aps
+daru	dảu
+vins	vín
+aji	ại
+biran	bỉan
+aua	âu
+paro	pảo
+coots	cốt
+rur	rủ
+thorez	thoe
+dosa	doá
+doest	doét
+vose	voé
+lins	lín
+rej	rẹ
+vues	vué
+ipf	ìp
+lecher	lểch
+bursary	buảy
+torno	tổn
+casta	cất
+girardeau	giardeau
+hots	hót
+puran	puản
+thej	thẹ
+momo	môm
+goro	gổ
+nwc	nưc
+teos	téo
+locos	lốc
+ays	áy
+romo	rôm
+lown	lơn
+otf	òt
+isf	ì
+twt	tưt
+lossing	losing
+daws	dắ
+girardin	giardin
+bama	bâm
+esk	ék
+busk	búk
+bwr	bử
+casu	cáu
+laus	láu
+botox	bỗt
+basor	bảo
+vasu	váu
+thasos	tháo
+borns	bón
+paru	pảu
+usfs	ú
+husak	huák
+thefe	thề
+doron	dổn
+roop	rôp
+execs	ếc
+quanah	quânh
+panas	pấn
+leos	léo
+mij	mị
+tef	tè
+tirer	tier
+corm	cỏm
+defmed	đềm
+phips	phíp
+suso	suó
+chamars	chấm
+heuser	hểu
+oooooo	ooooo
+denr	dẻn
+hif	hì
+huw	hư
+bex	bẽ
+muri	mủi
+bost	bót
+heuer	hểu
+ijma	ịam
+pooch	pôch
+moret	moẻt
+choosers	chốe
+gyr	gỷ
+usf	ù
+phono	phôn
+nasca	nấc
+thair	thải
+rues	rué
+coso	cố
+ofm	òm
+viens	vién
+gwr	gử
+hamar	hẩm
+nwt	nưt
+rosi	rói
+dury	duỷ
+anr	ản
+pesce	pếc
+coosa	cốa
+utf	ùt
+losch	lóch
+tiefe	tiề
+xanax	xẫn
+afo	ào
