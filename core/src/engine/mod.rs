@@ -1740,6 +1740,33 @@ impl Engine {
             if is_switching {
                 // When switching, ONLY target vowels that already have a diacritic
                 // (don't add diacritics to plain vowels during switch)
+                //
+                // BUT: For Telex vowel-triggered circumflex (oo, aa, ee pattern), check for
+                // syllable boundary. If the syllable is closed (has final consonants after
+                // last vowel), don't switch tones - the typed vowel starts a new syllable.
+                // Example: "mờich" + 'o' → syllable closed with "ch", don't switch ờ→ồ
+                //
+                // This does NOT apply to VNI or Telex with explicit modifier keys (like 'w')
+                // because those are intentional corrections, not new syllable vowels.
+                let is_telex_vowel_trigger = self.method == 0
+                    && tone_type == ToneType::Circumflex
+                    && matches!(key, keys::A | keys::E | keys::O);
+
+                if is_telex_vowel_trigger {
+                    let vowels = self.collect_vowels();
+                    let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+                    let syllable_is_closed = self
+                        .buf
+                        .iter()
+                        .skip(last_vowel_pos + 1)
+                        .any(|ch| !keys::is_vowel(ch.key) && ch.key != keys::W);
+
+                    if syllable_is_closed {
+                        // Syllable is closed - don't switch tones, let vowel pass through as letter
+                        return None;
+                    }
+                }
+
                 for (i, c) in self.buf.iter().enumerate().rev() {
                     if targets.contains(&c.key) && c.tone != tone::NONE && c.tone != tone_val {
                         target_positions.push(i);
@@ -2858,6 +2885,29 @@ impl Engine {
         let pos =
             Phonology::find_tone_position(&vowels, has_final, self.modern_tone, has_qu, has_gi);
 
+        // Check for syllable boundary: if there's a consonant between the target vowel
+        // and a later vowel, the mark key should NOT cross syllables.
+        // Example: "thử" + "go" + 'x' → 'x' should be letter, NOT modify 'ử'
+        //
+        // This prevents mark keys from being applied to previous syllables when
+        // a new syllable (consonant+vowel) has been started.
+        let has_vowel_after_pos = vowels.iter().any(|v| v.pos > pos);
+        if has_vowel_after_pos {
+            let has_consonant_between = (pos + 1..self.buf.len()).any(|i| {
+                self.buf
+                    .get(i)
+                    .is_some_and(|c| !keys::is_vowel(c.key) && c.key != keys::W)
+            });
+            let has_vowel_after_consonant = vowels
+                .iter()
+                .any(|v| v.pos > pos && self.has_consonant_between(pos, v.pos));
+
+            if has_consonant_between && has_vowel_after_consonant {
+                // Syllable boundary detected - mark key should pass through as letter
+                return None;
+            }
+        }
+
         // Check if target vowel already has the same mark
         // This handles two cases:
         //
@@ -2895,15 +2945,62 @@ impl Engine {
                 // Example: "serv" → "sẻv" → backspace → "sẻ" → 'r' should → "ser"
                 let is_vowel_at_end = pos + 1 >= self.buf.len();
 
-                if has_consonant_after || is_vowel_at_end {
-                    // Consonant after OR vowel at end: REVERT the mark (remove dấu)
-                    // "lists" → "lits", user typed s twice to undo the mark
-                    // "sẻ" → "se", user typed r after backspace to undo the mark
+                // Check if syllable is closed - consonant after LAST vowel (not just after pos)
+                // If closed AND mark is on earlier vowel, don't revert - pass through as letter
+                // Example: "mới" + "ch" + "f" + 's' → syllable closed, 's' is letter
+                let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+                let syllable_closed_with_final = self
+                    .buf
+                    .iter()
+                    .skip(last_vowel_pos + 1)
+                    .any(|ch| !keys::is_vowel(ch.key) && ch.key != keys::W);
+
+                // Only revert if syllable is NOT closed, or if vowel is at end
+                // Don't revert if user has moved past the syllable (has final consonant after last vowel)
+                if is_vowel_at_end {
+                    // Vowel at end: REVERT the mark (user explicitly wants to undo)
                     return Some(self.revert_mark(key, caps));
-                } else {
-                    // Vowels after (not at end): absorb (user double-tapped in same syllable)
+                } else if has_consonant_after && !syllable_closed_with_final {
+                    // Consonant after marked vowel BUT syllable not yet fully closed
+                    // This is the "lists" pattern - revert
+                    return Some(self.revert_mark(key, caps));
+                } else if syllable_closed_with_final && pos < last_vowel_pos {
+                    // Syllable closed AND mark is on earlier vowel - user moved on
+                    // Pass through as letter (return None to fall through)
+                    return None;
+                } else if !has_consonant_after {
+                    // Only vowels after: absorb (user double-tapped in same syllable)
                     // "roofif" → "rồi"
                     return Some(Result::send(0, &[]));
+                }
+            }
+
+            // Check if target vowel already has a DIFFERENT mark AND syllable is closed
+            // AND the marked vowel is NOT the last vowel (user has moved on to new syllable)
+            //
+            // Example: "mớic" + 'f' → "mớicf"
+            //   - Vowels: ớ at pos 1, i at pos 2
+            //   - Mark is on ớ (pos 1), last vowel is i (pos 2)
+            //   - Mark position < last vowel position → user typed diphthong, moved on
+            //   - 'f' should be letter, NOT replace sắc with huyền
+            //
+            // Counter-example: "việt" + 's' → "việts" or change ệ→ế
+            //   - Vowels: i at pos 1, ệ at pos 2
+            //   - Mark is on ệ (pos 2), last vowel is also ệ (pos 2)
+            //   - Mark position == last vowel position → user is correcting mark
+            //   - 's' should change mark from nặng to sắc
+            if c.mark > mark::NONE && c.mark != mark_val {
+                let last_vowel_pos = vowels.last().map(|v| v.pos).unwrap_or(0);
+                let has_final_after_vowels = self
+                    .buf
+                    .iter()
+                    .skip(last_vowel_pos + 1)
+                    .any(|ch| !keys::is_vowel(ch.key) && ch.key != keys::W);
+
+                // Only block if mark is on earlier vowel (not last vowel) AND syllable is closed
+                if has_final_after_vowels && pos < last_vowel_pos {
+                    // Syllable is closed AND mark is on earlier vowel - user has moved on
+                    return None;
                 }
             }
         }
@@ -3180,6 +3277,44 @@ impl Engine {
                 if !self.vowels_form_valid_diphthong(&vowels) {
                     // Syllable boundary detected - tone is in previous syllable, don't move it
                     return None;
+                }
+
+                // Even if vowels form a valid diphthong, check if the consonant(s) between
+                // them is a valid Vietnamese final. If not, it's a new syllable initial.
+                // Example: "thử" + "go" → 'g' is NOT a valid final, so 'o' starts new syllable
+                // But: "tín" + "a" → 'n' IS a valid final, could be "tía" typed out of order
+
+                // Find position of next vowel after old_pos
+                let next_vowel_pos = vowels.iter().find(|v| v.pos > old_pos).map(|v| v.pos);
+                if let Some(nvp) = next_vowel_pos {
+                    // Get only consonants between old_pos and next vowel
+                    let consonants_between_vowels: Vec<u16> = (old_pos + 1..nvp)
+                        .filter_map(|i| {
+                            self.buf.get(i).and_then(|c| {
+                                if !keys::is_vowel(c.key) && c.key != keys::W {
+                                    Some(c.key)
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .collect();
+
+                    // Check if consonants form a valid Vietnamese final
+                    let is_valid_final = match consonants_between_vowels.len() {
+                        1 => constants::VALID_FINALS_1.contains(&consonants_between_vowels[0]),
+                        2 => {
+                            let pair = [consonants_between_vowels[0], consonants_between_vowels[1]];
+                            constants::VALID_FINALS_2.contains(&pair)
+                        }
+                        _ => false, // 0 or 3+ consonants - not a valid final
+                    };
+
+                    if !is_valid_final {
+                        // Consonant is not a valid final - it's a new syllable initial
+                        // Don't reposition the tone
+                        return None;
+                    }
                 }
             }
 
