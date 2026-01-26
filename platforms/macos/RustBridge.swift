@@ -1413,6 +1413,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "app.zen-browser.zen"
     ]
     if firefoxBrowsers.contains(bundleId) {
+        Log.info("[Firefox] bundleId: \(bundleId), role: \(role)")
         if role == "AXTextField" {
             return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
         } else {
@@ -1473,14 +1474,17 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if bundleId == "com.todesktop.230313mzl4w4u92" { return cached(.slow, (8000, 15000, 8000), "slow:claude") }
     if bundleId == "notion.id" { return cached(.slow, (12000, 25000, 12000), "slow:notion") }
 
+    // Warp terminal - needs higher delays
+    if bundleId == "dev.warp.Warp-Stable" { return cached(.slow, (15000, 35000, 15000), "slow:warp") }
+
     // Code editors & terminals - higher delays for Monaco/Electron-based apps
-    // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
+    // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Ghostty, Kitty, etc.)
     let codeApps = [
         // VSCode-based IDEs
         "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
         "com.visualstudio.code.oss", "com.vscodium",
         // Terminals
-        "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
+        "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
         "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
         "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
         "com.raphaelamorim.rio", "com.termius-dmg.mac",
