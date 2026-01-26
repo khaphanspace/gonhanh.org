@@ -60,6 +60,30 @@ pub fn is_valid_vietnamese_word(word: &str) -> bool {
     false
 }
 
+/// Check if a word is valid Vietnamese using specific dictionary based on style
+///
+/// - `use_modern = true`: Use DauMoi dictionary (modern style: oà, uý)
+/// - `use_modern = false`: Use DauCu dictionary (traditional style: òa, úy)
+pub fn check_with_style(word: &str, use_modern: bool) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+
+    if use_modern {
+        // Modern style: use DauMoi dictionary
+        if let Some(ref dict) = *DICT_DAUMOI {
+            return dict.check_word(word);
+        }
+    } else {
+        // Traditional style: use DauCu dictionary
+        if let Some(ref dict) = *DICT_DAUCU {
+            return dict.check_word(word);
+        }
+    }
+
+    false
+}
+
 /// Check if a word is valid in DauMoi (modern) style only
 pub fn is_valid_daumoi(word: &str) -> bool {
     if let Some(ref dict) = *DICT_DAUMOI {

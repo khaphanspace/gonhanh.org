@@ -5164,10 +5164,10 @@ impl Engine {
 
         // DICTIONARY-BASED VALIDATION (when english_auto_restore is enabled)
         // If word is in Vietnamese dictionary, it's definitely valid Vietnamese.
-        // This provides authoritative validation beyond structural checks.
+        // Uses check_with_style to respect modern_tone setting (DauMoi vs DauCu).
         if self.english_auto_restore {
             let buffer_str = self.buf.to_full_string();
-            if vietnamese_spellcheck::is_valid_vietnamese_word(&buffer_str) {
+            if vietnamese_spellcheck::check_with_style(&buffer_str, self.modern_tone) {
                 return false; // Valid VN word in dictionary
             }
 
