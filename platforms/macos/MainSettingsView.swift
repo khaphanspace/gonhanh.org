@@ -808,50 +808,54 @@ struct SettingsPageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Input method settings
+            // Bộ gõ
             VStack(spacing: 0) {
                 SettingsToggleRow("Bộ gõ tiếng Việt", isOn: $appState.isEnabled)
                 Divider().padding(.leading, 12)
                 inputMethodRow
                 if appState.currentMethod == .telex {
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ W → Ư ở đầu từ", indented: true, isOn: $appState.autoWShortcut)
+                    SettingsToggleRow("Gõ W thành Ư ở đầu từ", indented: true, isOn: $appState.autoWShortcut)
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ ] → Ư, [ → Ơ", indented: true, isOn: $appState.bracketShortcut)
+                    SettingsToggleRow("Gõ [ ] thành Ơ Ư", indented: true, isOn: $appState.bracketShortcut)
                     Divider().padding(.leading, 12)
                     englishAutoRestoreRow
                 }
             }
             .cardBackground()
 
-            // Toggle mode settings
+            // Phím tắt
             VStack(spacing: 0) {
                 ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
                                     isRecording: $isRecordingShortcut)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự động bật/tắt theo ứng dụng", subtitle: "Ghi nhớ trạng thái riêng cho từng app", isOn: $appState.perAppModeEnabled)
-            }
-            .cardBackground()
-
-            // Text expansion
-            VStack(spacing: 0) {
-                shortcutsRow
-            }
-            .cardBackground()
-
-            // Typing options
-            VStack(spacing: 0) {
-                SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "oà thay vì òa, uý thay vì úy", isOn: $appState.modernTone)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Cho phép z, w, j, f làm phụ âm", isOn: $appState.allowForeignConsonants)
                 Divider().padding(.leading, 12)
                 RestoreShortcutRecorderRow(
                     shortcut: $appState.restoreShortcut,
                     isEnabled: $appState.restoreShortcutEnabled,
                     isRecording: $isRecordingRestoreShortcut
                 )
+            }
+            .cardBackground()
+
+            // Quy tắc gõ
+            VStack(spacing: 0) {
+                SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "oà thay vì òa, uý thay vì úy", isOn: $appState.modernTone)
                 Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự viết hoa đầu câu", isOn: $appState.autoCapitalize)
+                SettingsToggleRow("Cho phép phụ âm ngoại", subtitle: "z, w, j, f làm phụ âm đầu", isOn: $appState.allowForeignConsonants)
+                Divider().padding(.leading, 12)
+                AutoCapitalizeRow(appState: appState)
+            }
+            .cardBackground()
+
+            // Ứng dụng
+            VStack(spacing: 0) {
+                SettingsToggleRow("Nhớ trạng thái theo app", subtitle: "Tự bật/tắt khi chuyển ứng dụng", isOn: $appState.perAppModeEnabled)
+            }
+            .cardBackground()
+
+            // Mở rộng
+            VStack(spacing: 0) {
+                shortcutsRow
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Âm thanh khi bật/tắt", isOn: $appState.soundEnabled)
             }
@@ -880,7 +884,7 @@ struct SettingsPageView: View {
                 Image(systemName: "arrow.turn.down.right")
                     .font(.system(size: 10))
                     .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                Text("Tự khôi phục từ tiếng Anh").font(.system(size: 13))
+                Text("Tự khôi phục tiếng Anh").font(.system(size: 13))
                 Link(destination: URL(string: "https://github.com/khaphanspace/gonhanh.org/issues/26")!) {
                     Text("Beta · Góp ý")
                         .font(.system(size: 9, weight: .medium))
@@ -1381,7 +1385,7 @@ struct ShortcutRecorderRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Bật/tắt bằng phím tắt").font(.system(size: 13))
+                Text("Bật/tắt bộ gõ").font(.system(size: 13))
                 Text("Nhấn để thay đổi")
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
@@ -1455,7 +1459,7 @@ struct RestoreShortcutRecorderRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Phím hoàn tác dấu").font(.system(size: 13))
+                Text("Hoàn tác dấu vừa gõ").font(.system(size: 13))
                 Text("Nhấn để thay đổi")
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
@@ -1562,7 +1566,7 @@ struct AutoCapitalizeRow: View {
     var body: some View {
         SettingsRow {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Tự động viết hoa đầu câu").font(.system(size: 13))
+                Text("Tự viết hoa đầu câu").font(.system(size: 13))
                 if appState.autoCapitalize {
                     HStack(spacing: 4) {
                         Text(subtitleText)
