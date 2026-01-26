@@ -549,6 +549,55 @@ struct KeyCap: View {
     }
 }
 
+// MARK: - Sheet Components
+
+struct SheetHeader: View {
+    let title: String
+    let subtitle: String?
+
+    init(_ title: String, subtitle: String? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 15, weight: .semibold))
+            if let subtitle {
+                Text(subtitle).font(.system(size: 11)).foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+}
+
+struct SheetToolbar<Actions: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    let actions: Actions?
+
+    init(@ViewBuilder actions: () -> Actions) {
+        self.actions = actions()
+    }
+
+    init() where Actions == EmptyView {
+        self.actions = nil
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let actions { actions }
+            Spacer()
+            Button("Xong") { dismiss() }
+                .keyboardShortcut(.escape, modifiers: [])
+        }
+        .font(.system(size: 12))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
 struct ClickableTextField: NSViewRepresentable {
     @Binding var text: String
 
@@ -909,7 +958,6 @@ struct SettingsPageView: View {
 
 struct ShortcutsSheet: View {
     @ObservedObject var appState: AppState
-    @Environment(\.dismiss) private var dismiss
 
     // Form state
     @State private var formKey: String = ""
@@ -920,27 +968,33 @@ struct ShortcutsSheet: View {
     private var isEditing: Bool { editingId != nil }
     private var canSave: Bool { !formKey.isEmpty && !formValue.isEmpty }
 
+    private var subtitle: String {
+        let enabled = appState.shortcuts.filter(\.isEnabled).count
+        let total = appState.shortcuts.count
+        return "\(total) mục · \(enabled) đang bật"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            header
+            SheetHeader("Bảng gõ tắt", subtitle: subtitle)
             Divider()
             formSection
             Divider()
             tableContent
             Divider()
-            toolbar
+            SheetToolbar {
+                Button(action: importShortcuts) {
+                    Label("Nhập", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderless)
+                Button(action: exportShortcuts) {
+                    Label("Xuất", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.borderless)
+                .disabled(appState.shortcuts.isEmpty)
+            }
         }
-        .frame(width: 480, height: 420)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Từ viết tắt").font(.system(size: 15, weight: .semibold))
-            Text("\(appState.shortcuts.count) mục").font(.system(size: 11)).foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .frame(width: 460, height: 400)
     }
 
     private var formSection: some View {
@@ -1031,25 +1085,6 @@ struct ShortcutsSheet: View {
                 }
             }
         }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            Button(action: importShortcuts) {
-                Label("Nhập", systemImage: "square.and.arrow.down")
-            }
-            .buttonStyle(.borderless)
-            Button(action: exportShortcuts) {
-                Label("Xuất", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(.borderless).disabled(appState.shortcuts.isEmpty)
-            Spacer()
-            Button("Xong") { dismiss() }
-                .keyboardShortcut(.escape, modifiers: [])
-        }
-        .font(.system(size: 12))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     private func selectItem(_ item: ShortcutItem) {
@@ -1601,19 +1636,17 @@ struct AutoCapitalizeRow: View {
 
 struct AutoCapitalizeExcludedAppsSheet: View {
     @ObservedObject var appState: AppState
-    @Environment(\.dismiss) private var dismiss
     @State private var runningApps: [RunningAppInfo] = []
+
+    private var subtitle: String {
+        let count = appState.autoCapitalizeExcludedApps.count
+        return count == 0 ? "Chưa có ứng dụng nào" : "\(count) ứng dụng đang loại trừ"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Native-style header
-            Text("Loại trừ ứng dụng")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-
-            // Native List with sections
+            SheetHeader("Loại trừ viết hoa", subtitle: subtitle)
+            Divider()
             List {
                 if !appState.autoCapitalizeExcludedApps.isEmpty {
                     Section {
@@ -1664,19 +1697,10 @@ struct AutoCapitalizeExcludedAppsSheet: View {
                 }
             }
             .listStyle(.inset)
-
             Divider()
-
-            // Native button bar
-            HStack {
-                Spacer()
-                Button("Xong") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            SheetToolbar()
         }
-        .frame(width: 420, height: 380)
+        .frame(width: 460, height: 400)
         .onAppear { loadRunningApps() }
     }
 
