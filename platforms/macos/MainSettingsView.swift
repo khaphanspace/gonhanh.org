@@ -1636,7 +1636,7 @@ struct AutoCapitalizeRow: View {
 
 struct AutoCapitalizeExcludedAppsSheet: View {
     @ObservedObject var appState: AppState
-    @State private var runningApps: [RunningAppInfo] = []
+    @State private var allApps: [AppToggleItem] = []
 
     private var subtitle: String {
         let count = appState.autoCapitalizeExcludedApps.count
@@ -1647,112 +1647,97 @@ struct AutoCapitalizeExcludedAppsSheet: View {
         VStack(spacing: 0) {
             SheetHeader("Loại trừ viết hoa", subtitle: subtitle)
             Divider()
-            List {
-                if !appState.autoCapitalizeExcludedApps.isEmpty {
-                    Section {
-                        ForEach(Array(appState.autoCapitalizeExcludedApps).sorted(), id: \.self) { bundleId in
-                            ExcludedAppRow(bundleId: bundleId, isExcluded: true) {
-                                withAnimation { appState.includeAppInAutoCapitalize(bundleId) }
-                                loadRunningApps()
+            if allApps.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "app.badge.checkmark")
+                        .font(.system(size: 28))
+                        .foregroundColor(.secondary)
+                    Text("Không có ứng dụng đang chạy")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(allApps, id: \.bundleId) { app in
+                        AppToggleRow(
+                            name: app.name,
+                            icon: app.icon,
+                            isExcluded: appState.autoCapitalizeExcludedApps.contains(app.bundleId)
+                        ) { isExcluded in
+                            withAnimation {
+                                if isExcluded {
+                                    appState.excludeAppFromAutoCapitalize(app.bundleId)
+                                } else {
+                                    appState.includeAppInAutoCapitalize(app.bundleId)
+                                }
                             }
+                            reloadApps()
                         }
-                        .onDelete { indexSet in
-                            let sorted = Array(appState.autoCapitalizeExcludedApps).sorted()
-                            for index in indexSet {
-                                appState.includeAppInAutoCapitalize(sorted[index])
-                            }
-                            loadRunningApps()
-                        }
-                    } header: {
-                        Text("Đang loại trừ")
                     }
                 }
-
-                if !runningApps.isEmpty {
-                    Section {
-                        ForEach(runningApps, id: \.bundleId) { app in
-                            ExcludedAppRow(bundleId: app.bundleId, appName: app.name, appIcon: app.icon, isExcluded: false) {
-                                withAnimation { appState.excludeAppFromAutoCapitalize(app.bundleId) }
-                                loadRunningApps()
-                            }
-                        }
-                    } header: {
-                        Text("Ứng dụng đang chạy")
-                    }
-                }
-
-                if appState.autoCapitalizeExcludedApps.isEmpty && runningApps.isEmpty {
-                    Section {
-                        VStack(spacing: 8) {
-                            Image(systemName: "app.badge.checkmark")
-                                .font(.system(size: 28))
-                                .foregroundColor(.secondary)
-                            Text("Chưa có ứng dụng nào")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                    }
-                }
+                .listStyle(.inset)
             }
-            .listStyle(.inset)
             Divider()
             SheetToolbar()
         }
         .frame(width: 460, height: 400)
-        .onAppear { loadRunningApps() }
+        .onAppear { reloadApps() }
     }
 
-    private func loadRunningApps() {
+    private func reloadApps() {
         let excluded = appState.autoCapitalizeExcludedApps
-        runningApps = NSWorkspace.shared.runningApplications
+
+        // Get running apps
+        var apps: [AppToggleItem] = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular }
-            .compactMap { app -> RunningAppInfo? in
+            .compactMap { app -> AppToggleItem? in
                 guard let bundleId = app.bundleIdentifier,
-                      !excluded.contains(bundleId),
                       bundleId != Bundle.main.bundleIdentifier else { return nil }
-                return RunningAppInfo(
+                return AppToggleItem(
                     bundleId: bundleId,
                     name: app.localizedName ?? bundleId,
                     icon: app.icon
                 )
             }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        // Add excluded apps not currently running
+        for bundleId in excluded {
+            if !apps.contains(where: { $0.bundleId == bundleId }) {
+                let name = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.localizedName
+                    ?? bundleId.components(separatedBy: ".").last ?? bundleId
+                let icon = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.icon
+                apps.append(AppToggleItem(bundleId: bundleId, name: name, icon: icon))
+            }
+        }
+
+        // Sort: excluded first, then alphabetically
+        allApps = apps.sorted { a, b in
+            let aExcluded = excluded.contains(a.bundleId)
+            let bExcluded = excluded.contains(b.bundleId)
+            if aExcluded != bExcluded { return aExcluded }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
     }
 }
 
-struct RunningAppInfo {
+struct AppToggleItem {
     let bundleId: String
     let name: String
     let icon: NSImage?
 }
 
-struct ExcludedAppRow: View {
-    let bundleId: String
-    var appName: String?
-    var appIcon: NSImage?
+struct AppToggleRow: View {
+    let name: String
+    let icon: NSImage?
     let isExcluded: Bool
-    let action: () -> Void
-
-    private var displayName: String {
-        if let name = appName { return name }
-        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
-            return app.localizedName ?? bundleId
-        }
-        return bundleId.components(separatedBy: ".").last ?? bundleId
-    }
-
-    private var displayIcon: NSImage? {
-        if let icon = appIcon { return icon }
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.icon
-    }
+    let onToggle: (Bool) -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             // App icon
             Group {
-                if let icon = displayIcon {
+                if let icon = icon {
                     Image(nsImage: icon).resizable()
                 } else {
                     Image(systemName: "app.fill")
@@ -1760,30 +1745,24 @@ struct ExcludedAppRow: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .frame(width: 32, height: 32)
+            .frame(width: 28, height: 28)
 
-            // App info
-            VStack(alignment: .leading, spacing: 2) {
-                Text(displayName)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-                Text(bundleId)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
+            // App name only
+            Text(name)
+                .font(.system(size: 13))
+                .lineLimit(1)
 
             Spacer()
 
-            // Action button
-            Button(action: action) {
-                Image(systemName: isExcluded ? "minus.circle.fill" : "plus.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(isExcluded ? .red : .accentColor)
-            }
-            .buttonStyle(.plain)
+            // Toggle switch
+            Toggle("", isOn: Binding(
+                get: { isExcluded },
+                set: { onToggle($0) }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
 
