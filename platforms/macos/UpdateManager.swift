@@ -9,6 +9,7 @@ enum UpdateState {
     case available(UpdateInfo)
     case upToDate
     case downloading(progress: Double)
+    case readyToInstall(dmgPath: URL)
     case installing
     case error(String)
 }
@@ -69,6 +70,11 @@ class UpdateManager: NSObject, ObservableObject {
         downloadTask?.cancel()
         downloadTask = nil
         state = .idle
+    }
+
+    func installReadyUpdate() {
+        guard case .readyToInstall(let dmgPath) = state else { return }
+        install(dmgPath: dmgPath)
     }
 
     // MARK: - Private Methods
@@ -221,7 +227,8 @@ extension UpdateManager: URLSessionDownloadDelegate {
                 try FileManager.default.removeItem(at: dmgPath)
             }
             try FileManager.default.copyItem(at: location, to: dmgPath)
-            install(dmgPath: dmgPath)
+            // Don't auto-install, wait for user to click "Restart to update"
+            state = .readyToInstall(dmgPath: dmgPath)
         } catch {
             state = .error("Không thể lưu file: \(error.localizedDescription)")
         }

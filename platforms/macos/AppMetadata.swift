@@ -84,6 +84,8 @@ enum SettingsKey {
     static let autoCapitalizeExcludedApps = "gonhanh.autoCapitalize.excludedApps"
     static let launchAtLoginUserDisabled = "gonhanh.launchAtLogin.userDisabled"
     static let soundEnabled = "gonhanh.soundEnabled"
+    static let autoCheckUpdate = "gonhanh.update.autoCheck"
+    static let autoUpdate = "gonhanh.update.auto"
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
 }
 
