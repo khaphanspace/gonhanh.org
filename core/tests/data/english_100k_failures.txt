@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 492
+# Total failures: 493
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -191,6 +191,7 @@ loon	loon	loon	lôn	lôn
 sows	sows	sows	sớ	sơs
 hoo	hoo	hoo	hô	hô
 kee	kee	kee	kê	kê
+rostow	rostow	rostow	rớt	rostơ
 noaa	noaa	noaa	noâ	noâ
 referees	referees	referees	rểees	referês
 reengineering	reeengineeering	reengineering	reengineeering	rêenginêering

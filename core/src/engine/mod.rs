@@ -1049,11 +1049,16 @@ impl Engine {
         // When "pc" or "pct" appears after vowel, it's clearly not Vietnamese → revert
         // Skip this check for mark keys (s, f, r, x, j) - they confirm Vietnamese intent
         // Skip this check for stroke keys (d) - they trigger đ transformation
+        // Skip this check for tone keys (w, a, e, o in Telex) - they apply tone modifiers
+        // Issue: "hojpow" was incorrectly reverting because 'w' was treated as consonant
+        // creating invalid "pw" final, but 'w' is a horn modifier that should switch ộ → ợ
         let is_mark_key = m.mark(key).is_some();
         let is_stroke_key = m.stroke(key);
+        let is_tone_key = m.tone(key).is_some();
         if keys::is_consonant(key)
             && !is_mark_key
             && !is_stroke_key
+            && !is_tone_key
             && matches!(self.last_transform, Some(Transform::DelayedCircumflex(_)))
         {
             // Check consonants after the vowel that got circumflex
