@@ -4101,7 +4101,11 @@ impl Engine {
             }
         }
 
-        self.rebuild_from(first_pos)
+        // Use rebuild_from_after_insert because the trigger key (e.g., 'e' in "ware")
+        // was just added to the buffer but NOT yet displayed on screen.
+        // Using rebuild_from would count the new char in backspace, deleting an extra
+        // character (like the space before this word in "ware ware").
+        self.rebuild_from_after_insert(first_pos)
     }
 
     /// Collect vowels from buffer

@@ -205,6 +205,23 @@ fn pattern5_w_vowel_w() {
 }
 
 #[test]
+fn pattern5_repeated_w_words() {
+    // Issue: When typing a w-word twice separated by space, the space should be preserved.
+    // Bug was: "ware ware" → "wareware" (missing space)
+    // The bug occurred because revert_w_as_vowel_transforms used rebuild_from instead of
+    // rebuild_from_after_insert, causing an extra character (the space) to be deleted.
+    telex_auto_restore(&[
+        ("ware ware ", "ware ware "),
+        ("water water ", "water water "),
+        ("winter winter ", "winter winter "),
+        ("window window ", "window window "),
+        ("work work ", "work work "),
+        ("world world ", "world world "),
+        ("wow wow ", "wow wow "),
+    ]);
+}
+
+#[test]
 fn pattern5_double_w_at_start() {
     // Double 'w' at start should collapse to single 'w' when restoring
     telex_auto_restore(&[("wwax ", "wax ")]);
