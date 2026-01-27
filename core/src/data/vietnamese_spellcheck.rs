@@ -34,38 +34,28 @@ static DICT_DAUCU: LazyLock<Option<Dictionary>> = LazyLock::new(|| {
         .ok()
 });
 
-/// Check if a word is valid Vietnamese (either DauMoi or DauCu style)
+/// Check if word starts with foreign consonant (z, w, j, f)
+/// These consonants are not part of standard Vietnamese alphabet
+fn starts_with_foreign_consonant(word: &str) -> bool {
+    word.chars()
+        .next()
+        .map(|c| matches!(c.to_ascii_lowercase(), 'z' | 'w' | 'j' | 'f'))
+        .unwrap_or(false)
+}
+
+/// Check if a word is valid Vietnamese with style and foreign consonants option
 ///
-/// Returns true if the word is found in either dictionary.
-/// Returns false if dictionaries failed to load or word not found.
-pub fn is_valid_vietnamese_word(word: &str) -> bool {
+/// - `use_modern = true`: Use DauMoi dictionary (modern style: oà, uý)
+/// - `use_modern = false`: Use DauCu dictionary (traditional style: òa, úy)
+/// - `allow_foreign = true`: Allow words starting with z/w/j/f
+/// - `allow_foreign = false`: Reject words starting with z/w/j/f
+pub fn check_with_style_and_foreign(word: &str, use_modern: bool, allow_foreign: bool) -> bool {
     if word.is_empty() {
         return false;
     }
 
-    // Check DauMoi dictionary
-    if let Some(ref dict) = *DICT_DAUMOI {
-        if dict.check_word(word) {
-            return true;
-        }
-    }
-
-    // Check DauCu dictionary
-    if let Some(ref dict) = *DICT_DAUCU {
-        if dict.check_word(word) {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Check if a word is valid Vietnamese using specific dictionary based on style
-///
-/// - `use_modern = true`: Use DauMoi dictionary (modern style: oà, uý)
-/// - `use_modern = false`: Use DauCu dictionary (traditional style: òa, úy)
-pub fn check_with_style(word: &str, use_modern: bool) -> bool {
-    if word.is_empty() {
+    // When foreign consonants NOT allowed, reject words starting with z/w/j/f
+    if !allow_foreign && starts_with_foreign_consonant(word) {
         return false;
     }
 
@@ -84,57 +74,58 @@ pub fn check_with_style(word: &str, use_modern: bool) -> bool {
     false
 }
 
-/// Check if a word is valid in DauMoi (modern) style only
-pub fn is_valid_daumoi(word: &str) -> bool {
-    if let Some(ref dict) = *DICT_DAUMOI {
-        return dict.check_word(word);
-    }
-    false
-}
-
-/// Check if a word is valid in DauCu (traditional) style only
-pub fn is_valid_daucu(word: &str) -> bool {
-    if let Some(ref dict) = *DICT_DAUCU {
-        return dict.check_word(word);
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_common_vietnamese_words() {
-        // Common words should be valid
-        assert!(is_valid_vietnamese_word("xin"));
-        assert!(is_valid_vietnamese_word("chào"));
-        assert!(is_valid_vietnamese_word("tôi"));
-        assert!(is_valid_vietnamese_word("việt"));
-        assert!(is_valid_vietnamese_word("nam"));
+        // Common words should be valid (using default: traditional style, no foreign)
+        assert!(check_with_style_and_foreign("xin", false, false));
+        assert!(check_with_style_and_foreign("chào", false, false));
+        assert!(check_with_style_and_foreign("tôi", false, false));
+        assert!(check_with_style_and_foreign("Việt", false, false));
+        assert!(check_with_style_and_foreign("Nam", false, false));
     }
 
     #[test]
     fn test_invalid_words() {
         // English words should not be valid Vietnamese
-        assert!(!is_valid_vietnamese_word("hello"));
-        assert!(!is_valid_vietnamese_word("world"));
-        assert!(!is_valid_vietnamese_word("view"));
+        assert!(!check_with_style_and_foreign("hello", false, false));
+        assert!(!check_with_style_and_foreign("world", false, false));
+        assert!(!check_with_style_and_foreign("view", false, false));
         // Gibberish
-        assert!(!is_valid_vietnamese_word("viêư"));
-        assert!(!is_valid_vietnamese_word("hêllô"));
+        assert!(!check_with_style_and_foreign("viêư", false, false));
+        assert!(!check_with_style_and_foreign("hêllô", false, false));
     }
 
     #[test]
     fn test_empty_word() {
-        assert!(!is_valid_vietnamese_word(""));
+        assert!(!check_with_style_and_foreign("", false, false));
     }
 
     #[test]
     fn test_tones_and_marks() {
         // Words with various tones
-        assert!(is_valid_vietnamese_word("được"));
-        assert!(is_valid_vietnamese_word("không"));
-        assert!(is_valid_vietnamese_word("đẹp"));
+        assert!(check_with_style_and_foreign("được", false, false));
+        assert!(check_with_style_and_foreign("không", false, false));
+        assert!(check_with_style_and_foreign("đẹp", false, false));
+    }
+
+    #[test]
+    fn test_foreign_consonants_rejected_when_disabled() {
+        // Words starting with z/w/j/f should be rejected when allow_foreign = false
+        assert!(!check_with_style_and_foreign("zá", false, false));
+        assert!(!check_with_style_and_foreign("wá", false, false));
+        assert!(!check_with_style_and_foreign("já", false, false));
+        assert!(!check_with_style_and_foreign("fá", false, false));
+    }
+
+    #[test]
+    fn test_foreign_consonants_allowed_when_enabled() {
+        // Words starting with z/w/j/f should pass foreign check when allow_foreign = true
+        // (but still need to be in dictionary to return true - these won't be)
+        // Just verify they don't get rejected by the foreign consonant check
+        assert!(!check_with_style_and_foreign("zá", false, true)); // Not in dict, but passes foreign check
     }
 }

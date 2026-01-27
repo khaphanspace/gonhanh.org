@@ -5167,7 +5167,11 @@ impl Engine {
         // Uses check_with_style to respect modern_tone setting (DauMoi vs DauCu).
         if self.english_auto_restore {
             let buffer_str = self.buf.to_full_string();
-            if vietnamese_spellcheck::check_with_style(&buffer_str, self.modern_tone) {
+            if vietnamese_spellcheck::check_with_style_and_foreign(
+                &buffer_str,
+                self.modern_tone,
+                self.allow_foreign_consonants,
+            ) {
                 return false; // Valid VN word in dictionary
             }
 
