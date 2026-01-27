@@ -142,6 +142,7 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 private enum InjectionMethod {
     case fast           // Default: backspace + text with minimal delays
     case slow           // Terminals/Electron: backspace + text with higher delays
+    case slowProxy      // Firefox fallback: slow method but routes events via proxy
     case charByChar     // Safari Google Docs: backspace + text character-by-character
     case selection      // Browser address bars: Shift+Left select + type replacement
     case autocomplete   // Spotlight fallback: Forward Delete + backspace + text via proxy
@@ -226,6 +227,8 @@ private class TextInjector {
             injectViaSelectAll(proxy: proxy)
         case .charByChar:
             injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
+        case .slowProxy:
+            injectViaSlowProxy(bs: bs, text: text, delays: delays, proxy: proxy)
         case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
         case .passthrough:
@@ -234,7 +237,7 @@ private class TextInjector {
         }
 
         // Settle time: 20ms for slow apps, 5ms for others
-        usleep(method == .slow ? 20000 : 5000)
+        usleep(method == .slow || method == .slowProxy ? 20000 : 5000)
     }
 
     // MARK: - Injection Methods
@@ -256,6 +259,31 @@ private class TextInjector {
         if bs > 0 { usleep(delays.1) }
 
         let chunks = postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+
+        if Log.isEnabled {
+            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
+            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
+        }
+    }
+
+    /// Slow injection via proxy: routes events through event tap for apps where session posting fails
+    /// Used for Firefox-based browsers when focused element is not a text field (role=AXWindow)
+    private func injectViaSlowProxy(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
+        guard let src = CGEventSource(stateID: .privateState) else {
+            Log.info("inject FAILED: no event source")
+            return
+        }
+
+        let startTime = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
+
+        for _ in 0..<bs {
+            postKey(KeyCode.backspace, source: src, proxy: proxy)
+            usleep(delays.0)
+        }
+        if bs > 0 { usleep(delays.1) }
+
+        let chunks = postText(text, source: src, delay: delays.2, proxy: proxy, chunkSize: 20)
 
         if Log.isEnabled {
             let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
@@ -1442,8 +1470,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.axDirect, (0, 0, 0), "ax:arc")
     }
 
-    // Firefox-based browsers - use selection method for address bar (AXTextField)
-    // Use slow method for content areas - axDirect causes char deletion on mid-text insert
+    // Firefox-based browsers - use selection method for text fields (AXTextField/AXTextArea)
+    // Use slowProxy for other roles (AXWindow) - routes events via proxy since session posting fails
     // Issue #160/#192: axDirect deletes chars/newlines when inserting in middle of text
     let firefoxBrowsers = [
         "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
@@ -1456,7 +1484,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         if role == "AXTextField" || role == "AXTextArea" {
             return cached(.selection, (0, 0, 0), "sel:firefox")  // Text fields
         } else {
-            return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area / fallback
+            return cached(.slowProxy, (5000, 10000, 3000), "proxy:firefox")  // Via proxy for AXWindow
         }
     }
 
