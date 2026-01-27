@@ -3458,14 +3458,15 @@ impl Engine {
     /// Common revert logic: clear modifier, add key to buffer, rebuild output
     fn revert_and_rebuild(&mut self, pos: usize, key: u16, caps: bool) -> Result {
         // Calculate backspace BEFORE adding key (based on old buffer state)
-        let backspace = (self.buf.len() - pos) as u8;
+        // Use saturating_sub to prevent underflow if pos > buf.len()
+        let backspace = self.buf.len().saturating_sub(pos) as u8;
 
         // Add the reverted key to buffer so validation sees the full sequence
         self.buf.push(Char::new(key, caps));
 
         // Build output from position (includes new key)
         // Use chars::to_char to preserve mark (sắc/huyền/etc) on reverted vowels
-        let mut output = Vec::with_capacity(self.buf.len() - pos);
+        let mut output = Vec::with_capacity(self.buf.len().saturating_sub(pos));
         for i in pos..self.buf.len() {
             if let Some(c) = self.buf.get(i) {
                 if c.key == keys::D && c.stroke {
@@ -4134,7 +4135,7 @@ impl Engine {
 
     /// Rebuild output from position
     fn rebuild_from(&self, from: usize) -> Result {
-        let mut output = Vec::with_capacity(self.buf.len() - from);
+        let mut output = Vec::with_capacity(self.buf.len().saturating_sub(from));
         let mut backspace = 0u8;
 
         for i in from..self.buf.len() {
@@ -4168,7 +4169,7 @@ impl Engine {
             return Result::none();
         }
 
-        let mut output = Vec::with_capacity(self.buf.len() - from);
+        let mut output = Vec::with_capacity(self.buf.len().saturating_sub(from));
         // Backspace = number of chars from `from` to BEFORE the new char
         // The new char (last in buffer) hasn't been displayed yet
         let backspace = (self.buf.len().saturating_sub(1).saturating_sub(from)) as u8;
