@@ -1453,11 +1453,11 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     ]
     if firefoxBrowsers.contains(bundleId) {
         Log.info("[Firefox] bundleId: \(bundleId), role: \(role)")
-        // if role == "AXTextField" {
-        return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
-        // } else {
-        //     return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
-        // }
+        if role == "AXTextField" || role == "AXTextArea" {
+            return cached(.selection, (0, 0, 0), "sel:firefox")  // Text fields
+        } else {
+            return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area / fallback
+        }
     }
 
     // Browser address bars (AXTextField with autocomplete)
