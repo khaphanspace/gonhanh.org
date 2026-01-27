@@ -1864,3 +1864,60 @@ fn issue230_case_analysis() {
         panic!("{} test cases failed", failures.len());
     }
 }
+
+// =============================================================================
+// BUG: "would" with single 'w' causes extra backspace (deletes previous line)
+// When typing "would" starting with single 'w':
+// - w → ư (buffer: [Ư])
+// - o → ơ (buffer: [Ư, Ơ], screen: "ươ")
+// - u → u (buffer: [Ư, Ơ, U], screen: "ươu")
+// - l → triggers foreign word detection, should backspace 3, not 4
+//
+// Root cause: revert_w_as_vowel_transforms used rebuild_from instead of
+// rebuild_from_after_insert. The new char (l) was already in buffer but not
+// yet on screen, so backspace count was 1 too high.
+// =============================================================================
+
+#[test]
+fn bug_would_backspace_count() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    // Step by step to verify backspace count at each step
+    // w → ư
+    let r = e.on_key(keys::W, false, false);
+    assert_eq!(r.action, Action::Send as u8, "w should transform to ư");
+    assert_eq!(r.backspace, 0, "w→ư: no backspace needed");
+
+    // o → ơ (forms ươ compound)
+    let r = e.on_key(keys::O, false, false);
+    assert_eq!(r.action, Action::Send as u8, "o should transform to ơ");
+    assert_eq!(r.backspace, 0, "w+o: no backspace (appending ơ)");
+
+    // u → passthrough
+    let r = e.on_key(keys::U, false, false);
+    // u might pass through or transform - just verify no crash
+
+    // l → triggers foreign word revert
+    // At this point: screen has "ươu" (3 chars), buffer has [Ư, Ơ, U]
+    // Adding L should detect foreign word and revert to "woul"
+    // Backspace should be 3 (to delete "ươu"), not 4
+    let r = e.on_key(keys::L, false, false);
+    assert_eq!(r.action, Action::Send as u8, "l should trigger revert");
+    assert_eq!(r.backspace, 3, "BUG FIX: l should backspace 3 (ươu), not 4");
+
+    // Verify output is "woul"
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    assert_eq!(output, "woul", "Output should be 'woul' after revert");
+}
+
+#[test]
+fn bug_would_full_word() {
+    // Full "would " typing test
+    telex_auto_restore(&[("would ", "would ")]);
+}

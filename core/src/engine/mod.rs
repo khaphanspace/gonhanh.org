@@ -4101,7 +4101,10 @@ impl Engine {
             }
         }
 
-        self.rebuild_from(first_pos)
+        // Use rebuild_from_after_insert because the triggering character (e.g., 'l' in "would")
+        // was already pushed to buffer but NOT yet displayed on screen.
+        // rebuild_from would count it in backspace, causing 1 extra backspace.
+        self.rebuild_from_after_insert(first_pos)
     }
 
     /// Collect vowels from buffer
