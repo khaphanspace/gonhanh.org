@@ -148,6 +148,7 @@ private enum InjectionMethod {
     case selectAll      // Select All + Replace: Cmd+A + type full buffer (for autocomplete apps)
     case axDirect       // Spotlight primary: AX API direct text manipulation (macOS 13+)
     case passthrough    // iPhone Mirroring: pass through all keys (remote device handles input)
+    case clipboard      // Terminals: backspace + Cmd+V paste (atomic, no race conditions)
 }
 
 // MARK: - Text Injector
@@ -231,6 +232,8 @@ private class TextInjector {
         case .passthrough:
             // Should not reach here - passthrough is handled in keyboard callback
             break
+        case .clipboard:
+            injectViaClipboard(bs: bs, text: text)
         }
 
         // Settle time: 20ms for slow apps, 5ms for others
@@ -335,6 +338,62 @@ private class TextInjector {
 
         // Type full session buffer (replaces all selected text)
         postText(fullText, source: src, proxy: proxy)
+    }
+
+    /// Clipboard injection: backspace + Cmd+V paste (atomic operation, no race conditions)
+    /// Used for terminals where timing-based backspace+text is unreliable
+    /// Saves and restores clipboard to avoid data loss
+    private func injectViaClipboard(bs: Int, text: String) {
+        guard let src = CGEventSource(stateID: .privateState) else {
+            Log.info("clipboard FAILED: no event source")
+            return
+        }
+
+        let startTime = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
+
+        // 1. Save current clipboard content
+        let pasteboard = NSPasteboard.general
+        let savedTypes = pasteboard.types ?? []
+        var savedItems: [(NSPasteboard.PasteboardType, Data)] = []
+        for type in savedTypes {
+            if let data = pasteboard.data(forType: type) {
+                savedItems.append((type, data))
+            }
+        }
+
+        // 2. Set replacement text to clipboard
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+
+        // 3. Send backspaces to delete old characters
+        for _ in 0..<bs {
+            postKey(KeyCode.backspace, source: src)
+            usleep(1000)  // Minimal delay for backspace
+        }
+        if bs > 0 { usleep(3000) }  // Wait for backspaces to process
+
+        // 4. Cmd+V to paste (atomic operation - text appears all at once)
+        if !text.isEmpty {
+            postKey(0x09, source: src, flags: .maskCommand)  // 0x09 = V key
+            usleep(10000)  // Wait for paste to complete
+        }
+
+        // 5. Restore original clipboard content
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            pasteboard.clearContents()
+            if savedItems.isEmpty {
+                // Clipboard was empty before, leave it empty
+            } else {
+                for (type, data) in savedItems {
+                    pasteboard.setData(data, forType: type)
+                }
+            }
+        }
+
+        if Log.isEnabled {
+            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            Log.info("clipboard done: bs=\(bs) text='\(text)' time=\(String(format: "%.1f", elapsed))ms")
+        }
     }
 
     /// AX API injection: Directly manipulate text field via Accessibility API
@@ -1512,18 +1571,21 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if bundleId == "com.todesktop.230313mzl4w4u92" { return cached(.slow, (8000, 15000, 8000), "slow:claude") }
     if bundleId == "notion.id" { return cached(.slow, (12000, 25000, 12000), "slow:notion") }
 
-    // Code editors & terminals - higher delays for Monaco/Electron-based apps
-    // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
-    let codeApps = [
-        // VSCode-based IDEs
-        "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
-        "com.visualstudio.code.oss", "com.vscodium",
+    // Terminals & code editors - use clipboard paste for 100% reliability (no race conditions)
+    let clipboardApps = [
         // Terminals
         "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
         "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
         "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
         "com.raphaelamorim.rio", "com.termius-dmg.mac",
-        // Other code editors
+        // VSCode-based IDEs (Monaco editor)
+        "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
+        "com.visualstudio.code.oss", "com.vscodium"
+    ]
+    if clipboardApps.contains(bundleId) { return cached(.clipboard, (0, 0, 0), "clip:code") }
+
+    // Other code editors - native text handling, use slow method
+    let codeApps = [
         "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
     ]
     if codeApps.contains(bundleId) { return cached(.slow, (8000, 25000, 8000), "slow:code") }
