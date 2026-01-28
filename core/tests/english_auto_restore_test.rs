@@ -717,6 +717,16 @@ fn pattern9_double_ss_english_words() {
 }
 
 #[test]
+fn pattern9_hiss_exception() {
+    // "hiss" is an exception: user typing "hiss" likely wants "his"
+    // (more common word, user typed double 's' to revert sắc mark)
+    // This is similar to "off" → "of", "iff" → "if", "ass" → "as" exceptions
+    telex_auto_restore(&[
+        ("hiss ", "his "), // hiss → his (exception: "his" more common than "hiss")
+    ]);
+}
+
+#[test]
 fn pattern9_double_f_words() {
     // Double 'f' (huyền mark) - need vowel before ff for revert to happen
     telex_auto_restore(&[

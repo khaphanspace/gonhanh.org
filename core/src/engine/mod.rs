@@ -4518,13 +4518,23 @@ impl Engine {
                         if is_double_ss || is_double_ff {
                             let original_lower = stored.to_lowercase();
                             if english_dict::is_english_word(&original_lower) {
-                                // EXCEPTIONS: "off", "iff", "ass" should keep reverted form
+                                // EXCEPTIONS: certain words should keep reverted form (buffer)
+                                // instead of restoring to raw double letter pattern.
+                                // This handles cases where collapsed buffer is more common:
+                                //   "off" → "of" (common word)
+                                //   "iff" → "if" (common word)
+                                //   "ass" → "as" (common word)
+                                //   "hiss" → "his" (common word, more frequent than "hiss")
                                 let is_exception = if chars.len() == 3 {
                                     let first = chars[0].to_ascii_lowercase();
                                     let is_off = first == 'o' && is_double_ff;
                                     let is_iff = first == 'i' && is_double_ff;
                                     let is_ass = first == 'a' && is_double_ss;
                                     is_off || is_iff || is_ass
+                                } else if chars.len() == 4 {
+                                    // 4-char exceptions: "hiss" → "his"
+                                    let first = chars[0].to_ascii_lowercase();
+                                    first == 'h' && is_double_ss
                                 } else {
                                     false
                                 };
