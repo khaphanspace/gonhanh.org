@@ -647,6 +647,20 @@ fn pattern9_re_prefix() {
 }
 
 #[test]
+fn pattern9_per_prefix() {
+    // "per-" prefix: double 'r' (hỏi) reverts mark, buffer has valid prefix pattern
+    // Pattern: per + rr → "pẻr" → "per" (revert)
+    telex_auto_restore(&[
+        ("perrmission ", "permission "),
+        ("perrfect ", "perfect "),
+        ("perrform ", "perform "),
+        ("perrson ", "person "),
+        ("perrsist ", "persist "),
+        ("perrmanent ", "permanent "),
+    ]);
+}
+
+#[test]
 fn pattern9_double_mark_no_prefix() {
     // Words with double mark keys but NO matching prefix/suffix pattern
     // 5+ char words: restore to English (preserve double letter)
