@@ -221,6 +221,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
             case .downloading(let progress):
                 updateItem.title = "⏳ Đang tải... \(Int(progress * 100))%"
                 updateItem.isEnabled = false
+            case .readyToInstall:
+                updateItem.title = "🔄 Khởi động lại để cập nhật"
+                updateItem.isEnabled = true
             case .installing:
                 updateItem.title = "🔄 Đang cài đặt..."
                 updateItem.isEnabled = false
@@ -245,6 +248,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     @objc private func handleUpdateAction() {
         switch UpdateManager.shared.state {
+        case .readyToInstall:
+            // Install the downloaded update
+            UpdateManager.shared.installReadyUpdate()
         case .available, .idle, .error, .upToDate:
             // Show update dialog for all clickable states
             checkForUpdates()
@@ -530,7 +536,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         // Skip re-check if already in progress
         switch UpdateManager.shared.state {
-        case .available, .downloading, .installing:
+        case .available, .downloading, .readyToInstall, .installing:
             return
         default:
             UpdateManager.shared.checkForUpdatesManually()
