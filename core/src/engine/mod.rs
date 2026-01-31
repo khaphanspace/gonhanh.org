@@ -540,6 +540,70 @@ impl Engine {
         self.on_key_ext(key, caps, ctrl, false)
     }
 
+    /// Handle key event with actual Unicode character for shortcuts.
+    ///
+    /// Used for Option-modified keys on macOS where the keycode doesn't change
+    /// but the character is different (e.g., Option+V produces √).
+    ///
+    /// # Arguments
+    /// * `key` - macOS virtual keycode
+    /// * `caps` - true if Caps Lock is active
+    /// * `ctrl` - true if Cmd/Ctrl is pressed (bypasses IME)
+    /// * `shift` - true if Shift is pressed
+    /// * `ch` - The actual Unicode character. If Some, uses this for shortcut matching.
+    ///
+    /// # Issue #275
+    /// This enables shortcuts with special characters like √√ → ✅
+    /// When typing ≈ç√√, we need to find √√ as a suffix match.
+    pub fn on_key_with_char(
+        &mut self,
+        key: u16,
+        caps: bool,
+        ctrl: bool,
+        shift: bool,
+        ch: Option<char>,
+    ) -> Result {
+        // If no character provided, fall back to normal processing
+        if ch.is_none() {
+            return self.on_key_ext(key, caps, ctrl, shift);
+        }
+
+        let ch = ch.unwrap();
+
+        // Ctrl/Cmd bypasses everything
+        if ctrl {
+            self.clear();
+            self.word_history.clear();
+            self.spaces_after_commit = 0;
+            return Result::none();
+        }
+
+        // Accumulate the character in shortcut_prefix
+        self.shortcut_prefix.push(ch);
+
+        // Check for immediate shortcut match - try all suffixes (longest first)
+        // This allows ≈ç√√ to match √√ even with preceding characters
+        let input_method = self.current_input_method();
+        let prefix_chars: Vec<char> = self.shortcut_prefix.chars().collect();
+        for start in 0..prefix_chars.len() {
+            let suffix: String = prefix_chars[start..].iter().collect();
+            if let Some(m) = self.shortcuts.try_match_for_method(
+                &suffix,
+                None,
+                false, // immediate, not word boundary
+                input_method,
+            ) {
+                let output: Vec<char> = m.output.chars().collect();
+                let backspace_count = (m.backspace_count as u8).saturating_sub(1);
+                self.shortcut_prefix.clear();
+                return Result::send_consumed(backspace_count, &output);
+            }
+        }
+
+        // No match yet, let the character pass through
+        Result::none()
+    }
+
     /// Check if key+shift combo is a raw mode prefix character
     /// Raw prefixes: @ # : /
     #[allow(dead_code)] // TEMP DISABLED

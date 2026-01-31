@@ -544,6 +544,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, do
 
 @_silgen_name("ime_init") private func ime_init()
 @_silgen_name("ime_key_ext") private func ime_key_ext(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool) -> UnsafeMutablePointer<ImeResult>?
+@_silgen_name("ime_key_with_char") private func ime_key_with_char(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool, _ charCode: UInt32) -> UnsafeMutablePointer<ImeResult>?
 @_silgen_name("ime_method") private func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
 @_silgen_name("ime_skip_w_shortcut") private func ime_skip_w_shortcut(_ skip: Bool)
@@ -581,8 +582,27 @@ class RustBridge {
     }
 
     /// Process a keystroke. Returns (backspace, chars, keyConsumed) or nil if no action.
-    static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false) -> (Int, [Character], Bool)? {
-        guard isInitialized, let ptr = ime_key_ext(keyCode, caps, ctrl, shift) else { return nil }
+    ///
+    /// - Parameters:
+    ///   - keyCode: macOS virtual keycode
+    ///   - caps: true if CapsLock/Shift is active
+    ///   - ctrl: true if Cmd/Ctrl is pressed (bypasses IME)
+    ///   - shift: true if Shift is pressed
+    ///   - char: Optional actual Unicode character (Issue #275). When provided,
+    ///           uses this for shortcut matching instead of deriving from keycode.
+    ///           Used for Option-modified keys (e.g., Option+V → √).
+    static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false, char: Character? = nil) -> (Int, [Character], Bool)? {
+        guard isInitialized else { return nil }
+
+        let ptr: UnsafeMutablePointer<ImeResult>?
+        if let char = char {
+            let charCode = char.unicodeScalars.first?.value ?? 0
+            ptr = ime_key_with_char(keyCode, caps, ctrl, shift, charCode)
+        } else {
+            ptr = ime_key_ext(keyCode, caps, ctrl, shift)
+        }
+
+        guard let ptr = ptr else { return nil }
         defer { ime_free(ptr) }
 
         let r = ptr.pointee
@@ -1101,7 +1121,10 @@ private func keyboardCallback(
     // Compute modifier states early - needed for Enter handling and later processing
     let shift = flags.contains(.maskShift)
     let caps = shift || flags.contains(.maskAlphaShift)
-    let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
+    // Issue #275: Option-only (without Cmd/Ctrl) should NOT bypass IME for shortcuts
+    // Option+Key produces special characters (e.g., Option+V → √) that can be shortcut triggers
+    let hasOption = flags.contains(.maskAlternate)
+    let bypassIME = flags.contains(.maskCommand) || flags.contains(.maskControl)
 
     // Enter: submit and trigger auto-capitalize pending state
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
@@ -1110,7 +1133,7 @@ private func keyboardCallback(
     if keyCode == 0x24 || keyCode == 0x4C {  // Return (0x24) or Enter/Numpad (0x4C)
         let (method, delays) = detectMethod()
 
-        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
@@ -1201,7 +1224,7 @@ private func keyboardCallback(
 
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
-    if keyCode == KeyCode.backspace && !ctrl {
+    if keyCode == KeyCode.backspace && !bypassIME {
         // For selectAll method: handle backspace (only when enabled)
         if method == .selectAll && AppState.shared.isEnabled {
             let session = TextInjector.shared.getSessionBuffer()
@@ -1217,7 +1240,7 @@ private func keyboardCallback(
         }
 
         // First try Rust engine (handles immediate backspace-after-space)
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
             return nil
@@ -1252,7 +1275,25 @@ private func keyboardCallback(
         }
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+    // Issue #275: Handle Option-modified keys for special character shortcuts
+    // When Option is pressed (without Cmd/Ctrl), the key produces a special character
+    // (e.g., Option+V → √). Pass this character to engine for shortcut matching.
+    if hasOption && !bypassIME {
+        if let char = event.keyboardCharacter() {
+            // Process the actual character for shortcut matching
+            if let (bs, chars, keyConsumed) = RustBridge.processKey(
+                keyCode: keyCode, caps: caps, ctrl: false, shift: shift, char: char
+            ) {
+                Log.key(keyCode, "option: bs=\(bs) chars='\(String(chars))' char='\(char)' consumed=\(keyConsumed)")
+                sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+                return nil  // Consume the event when shortcut matches
+            }
+            // No shortcut match - let the character pass through normally
+            return Unmanaged.passUnretained(event)
+        }
+    }
+
+    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
