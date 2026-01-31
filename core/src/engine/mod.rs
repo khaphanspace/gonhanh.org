@@ -576,12 +576,8 @@ impl Engine {
             return Result::none();
         }
 
-        // Accumulate character, cap at 32 chars to prevent unbounded growth
+        // Accumulate character for suffix matching
         self.shortcut_prefix.push(ch);
-        if self.shortcut_prefix.len() > 32 {
-            let trim = self.shortcut_prefix.len() - 32;
-            self.shortcut_prefix.drain(..trim);
-        }
 
         // Try suffix matches (longest first) using char_indices to avoid allocations
         let input_method = self.current_input_method();
