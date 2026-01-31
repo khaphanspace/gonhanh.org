@@ -112,67 +112,42 @@ struct KeyboardShortcut: Codable, Equatable {
         return parts
     }
 
+    private static let specialKeyNames: [UInt16: String] = [
+        0xFFFF: "",     // Modifier-only shortcut
+        0x31: "Space",
+        0x24: "↩",      // Return
+        0x4C: "⌅",      // Numpad Enter
+        0x30: "⇥",      // Tab
+        0x33: "⌫",      // Delete/Backspace
+        0x75: "⌦",      // Forward Delete
+        0x35: "⎋",      // Escape
+        0x39: "⇪",      // CapsLock
+        0x47: "⌧",      // Clear (Numpad)
+        0x72: "Help",
+        0x73: "↖", 0x77: "↘",  // Home, End
+        0x74: "⇞", 0x79: "⇟",  // Page Up, Page Down
+        0x7B: "←", 0x7C: "→", 0x7D: "↓", 0x7E: "↑",  // Arrow keys
+        0x7A: "F1", 0x78: "F2", 0x63: "F3", 0x76: "F4",
+        0x60: "F5", 0x61: "F6", 0x62: "F7", 0x64: "F8",
+        0x65: "F9", 0x6D: "F10", 0x67: "F11", 0x6F: "F12",
+        0x69: "F13", 0x6B: "F14", 0x71: "F15", 0x6A: "F16",
+        0x40: "F17", 0x4F: "F18", 0x50: "F19", 0x5A: "F20",
+    ]
+
     private func keyCodeToString(_ code: UInt16) -> String {
-        switch code {
-        case 0x31: return "Space"
-        case 0x24: return "↩"
-        case 0x30: return "⇥"
-        case 0x33: return "⌫"
-        case 0x35: return "⎋"
-        case 0x7B: return "←"
-        case 0x7C: return "→"
-        case 0x7D: return "↓"
-        case 0x7E: return "↑"
-        case 0x00: return "A"
-        case 0x01: return "S"
-        case 0x02: return "D"
-        case 0x03: return "F"
-        case 0x04: return "H"
-        case 0x05: return "G"
-        case 0x06: return "Z"
-        case 0x07: return "X"
-        case 0x08: return "C"
-        case 0x09: return "V"
-        case 0x0B: return "B"
-        case 0x0C: return "Q"
-        case 0x0D: return "W"
-        case 0x0E: return "E"
-        case 0x0F: return "R"
-        case 0x10: return "Y"
-        case 0x11: return "T"
-        case 0x12: return "1"
-        case 0x13: return "2"
-        case 0x14: return "3"
-        case 0x15: return "4"
-        case 0x16: return "6"
-        case 0x17: return "5"
-        case 0x18: return "="
-        case 0x19: return "9"
-        case 0x1A: return "7"
-        case 0x1B: return "-"
-        case 0x1C: return "8"
-        case 0x1D: return "0"
-        case 0x1E: return "]"
-        case 0x1F: return "O"
-        case 0x20: return "U"
-        case 0x21: return "["
-        case 0x22: return "I"
-        case 0x23: return "P"
-        case 0x25: return "L"
-        case 0x26: return "J"
-        case 0x27: return "'"
-        case 0x28: return "K"
-        case 0x29: return ";"
-        case 0x2A: return "\\"
-        case 0x2B: return ","
-        case 0x2C: return "/"
-        case 0x2D: return "N"
-        case 0x2E: return "M"
-        case 0x2F: return "."
-        case 0x32: return "`"
-        case 0xFFFF: return ""  // Modifier-only shortcut (no key)
-        default: return "?"
+        if let name = Self.specialKeyNames[code] {
+            return name
         }
+        // Use CGEvent to dynamically get character for regular keys
+        if let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(code), keyDown: true) {
+            var length = 0
+            var chars = [UniChar](repeating: 0, count: 4)
+            event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &chars)
+            if length > 0 {
+                return String(utf16CodeUnits: chars, count: length).uppercased()
+            }
+        }
+        return String(format: "0x%02X", code)
     }
 
     static func load() -> KeyboardShortcut {
