@@ -4322,6 +4322,20 @@ impl Engine {
         self.is_raw_input_valid_english()
     }
 
+    /// Debug: Check if had_circumflex_revert flag is set
+    pub fn had_circumflex_revert(&self) -> bool {
+        self.had_circumflex_revert
+    }
+
+    /// Debug: Get raw_input as string (public version)
+    pub fn get_raw_input_string(&self) -> String {
+        self.raw_input
+            .iter()
+            .filter_map(|&(key, caps, _)| utils::key_to_char(key, caps))
+            .collect::<String>()
+            .to_lowercase()
+    }
+
     /// Restore buffer from a Vietnamese word string
     ///
     /// Used when native app detects cursor at word boundary and wants to edit.
@@ -5212,15 +5226,6 @@ impl Engine {
         }
     }
 
-    /// Get raw_input as lowercase ASCII string
-    fn get_raw_input_string(&self) -> String {
-        self.raw_input
-            .iter()
-            .filter_map(|&(key, caps, _)| utils::key_to_char(key, caps))
-            .collect::<String>()
-            .to_lowercase()
-    }
-
     /// Get raw_input as ASCII string preserving original case
     fn get_raw_input_string_preserve_case(&self) -> String {
         self.raw_input
@@ -5667,17 +5672,48 @@ impl Engine {
                 chars.remove(pos);
             }
 
-            // 3. Double vowel at VERY END → collapse when circumflex was applied then reverted
-            // Example: "dataa" → "data" (aa at end, circumflex was applied then reverted)
-            // This happens when user types a-a-a and third 'a' reverts the circumflex
+            // 3. Double vowel → collapse when circumflex was applied then reverted
             // IMPORTANT: Use had_circumflex_revert, NOT had_mark_revert
             // had_mark_revert is set for tone marks (ff in coffee), which should NOT collapse
             if self.had_circumflex_revert && chars.len() >= 2 {
+                // 3a. Double vowel at very end → always collapse (original behavior)
+                // Example: "dataa" → "data", "tetee" → "tete"
+                // This happens when user types a-a-a and third 'a' reverts the circumflex
                 let last = chars[chars.len() - 1].to_ascii_lowercase();
                 let second_last = chars[chars.len() - 2].to_ascii_lowercase();
-                // Double vowel at very end (a/e/o)
                 if matches!(last, 'a' | 'e' | 'o') && last == second_last {
                     chars.pop();
+                }
+
+                // 3b. Double vowel in MIDDLE of word → collapse if:
+                // - Current form is NOT a valid English word, AND
+                // - Collapsed form IS a valid English word
+                // Example: "dataabase" → "database" (current not English, collapsed is English)
+                // Counter-example: "choose" → keep "choose" (current IS English, don't collapse to "chose")
+                let current_str: String = chars.iter().collect::<String>().trim().to_lowercase();
+                let current_is_english = english_dict::is_english_word(&current_str);
+
+                // Only try to collapse if current form is NOT already a valid English word
+                if !current_is_english {
+                    let mut i = 0;
+                    while i + 1 < chars.len().saturating_sub(1) {
+                        // Skip last position (already handled in 3a)
+                        let c = chars[i].to_ascii_lowercase();
+                        let next = chars[i + 1].to_ascii_lowercase();
+                        if matches!(c, 'a' | 'e' | 'o') && c == next {
+                            // Try collapsing and check if result is English word
+                            let mut collapsed = chars.clone();
+                            collapsed.remove(i);
+                            // Remove trailing whitespace before checking dictionary
+                            let collapsed_str: String =
+                                collapsed.iter().collect::<String>().trim().to_lowercase();
+                            if english_dict::is_english_word(&collapsed_str) {
+                                chars = collapsed;
+                                continue; // Don't increment i, check same position again
+                            }
+                        }
+                        i += 1;
+                    }
                 }
             }
 
