@@ -5754,6 +5754,39 @@ impl Engine {
                 }
             }
 
+            // 4. Dictionary-based double vowel collapse for ALL vowels (including u, i)
+            // This handles cases where double vowel comes from backspace + retype, not circumflex
+            // Example: "sur<upervisor" → "su" + "upervisor" = "suupervisor" → "supervisor"
+            // Only collapse when:
+            //   - Current form is NOT in dictionary, AND
+            //   - Collapsed form IS in dictionary
+            //   - Double vowel is NOT at the very end (preserve "free", "agree", "aree")
+            //   - NOT a SaaS pattern (same consonant at start and end)
+            // This section does NOT require had_circumflex_revert flag
+            if chars.len() >= 3 && !is_saas_pattern {
+                let current_str: String = chars.iter().collect::<String>().trim().to_lowercase();
+                if !english_dict::is_english_word(&current_str) {
+                    let mut i = 0;
+                    // Skip double vowels at the very end (i + 1 == chars.len() - 1)
+                    while i + 2 < chars.len() {
+                        let c = chars[i].to_ascii_lowercase();
+                        let next = chars[i + 1].to_ascii_lowercase();
+                        // Check for double vowel (all vowels: a, e, i, o, u)
+                        if matches!(c, 'a' | 'e' | 'i' | 'o' | 'u') && c == next {
+                            let mut collapsed = chars.clone();
+                            collapsed.remove(i);
+                            let collapsed_str: String =
+                                collapsed.iter().collect::<String>().trim().to_lowercase();
+                            if english_dict::is_english_word(&collapsed_str) {
+                                chars = collapsed;
+                                continue; // re-check same position
+                            }
+                        }
+                        i += 1;
+                    }
+                }
+            }
+
             // Partial restore: tone + double vowel at end
             // Pattern: C + V + tone_modifier + V + V (same vowel)
             // Example: "tafoo" = t + a + f + o + o → restore to "tàoo"

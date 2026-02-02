@@ -3695,3 +3695,16 @@ fn test_chooose_auto_restore() {
         "chooose should auto-restore to choose, not collapse further to chose"
     );
 }
+
+// Test case: sur<upervisor → supervisor (double u from backspace + retype)
+// The < represents backspace, so: sur + backspace + upervisor = suupervisor → supervisor
+#[test]
+fn test_suupervisor_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "sur<upervisor ");
+    assert_eq!(
+        result, "supervisor ",
+        "sur<upervisor should auto-restore to supervisor (collapse double u)"
+    );
+}
