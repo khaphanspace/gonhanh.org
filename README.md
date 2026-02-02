@@ -98,7 +98,7 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 - ⎋ **Gõ ESC tự khôi phục** — Gõ `user` → `úẻ` → nhấn **ESC** → `user`. Không cần tắt bộ gõ khi gõ tiếng Anh!
 - 🧠 **Chuyển chế độ thông minh** — Tự nhớ ON/OFF cho từng app. Code trên VS Code (tắt) → Chat trên Slack (bật) → tự chuyển
 - 🔄 **Tự động theo input source** — Dùng tiếng Nhật, Hàn, Trung... → Gõ Nhanh tự tắt. Chuyển về tiếng Anh → tự bật lại
-- ⚡ **Siêu nhanh** — <1ms latency · ~5MB RAM. Hỗ trợ đa nền tảng trên cùng một engine
+- ⚡ **Siêu nhanh** — <10ms latency · ~20MB RAM. Hỗ trợ đa nền tảng trên cùng một engine
 
 <p align="center">
   <video src="https://github.com/user-attachments/assets/957ec6c6-d6df-4ca9-9161-0a1bb6cf98ce" width="100%"></video>
@@ -128,17 +128,16 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 
 ### 📝 So sánh: macOS Telex vs Gõ Nhanh
 
-| Gõ         | macOS Telex  | Gõ Nhanh      |
-| :--------- | :----------- | :------------ |
-| `text `    | `têt ` ❌    | `text ` ✅    |
-| `expect `  | `ễpct ` ❌   | `expect ` ✅  |
-| `perfect ` | `pềct ` ❌   | `perfect ` ✅ |
-| `window `  | `ưindow ` ❌ | `window ` ✅  |
-| `with `    | `ưith ` ❌   | `with ` ✅    |
-| `tesla `   | `téla ` ❌   | `tesla ` ✅   |
-| `luxury `  | `lủuy ` ❌   | `luxury ` ✅  |
-| `case `    | `cáe ` ❌    | `case ` ✅    |
-| `wow `     | `ươ ` ❌     | `wow ` ✅     |
+| Gõ         | macOS Telex | Gõ Nhanh      |
+| :--------- | :---------- | :------------ |
+| `text `    | `têt ` ❌   | `text ` ✅    |
+| `expect `  | `ễpct ` ❌  | `expect ` ✅  |
+| `perfect ` | `pềct ` ❌  | `perfect ` ✅ |
+| `with `    | `ưith ` ❌  | `with ` ✅    |
+| `tesla `   | `téla ` ❌  | `tesla ` ✅   |
+| `luxury `  | `lủuy ` ❌  | `luxury ` ✅  |
+| `case `    | `cáe ` ❌   | `case ` ✅    |
+| `wow `     | `ươ ` ❌    | `wow ` ✅     |
 
 ### ⚠️ Giới hạn
 
