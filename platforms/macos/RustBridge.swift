@@ -1498,7 +1498,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         // }
 
         // if role == "AXTextField" {
-        return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
+        return cached(.axDirect, (0, 0, 0), "sel:firefox")  // Address bar
         // } else {
         //     return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
         // }
