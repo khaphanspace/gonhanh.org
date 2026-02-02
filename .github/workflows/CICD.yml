@@ -1,0 +1,302 @@
+name: CICD
+
+env:
+  PROJECT_NAME: gonhanh
+  RUST_MIN_SRV: "1.80.0"
+  STYLE_FAIL_ON_FAULT: true
+
+on:
+  pull_request:
+  push:
+    tags:
+      - '*'
+    branches:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  style_format:
+    name: Style/format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --manifest-path core/Cargo.toml -- --check
+
+  style_lint:
+    name: Style/clippy
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - run: cargo clippy --manifest-path core/Cargo.toml -- -D warnings
+
+  doc_warnings:
+    name: Documentation/warnings
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: "`cargo doc` with warnings"
+        run: RUSTDOCFLAGS="-Dwarnings" cargo doc --manifest-path core/Cargo.toml --no-deps --document-private-items
+
+  min_version:
+    name: MinRustV (MSRV)
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_MIN_SRV }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Build with MSRV
+        run: cargo build --manifest-path core/Cargo.toml
+      - name: Test with MSRV
+        run: cargo test --manifest-path core/Cargo.toml
+
+  test_stable:
+    name: Test/stable
+    runs-on: ${{ matrix.os }}
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Test
+        run: cargo test --manifest-path core/Cargo.toml
+
+  test_nightly:
+    name: Test/nightly
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Test (nightly)
+        run: cargo test --manifest-path core/Cargo.toml
+
+  build:
+    permissions:
+      contents: write
+    name: Build/${{ matrix.job.target }}
+    needs: [min_version]
+    runs-on: ${{ matrix.job.os }}
+    timeout-minutes: 60
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          # - { os, target, use-cross, skip-tests }
+          # Linux targets
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, use-cross: use-cross }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, use-cross: use-cross, skip-tests: true }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl, use-cross: use-cross, skip-tests: true }
+          - { os: ubuntu-latest, target: arm-unknown-linux-gnueabihf, use-cross: use-cross, skip-tests: true }
+          - { os: ubuntu-latest, target: i686-unknown-linux-gnu, use-cross: use-cross }
+          # macOS targets
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          # Windows targets
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+          - { os: windows-latest, target: i686-pc-windows-msvc }
+          - { os: windows-latest, target: aarch64-pc-windows-msvc, use-cross: use-cross, skip-tests: true }
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.job.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "${{ matrix.job.os }}_${{ matrix.job.target }}"
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Initialize workflow variables
+        id: vars
+        shell: bash
+        run: |
+          ## VARs setup
+          outputs() { step_id="${{ github.action }}"; for var in "$@" ; do echo steps.${step_id}.outputs.${var}="${!var}"; echo "${var}=${!var}" >> $GITHUB_OUTPUT; done; }
+          # determine EXE suffix
+          EXE_suffix="" ; case '${{ matrix.job.target }}' in *-pc-windows-*) EXE_suffix=".exe" ;; esac;
+          outputs EXE_suffix
+          # determine CARGO_CMD
+          CARGO_CMD='cargo'
+          case '${{ matrix.job.use-cross }}' in
+            use-cross)
+              CARGO_CMD='cross'
+              ;;
+          esac
+          outputs CARGO_CMD
+      - uses: taiki-e/install-action@v2
+        if: steps.vars.outputs.CARGO_CMD == 'cross'
+        with:
+          tool: cross@0.2.5
+      - name: Install prerequisites (Linux cross-compile)
+        if: runner.os == 'Linux' && matrix.job.use-cross == 'use-cross'
+        shell: bash
+        run: |
+          case '${{ matrix.job.target }}' in
+            arm-unknown-linux-gnueabihf)
+              sudo apt-get -y update
+              sudo apt-get -y install gcc-arm-linux-gnueabihf
+              ;;
+            aarch64-unknown-linux-*)
+              sudo apt-get -y update
+              sudo apt-get -y install gcc-aarch64-linux-gnu
+              ;;
+          esac
+      - name: Build
+        shell: bash
+        run: |
+          ## Build
+          ${{ steps.vars.outputs.CARGO_CMD }} build --manifest-path core/Cargo.toml --release \
+            --target=${{ matrix.job.target }}
+      - name: Test
+        if: matrix.job.skip-tests != true
+        shell: bash
+        run: |
+          ## Test
+          ${{ steps.vars.outputs.CARGO_CMD }} test --manifest-path core/Cargo.toml \
+            --target=${{ matrix.job.target }}
+        env:
+          RUST_BACKTRACE: "1"
+      - name: Archive executable artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.PROJECT_NAME }}-core-${{ matrix.job.target }}
+          path: core/target/${{ matrix.job.target }}/release/*gonhanh*${{ steps.vars.outputs.EXE_suffix }}
+
+  build_linux_platform:
+    name: Build/linux-fcitx5
+    runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "fcitx5"
+          workspaces: core
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install Fcitx5 dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            fcitx5 \
+            libfcitx5core-dev \
+            libfcitx5config-dev \
+            libfcitx5utils-dev \
+            fcitx5-modules-dev \
+            extra-cmake-modules \
+            libxkbcommon-dev \
+            libgtest-dev \
+            cmake \
+            pkg-config
+      - name: Build Rust core
+        run: cargo build --manifest-path core/Cargo.toml --release
+      - name: Build Fcitx5 addon
+        run: |
+          cd platforms/linux
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+          make -j$(nproc)
+      - name: Run tests
+        run: |
+          cd platforms/linux/build
+          ./keycodemap_test --gtest_color=yes
+          LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/core/target/release:$LD_LIBRARY_PATH" \
+            ./rustbridge_test --gtest_color=yes
