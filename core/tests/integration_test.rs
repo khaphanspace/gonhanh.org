@@ -3737,19 +3737,14 @@ fn test_perfec_backspace_retype_auto_restore() {
 }
 
 // Test case: abc + space + ook + space
-// Previous bug: "abcok " (space was lost)
-// Current: "abc ok " (space preserved, but circumflex reverted)
-// TODO: User expects "abc ôk " - need clarification if this is desired
+// Fixed: "abc ôk " (circumflex from intentional double vowel is preserved)
 #[test]
 fn test_abc_space_ook_space() {
     let mut e = Engine::new();
     e.set_english_auto_restore(true);
     let result = type_word(&mut e, "abc ook ");
-    eprintln!("Result: '{}'", result);
-    // Currently outputs "abc ok " - circumflex reverted because "ôk" is not valid Vietnamese
-    // If user wants "abc ôk ", need to adjust mid-word restore logic
     assert_eq!(
-        result, "abc ok ",
-        "abc ook should give 'abc ok ' (space preserved, circumflex reverted)"
+        result, "abc ôk ",
+        "abc ook should give 'abc ôk ' (circumflex from double vowel preserved)"
     );
 }

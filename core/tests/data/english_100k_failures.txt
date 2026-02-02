@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 386
+# Total failures: 392
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -57,7 +57,7 @@ downs	downs	downs	dớn	dơns
 ee	ee	ee	ê	ê
 dow	dow	dow	dơ	dơ
 vow	vow	vow	vơ	vơ
-eeg	eeg	eeg	eg	êg
+eeg	eeg	eeg	êg	êg
 bows	bows	bows	bớ	bơs
 sown	sown	sown	sơn	sơn
 dee	dee	dee	dê	dê
@@ -94,7 +94,7 @@ referee	referee	referee	rểee	referê
 woo	woo	woo	uô	wô
 chow	chow	chow	chơ	chơ
 gowns	gowns	gowns	gớn	gơns
-eel	eel	eel	el	êl
+eel	eel	eel	êl	êl
 rowan	rowan	rowan	rơan	rơan
 cowan	cowan	cowan	cơan	cơan
 hee	hee	hee	hê	hê
@@ -156,6 +156,7 @@ uw	uw	uw	ư	ư
 maas	maas	maas	mas	mâs
 vee	vee	vee	vê	vê
 goo	goo	goo	gô	gô
+ioo	ioo	ioo	iô	iô
 tycoon	tycooon	tycoon	tycooon	tycôon
 tees	tees	tees	tế	tês
 leer	leer	leer	lể	lêr
@@ -166,7 +167,7 @@ cocoons	cocoons	cocoons	cocons	cocôns
 dowd	dowd	dowd	đơ	dơd
 roo	roo	roo	rô	rô
 koo	kooo	koo	kooo	kôo
-aad	aad	aad	ad	âd
+aad	aad	aad	âd	âd
 dde	dde	dde	đe	đe
 kowloon	kowwloon	kowloon	kowwloon	kơwlôn
 kowalski	kowwalski	kowalski	kowwalski	kơwalski
@@ -175,26 +176,28 @@ paa	paa	paa	pâ	pâ
 nowak	nowak	nowak	nơak	nơak
 moos	moos	moos	mố	môs
 seeps	seeps	seeps	sếp	sêps
-eea	eea	eea	ea	êa
+eea	eea	eea	êa	êa
 enfeebled	enfeebled	enfeebled	ènebled	enfêbled
 poo	poo	poo	pô	pô
 pensee	pensee	pensee	péne	pensê
 heer	heer	heer	hể	hêr
 aac	aac	aac	âc	âc
+yoo	yoo	yoo	yô	yô
 cookbooks	coookboooks	cookbooks	cookboooks	côokbôoks
 oops	oops	oops	ốp	ôps
 iee	iee	iee	iê	iê
 ddc	ddc	ddc	đc	đc
 neem	neem	neem	nêm	nêm
-ooh	ooh	ooh	oh	ôh
+ooh	ooh	ooh	ôh	ôh
 haan	haan	haan	hân	hân
 soong	soong	soong	sông	sông
 geer	geeer	geer	geeer	gêer
+ood	ood	ood	ôd	ôd
 aaf	aaf	aaf	ầ	âf
 dds	dds	dds	đs	đs
 ees	ees	ees	ế	ês
 monsoons	monsoons	monsoons	mónons	monsôns
-ook	ook	ook	ok	ôk
+ook	ook	ook	ôk	ôk
 kooning	koooning	kooning	koooning	kôoning
 veneers	veneers	veneers	veners	venêrs
 oop	oop	oop	ôp	ôp
@@ -238,7 +241,7 @@ horwood	horwood	horwood	hoỏd	horwôd
 kees	kees	kees	kế	kês
 trow	trow	trow	trơ	trơ
 geek	geeek	geek	geeek	gêek
-aal	aal	aal	al	âl
+aal	aal	aal	âl	âl
 coos	coos	coos	cố	côs
 mowat	mowat	mowat	mơat	mơat
 geelong	geeelong	geelong	geeelong	gêelong
@@ -309,25 +312,26 @@ awk	awk	awk	ăk	ăk
 veneered	veneered	veneered	venered	venêred
 aaaa	aaaaaa	aaaa	aaaaa	âââ
 aaaa	aaaa	aaaa	aaa	ââ
+eaa	eaa	eaa	eâ	eâ
 ceecs	ceeecs	ceecs	ceeecs	cêecs
 eer	eer	eer	ể	êr
 bdd	bdd	bdd	bđ	bđ
 awacs	awacs	awacs	ấc	ăacs
 laa	laa	laa	lâ	lâ
 oon	oon	oon	ôn	ôn
-aae	aae	aae	ae	âe
+aae	aae	aae	âe	âe
 lowa	lowa	lowa	lơa	lơa
 oost	ooost	oost	oót	ôost
 oost	oost	oost	ốt	ôst
 deedee	deeedeee	deedee	deedeee	dêedêe
 deedee	deedee	deedee	đêee	dêdê
 kawaguchi	kawwaguchi	kawaguchi	kawwaguchi	kăwaguchi
-aav	aav	aav	av	âv
+aav	aav	aav	âv	âv
 mdd	mdd	mdd	mđ	mđ
 beekeeper	beeekeeeper	beekeeper	beekeeeper	bêekêeper
 geez	geeez	geez	geeez	gêez
 towson	towson	towson	tốn	tơson
-aag	aag	aag	ag	âg
+aag	aag	aag	âg	âg
 cowpox	cowpox	cowpox	cỗp	cơpox
 kawabata	kawwabata	kawabata	kawwabata	kăwabata
 hoon	hoon	hoon	hôn	hôn
@@ -347,24 +351,25 @@ mees	mees	mees	mế	mês
 beseeched	beseeched	beseeched	beéched	besêched
 lowdown	lowwdowwn	lowdown	lowdowwn	lơwdơwn
 geert	geeert	geert	geeert	gêert
-aab	aab	aab	ab	âb
+aab	aab	aab	âb	âb
 tyree	tyreee	tyree	tỷee	tyrêe
 owa	owa	owa	ơa	ơa
 gawk	gawk	gawk	găk	găk
 kaaba	kaaaba	kaaba	kaaaba	kâaba
-ool	ool	ool	ol	ôl
+ool	ool	ool	ôl	ôl
 oroonoko	oroonoko	oroonoko	oỏnoko	orônoko
 hoodoo	hooodooo	hoodoo	hoodooo	hôodôo
 awwa	awwa	awwa	awa	ăwa
 oooh	oooh	oooh	ooh	ôoh
 pauw	pauw	pauw	paư	paư
 chowk	chowk	chowk	chơk	chơk
-aah	aah	aah	ah	âh
+aah	aah	aah	âh	âh
 khoo	khoo	khoo	khô	khô
+eek	eek	eek	êk	êk
 howson	howson	howson	hốn	hơson
 bowra	bowra	bowra	bởa	bơra
 koon	kooon	koon	kooon	kôon
-eed	eed	eed	ed	êd
+eed	eed	eed	êd	êd
 oooooooo	oooooooooooo	oooooooo	ooooooooooo	ôôôôôô
 oooooooo	oooooooo	oooooooo	ooooooo	ôôôô
 bybee	bybeee	bybee	bybeee	bybêe
@@ -383,8 +388,9 @@ coots	coots	coots	cốt	côts
 gees	geees	gees	geees	gêes
 lown	lown	lown	lơn	lơn
 daws	daws	daws	dắ	dăs
-eep	eep	eep	ep	êp
+eep	eep	eep	êp	êp
 oooooo	ooooooooo	oooooo	oooooooo	ôôôôo
 oooooo	oooooo	oooooo	ooooo	ôôô
 huw	huw	huw	hư	hư
+aee	aee	aee	aê	aê
 sydow	sydoww	sydow	sydoww	sydơw

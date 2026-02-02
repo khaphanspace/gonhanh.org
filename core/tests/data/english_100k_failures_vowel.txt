@@ -1,7 +1,7 @@
 # English 100k Failures - Vowel Patterns
 # Cause: aa/ee/oo/aw/ow/uw/dd trigger vowel transforms
 # Format: WORD \t ACTUAL \t BUFFER
-# Total: 210 (+ 95 both)
+# Total: 216 (+ 95 both)
 #
 # WORD: English word typed
 # ACTUAL: engine output after space
@@ -41,7 +41,7 @@ eec	êc	êc
 ee	ê	ê
 dow	dơ	dơ
 vow	vơ	vơ
-eeg	eg	êg
+eeg	êg	êg
 sown	sơn	sơn
 dee	dê	dê
 sow	sơ	sơ
@@ -61,7 +61,7 @@ canaan	canan	canan
 referee	rểee	rểee
 woo	uô	uô
 chow	chơ	chơ
-eel	el	êl
+eel	êl	êl
 rowan	rơan	rơan
 cowan	cơan	cơan
 hee	hê	hê
@@ -101,27 +101,30 @@ naa	nâ	nâ
 uw	ư	ư
 vee	vê	vê
 goo	gô	gô
+ioo	iô	iô
 baa	bâ	bâ
 saa	sâ	sâ
 dowd	đơ	đơ
 roo	rô	rô
-aad	ad	âd
+aad	âd	âd
 dde	đe	đe
 maa	mâ	mâ
 paa	pâ	pâ
 nowak	nơak	nơak
-eea	ea	êa
+eea	êa	êa
 enfeebled	ènebled	ènebled
 poo	pô	pô
 pensee	péne	péne
 aac	âc	âc
+yoo	yô	yô
 iee	iê	iê
 ddc	đc	đc
 neem	nêm	nêm
-ooh	oh	ôh
+ooh	ôh	ôh
 haan	hân	hân
 soong	sông	sông
-ook	ok	ok
+ood	ôd	ôd
+ook	ôk	ôk
 oop	ôp	ôp
 oooo	ooo	ooo
 gow	gơ	gơ
@@ -146,7 +149,7 @@ goon	gôn	gôn
 aat	ât	ât
 horwood	hoỏd	hoỏd
 trow	trơ	trơ
-aal	al	âl
+aal	âl	âl
 mowat	mơat	mơat
 powwow	powow	powow
 boxwood	boõd	boõd
@@ -178,17 +181,18 @@ pdd	pđ	pđ
 awk	ăk	ăk
 veneered	venered	venered
 aaaa	aaa	aaa
+eaa	eâ	eâ
 bdd	bđ	bđ
 laa	lâ	lâ
 oon	ôn	ôn
-aae	ae	âe
+aae	âe	âe
 lowa	lơa	lơa
 oost	ốt	ốt
 deedee	đêee	đêee
-aav	av	âv
+aav	âv	âv
 mdd	mđ	mđ
 towson	tốn	tốn
-aag	ag	âg
+aag	âg	âg
 hoon	hôn	hôn
 ddi	đi	đi
 booz	bo	bo
@@ -196,27 +200,29 @@ raa	râ	râ
 awn	ăn	ăn
 oaa	oâ	oâ
 beseeched	beéched	beéched
-aab	ab	âb
+aab	âb	âb
 owa	ơa	ơa
 gawk	găk	găk
-ool	ol	ôl
+ool	ôl	ôl
 oroonoko	oỏnoko	oỏnoko
 awwa	awa	awa
 oooh	ooh	ooh
 pauw	paư	paư
 chowk	chơk	chơk
-aah	ah	âh
+aah	âh	âh
 khoo	khô	khô
+eek	êk	êk
 howson	hốn	hốn
 bowra	bởa	bởa
-eed	ed	êd
+eed	êd	êd
 oooooooo	ooooooo	ooooooo
 daan	dân	dân
 fdd	fđ	fđ
 lown	lơn	lơn
-eep	ep	êp
+eep	êp	êp
 oooooo	ooooo	ooooo
 huw	hư	hư
+aee	aê	aê
 laws	lắ	lắ
 towns	tớn	tớn
 roots	rốt	rốt
