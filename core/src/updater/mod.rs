@@ -70,7 +70,10 @@ impl std::fmt::Display for Version {
 /// Callers must ensure v1 and v2 are valid null-terminated C strings or null pointers.
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub extern "C" fn version_compare(v1: *const i8, v2: *const i8) -> i32 {
+pub extern "C" fn version_compare(
+    v1: *const std::os::raw::c_char,
+    v2: *const std::os::raw::c_char,
+) -> i32 {
     let v1_str = unsafe {
         if v1.is_null() {
             return -99;
@@ -107,7 +110,10 @@ pub extern "C" fn version_compare(v1: *const i8, v2: *const i8) -> i32 {
 /// Check if an update is available
 /// Returns: 1 if v2 > v1 (update available), 0 if not, -99 if parse error
 #[no_mangle]
-pub extern "C" fn version_has_update(current: *const i8, latest: *const i8) -> i32 {
+pub extern "C" fn version_has_update(
+    current: *const std::os::raw::c_char,
+    latest: *const std::os::raw::c_char,
+) -> i32 {
     let result = version_compare(current, latest);
     if result == -99 {
         return -99;
