@@ -103,7 +103,7 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
       <a href="https://github.com/khaphanspace">
         <img src="https://avatars.githubusercontent.com/u/16458012?v=4" width="80" style="border-radius:50%"/><br/>
         <b>khaphanspace</b>
-      </a><br/><sub>938 commits</sub>
+      </a><br/><sub>944 commits</sub>
     </td>
     <td align="center">
       <a href="https://github.com/tuananhht94">
@@ -203,6 +203,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/meichengg">
+        <img src="https://avatars.githubusercontent.com/u/25204246?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>meichengg</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/vincent-south">
         <img src="https://avatars.githubusercontent.com/u/250263007?v=4" width="50" style="border-radius:50%"/><br/>
         <b>vincent-south</b>
@@ -214,14 +220,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>jackblk</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/PhucHuwu">
         <img src="https://avatars.githubusercontent.com/u/142735617?v=4" width="50" style="border-radius:50%"/><br/>
         <b>PhucHuwu</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/hongmd">
         <img src="https://avatars.githubusercontent.com/u/32331121?v=4" width="50" style="border-radius:50%"/><br/>
@@ -238,12 +244,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/lantrinh1999">
         <img src="https://avatars.githubusercontent.com/u/41521233?v=4" width="50" style="border-radius:50%"/><br/>
         <b>lantrinh1999</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/meichengg">
-        <img src="https://avatars.githubusercontent.com/u/25204246?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>meichengg</b>
       </a>
     </td>
     <td align="center">
