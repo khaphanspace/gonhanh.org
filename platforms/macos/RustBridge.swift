@@ -1493,11 +1493,15 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "app.zen-browser.zen"
     ]
     if firefoxBrowsers.contains(bundleId) {
-        // if role == "AXTextField" || role == "AXWindow" {
-        return cached(.selection, (0, 0, 0), "sel:firefox")
-        // } else {
-            // return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
-        // }
+        if bundleId == "app.zen-browser.zen" {
+            return cached(.selection, (0, 0, 0), "sel:zen")  // Zen: selection works better than slow backspace
+        }
+
+        if role == "AXTextField" {
+            return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
+        } else {
+            return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
+        }
     }
 
     // Browser address bars (AXTextField with autocomplete)
