@@ -30,7 +30,7 @@
 
 <table>
   <tr>
-    <td><a href="https://github.com/sponsors/khaphanspace"><b>💖 Sponsors (8)</b></a></td>
+    <td><a href="CONTRIBUTORS.md#-sponsors"><b>💖 Sponsors (8)</b></a></td>
     <td align="center"><a href="https://github.com/blueberry6401"><img src="https://avatars.githubusercontent.com/u/7337535?v=4" width="40" style="border-radius:50%"/><br/><sub>blueberry6401</sub></a></td>
     <td align="center"><a href="https://github.com/nguyencaokyvn"><img src="https://avatars.githubusercontent.com/u/2754877?v=4" width="40" style="border-radius:50%"/><br/><sub>nguyencaokyvn</sub></a></td>
     <td align="center"><a href="https://github.com/trinhquocviet"><img src="https://avatars.githubusercontent.com/u/9828732?v=4" width="40" style="border-radius:50%"/><br/><sub>trinhquocviet</sub></a></td>
