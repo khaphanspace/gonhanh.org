@@ -1493,8 +1493,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "app.zen-browser.zen"
     ]
     if firefoxBrowsers.contains(bundleId) {
-        if role == "AXTextField" {
-            return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
+        if role == "AXTextField" || role == "AXWindow" {
+            return cached(.selection, (0, 0, 0), "sel:firefox")
         } else {
             return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
         }
