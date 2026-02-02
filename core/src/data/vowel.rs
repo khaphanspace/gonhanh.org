@@ -2,7 +2,7 @@
 //!
 //! Implements phonological classification of Vietnamese vowels based on:
 //! - docs/vietnamese-language-system.md
-//! - https://vi.wikipedia.org/wiki/Quy_tắc_đặt_dấu_thanh_của_chữ_Quốc_ngữ
+//! - <https://vi.wikipedia.org/wiki/Quy_tắc_đặt_dấu_thanh_của_chữ_Quốc_ngữ>
 //!
 //! ## Vowel Classification
 //!
