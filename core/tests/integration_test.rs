@@ -3720,3 +3720,18 @@ fn test_user_backspace_retype_auto_restore() {
     let result = type_word(&mut e, "us<user ");
     assert_eq!(result, "user ", "us<user should auto-restore to user");
 }
+
+// Test case: per<erfec → peerfec but expected perfec (no space, mid-word)
+// The < represents backspace, so: per + backspace + erfec
+// After "per" → "pẻ", backspace removes "ẻ", then typing "erfec"
+// Bug: raw_input only pops 'r' modifier but not 'e' base, causing double 'e'
+#[test]
+fn test_perfec_backspace_retype_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "per<erfec");
+    assert_eq!(
+        result, "perfec",
+        "per<erfec should give perfec (no double e)"
+    );
+}

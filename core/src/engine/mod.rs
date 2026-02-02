@@ -924,13 +924,24 @@ impl Engine {
             if self.buf.is_empty() {
                 self.has_non_letter_prefix = true;
             }
+
+            // Issue: When deleting a char with mark/tone, we need to pop both the base char
+            // AND the modifier key from raw_input. Example: "per" → buf=["p","ẻ"], raw=[(P),(E),(R)]
+            // When backspace removes "ẻ", we must pop both R (modifier) and E (base) from raw_input.
+            // Check if char being deleted has a mark before popping.
+            let char_has_mark = self.buf.last().map_or(false, |c| c.mark != 0);
+
             self.buf.pop();
             self.raw_input.pop();
-            // Issue: When buffer becomes empty after pop, clear raw_input completely
-            // This handles the case where a character with tone/mark (e.g., "ú" from "us")
-            // is deleted - we must clear raw_input to avoid stale entries affecting
-            // subsequent input. Example: "us" → "ú", backspace → "", then "er" should
-            // give "ẻ" or auto-restore to "er", not incorrectly combine with stale "u".
+
+            // If char had a mark, pop the modifier's base vowel too
+            // This ensures raw_input stays in sync with buffer
+            if char_has_mark && !self.raw_input.is_empty() {
+                self.raw_input.pop();
+            }
+
+            // When buffer becomes empty after pop, clear raw_input completely
+            // This handles edge cases where modifiers may still be left over
             if self.buf.is_empty() {
                 self.raw_input.clear();
             }
