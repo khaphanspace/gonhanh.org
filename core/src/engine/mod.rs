@@ -926,6 +926,14 @@ impl Engine {
             }
             self.buf.pop();
             self.raw_input.pop();
+            // Issue: When buffer becomes empty after pop, clear raw_input completely
+            // This handles the case where a character with tone/mark (e.g., "ú" from "us")
+            // is deleted - we must clear raw_input to avoid stale entries affecting
+            // subsequent input. Example: "us" → "ú", backspace → "", then "er" should
+            // give "ẻ" or auto-restore to "er", not incorrectly combine with stale "u".
+            if self.buf.is_empty() {
+                self.raw_input.clear();
+            }
             self.last_transform = None;
             // Reset stroke_reverted on backspace so user can re-trigger stroke
             // e.g., "ddddd" → "dddd", then backspace×3 → "d", then "d" → "đ"

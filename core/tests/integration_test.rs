@@ -3708,3 +3708,15 @@ fn test_suupervisor_auto_restore() {
         "sur<upervisor should auto-restore to supervisor (collapse double u)"
     );
 }
+
+// Test case: us<user → uẻ but expected user
+// The < represents backspace, so: us + backspace + user
+// After "us" → "ú", backspace removes it, then typing "user" should give "user"
+// Bug: currently gives "uẻ" because raw_input still has stale entries
+#[test]
+fn test_user_backspace_retype_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "us<user ");
+    assert_eq!(result, "user ", "us<user should auto-restore to user");
+}
