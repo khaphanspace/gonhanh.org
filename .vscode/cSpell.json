@@ -1,0 +1,43 @@
+// `cspell` settings
+// spell-checker:ignore oranda
+{
+  // version of the setting file
+  "version": "0.2",
+
+  // spelling language
+  "language": "en",
+
+  // custom dictionaries
+  "dictionaries": ["acronyms+names", "jargon", "people", "shell", "workspace"],
+  "dictionaryDefinitions": [
+    { "name": "acronyms+names", "path": "./cspell.dictionaries/acronyms+names.wordlist.txt" },
+    { "name": "jargon", "path": "./cspell.dictionaries/jargon.wordlist.txt" },
+    { "name": "people", "path": "./cspell.dictionaries/people.wordlist.txt" },
+    { "name": "shell", "path": "./cspell.dictionaries/shell.wordlist.txt" },
+    { "name": "workspace", "path": "./cspell.dictionaries/workspace.wordlist.txt" }
+  ],
+
+  // files to ignore (globs supported)
+  "ignorePaths": [
+    ".git/**",
+    "Cargo.lock",
+    "oranda.json",
+    "target/**",
+    "pool/**",
+    "platforms/macos/Assets.xcassets/**",
+    "platforms/macos/GoNhanh.xcodeproj/**",
+    "platforms/macos/dmg-resources/**",
+    "node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "tests/**/fixtures/**",
+    "**/*.svg",
+    "**/*.png",
+    "**/*.tiff",
+    "**/*.lcov.info",
+    ".devcontainer/**"
+  ],
+  "enableGlobDot": true,
+  "ignoreWords": [],
+  "words": []
+}
