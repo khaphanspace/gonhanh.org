@@ -1283,11 +1283,14 @@ private func keyboardCallback(
         }
     }
 
+    // Extract character ONCE for ALL key processing (layout-independent approach)
+    let extractedChar = event.keyboardCharacter()
+    
     // Issue #275: Handle Option-modified keys for special character shortcuts
     // When Option is pressed (without Cmd/Ctrl), the key produces a special character
     // (e.g., Option+V → √). Pass this character to engine for shortcut matching.
     if hasOption && !bypassIME {
-        if let char = event.keyboardCharacter() {
+        if let char = extractedChar {
             // Process the actual character for shortcut matching
             if let (bs, chars, keyConsumed) = RustBridge.processKey(
                 keyCode: keyCode, caps: caps, ctrl: false, shift: shift, char: char
@@ -1301,6 +1304,28 @@ private func keyboardCallback(
         }
     }
 
+    // Use character-based API for ALL printable keys (layout-independent)
+    if let char = extractedChar {
+        if let (bs, chars, keyConsumed) = RustBridge.processKey(
+            keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift, char: char
+        ) {
+            Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' char='\(char)' consumed=\(keyConsumed)")
+            sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+
+            // Break keys (punctuation, not space): pass through or post synthetically
+            let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
+            if isBreak {
+                // Auto-restore: post break key after replacement for correct ordering
+                if bs > 0 && !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
+                else { return Unmanaged.passUnretained(event) }
+            }
+            return nil
+        }
+        // Character already processed, pass through
+        return Unmanaged.passUnretained(event)
+    }
+    
+    // Fallback for special keys (no character)
     if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)

@@ -87,6 +87,13 @@ impl Result {
         result
     }
 
+    /// Send without consuming the key (modifier passes through)
+    pub fn send_not_consumed(backspace: u8, chars: &[char]) -> Self {
+        let mut result = Self::send(backspace, chars);
+        result.flags &= !FLAG_KEY_CONSUMED;
+        result
+    }
+
     /// Check if key was consumed (should not be passed through)
     pub fn key_consumed(&self) -> bool {
         self.flags & FLAG_KEY_CONSUMED != 0
@@ -196,6 +203,52 @@ fn should_reset_pending_capitalize(key: u16, shift: bool) -> bool {
 
     // Reset for all other break keys (comma, semicolon, etc.)
     !is_neutral
+}
+
+/// Convert punctuation character to its corresponding keycode (reverse of break_key_to_char)
+/// Used for layout-independent keyboard input (DVORAK/Colemak support)
+pub fn char_to_punctuation_key(ch: char) -> u16 {
+    match ch {
+        // Punctuation characters (unshifted)
+        '-' => keys::MINUS,
+        '=' => keys::EQUAL,
+        ';' => keys::SEMICOLON,
+        '\'' => keys::QUOTE,
+        ',' => keys::COMMA,
+        '.' => keys::DOT,
+        '/' => keys::SLASH,
+        '\\' => keys::BACKSLASH,
+        '[' => keys::LBRACKET,
+        ']' => keys::RBRACKET,
+        '`' => keys::BACKQUOTE,
+        // Shifted punctuation characters (treat as unshifted key)
+        '!' => keys::N1,
+        '@' => keys::N2,
+        '#' => keys::N3,
+        '$' => keys::N4,
+        '%' => keys::N5,
+        '^' => keys::N6,
+        '&' => keys::N7,
+        '*' => keys::N8,
+        '(' => keys::N9,
+        ')' => keys::N0,
+        '_' => keys::MINUS,
+        '+' => keys::EQUAL,
+        ':' => keys::SEMICOLON,
+        '"' => keys::QUOTE,
+        '<' => keys::COMMA,
+        '>' => keys::DOT,
+        '?' => keys::SLASH,
+        '|' => keys::BACKSLASH,
+        '{' => keys::LBRACKET,
+        '}' => keys::RBRACKET,
+        '~' => keys::BACKQUOTE,
+        // Space and Enter
+        ' ' => keys::SPACE,
+        '\n' | '\r' => keys::ENTER,
+        // Unknown character
+        _ => 255,
+    }
 }
 
 /// Convert break key to its character representation
@@ -540,21 +593,22 @@ impl Engine {
         self.on_key_ext(key, caps, ctrl, false)
     }
 
-    /// Handle key event with actual Unicode character for shortcuts.
+    /// Handle key event with actual Unicode character for layout-independent input.
     ///
-    /// Used for Option-modified keys on macOS where the keycode doesn't change
-    /// but the character is different (e.g., Option+V produces √).
+    /// This method provides keyboard layout independence by mapping the actual
+    /// typed character to its QWERTY-equivalent keycode. This allows DVORAK,
+    /// Colemak, and other alternative layout users to use Vietnamese input.
     ///
     /// # Arguments
-    /// * `key` - macOS virtual keycode
+    /// * `key` - macOS virtual keycode (may be wrong for non-QWERTY layouts)
     /// * `caps` - true if Caps Lock is active
     /// * `ctrl` - true if Cmd/Ctrl is pressed (bypasses IME)
     /// * `shift` - true if Shift is pressed
-    /// * `ch` - The actual Unicode character. If Some, uses this for shortcut matching.
+    /// * `ch` - The actual Unicode character from the keyboard event
     ///
-    /// # Issue #275
-    /// This enables shortcuts with special characters like √√ → ✅
-    /// When typing ≈ç√√, we need to find √√ as a suffix match.
+    /// # Layout Independence
+    /// On DVORAK, pressing the physical 'S' key produces 'o' (not 's').
+    /// By using the character, we can correctly identify this as an 'o' input.
     pub fn on_key_with_char(
         &mut self,
         key: u16,
@@ -563,41 +617,53 @@ impl Engine {
         shift: bool,
         ch: Option<char>,
     ) -> Result {
-        // No character provided → fall back to normal processing
-        let Some(ch) = ch else {
+        // No character provided or control key → fall back to normal processing
+        if ch.is_none() || ctrl {
             return self.on_key_ext(key, caps, ctrl, shift);
+        }
+
+        let ch = ch.unwrap();
+
+        // Map character to QWERTY keycode for layout independence
+        let res = if ch.is_alphanumeric() {
+            let qwerty_key = crate::utils::char_to_key(ch.to_ascii_lowercase());
+            if qwerty_key != 255 {
+                let is_upper = ch.is_uppercase();
+                self.on_key_ext(qwerty_key, is_upper, ctrl, shift)
+            } else {
+                self.on_key_ext(key, caps, ctrl, shift)
+            }
+        } else {
+            let mapped_key = char_to_punctuation_key(ch);
+            if mapped_key != 255 {
+                self.on_key_ext(mapped_key, caps, ctrl, shift)
+            } else {
+                self.on_key_ext(key, caps, ctrl, shift)
+            }
         };
 
-        // Ctrl/Cmd bypasses everything
-        if ctrl {
-            self.clear();
-            self.word_history.clear();
-            self.spaces_after_commit = 0;
-            return Result::none();
-        }
+        // Handle shortcut matching for special characters (Issue #275)
+        if res.action == Action::None as u8 {
+            self.shortcut_prefix.push(ch);
 
-        // Accumulate character for suffix matching
-        self.shortcut_prefix.push(ch);
-
-        // Try suffix matches (longest first) using char_indices to avoid allocations
-        let input_method = self.current_input_method();
-        for (idx, _) in self.shortcut_prefix.char_indices() {
-            let suffix = &self.shortcut_prefix[idx..];
-            if let Some(m) = self.shortcuts.try_match_for_method(
-                suffix,
-                None,
-                false, // immediate, not word boundary
-                input_method,
-            ) {
-                let output: Vec<char> = m.output.chars().collect();
-                let backspace_count = (m.backspace_count as u8).saturating_sub(1);
-                self.shortcut_prefix.clear();
-                return Result::send_consumed(backspace_count, &output);
+            let input_method = self.current_input_method();
+            for (idx, _) in self.shortcut_prefix.char_indices() {
+                let suffix = &self.shortcut_prefix[idx..];
+                if let Some(m) =
+                    self.shortcuts
+                        .try_match_for_method(suffix, None, false, input_method)
+                {
+                    let output: Vec<char> = m.output.chars().collect();
+                    let backspace_count = (m.backspace_count as u8).saturating_sub(1);
+                    self.shortcut_prefix.clear();
+                    return Result::send_consumed(backspace_count, &output);
+                }
             }
+        } else {
+            self.shortcut_prefix.clear();
         }
 
-        // No match yet, let the character pass through
-        Result::none()
+        res
     }
 
     /// Check if key+shift combo is a raw mode prefix character
