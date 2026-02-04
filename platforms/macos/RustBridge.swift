@@ -1222,6 +1222,14 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
+    // Issue #293: Option+Backspace deletes whole word at OS level
+    // Clear engine buffer so state doesn't become stale after word deletion
+    if keyCode == KeyCode.backspace && hasOption && !bypassIME {
+        RustBridge.clearBuffer()
+        TextInjector.shared.clearSessionBuffer()
+        return Unmanaged.passUnretained(event)
+    }
+
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
     if keyCode == KeyCode.backspace && !bypassIME {
