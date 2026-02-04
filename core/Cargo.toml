@@ -12,7 +12,7 @@ name = "gonhanh_core"
 crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests
 
 [dependencies]
-# Minimal dependencies for core engine
+# No external dependencies - using std::collections::HashSet for dictionary lookup
 
 [dev-dependencies]
 rstest = "0.18"

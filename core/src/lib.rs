@@ -114,6 +114,50 @@ pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> 
     }
 }
 
+/// Process a key event with the actual Unicode character.
+///
+/// Used for Option-modified keys on macOS where the keycode doesn't change
+/// but the actual character is different (e.g., Option+V produces √).
+///
+/// # Arguments
+/// * `key` - macOS virtual keycode (0-127 for standard keys)
+/// * `caps` - true if CapsLock is pressed (for uppercase letters)
+/// * `ctrl` - true if Cmd/Ctrl is pressed (bypasses IME)
+/// * `shift` - true if Shift key is pressed
+/// * `char_code` - The actual Unicode character code (UTF-32). If > 0, uses this
+///   for shortcut matching instead of deriving from keycode.
+///
+/// # Returns
+/// * Pointer to `Result` struct (caller must free with `ime_free`)
+/// * `null` if engine not initialized
+///
+/// # Example
+/// When Option+V is pressed on macOS:
+/// - keycode is still V (9)
+/// - char_code is √ (0x221A)
+/// - Engine uses √ for shortcut matching, allowing shortcuts like √√ → ✅
+#[no_mangle]
+pub extern "C" fn ime_key_with_char(
+    key: u16,
+    caps: bool,
+    ctrl: bool,
+    shift: bool,
+    char_code: u32,
+) -> *mut Result {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        let ch = if char_code > 0 {
+            char::from_u32(char_code)
+        } else {
+            None
+        };
+        let r = e.on_key_with_char(key, caps, ctrl, shift, ch);
+        Box::into_raw(Box::new(r))
+    } else {
+        std::ptr::null_mut()
+    }
+}
+
 /// Set the input method.
 ///
 /// # Arguments
@@ -741,6 +785,132 @@ mod tests {
         assert!(!r.is_null());
         unsafe { ime_free(r) };
 
+        ime_clear();
+    }
+
+    /// Issue #275: Test that special character shortcuts work via ime_key_with_char
+    /// Example: √√ → ✅ (Option+V twice produces checkmark)
+    #[test]
+    #[serial]
+    fn test_special_char_shortcut_ffi() {
+        ime_init();
+        ime_clear_shortcuts();
+        ime_method(0); // Telex
+
+        // Add special character shortcut: √√ → ✅
+        let trigger = CString::new("√√").unwrap();
+        let replacement = CString::new("✅").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Verify shortcut was added as immediate (symbol-only trigger)
+        let guard = lock_engine();
+        if let Some(ref e) = *guard {
+            assert_eq!(e.shortcuts().len(), 1);
+            let shortcut = e.shortcuts().lookup("√√").unwrap().1;
+            assert_eq!(
+                shortcut.condition,
+                engine::shortcut::TriggerCondition::Immediate,
+                "Symbol-only trigger should be immediate"
+            );
+        }
+        drop(guard);
+
+        // Simulate typing √ (Option+V) twice using ime_key_with_char
+        // First √ - should accumulate in shortcut_prefix
+        let r1 = ime_key_with_char(keys::V, false, false, false, '√' as u32);
+        assert!(!r1.is_null());
+        let result1 = unsafe { &*r1 };
+        assert_eq!(result1.action, 0, "First √ should not trigger yet");
+        unsafe { ime_free(r1) };
+
+        // Second √ - should match and trigger shortcut
+        let r2 = ime_key_with_char(keys::V, false, false, false, '√' as u32);
+        assert!(!r2.is_null());
+        let result2 = unsafe { &*r2 };
+        assert_eq!(
+            result2.action,
+            engine::Action::Send as u8,
+            "Second √ should trigger shortcut"
+        );
+        assert_eq!(result2.backspace, 1, "Should backspace 1 char (first √)");
+
+        // Verify output is ✅
+        let output: String = (0..result2.count as usize)
+            .filter_map(|i| char::from_u32(result2.chars[i]))
+            .collect();
+        assert_eq!(output, "✅", "Should output ✅");
+
+        // Verify key_consumed flag is set
+        assert!(
+            (result2.flags & engine::FLAG_KEY_CONSUMED) != 0,
+            "Key should be consumed"
+        );
+
+        unsafe { ime_free(r2) };
+        ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    /// Issue #275: Test suffix matching - typing ≈ç√√ should still match √√
+    /// When other special chars precede the shortcut, it should still trigger
+    #[test]
+    #[serial]
+    fn test_special_char_shortcut_with_prefix() {
+        ime_init();
+        ime_clear_shortcuts();
+        ime_method(0); // Telex
+
+        // Add special character shortcut: √√ → ✅
+        let trigger = CString::new("√√").unwrap();
+        let replacement = CString::new("✅").unwrap();
+
+        unsafe {
+            ime_add_shortcut(trigger.as_ptr(), replacement.as_ptr());
+        }
+
+        // Type ≈ (Option+X) - should pass through
+        let r1 = ime_key_with_char(keys::X, false, false, false, '≈' as u32);
+        assert!(!r1.is_null());
+        let result1 = unsafe { &*r1 };
+        assert_eq!(result1.action, 0, "≈ should not trigger anything");
+        unsafe { ime_free(r1) };
+
+        // Type ç (Option+C) - should pass through
+        let r2 = ime_key_with_char(keys::C, false, false, false, 'ç' as u32);
+        assert!(!r2.is_null());
+        let result2 = unsafe { &*r2 };
+        assert_eq!(result2.action, 0, "ç should not trigger anything");
+        unsafe { ime_free(r2) };
+
+        // Type √ (Option+V) - first √, should accumulate
+        let r3 = ime_key_with_char(keys::V, false, false, false, '√' as u32);
+        assert!(!r3.is_null());
+        let result3 = unsafe { &*r3 };
+        assert_eq!(result3.action, 0, "First √ should not trigger yet");
+        unsafe { ime_free(r3) };
+
+        // Type √ (Option+V) - second √, should trigger √√ → ✅
+        let r4 = ime_key_with_char(keys::V, false, false, false, '√' as u32);
+        assert!(!r4.is_null());
+        let result4 = unsafe { &*r4 };
+        assert_eq!(
+            result4.action,
+            engine::Action::Send as u8,
+            "Second √ should trigger shortcut (suffix match)"
+        );
+        assert_eq!(result4.backspace, 1, "Should backspace 1 char (first √)");
+
+        // Verify output is ✅
+        let output: String = (0..result4.count as usize)
+            .filter_map(|i| char::from_u32(result4.chars[i]))
+            .collect();
+        assert_eq!(output, "✅", "Should output ✅");
+
+        unsafe { ime_free(r4) };
+        ime_clear_shortcuts();
         ime_clear();
     }
 }

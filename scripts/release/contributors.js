@@ -29,16 +29,17 @@ const EXCLUDED_USERS = new Set([
   'codecov[bot]',
   'vercel[bot]',
   'netlify[bot]',
+  'claude',
 ]);
 
 /**
- * Fetch sponsors via GraphQL
+ * Fetch all sponsors (active + past) via GraphQL
  */
 async function fetchSponsors() {
   const query = `
     query {
       user(login: "${REPO_OWNER}") {
-        sponsorshipsAsMaintainer(first: 100, activeOnly: true) {
+        sponsorshipsAsMaintainer(first: 100, activeOnly: false) {
           nodes {
             tier {
               name
@@ -70,15 +71,14 @@ async function fetchSponsors() {
     });
 
     const data = await res.json();
-    const sponsors = data?.data?.user?.sponsorshipsAsMaintainer?.nodes || [];
+    const nodes = data?.data?.user?.sponsorshipsAsMaintainer?.nodes || [];
 
-    // Categorize by tier
     const diamond = [];
     const gold = [];
     const silver = [];
     const backers = [];
 
-    for (const s of sponsors) {
+    for (const s of nodes) {
       const price = s.tier?.monthlyPriceInDollars || 0;
       const sponsor = {
         login: s.sponsorEntity.login,
@@ -398,7 +398,7 @@ async function main() {
     sponsors.backers.length;
 
   console.log(`Found:`);
-  console.log(`  - ${sponsorCount} sponsors`);
+  console.log(`  - ${sponsorCount} sponsors (active + past)`);
   console.log(`  - ${contributors.length} code contributors`);
   console.log(`  - ${community.length} community contributors`);
 
@@ -406,7 +406,7 @@ async function main() {
 
   const fs = require('fs');
   const path = require('path');
-  const outputPath = path.join(__dirname, '..', 'CONTRIBUTORS.md');
+  const outputPath = path.join(__dirname, '..', '..', 'CONTRIBUTORS.md');
 
   fs.writeFileSync(outputPath, markdown);
   console.log(`\nGenerated: ${outputPath}`);

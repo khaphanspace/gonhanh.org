@@ -126,6 +126,7 @@ dmg: build ## Create DMG installer
 .PHONY: release release-minor release-major
 
 release: ## Patch release (1.0.9 → 1.0.10)
+	@git pull --rebase origin main --tags
 	@echo "$(TAG) → v$(NEXT_PATCH)"
 	@git add -A && git commit -m "release: v$(NEXT_PATCH)" --allow-empty
 	@./scripts/release/notes.sh v$(NEXT_PATCH) > /tmp/release_notes.md
@@ -134,6 +135,7 @@ release: ## Patch release (1.0.9 → 1.0.10)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
 
 release-minor: ## Minor release (1.0.9 → 1.1.0)
+	@git pull --rebase origin main --tags
 	@echo "$(TAG) → v$(NEXT_MINOR)"
 	@git add -A && git commit -m "release: v$(NEXT_MINOR)" --allow-empty
 	@./scripts/release/notes.sh v$(NEXT_MINOR) > /tmp/release_notes.md
@@ -142,6 +144,7 @@ release-minor: ## Minor release (1.0.9 → 1.1.0)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
 
 release-major: ## Major release (1.0.9 → 2.0.0)
+	@git pull --rebase origin main --tags
 	@echo "$(TAG) → v$(NEXT_MAJOR)"
 	@git add -A && git commit -m "release: v$(NEXT_MAJOR)" --allow-empty
 	@./scripts/release/notes.sh v$(NEXT_MAJOR) > /tmp/release_notes.md

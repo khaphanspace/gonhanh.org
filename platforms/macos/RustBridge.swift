@@ -242,7 +242,12 @@ private class TextInjector {
     /// Standard backspace injection: delete N chars, then type replacement
     /// Set charByChar=true for character-by-character mode (slower but more reliable for some apps like Safari Google Docs)
     private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), charByChar: Bool = false) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
+        guard let src = CGEventSource(stateID: .privateState) else {
+            Log.info("inject FAILED: no event source")
+            return
+        }
+
+        let startTime = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
 
         for _ in 0..<bs {
             postKey(KeyCode.backspace, source: src)
@@ -250,7 +255,13 @@ private class TextInjector {
         }
         if bs > 0 { usleep(delays.1) }
 
-        postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+        let chunks = postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+
+        if Log.isEnabled {
+            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
+            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
+        }
     }
 
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
@@ -445,16 +456,23 @@ private class TextInjector {
 
     /// Post text in chunks (CGEvent has 20-char limit)
     /// Set chunkSize=1 for character-by-character mode (slower but more reliable for some apps)
-    private func postText(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil, chunkSize: Int = 20) {
+    /// Returns number of chunks posted
+    @discardableResult
+    private func postText(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil, chunkSize: Int = 20) -> Int {
         let utf16 = Array(text.utf16)
         var offset = 0
+        var chunkNum = 0
 
         while offset < utf16.count {
             let end = min(offset + chunkSize, utf16.count)
             let chunk = Array(utf16[offset..<end])
+            chunkNum += 1
 
             guard let dn = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
-                  let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else { break }
+                  let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else {
+                Log.info("postText FAILED: chunk \(chunkNum)")
+                break
+            }
             dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
             up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
             dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
@@ -470,6 +488,7 @@ private class TextInjector {
             if delay > 0 { usleep(delay) }
             offset = end
         }
+        return chunkNum
     }
 }
 
@@ -525,6 +544,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, do
 
 @_silgen_name("ime_init") private func ime_init()
 @_silgen_name("ime_key_ext") private func ime_key_ext(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool) -> UnsafeMutablePointer<ImeResult>?
+@_silgen_name("ime_key_with_char") private func ime_key_with_char(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool, _ charCode: UInt32) -> UnsafeMutablePointer<ImeResult>?
 @_silgen_name("ime_method") private func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
 @_silgen_name("ime_skip_w_shortcut") private func ime_skip_w_shortcut(_ skip: Bool)
@@ -562,8 +582,27 @@ class RustBridge {
     }
 
     /// Process a keystroke. Returns (backspace, chars, keyConsumed) or nil if no action.
-    static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false) -> (Int, [Character], Bool)? {
-        guard isInitialized, let ptr = ime_key_ext(keyCode, caps, ctrl, shift) else { return nil }
+    ///
+    /// - Parameters:
+    ///   - keyCode: macOS virtual keycode
+    ///   - caps: true if CapsLock/Shift is active
+    ///   - ctrl: true if Cmd/Ctrl is pressed (bypasses IME)
+    ///   - shift: true if Shift is pressed
+    ///   - char: Optional actual Unicode character (Issue #275). When provided,
+    ///           uses this for shortcut matching instead of deriving from keycode.
+    ///           Used for Option-modified keys (e.g., Option+V → √).
+    static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false, char: Character? = nil) -> (Int, [Character], Bool)? {
+        guard isInitialized else { return nil }
+
+        let ptr: UnsafeMutablePointer<ImeResult>?
+        if let char = char {
+            let charCode = char.unicodeScalars.first?.value ?? 0
+            ptr = ime_key_with_char(keyCode, caps, ctrl, shift, charCode)
+        } else {
+            ptr = ime_key_ext(keyCode, caps, ctrl, shift)
+        }
+
+        guard let ptr = ptr else { return nil }
         defer { ime_free(ptr) }
 
         let r = ptr.pointee
@@ -843,11 +882,22 @@ private func getWordToRestoreOnBackspace() -> String? {
     return (hasVietnameseDiacritics || isPureASCIILetters) ? word : nil
 }
 
+private extension CGEvent {
+    /// Get the character from a keyboard event
+    func keyboardCharacter() -> Character? {
+        var length = 0
+        var chars = [UniChar](repeating: 0, count: 4)
+        keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &chars)
+        guard length > 0 else { return nil }
+        return String(utf16CodeUnits: chars, count: length).first
+    }
+}
+
 private extension CGEventFlags {
     var modifierCount: Int {
         [contains(.maskSecondaryFn), contains(.maskControl), contains(.maskAlternate), contains(.maskShift), contains(.maskCommand)].filter { $0 }.count
     }
-    
+
     /// Check if only fn key is pressed (no other modifiers)
     var isFnOnly: Bool {
         contains(.maskSecondaryFn) && 
@@ -1053,6 +1103,15 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
+    // Log all keystrokes (only when debug enabled - no overhead otherwise)
+    if Log.isEnabled {
+        if let char = event.keyboardCharacter() {
+            Log.info("keyDown: code=\(keyCode) char='\(char)'")
+        } else {
+            Log.info("keyDown: code=\(keyCode)")
+        }
+    }
+
     // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
     if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
@@ -1062,7 +1121,10 @@ private func keyboardCallback(
     // Compute modifier states early - needed for Enter handling and later processing
     let shift = flags.contains(.maskShift)
     let caps = shift || flags.contains(.maskAlphaShift)
-    let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
+    // Issue #275: Option-only (without Cmd/Ctrl) should NOT bypass IME for shortcuts
+    // Option+Key produces special characters (e.g., Option+V → √) that can be shortcut triggers
+    let hasOption = flags.contains(.maskAlternate)
+    let bypassIME = flags.contains(.maskCommand) || flags.contains(.maskControl)
 
     // Enter: submit and trigger auto-capitalize pending state
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
@@ -1071,7 +1133,7 @@ private func keyboardCallback(
     if keyCode == 0x24 || keyCode == 0x4C {  // Return (0x24) or Enter/Numpad (0x4C)
         let (method, delays) = detectMethod()
 
-        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
@@ -1160,9 +1222,17 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
+    // Issue #293: Option+Backspace deletes whole word at OS level
+    // Clear engine buffer so state doesn't become stale after word deletion
+    if keyCode == KeyCode.backspace && hasOption && !bypassIME {
+        RustBridge.clearBuffer()
+        TextInjector.shared.clearSessionBuffer()
+        return Unmanaged.passUnretained(event)
+    }
+
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
-    if keyCode == KeyCode.backspace && !ctrl {
+    if keyCode == KeyCode.backspace && !bypassIME {
         // For selectAll method: handle backspace (only when enabled)
         if method == .selectAll && AppState.shared.isEnabled {
             let session = TextInjector.shared.getSessionBuffer()
@@ -1178,7 +1248,7 @@ private func keyboardCallback(
         }
 
         // First try Rust engine (handles immediate backspace-after-space)
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
             return nil
@@ -1213,7 +1283,25 @@ private func keyboardCallback(
         }
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: ctrl, shift: shift) {
+    // Issue #275: Handle Option-modified keys for special character shortcuts
+    // When Option is pressed (without Cmd/Ctrl), the key produces a special character
+    // (e.g., Option+V → √). Pass this character to engine for shortcut matching.
+    if hasOption && !bypassIME {
+        if let char = event.keyboardCharacter() {
+            // Process the actual character for shortcut matching
+            if let (bs, chars, keyConsumed) = RustBridge.processKey(
+                keyCode: keyCode, caps: caps, ctrl: false, shift: shift, char: char
+            ) {
+                Log.key(keyCode, "option: bs=\(bs) chars='\(String(chars))' char='\(char)' consumed=\(keyConsumed)")
+                sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+                return nil  // Consume the event when shortcut matches
+            }
+            // No shortcut match - let the character pass through normally
+            return Unmanaged.passUnretained(event)
+        }
+    }
+
+    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
@@ -1379,7 +1467,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     // Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-        let logKey = "\(methodName) [\(bundleId)]"
+        let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
         DetectionCache.set(m, d, logKey: logKey); return (m, d)
     }
 
@@ -1403,9 +1491,10 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.axDirect, (0, 0, 0), "ax:arc")
     }
 
-    // Firefox-based browsers - use selection method for address bar (AXTextField)
-    // Use slow method for content areas - axDirect causes char deletion on mid-text insert
-    // Issue #160/#192: axDirect deletes chars/newlines when inserting in middle of text
+    // Firefox-based browsers
+    // Zen: axDirect for address bar, slow for content
+    // Others: selection for address bar (AXTextField/AXWindow), slow for content
+    // Issue #160/#192: axDirect causes char deletion on mid-text insert
     let firefoxBrowsers = [
         "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
         "org.waterfoxproject.waterfox", "io.gitlab.librewolf-community.librewolf",
@@ -1413,10 +1502,14 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "app.zen-browser.zen"
     ]
     if firefoxBrowsers.contains(bundleId) {
-        if role == "AXTextField" {
-            return cached(.selection, (0, 0, 0), "sel:firefox")  // Address bar
+        if role == "AXTextField" || role == "AXWindow" {
+            if bundleId == "app.zen-browser.zen" {
+                return cached(.axDirect, (0, 0, 0), "ax:zen")
+            } else {
+                return cached(.selection, (0, 0, 0), "sel:firefox")
+            }
         } else {
-            return cached(.slow, (3000, 8000, 3000), "slow:firefox")  // Content area
+            return cached(.slow, (3000, 8000, 3000), "slow:firefox")
         }
     }
 
@@ -1488,6 +1581,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
     ]
     if codeApps.contains(bundleId) { return cached(.slow, (8000, 25000, 8000), "slow:code") }
+
+    // LaTeX editors (Qt-based) - need charByChar for reliable Unicode input
+    if bundleId == "texstudio" { return cached(.charByChar, (3000, 8000, 3000), "char:texstudio") }
     if bundleId.hasPrefix("com.jetbrains") { return cached(.slow, (8000, 25000, 8000), "slow:jb") }
 
     // Default: safe delays
@@ -1496,6 +1592,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
 private func sendReplacement(backspace bs: Int, chars: [Character], method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
     let str = String(chars)
+    Log.info("inject: bs=\(bs) text='\(str)' method=\(method) delays=\(delays)")
 
     // Use TextInjector for synchronized text injection
     TextInjector.shared.injectSync(bs: bs, text: str, method: method, delays: delays, proxy: proxy)

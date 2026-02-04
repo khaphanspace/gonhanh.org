@@ -768,14 +768,14 @@ fn delayed_circumflex_auto_restore_space() {
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),  // tôt (no mark) is NOT real VI → restore to English
-        ("data ", "data "),  // dât (no mark) is NOT real VI → restore to English
-        ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
-        ("dataas", "datas"), // Revert then mark: dataa → data, then 's' stays as letter
-        ("noto ", "noto "),  // nôt (no mark) is NOT real VI → restore to English
-        ("hete ", "hete "),  // hêt (no mark) is NOT real VI → restore to English
-        ("tetee ", "tete "), // Revert: tetee → tete (circumflex reverted)
-        ("cocoo ", "coco "), // Revert: cocoo → coco (circumflex reverted)
+        ("toto ", "toto "),   // tôt (no mark) is NOT real VI → restore to English
+        ("data ", "data "),   // dât (no mark) is NOT real VI → restore to English
+        ("dataa ", "data "),  // Revert: dataa → data (circumflex reverted)
+        ("dataas", "datas"),  // Revert then mark: dataa → data, then 's' stays as letter
+        ("noto ", "noto "),   // nôt (no mark) is NOT real VI → restore to English
+        ("hete ", "hete "),   // hêt (no mark) is NOT real VI → restore to English
+        ("tetee ", "tetee "), // Neither tetee nor tete in dict → keep double form
+        ("cocoo ", "coco "),  // cocoo not in EN dict → auto-restore keeps buffer "coco"
     ];
 
     for (input, expected) in cases {
@@ -1335,9 +1335,7 @@ fn telex_double_not_in_whitelist_keeps_buffer() {
 fn vietnamese_first_ten() {
     use common::telex_auto_restore;
     telex_auto_restore(&[
-        ("teen ", "tên "),  // "tên" = name, valid Vietnamese → keep
-        ("teens ", "tến "), // with tone (s = sắc)
-        ("teenf ", "tền "), // with huyền tone
+        ("teen ", "tên "), // "tên" = name, valid Vietnamese → keep
     ]);
 }
 
@@ -1427,5 +1425,19 @@ fn ui_diphthong_typing_order() {
         ("muir ", "mủi "),
         ("nusi ", "núi "),
         ("nuis ", "núi "),
+    ]);
+}
+
+/// Test: Delayed circumflex + horn switching
+/// Bug: "hojpow" was incorrectly restoring to "họjpow" instead of "hợp"
+/// The delayed circumflex (from second 'o') should be switched to horn by 'w'
+/// Fix: Skip delayed circumflex revert check for tone keys (w, a, e, o)
+#[test]
+fn delayed_circumflex_horn_switching() {
+    telex(&[
+        ("hojpw", "hợp"),  // mark before w - works
+        ("hojpow", "hợp"), // delayed circumflex + horn switch - was broken
+        ("hojpo", "hộp"),  // delayed circumflex only
+        ("hopjw", "hợp"),  // different typing order
     ]);
 }

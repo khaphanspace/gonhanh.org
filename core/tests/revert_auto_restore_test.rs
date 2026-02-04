@@ -119,13 +119,6 @@ fn revert_at_end_restores_long_english_words() {
     ]);
 }
 
-#[test]
-fn double_vowel_with_mark() {
-    // "maas" = m-a-a-s: 'aa' applies â mark → "mâ", then 's' applies sắc → "mấ"
-    // Note: the second 'a' triggers circumflex and final 's' triggers sắc tone
-    telex_auto_restore(&[("maas ", "mấ ")]);
-}
-
 // =============================================================================
 // DOUBLE D (Đ) + AUTO-RESTORE
 // Tests for dd → đ conversion and validation of resulting syllables

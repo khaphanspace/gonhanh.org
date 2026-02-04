@@ -3669,3 +3669,102 @@ fn standalone_stroke_not_restored_on_break() {
         "Standalone Đ should NOT be restored on punctuation"
     );
 }
+
+// Test: "dataabase " → "database " (double vowel in middle, collapse using dict check)
+// "dataabase" NOT in dict, "database" IS in dict → collapse
+#[test]
+fn test_dataabase_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "dataabase ");
+    assert_eq!(
+        result, "database ",
+        "dataabase should auto-restore to database (collapse mid-word double vowel via dict)"
+    );
+}
+
+// Test: "chooose " → "choose " (NOT "chose")
+// "choose" IS in dict → keep double 'o', don't over-collapse
+#[test]
+fn test_chooose_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "chooose ");
+    assert_eq!(
+        result, "choose ",
+        "chooose should auto-restore to choose, not collapse further to chose"
+    );
+}
+
+// Test case: sur<upervisor → supervisor (double u from backspace + retype)
+// The < represents backspace, so: sur + backspace + upervisor = suupervisor → supervisor
+#[test]
+fn test_suupervisor_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "sur<upervisor ");
+    assert_eq!(
+        result, "supervisor ",
+        "sur<upervisor should auto-restore to supervisor (collapse double u)"
+    );
+}
+
+// Test case: us<user → uẻ but expected user
+// The < represents backspace, so: us + backspace + user
+// After "us" → "ú", backspace removes it, then typing "user" should give "user"
+// Bug: currently gives "uẻ" because raw_input still has stale entries
+#[test]
+fn test_user_backspace_retype_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "us<user ");
+    assert_eq!(result, "user ", "us<user should auto-restore to user");
+}
+
+// Test case: user<ser → uẻ but expected user
+// Type "user", backspace deletes 'r', then type "ser" to complete "user"
+#[test]
+fn test_user_backspace_ser_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "user<ser ");
+    assert_eq!(result, "user ", "user<ser should auto-restore to user");
+}
+
+// Test case: per<erfec → peerfec but expected perfec (no space, mid-word)
+// The < represents backspace, so: per + backspace + erfec
+// After "per" → "pẻ", backspace removes "ẻ", then typing "erfec"
+// Bug: raw_input only pops 'r' modifier but not 'e' base, causing double 'e'
+#[test]
+fn test_perfec_backspace_retype_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "per<erfec");
+    assert_eq!(
+        result, "perfec",
+        "per<erfec should give perfec (no double e)"
+    );
+}
+
+// Test case: data<<ata (delayed circumflex pattern with double backspace)
+// "data" → "dât", then << deletes "ât", then "ata" should restore to "data"
+#[test]
+fn test_data_double_backspace_ata_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "data<<ata ");
+    assert_eq!(result, "data ", "data<<ata should auto-restore to data");
+}
+
+// Test case: abc + space + ook + space
+// Fixed: "abc ôk " (circumflex from intentional double vowel is preserved)
+#[test]
+fn test_abc_space_ook_space() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "abc ook ");
+    assert_eq!(
+        result, "abc ôk ",
+        "abc ook should give 'abc ôk ' (circumflex from double vowel preserved)"
+    );
+}

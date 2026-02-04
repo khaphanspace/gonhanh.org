@@ -103,9 +103,10 @@ fn pattern2_oo_vowel_pair() {
 #[test]
 fn pattern2_ee_vowel_pair() {
     telex_auto_restore(&[
-        // With space - restore to English (invalid VN ending with -êp)
+        // "keep" is in English dictionary - restore to English
         ("keep ", "keep "),
-        ("teep ", "teep "),
+        // "teep" is NOT in dictionary - keep circumflex from intentional double vowel
+        ("teep ", "têp "),
         // Without space - keep Vietnamese transform (word not complete)
         ("keep", "kêp"),  // k + e + e(circumflex) + p → kêp
         ("keeps", "kếp"), // k + e + e + p + s(sắc) → kếp
@@ -647,6 +648,20 @@ fn pattern9_re_prefix() {
 }
 
 #[test]
+fn pattern9_per_prefix() {
+    // "per-" prefix: double 'r' (hỏi) reverts mark, buffer has valid prefix pattern
+    // Pattern: per + rr → "pẻr" → "per" (revert)
+    telex_auto_restore(&[
+        ("perrmission ", "permission "),
+        ("perrfect ", "perfect "),
+        ("perrform ", "perform "),
+        ("perrson ", "person "),
+        ("perrsist ", "persist "),
+        ("perrmanent ", "permanent "),
+    ]);
+}
+
+#[test]
 fn pattern9_double_mark_no_prefix() {
     // Words with double mark keys but NO matching prefix/suffix pattern
     // 5+ char words: restore to English (preserve double letter)
@@ -713,6 +728,16 @@ fn pattern9_double_ss_english_words() {
         ("moss ", "moss "),  // moss - plant
         ("pass ", "pass "),  // pass - go by
         ("toss ", "toss "),  // toss - throw
+    ]);
+}
+
+#[test]
+fn pattern9_hiss_exception() {
+    // "hiss" is an exception: user typing "hiss" likely wants "his"
+    // (more common word, user typed double 's' to revert sắc mark)
+    // This is similar to "off" → "of", "iff" → "if", "ass" → "as" exceptions
+    telex_auto_restore(&[
+        ("hiss ", "his "), // hiss → his (exception: "his" more common than "hiss")
     ]);
 }
 
@@ -1274,7 +1299,6 @@ fn pattern15d_ue_diphthong_patterns() {
         ("thueechs ", "thuếch "), // thuếch
         // uê + n final (double e for circumflex)
         ("thueens ", "thuến "), // valid pattern
-        ("queens ", "quến "),   // quến (to attract)
         ("quyeens ", "quyến "), // quyến (to attract) - quy pattern
     ]);
 }

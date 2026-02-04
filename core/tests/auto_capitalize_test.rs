@@ -458,3 +458,62 @@ fn delete_past_buffer_keeps_pending() {
     let ch = char::from_u32(r.chars[0]).unwrap();
     assert_eq!(ch, 'C', "After deleting to period, should capitalize");
 }
+
+// ============================================================
+// ISSUE #274: PASTE RESETS AUTO-CAPITALIZE
+// ============================================================
+
+#[test]
+fn clear_all_resets_pending_capitalize() {
+    // Issue #274: clear_all() should reset pending_capitalize
+    // This simulates paste/cursor change scenario
+    let mut e = Engine::new();
+    e.set_auto_capitalize(true);
+
+    // Type "ok." + space (to set pending_capitalize)
+    for &key in &[keys::O, keys::K] {
+        e.on_key_ext(key, false, false, false);
+    }
+    e.on_key_ext(keys::DOT, false, false, false);
+    e.on_key_ext(keys::SPACE, false, false, false); // Sets pending_capitalize = true
+
+    // Simulate paste/cursor change by calling clear_all()
+    e.clear_all();
+
+    // Type "a" - should NOT be capitalized (paste reset the state)
+    // When auto-capitalize is NOT triggered, action is 0 (Action::None = pass-through)
+    // When auto-capitalize IS triggered, action is 1 (Action::Send with uppercase char)
+    let r = e.on_key_ext(keys::A, false, false, false);
+    // After clear_all(), pending_capitalize should be false
+    // So typing 'a' should NOT trigger auto-capitalize → action should be None (0)
+    assert_eq!(
+        r.action, 0,
+        "After clear_all(), should NOT capitalize - expecting Action::None"
+    );
+}
+
+#[test]
+fn clear_all_resets_saw_sentence_ending() {
+    // Issue #274: clear_all() should reset saw_sentence_ending
+    let mut e = Engine::new();
+    e.set_auto_capitalize(true);
+
+    // Type "ok." (but no space - sets saw_sentence_ending but not pending_capitalize)
+    for &key in &[keys::O, keys::K] {
+        e.on_key_ext(key, false, false, false);
+    }
+    e.on_key_ext(keys::DOT, false, false, false); // Sets saw_sentence_ending = true
+
+    // Simulate paste by calling clear_all()
+    e.clear_all();
+
+    // Type space then letter - should NOT capitalize (state was reset)
+    e.on_key_ext(keys::SPACE, false, false, false);
+    let r = e.on_key_ext(keys::B, false, false, false);
+    // After clear_all(), saw_sentence_ending should be false
+    // So space followed by 'b' should NOT trigger auto-capitalize
+    assert_eq!(
+        r.action, 0,
+        "After clear_all(), space+letter should NOT capitalize - expecting Action::None"
+    );
+}

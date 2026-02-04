@@ -249,11 +249,42 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
+      - name: Resolve PR Authors in Tag Message
+        if: ${{ steps.tag_message.outputs.message != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_MSG: ${{ steps.tag_message.outputs.message }}
+        shell: bash
+        run: |
+          REPO="${{ github.repository }}"
+
+          # Process tag message: append "bởi @username" to lines with #NNN
+          # Matches (#NNN), (Issue #NNN), or bare #NNN anywhere in line
+          # Note: query PR author inline (no associative arrays - bash 3.x compat)
+          while IFS= read -r line; do
+            login=""
+            # Extract all #NNN refs from line, try each as PR (last match = PR ref typically)
+            refs=$(echo "$line" | grep -oE '#[0-9]+' | grep -oE '[0-9]+' || true)
+            if [ -n "$refs" ]; then
+              # Try refs in reverse order (PR ref is usually last, e.g., "(Issue #275) (#285)")
+              for pr_num in $(echo "$refs" | tail -r 2>/dev/null || echo "$refs" | tac 2>/dev/null || echo "$refs"); do
+                login=$(gh api "repos/$REPO/pulls/$pr_num" --jq '.user.login' 2>/dev/null) || login=""
+                if [ -n "$login" ]; then break; fi
+              done
+            fi
+            if [ -n "$login" ] && [[ "$line" != *"bởi @"* ]] && [[ "$line" != *"by @"* ]]; then
+              line="$line bởi @$login"
+            fi
+            echo "$line" >> release_body.md
+          done <<< "$TAG_MSG"
+
+          cat release_body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: platforms/macos/build/*.dmg
-          body: ${{ steps.tag_message.outputs.message }}
+          body_path: ${{ steps.tag_message.outputs.message != '' && 'release_body.md' || '' }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
 
       # ============================================================
