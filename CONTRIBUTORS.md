@@ -223,6 +223,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
   </tr>
   <tr>
     <td align="center">
+      <a href="https://github.com/bs90">
+        <img src="https://avatars.githubusercontent.com/u/2457657?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>bs90</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/PhucHuwu">
         <img src="https://avatars.githubusercontent.com/u/142735617?v=4" width="50" style="border-radius:50%"/><br/>
         <b>PhucHuwu</b>
@@ -252,14 +258,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>xkhanhs</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/caotangdaiduong">
         <img src="https://avatars.githubusercontent.com/u/28684084?v=4" width="50" style="border-radius:50%"/><br/>
         <b>caotangdaiduong</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/khanhtran-infotrack-vn">
         <img src="https://avatars.githubusercontent.com/u/175588548?v=4" width="50" style="border-radius:50%"/><br/>
@@ -270,12 +276,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/cooldevdotcodes">
         <img src="https://avatars.githubusercontent.com/u/129320950?v=4" width="50" style="border-radius:50%"/><br/>
         <b>cooldevdotcodes</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/bs90">
-        <img src="https://avatars.githubusercontent.com/u/2457657?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>bs90</b>
       </a>
     </td>
     <td align="center">
