@@ -7,17 +7,13 @@ mod common;
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 
-// =============================================================================
 // VIETNAMESE SYLLABLE COMPONENTS
-// =============================================================================
 
 const COMMON_INITIALS: &[&str] = &["b", "c", "d", "g", "h", "l", "m", "n", "s", "t"];
 const DIPHTHONGS: &[(&str, &str)] = &[("a", "o"), ("a", "i"), ("o", "i"), ("u", "a")];
 const TONES: &[&str] = &["s", "f", "r", "x", "j"];
 
-// =============================================================================
 // HELPERS
-// =============================================================================
 
 fn apply_tone(v: char, t: &str) -> char {
     match (v, t) {
@@ -72,10 +68,8 @@ fn test_auto_restore(input: &str, expected: &str) -> Result<(), String> {
     }
 }
 
-// =============================================================================
 // TEST 1: DIPHTHONG + TONE ORDER
 // "naof" and "nafo" → "nào"
-// =============================================================================
 
 #[test]
 fn dynamic_diphthong_tone_order() {
@@ -107,10 +101,8 @@ fn dynamic_diphthong_tone_order() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 2: TONE + FINAL ORDER (sắc tone, valid combinations only)
 // "mans" and "masn" → "mán"
-// =============================================================================
 
 #[test]
 fn dynamic_tone_final_order() {
@@ -188,9 +180,7 @@ fn dynamic_tone_final_order() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 3: HORN ORDER (owi vs oiw)
-// =============================================================================
 
 #[test]
 fn dynamic_horn_oi_order() {
@@ -208,9 +198,7 @@ fn dynamic_horn_oi_order() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 4: CIRCUMFLEX SPLIT (rieeng vs rieneg)
-// =============================================================================
 
 #[test]
 fn dynamic_circumflex_split() {
@@ -246,9 +234,7 @@ fn dynamic_circumflex_split() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 5: ALL TONES × AI DIPHTHONG
-// =============================================================================
 
 #[test]
 fn dynamic_all_tones_ai() {
@@ -271,9 +257,7 @@ fn dynamic_all_tones_ai() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 6: ENGLISH AUTO-RESTORE
-// =============================================================================
 
 #[test]
 fn dynamic_english_restore() {
@@ -301,10 +285,8 @@ fn dynamic_english_restore() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 7: TONE AFTER COMPLETE WORD
 // "nhanaj" → "nhận", "lamf" → "làm", etc.
-// =============================================================================
 
 #[test]
 fn dynamic_tone_after_word() {
@@ -409,9 +391,7 @@ fn dynamic_tone_after_word() {
     assert!(errors.is_empty(), "{} tests failed", errors.len());
 }
 
-// =============================================================================
 // TEST 8: REGRESSION (Fixed bugs)
-// =============================================================================
 
 #[test]
 fn dynamic_regression() {
@@ -442,9 +422,7 @@ fn dynamic_regression() {
     );
 }
 
-// =============================================================================
 // SUMMARY
-// =============================================================================
 
 #[test]
 fn dynamic_summary() {

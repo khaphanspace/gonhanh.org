@@ -13,9 +13,7 @@
 mod common;
 use common::{telex, telex_auto_restore};
 
-// =============================================================================
 // DOUBLE MODIFIER (REVERT) + AUTO-RESTORE
-// =============================================================================
 
 #[test]
 fn revert_then_more_chars_keeps_buffer() {
@@ -28,9 +26,7 @@ fn revert_then_more_chars_keeps_buffer() {
     ]);
 }
 
-// =============================================================================
 // EDGE CASES: REVERT BUT VALID VIETNAMESE
-// =============================================================================
 
 #[test]
 fn revert_at_end_short_words() {
@@ -119,10 +115,8 @@ fn revert_at_end_restores_long_english_words() {
     ]);
 }
 
-// =============================================================================
 // DOUBLE D (Đ) + AUTO-RESTORE
 // Tests for dd → đ conversion and validation of resulting syllables
-// =============================================================================
 
 #[test]
 fn double_s_middle_pattern() {
@@ -167,10 +161,8 @@ fn consecutive_modifiers_followed_by_vowel() {
     ]);
 }
 
-// =============================================================================
 // DOUBLE D (Đ) + AUTO-RESTORE
 // Tests for dd → đ conversion and validation of resulting syllables
-// =============================================================================
 
 /// Test basic mark apply and revert (without auto-restore)
 #[test]
@@ -233,9 +225,7 @@ fn debug_deeper_issue() {
     ]);
 }
 
-// =============================================================================
 // STROKE (đ) + DICTIONARY CHECK
-// =============================================================================
 // When buffer has stroke (đ from dd), use English dictionary to decide:
 // - đ + in English dict → restore to English (daddy, add, odd)
 // - đ + NOT in English dict → keep Vietnamese (đc, đt, đi)

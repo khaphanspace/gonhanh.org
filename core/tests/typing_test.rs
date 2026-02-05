@@ -3,9 +3,7 @@
 mod common;
 use common::{telex, telex_auto_restore, telex_traditional, vni, vni_traditional};
 
-// ============================================================
 // BACKSPACE & CORRECTIONS
-// ============================================================
 
 const TELEX_BACKSPACE: &[(&str, &str)] = &[
     ("vieet<s", "viế"),
@@ -21,9 +19,7 @@ const TELEX_BACKSPACE: &[(&str, &str)] = &[
 
 const VNI_BACKSPACE: &[(&str, &str)] = &[("a1<a2", "à"), ("o6<o7", "ơ")];
 
-// ============================================================
 // TYPOS & WRONG ORDER
-// ============================================================
 
 const TELEX_TYPOS: &[(&str, &str)] = &[
     // Wrong order - mark before vowel
@@ -390,9 +386,7 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("oso", "ố"),
 ];
 
-// ============================================================
 // RAPID TYPING PATTERNS
-// ============================================================
 
 const TELEX_RAPID: &[(&str, &str)] = &[
     ("ngoafif", "ngoài"),
@@ -451,9 +445,7 @@ const VNI_RAPID: &[(&str, &str)] = &[
     ("cuu71", "cứu"), // save/rescue - DELAYED
 ];
 
-// ============================================================
 // CAPITALIZATION
-// ============================================================
 
 const TELEX_CAPS: &[(&str, &str)] = &[
     ("viEets", "viẾt"),
@@ -472,9 +464,7 @@ const VNI_CAPS: &[(&str, &str)] = &[
     ("TRU7O7NG2", "TRƯỜNG"),
 ];
 
-// ============================================================
 // GREETINGS
-// ============================================================
 
 const TELEX_GREETINGS: &[(&str, &str)] = &[
     ("xin chaof", "xin chào"),
@@ -489,9 +479,7 @@ const VNI_GREETINGS: &[(&str, &str)] = &[
     ("ca3m o7n", "cảm ơn"),
 ];
 
-// ============================================================
 // PROVERBS (TỤC NGỮ)
-// ============================================================
 
 const TELEX_PROVERBS: &[(&str, &str)] = &[
     ("hocj mootj bieets muwowif", "học một biết mười"),
@@ -511,9 +499,7 @@ const VNI_PROVERBS: &[(&str, &str)] = &[
     ("nu7o71c cha3y d9a1 mo2n", "nước chảy đá mòn"),
 ];
 
-// ============================================================
 // IDIOMS (THÀNH NGỮ)
-// ============================================================
 
 const TELEX_IDIOMS: &[(&str, &str)] = &[
     ("an cuw lacj nghieepj", "an cư lạc nghiệp"),
@@ -521,9 +507,7 @@ const TELEX_IDIOMS: &[(&str, &str)] = &[
     ("thowif gian laf tieenf bacj", "thời gian là tiền bạc"),
 ];
 
-// ============================================================
 // DAILY CONVERSATIONS
-// ============================================================
 
 const TELEX_DAILY: &[(&str, &str)] = &[
     (
@@ -545,9 +529,7 @@ const VNI_DAILY: &[(&str, &str)] = &[
     ("bao nhie6u tie62n", "bao nhiêu tiền"),
 ];
 
-// ============================================================
 // FOOD
-// ============================================================
 
 const TELEX_FOOD: &[(&str, &str)] = &[
     ("cho tooi xem thuwcj ddown", "cho tôi xem thực đơn"),
@@ -559,9 +541,7 @@ const TELEX_FOOD: &[(&str, &str)] = &[
     ("tinhs tieenf nhes", "tính tiền nhé"),
 ];
 
-// ============================================================
 // EXPRESSIONS
-// ============================================================
 
 const TELEX_EXPRESSIONS: &[(&str, &str)] = &[
     ("khoong sao", "không sao"),
@@ -572,9 +552,7 @@ const TELEX_EXPRESSIONS: &[(&str, &str)] = &[
     ("ddepj quas", "đẹp quá"),
 ];
 
-// ============================================================
 // POETRY (TRUYỆN KIỀU)
-// ============================================================
 
 const TELEX_POETRY: &[(&str, &str)] = &[
     (
@@ -587,9 +565,7 @@ const TELEX_POETRY: &[(&str, &str)] = &[
     ),
 ];
 
-// ============================================================
 // LONG SENTENCES
-// ============================================================
 
 const TELEX_LONG: &[(&str, &str)] = &[
     (
@@ -613,9 +589,7 @@ const VNI_LONG: &[(&str, &str)] = &[
     ),
 ];
 
-// ============================================================
 // MIXED CASE SENTENCES
-// ============================================================
 
 const TELEX_MIXED_CASE: &[(&str, &str)] = &[
     ("Xin chaof", "Xin chào"),
@@ -630,9 +604,7 @@ const VNI_MIXED_CASE: &[(&str, &str)] = &[
     ("Tha2nh pho61 Ho62 Chi1 Minh", "Thành phố Hồ Chí Minh"),
 ];
 
-// ============================================================
 // COMMON ISSUES - Real bugs found in production
-// ============================================================
 
 const TELEX_COMMON_ISSUES: &[(&str, &str)] = &[
     // Issue 2.1: Dính chữ (aa -> aâ instead of â)
@@ -744,9 +716,7 @@ const VNI_COMMON_ISSUES: &[(&str, &str)] = &[
     ("ruo7u5", "rượu"),
 ];
 
-// ============================================================
 // MARK REPOSITIONING - Complex diacritic interactions
-// ============================================================
 
 const VNI_MARK_REPOSITION: &[(&str, &str)] = &[
     // ua patterns
@@ -826,9 +796,7 @@ const TELEX_MARK_REPOSITION: &[(&str, &str)] = &[
     ("hieeur", "hiểu"),
 ];
 
-// ============================================================
 // DELAYED INPUT PATTERNS
-// ============================================================
 
 const TELEX_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("tungw", "tưng"),
@@ -856,9 +824,7 @@ const VNI_DELAYED_PATTERNS: &[(&str, &str)] = &[
     ("Dung9", "Đung"),
 ];
 
-// ============================================================
 // DELAYED TONE MARKS - Typing tone after completing the word
-// ============================================================
 
 const TELEX_DELAYED_TONE: &[(&str, &str)] = &[
     // Single vowel words - tone at end
@@ -958,9 +924,7 @@ const VNI_DELAYED_TONE: &[(&str, &str)] = &[
     ("d9ang2", "đàng"),
 ];
 
-// ============================================================
 // SWITCHING DIACRITICS - circumflex ↔ horn
-// ============================================================
 
 const VNI_SWITCH_DIACRITICS: &[(&str, &str)] = &[
     // Single vowel: switch circumflex ↔ horn (last modifier wins)
@@ -989,9 +953,7 @@ const TELEX_SWITCH_DIACRITICS: &[(&str, &str)] = &[
     ("uoow", "ươ"), // uô + w → ươ (switch to horn)
 ];
 
-// ============================================================
 // TEST FUNCTIONS
-// ============================================================
 
 #[test]
 fn telex_backspace() {
@@ -1148,9 +1110,7 @@ fn vni_switch_diacritics() {
     vni(VNI_SWITCH_DIACRITICS);
 }
 
-// ============================================================
 // NON-ADJACENT STROKE - Issue #51
-// ============================================================
 //
 // Telex stroke behavior:
 // - dd → đ (adjacent stroke, always works)
@@ -1198,9 +1158,7 @@ fn vni_non_adjacent_stroke() {
     vni(VNI_NON_ADJACENT_STROKE);
 }
 
-// ============================================================
 // INVALID BREVE PATTERNS - Issue #44
-// ============================================================
 //
 // Vietnamese phonology: 'ă' (breve) requires final consonant
 // Valid: trăm, năm, răng, xăng, bắt, căn, ...
@@ -1314,9 +1272,7 @@ const VNI_VALID_BREVE: &[(&str, &str)] = &[
     ("D9a81k No6ng", "Đắk Nông"), // Đắk Nông province (o6 = ô)
 ];
 
-// ============================================================
 // INVALID BREVE + VOWEL PATTERNS (ăi, ăo, ău, ăy)
-// ============================================================
 //
 // In Vietnamese, breve 'ă' CANNOT be followed by another vowel.
 // Valid: ăn, ăm, ăng, ăp, ăt, ăc (consonant endings)
@@ -1357,9 +1313,7 @@ const VNI_INVALID_BREVE_DIPHTHONG: &[(&str, &str)] = &[
     ("la8i", "lăi"),
 ];
 
-// ============================================================
 // ENGLISH WORDS WITH AW PATTERN (should NOT transform)
-// ============================================================
 //
 // Common English words containing "aw" should stay as-is
 // because they don't form valid Vietnamese syllables.
@@ -1450,9 +1404,7 @@ const TELEX_ENGLISH_AW_WORDS: &[(&str, &str)] = &[
     ("didd you", "did you"), // English "did you" with typo
 ];
 
-// ============================================================
 // ISSUE #133: HORN PLACEMENT - "huơ" vs "hươ"
-// ============================================================
 // In words like "huơ" and "khuơ", only 'o' gets the horn mark.
 // The 'u' remains unchanged because "uơ" is a valid vowel cluster
 // where horn applies only to 'o'.
@@ -1472,9 +1424,7 @@ const TELEX_HORN_PLACEMENT: &[(&str, &str)] = &[
     ("quoocs", "quốc"), // quốc - country (NOT qướcc, 'u' is part of "Qu" initial)
 ];
 
-// ============================================================
 // ISSUE #312: SAME VOWEL AFTER MARKED VOWEL
-// ============================================================
 // When a vowel already has a diacritic mark, typing the same vowel
 // again should append the raw vowel, not apply circumflex.
 // Example: "chưa" + "a" → "chưaa" (NOT "chưâ")
@@ -1495,9 +1445,7 @@ const TELEX_SAME_VOWEL_AFTER_MARK: &[(&str, &str)] = &[
                        // This is CORRECT and NOT a bug - it's the standard revert pattern.
 ];
 
-// ============================================================
 // EDGE CASES: PARTIAL WORDS / INTERMEDIATE STATES
-// ============================================================
 //
 // When typing incrementally, intermediate states should behave correctly.
 
@@ -1516,9 +1464,7 @@ const TELEX_BREVE_EDGE_CASES: &[(&str, &str)] = &[
     ("awng", "ăng"), // ăng is valid (final consonant)
 ];
 
-// ============================================================
 // TEST FUNCTIONS
-// ============================================================
 
 #[test]
 fn telex_invalid_breve_open_syllable() {
@@ -1573,9 +1519,7 @@ fn telex_same_vowel_after_mark() {
     telex(TELEX_SAME_VOWEL_AFTER_MARK);
 }
 
-// ============================================================
 // TRADITIONAL TONE PLACEMENT - Issue #64
-// ============================================================
 //
 // When "modern tone" setting is OFF (traditional style):
 // - hòa, thúy (tone on 1st vowel) instead of hoà, thuý (tone on 2nd)

@@ -14,9 +14,7 @@ pub use gonhanh_core::utils::{
 
 use gonhanh_core::engine::{Action, Engine};
 
-// ============================================================
 // TEST RUNNERS - Extended helpers for integration tests
-// ============================================================
 
 /// Input method type
 #[derive(Clone, Copy, Debug)]
@@ -39,9 +37,7 @@ pub fn both(telex_cases: &[(&str, &str)], vni_cases: &[(&str, &str)]) {
     vni(vni_cases);
 }
 
-// ============================================================
 // ENGINE STATE HELPERS
-// ============================================================
 
 pub fn engine_telex() -> Engine {
     Engine::new()
@@ -53,9 +49,7 @@ pub fn engine_vni() -> Engine {
     e
 }
 
-// ============================================================
 // ASSERTION HELPERS
-// ============================================================
 
 /// Assert engine action
 pub fn assert_action(e: &mut Engine, key: u16, caps: bool, ctrl: bool, expected: Action) {

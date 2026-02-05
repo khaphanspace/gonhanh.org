@@ -138,9 +138,7 @@ pub fn get_d(caps: bool) -> char {
     }
 }
 
-// ============================================================
 // REVERSE PARSING: Vietnamese char → buffer components
-// ============================================================
 
 /// Parsed character components for buffer restoration
 #[derive(Clone, Copy, Debug, PartialEq)]

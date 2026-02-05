@@ -5,9 +5,7 @@
 
 use crate::data::keys;
 
-// =============================================================================
 // INITIAL CONSONANTS
-// =============================================================================
 
 /// Valid single initial consonants (16 consonants)
 pub const VALID_INITIALS_1: &[u16] = &[
@@ -51,9 +49,7 @@ pub const VALID_INITIALS_2: &[[u16; 2]] = &[
     [keys::T, keys::R], // tr
 ];
 
-// =============================================================================
 // FINAL CONSONANTS
-// =============================================================================
 
 /// Valid single final consonants
 /// Note: K is included for ethnic minority language place names (e.g., Đắk Lắk)
@@ -77,9 +73,7 @@ pub const VALID_FINALS_2: &[[u16; 2]] = &[
     [keys::N, keys::H], // nh
 ];
 
-// =============================================================================
 // VALID VOWEL PATTERNS (Whitelist from docs 7.6.1)
-// =============================================================================
 
 /// Valid diphthong base key patterns (29 patterns from docs 7.6.1-A)
 ///
@@ -135,9 +129,7 @@ pub const VALID_TRIPHTHONGS: &[[u16; 3]] = &[
     [keys::O, keys::A, keys::O], // #43 oao (ngoào - modifier on A for tones)
 ];
 
-// =============================================================================
 // MODIFIER REQUIREMENTS FOR VOWEL PATTERNS
-// =============================================================================
 
 /// Patterns requiring CIRCUMFLEX on V1 (first vowel)
 /// E+U is only valid as êu (E has circumflex), not eu or eư
@@ -153,9 +145,7 @@ pub const V2_CIRCUMFLEX_REQUIRED: &[[u16; 2]] = &[
     [keys::Y, keys::E], // yê: E (V2) must have circumflex
 ];
 
-// =============================================================================
 // SPELLING RULES
-// =============================================================================
 
 /// Spelling rules: (consonant, invalid_vowels, description)
 /// If consonant + vowel matches, it's INVALID
@@ -182,10 +172,8 @@ pub const SPELLING_RULES: &[(&[u16], &[u16], &str)] = &[
     ),
 ];
 
-// =============================================================================
 // AUTO-RESTORE RULES
 // These patterns are used by auto-restore to detect invalid Vietnamese
-// =============================================================================
 
 /// Invalid rhyme patterns: -ing + tone mark is NOT valid Vietnamese
 /// Vietnamese uses -inh (tính, kính), not -ing with tone marks

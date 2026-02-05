@@ -35,9 +35,7 @@ fn telex_no_foreign(cases: &[(&str, &str)]) {
     }
 }
 
-// ============================================================
 // FOREIGN CONSONANTS ENABLED TESTS
-// ============================================================
 
 #[test]
 fn foreign_z_with_diacritics() {
@@ -100,9 +98,7 @@ fn foreign_with_full_syllables() {
     ]);
 }
 
-// ============================================================
 // FOREIGN CONSONANTS DISABLED TESTS (default behavior)
-// ============================================================
 
 #[test]
 fn no_foreign_z_passthrough() {
@@ -131,9 +127,7 @@ fn no_foreign_j_passthrough() {
     ]);
 }
 
-// ============================================================
 // EDGE CASES
-// ============================================================
 
 #[test]
 fn foreign_toggle_works() {
@@ -167,11 +161,9 @@ fn foreign_valid_vietnamese_unchanged() {
     ]);
 }
 
-// ============================================================
 // W CONSONANT TESTS
 // Note: W in Telex has special behavior (vowel modifier: aw→ă, ow→ơ, uw→ư)
 // When skip_w_shortcut is enabled, W at word start stays as 'w'
-// ============================================================
 
 /// Helper to run telex tests with foreign consonants AND skip_w_shortcut enabled
 fn telex_foreign_with_w(cases: &[(&str, &str)]) {
@@ -221,10 +213,8 @@ fn no_foreign_w_becomes_u_horn() {
     ]);
 }
 
-// ============================================================
 // FOREIGN CONSONANTS + ENGLISH AUTO-RESTORE COMPATIBILITY
 // When both options are enabled, foreign consonants should NOT trigger auto-restore
-// ============================================================
 
 /// Helper to run telex tests with BOTH foreign consonants AND english auto-restore enabled
 fn telex_foreign_with_auto_restore(cases: &[(&str, &str)]) {

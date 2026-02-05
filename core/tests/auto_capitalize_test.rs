@@ -15,9 +15,7 @@ use gonhanh_core::data::keys;
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 
-// ============================================================
 // BASIC DOT (.) TESTS
-// ============================================================
 
 #[test]
 fn dot_basic_capitalize() {
@@ -45,9 +43,7 @@ fn dot_multiple_spaces() {
     telex_auto_capitalize(&[("ok.  ban", "ok.  Ban"), ("ok.   di", "ok.   Di")]);
 }
 
-// ============================================================
 // EXCLAMATION MARK (!) TESTS
-// ============================================================
 
 #[test]
 fn exclamation_basic() {
@@ -61,9 +57,7 @@ fn exclamation_multiple() {
     telex_auto_capitalize(&[("hay!! di", "hay!! Di")]);
 }
 
-// ============================================================
 // QUESTION MARK (?) TESTS
-// ============================================================
 
 #[test]
 fn question_basic() {
@@ -77,9 +71,7 @@ fn question_multiple() {
     telex_auto_capitalize(&[("gi?? di", "gi?? Di")]);
 }
 
-// ============================================================
 // ENTER KEY TESTS
-// ============================================================
 
 #[test]
 fn enter_basic() {
@@ -111,9 +103,7 @@ fn enter_basic() {
     assert_eq!(first_char, 'D', "Expected 'D' but got '{}'", first_char);
 }
 
-// ============================================================
 // NUMBER AFTER DOT (NO CAPITALIZE)
-// ============================================================
 
 #[test]
 fn number_after_dot_no_capitalize() {
@@ -132,9 +122,7 @@ fn number_resets_pending() {
     ]);
 }
 
-// ============================================================
 // NON-SENTENCE PUNCTUATION (NO TRIGGER)
-// ============================================================
 
 #[test]
 fn comma_no_capitalize() {
@@ -154,9 +142,7 @@ fn colon_no_capitalize() {
     telex_auto_capitalize(&[("ban: di", "ban: di")]);
 }
 
-// ============================================================
 // CONSECUTIVE SENTENCES
-// ============================================================
 
 #[test]
 fn multiple_sentences() {
@@ -173,9 +159,7 @@ fn mixed_punctuation() {
     telex_auto_capitalize(&[("ok. hay! sao? ddi", "ok. Hay! Sao? Đi")]);
 }
 
-// ============================================================
 // ALREADY UPPERCASE (NO CHANGE)
-// ============================================================
 
 #[test]
 fn already_uppercase() {
@@ -186,9 +170,7 @@ fn already_uppercase() {
     ]);
 }
 
-// ============================================================
 // FEATURE OFF (DEFAULT)
-// ============================================================
 
 #[test]
 fn feature_off_no_capitalize() {
@@ -203,9 +185,7 @@ fn feature_off_no_capitalize() {
     );
 }
 
-// ============================================================
 // EDGE CASES
-// ============================================================
 
 #[test]
 fn empty_after_dot() {
@@ -240,9 +220,7 @@ fn abbreviations_known_tradeoff() {
     ]);
 }
 
-// ============================================================
 // SPECIAL CHARACTERS AFTER PUNCTUATION
-// ============================================================
 
 #[test]
 fn quote_after_dot() {
@@ -256,9 +234,7 @@ fn parenthesis_after_dot() {
     telex_auto_capitalize(&[("ok. (di)", "ok. (Di)")]);
 }
 
-// ============================================================
 // VIETNAMESE DIACRITICS AFTER CAPITALIZE
-// ============================================================
 
 #[test]
 fn vietnamese_tone_after_capitalize() {
@@ -280,9 +256,7 @@ fn vietnamese_complex_after_capitalize() {
     ]);
 }
 
-// ============================================================
 // DELETE AND RETYPE SCENARIOS
-// ============================================================
 
 #[test]
 fn delete_retype_restores_capitalize() {
@@ -337,9 +311,7 @@ fn enter_delete_retype_restores_capitalize() {
     );
 }
 
-// ============================================================
 // ARROW KEYS AND NAVIGATION (NO RESET)
-// ============================================================
 
 #[test]
 fn arrow_keys_preserve_pending() {
@@ -387,9 +359,7 @@ fn tab_preserves_pending() {
     assert_eq!(ch, 'A', "Tab should preserve pending");
 }
 
-// ============================================================
 // SELECTION DELETE (CLEAR RESTORES PENDING)
-// ============================================================
 
 #[test]
 fn clear_restores_pending_capitalize() {
@@ -459,9 +429,7 @@ fn delete_past_buffer_keeps_pending() {
     assert_eq!(ch, 'C', "After deleting to period, should capitalize");
 }
 
-// ============================================================
 // ISSUE #274: PASTE RESETS AUTO-CAPITALIZE
-// ============================================================
 
 #[test]
 fn clear_all_resets_pending_capitalize() {

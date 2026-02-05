@@ -6,9 +6,7 @@ use gonhanh_core::data::keys;
 use gonhanh_core::engine::{Action, Engine};
 use gonhanh_core::utils::char_to_key;
 
-// ============================================================
 // ENGINE STATE: Enable/Disable
-// ============================================================
 
 #[test]
 fn disabled_engine_passes_through() {
@@ -48,9 +46,7 @@ fn disabled_engine_ignores_auto_restore() {
     }
 }
 
-// ============================================================
 // CTRL/CMD: Modifier key handling
-// ============================================================
 
 #[test]
 fn ctrl_key_passes_through() {
@@ -72,9 +68,7 @@ fn ctrl_clears_buffer() {
     assert_passthrough(&mut e, keys::S);
 }
 
-// ============================================================
 // METHOD SWITCHING: Telex <-> VNI
-// ============================================================
 
 #[test]
 fn method_switch_preserves_buffer() {
@@ -118,9 +112,7 @@ fn switch_telex_to_vni_and_back() {
     assert_eq!(result, "à");
 }
 
-// ============================================================
 // UNKNOWN KEYS
-// ============================================================
 
 #[test]
 fn unknown_key_passes_through() {
@@ -137,9 +129,7 @@ fn space_clears_buffer() {
     assert_passthrough(&mut e, keys::S);
 }
 
-// ============================================================
 // EMPTY BUFFER: Tone/mark without vowel
-// ============================================================
 
 #[test]
 fn tone_without_vowel_passes_through() {
@@ -201,9 +191,7 @@ fn telex_ww_reverts() {
     assert_eq!(result.chars[0], 'ư' as u32);
 }
 
-// ============================================================
 // LAYOUT INDEPENDENCE (macOS): Character-based Input
-// ============================================================
 
 #[test]
 #[cfg(target_os = "macos")]
@@ -335,9 +323,7 @@ fn vni_tone_without_vowel_passes_through() {
     assert_passthrough(&mut e, keys::N1);
 }
 
-// ============================================================
 // BACKSPACE HANDLING
-// ============================================================
 
 #[test]
 fn backspace_on_empty_buffer() {
@@ -357,9 +343,7 @@ fn multiple_backspace_clears_all() {
     assert_passthrough(&mut e, keys::S);
 }
 
-// ============================================================
 // CONSONANT-ONLY WORDS
-// ============================================================
 
 #[test]
 fn consonant_only_no_conversion() {
@@ -375,9 +359,7 @@ fn tone_after_consonant_only() {
     assert_eq!(result, "bcs");
 }
 
-// ============================================================
 // CLEAR BUFFER
-// ============================================================
 
 #[test]
 fn clear_resets_state() {
@@ -388,9 +370,7 @@ fn clear_resets_state() {
     assert_passthrough(&mut e, keys::S);
 }
 
-// ============================================================
 // ORTHOGRAPHY: Modern style (hoà, not hòa)
-// ============================================================
 
 #[test]
 fn modern_orthography_hoa() {
@@ -416,9 +396,7 @@ fn modern_orthography_full() {
     }
 }
 
-// ============================================================
 // REVERT BEHAVIOR
-// ============================================================
 
 #[test]
 fn double_mark_key_includes_both() {
@@ -443,9 +421,7 @@ fn triple_same_key_behavior() {
     assert_eq!(result, "aaa");
 }
 
-// ============================================================
 // STRESS TEST: Long input sequences
-// ============================================================
 
 #[test]
 fn long_input_sequence() {
@@ -472,9 +448,7 @@ fn repeated_typing_sessions() {
     assert_eq!(result2, "chào");
 }
 
-// ============================================================
 // EDGE: Special sequences
-// ============================================================
 
 #[test]
 fn only_modifiers() {
@@ -497,9 +471,7 @@ fn alternating_vowel_modifier() {
     assert!(!result.is_empty());
 }
 
-// ============================================================
 // FOREIGN WORDS: Should NOT transform
-// ============================================================
 
 #[test]
 fn foreign_word_claudeco_not_transformed() {
@@ -600,11 +572,9 @@ fn foreign_word_express_no_mark() {
     );
 }
 
-// ============================================================
 // FOREIGN WORDS: Should NOT get Vietnamese diacritics
 // These tests verify that common English/foreign words are not transformed
 // The validation algorithm should detect invalid Vietnamese patterns
-// ============================================================
 
 // --- Words with invalid vowel patterns (not in Vietnamese) ---
 
@@ -754,9 +724,7 @@ fn vietnamese_an_with_mark_after_final() {
     assert_eq!(result, "àn", "anf should become àn");
 }
 
-// ============================================================
 // VNI: SHIFT+NUMBER PASSTHROUGH (for symbols like @, #, $)
-// ============================================================
 
 #[test]
 fn vni_shift_2_passes_through_for_at_symbol() {
@@ -847,9 +815,7 @@ fn telex_shift_not_affected() {
     );
 }
 
-// ============================================================
 // SHORTCUT TESTS
-// ============================================================
 
 use gonhanh_core::engine::shortcut::Shortcut;
 
@@ -1585,9 +1551,7 @@ fn telex_doc_in_sentence() {
     assert_eq!(result2, "sách");
 }
 
-// ============================================================
 // SKIP W SHORTCUT: User preference for w→ư at word start
-// ============================================================
 
 /// When skip_w_shortcut is enabled, standalone "w" should NOT convert to "ư"
 #[test]
@@ -1741,9 +1705,7 @@ fn skip_w_shortcut_multiple_words() {
     assert_eq!(result3, "ư");
 }
 
-// ============================================================
 // BACKSPACE-AFTER-SPACE: Issue #32
-// ============================================================
 
 /// Basic: Add mark after space (du + SPACE + < + j → dụ)
 #[test]
@@ -1893,9 +1855,7 @@ fn backspace_after_space_stroke_word() {
     assert_eq!(result, "đí", "Stroke should be preserved after restore");
 }
 
-// ============================================================
 // BACKSPACE-AFTER-SPACE: Extended behaviors
-// ============================================================
 
 /// Multiple spaces: restore word only after ALL spaces deleted
 #[test]
@@ -2442,9 +2402,7 @@ fn backspace_after_space_uppercase_then_lowercase() {
     );
 }
 
-// ============================================================
 // RESTORE_WORD: Buffer restoration from Vietnamese string
-// ============================================================
 
 /// Helper: simulate typing on existing screen text after restore_word
 fn restore_and_type(e: &mut Engine, initial: &str, input: &str) -> String {
@@ -2648,9 +2606,7 @@ fn restore_word_ascii_then_vowel() {
     );
 }
 
-// ============================================================
 // LAYOUT INDEPENDENCE: Dvorak / Colemak Regressions
-// ============================================================
 
 /// Test that layout-independent character processing works for basic Vietnamese typing
 #[test]
@@ -2956,9 +2912,7 @@ fn restore_word_change_mark_then_extend() {
     assert_eq!(result, "cháo", "Should change mark and extend word");
 }
 
-// ============================================================
 // OIW VS OWI BUG FIX TEST
-// ============================================================
 
 /// Bug: "oiw" produces error but "owi" → "ơi" works
 /// Expected: Both should produce valid Vietnamese
@@ -3353,10 +3307,8 @@ fn shortcut_backspace_with_mark() {
     assert_eq!(r.backspace, 2, "án = 2 chars");
 }
 
-// ============================================================
 // COMPLEX TYPING SCENARIOS: Type -> Delete -> Retype -> Clear
 // Tests for "màu sắc" with Telex + auto restore
-// ============================================================
 
 /// Comprehensive continuous typing session with multiple operations
 /// Simulates real user behavior: type->select->replace->arrow->backspace
@@ -3855,10 +3807,8 @@ fn test_ua_open_vs_closed_syllable() {
     assert_eq!(r2, "muán ", "ua closed syllable: tone on a");
 }
 
-// ============================================================
 // Issue #212: Shortcut not working after backspace
 // User types shortcut, expands, deletes all, retypes - should work again
-// ============================================================
 
 /// Issue #212: Shortcut should work after typing, expanding, and deleting all
 /// User flow: "ko" → "không " → backspace×6 → "ko" → should expand again

@@ -25,9 +25,7 @@ impl ValidationResult {
     }
 }
 
-// =============================================================================
 // BUFFER SNAPSHOT - Keys + Modifiers for validation
-// =============================================================================
 
 /// Snapshot of buffer state for validation
 /// Contains both keys and their modifiers (tones)
@@ -66,9 +64,7 @@ impl BufferSnapshot {
     }
 }
 
-// =============================================================================
 // VALIDATION RULES
-// =============================================================================
 
 /// Rule type: takes buffer snapshot and parsed syllable, returns error or None
 type Rule = fn(&BufferSnapshot, &Syllable) -> Option<ValidationResult>;
@@ -272,9 +268,7 @@ fn rule_valid_vowel_pattern(
     None
 }
 
-// =============================================================================
 // PUBLIC API
-// =============================================================================
 
 /// Validate buffer as Vietnamese syllable - runs all rules
 pub fn validate(snap: &BufferSnapshot) -> ValidationResult {
@@ -528,9 +522,7 @@ pub fn is_foreign_word_pattern(
     false
 }
 
-// =============================================================================
 // TESTS
-// =============================================================================
 
 #[cfg(test)]
 mod tests {

@@ -37,9 +37,7 @@ fn lock_engine() -> std::sync::MutexGuard<'static, Option<Engine>> {
     ENGINE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-// ============================================================
 // FFI Interface
-// ============================================================
 
 /// Initialize the IME engine.
 ///
@@ -362,9 +360,7 @@ pub unsafe extern "C" fn ime_free(r: *mut Result) {
     }
 }
 
-// ============================================================
 // Shortcut FFI
-// ============================================================
 
 /// Add a shortcut to the engine.
 ///
@@ -440,9 +436,7 @@ pub extern "C" fn ime_clear_shortcuts() {
     }
 }
 
-// ============================================================
 // Word Restore FFI
-// ============================================================
 
 /// Restore buffer from a Vietnamese word string.
 ///
@@ -470,9 +464,7 @@ pub unsafe extern "C" fn ime_restore_word(word: *const std::os::raw::c_char) {
     }
 }
 
-// ============================================================
 // Tests
-// ============================================================
 
 #[cfg(test)]
 mod tests {

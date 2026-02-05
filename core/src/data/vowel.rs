@@ -57,9 +57,7 @@ impl Vowel {
     }
 }
 
-// =============================================================================
 // VOWEL PATTERN ENUMS - Shared across tone and horn placement
-// =============================================================================
 
 /// Position for tone mark placement
 ///
@@ -134,9 +132,7 @@ pub const HORN_PATTERNS: &[VowelPairPattern] = &[
     // Default: second gets breve, but with consonant prefix: first gets horn
 ];
 
-// =============================================================================
 // TONE POSITION PATTERNS - Based on docs/vietnamese-language-system.md 7.3
-// =============================================================================
 
 /// Triphthong pattern for tone placement
 pub struct TriphthongTonePattern {

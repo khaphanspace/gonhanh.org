@@ -10,9 +10,7 @@
 use gonhanh_core::engine::Engine;
 use std::fs;
 
-// =============================================================================
 // PATTERN DETECTION
-// =============================================================================
 
 /// Tone markers in Telex (at end of word triggers tone)
 const TONE_MARKERS: [char; 5] = ['s', 'f', 'r', 'x', 'j'];
@@ -57,9 +55,7 @@ fn categorize_failure(word: &str) -> FailureCause {
     }
 }
 
-// =============================================================================
 // KEY SIMULATION
-// =============================================================================
 
 fn char_to_key(c: char) -> u16 {
     match c.to_ascii_lowercase() {
@@ -153,9 +149,7 @@ fn type_word_with_space(engine: &mut Engine, word: &str) -> (String, String) {
     (output, buffer)
 }
 
-// =============================================================================
 // TEST
-// =============================================================================
 
 #[test]
 fn english_100k_failures() {

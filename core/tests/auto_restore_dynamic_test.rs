@@ -21,10 +21,8 @@ mod common;
 use common::telex_auto_restore;
 use rstest::rstest;
 
-// ============================================================
 // PATTERN 1: INVALID INITIAL F
 // F is not a valid Vietnamese initial (Vietnamese uses PH for /f/)
-// ============================================================
 
 /// Common English words starting with F
 const F_WORDS: &[(&str, &str)] = &[
@@ -106,10 +104,8 @@ fn f_initial_vowel_patterns(#[case] initial: &str, #[case] vowel: &str, #[case] 
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 2: INVALID INITIAL J
 // J is not a valid Vietnamese initial
-// ============================================================
 
 const J_WORDS: &[(&str, &str)] = &[
     ("job ", "job "),
@@ -145,10 +141,8 @@ fn j_initial_vowel_patterns(#[case] initial: &str, #[case] vowel: &str, #[case] 
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 3: INVALID INITIAL Z
 // Z is not a valid Vietnamese initial
-// ============================================================
 
 const Z_WORDS: &[(&str, &str)] = &[
     ("zero ", "zero "),
@@ -177,10 +171,8 @@ fn z_initial_vowel_patterns(#[case] initial: &str, #[case] vowel: &str, #[case] 
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 4: W INITIAL + CONSONANT
 // W is not a valid Vietnamese initial
-// ============================================================
 
 /// W words that SHOULD restore (have consonants that make them invalid Vietnamese)
 const W_WORDS: &[(&str, &str)] = &[
@@ -284,10 +276,8 @@ fn w_consonant_patterns(#[case] initial: &str, #[case] vowel: &str, #[case] expe
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 5: CONSONANT CLUSTERS
 // Vietnamese does not have consonant clusters (except CH, GH, KH, etc.)
-// ============================================================
 
 const CLUSTER_WORDS: &[(&str, &str)] = &[
     // bl- cluster
@@ -529,10 +519,8 @@ fn cluster_vowel_patterns(#[case] cluster: &str, #[case] vowel: &str, #[case] ex
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 6: MODIFIER + CONSONANT SEQUENCES
 // Example: "text" has x (ngã modifier) followed by t (consonant)
-// ============================================================
 
 const MODIFIER_CONSONANT_WORDS: &[(&str, &str)] = &[
     // x + consonant (exp-, ext-, exc-)
@@ -599,10 +587,8 @@ fn modifier_consonant_patterns(#[case] prefix: &str, #[case] suffix: &str, #[cas
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 7: EI VOWEL PAIR + MODIFIER
 // EI is not a valid Vietnamese diphthong
-// ============================================================
 
 const EI_WORDS: &[(&str, &str)] = &[
     ("their ", "their "),
@@ -626,10 +612,8 @@ fn ei_pattern_comprehensive() {
     telex_auto_restore(EI_WORDS);
 }
 
-// ============================================================
 // PATTERN 8: VOWEL + R/S/F + E (ORE, ARE, URE, IRE patterns)
 // These are common English patterns that should restore
-// ============================================================
 
 const ORE_ARE_URE_WORDS: &[(&str, &str)] = &[
     // -ore pattern
@@ -711,10 +695,8 @@ fn vowel_re_patterns(#[case] prefix: &str, #[case] suffix: &str, #[case] expecte
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 9: W AS FINAL (NOT MODIFIER)
 // W can't modify A in English (raw, law, saw)
-// ============================================================
 
 const W_FINAL_WORDS: &[(&str, &str)] = &[
     ("aw ", "aw "),
@@ -788,9 +770,7 @@ fn w_final_patterns(#[case] prefix: &str, #[case] suffix: &str, #[case] expected
     telex_auto_restore(&[(&input, &output)]);
 }
 
-// ============================================================
 // PATTERN 10: OU PATTERN (NOT VALID VIETNAMESE)
-// ============================================================
 
 const OU_WORDS: &[(&str, &str)] = &[
     ("about ", "about "),
@@ -827,9 +807,7 @@ fn ou_pattern_comprehensive() {
     telex_auto_restore(OU_WORDS);
 }
 
-// ============================================================
 // TECH & PROGRAMMING TERMS
-// ============================================================
 
 const TECH_WORDS: &[(&str, &str)] = &[
     // F initial
@@ -871,11 +849,9 @@ fn tech_terms_comprehensive() {
     telex_auto_restore(TECH_WORDS);
 }
 
-// ============================================================
 // DOCUMENTATION: WORDS THAT PRODUCE VALID VIETNAMESE
 // These are NOT auto-restored (by design)
 // Users should use ESC or raw mode for these
-// ============================================================
 
 /// Vietnamese-first: valid Vietnamese buffer stays Vietnamese.
 /// User can type double modifier to escape to English (tesst → test).
@@ -944,9 +920,7 @@ fn restore_space_backspace_space_cycle() {
     ]);
 }
 
-// ============================================================
 // PUNCTUATION TRIGGERS
-// ============================================================
 
 #[test]
 fn punctuation_triggers_restore() {
@@ -962,9 +936,7 @@ fn punctuation_triggers_restore() {
     ]);
 }
 
-// ============================================================
 // CASE SENSITIVITY
-// ============================================================
 
 #[test]
 fn case_sensitivity_restore() {
@@ -987,13 +959,11 @@ fn case_sensitivity_restore() {
     ]);
 }
 
-// ============================================================
 // DOUBLE MARK KEYS (English words with repeated modifier keys)
 // When same mark key is pressed twice, both appear as letters
 // This allows typing English words like "issue", "class", "error"
 // 4-char words with double modifiers keep reverted result (user intended revert)
 // 5+ char words restore to English (user typed English word)
-// ============================================================
 
 #[test]
 fn double_mark_english_words() {
@@ -1054,9 +1024,7 @@ fn double_mark_middle_keeps_valid_word() {
     ]);
 }
 
-// ============================================================
 // TEST: Tone override patterns should stay Vietnamese
-// ============================================================
 
 #[test]
 fn tone_override_stays_vietnamese() {

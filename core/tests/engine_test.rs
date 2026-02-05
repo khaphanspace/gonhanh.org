@@ -4,9 +4,7 @@ mod common;
 use common::{telex, telex_auto_restore, vni};
 use gonhanh_core::engine::Engine;
 
-// ============================================================
 // SYLLABLE PARSING TESTS
-// ============================================================
 
 /// Test syllable parsing via engine behavior
 /// These test Vietnamese syllable structure recognition
@@ -87,9 +85,7 @@ fn syllable_glide_oa() {
     telex(&[("hoa", "hoa"), ("khoa", "khoa"), ("toa", "toa")]);
 }
 
-// ============================================================
 // VALIDATION TESTS
-// ============================================================
 
 #[test]
 fn validation_valid_simple() {
@@ -131,9 +127,7 @@ fn validation_spelling_ngh_before_eiy() {
     telex(&[("nghes", "nghé"), ("nghis", "nghí")]);
 }
 
-// ============================================================
 // TONE MODIFIER TESTS (V2 Pattern-based)
-// ============================================================
 
 #[test]
 fn tone_circumflex_aa() {
@@ -235,9 +229,7 @@ fn tone_uo_compound() {
     ]);
 }
 
-// ============================================================
 // MARK MODIFIER TESTS
-// ============================================================
 
 #[test]
 fn mark_sac() {
@@ -309,9 +301,7 @@ fn mark_with_final_consonant() {
     ]);
 }
 
-// ============================================================
 // STROKE TRANSFORMATION (d → đ)
-// ============================================================
 
 #[test]
 fn stroke_dd() {
@@ -369,9 +359,7 @@ fn stroke_in_word() {
     ]);
 }
 
-// ============================================================
 // REVERT BEHAVIOR TESTS
-// ============================================================
 
 #[test]
 fn revert_tone_double_key() {
@@ -379,10 +367,8 @@ fn revert_tone_double_key() {
     telex(&[("aaa", "aa"), ("eee", "ee"), ("ooo", "oo")]);
 }
 
-// ============================================================
 // ISSUE #211: EXTENDED VOWEL TESTS
 // Behavior: After triple vowel revert, continue appending raw vowels
-// ============================================================
 
 #[test]
 fn extended_vowel_no_tone() {
@@ -537,9 +523,7 @@ fn triple_same_key() {
     assert_eq!(result, "aaa");
 }
 
-// ============================================================
 // VNI EQUIVALENTS
-// ============================================================
 
 #[test]
 fn vni_tone_circumflex() {
@@ -584,9 +568,7 @@ fn vni_stroke() {
     vni(&[("d9", "đ"), ("d9a", "đa")]);
 }
 
-// ============================================================
 // EDGE CASES & REGRESSION TESTS
-// ============================================================
 
 #[test]
 fn edge_gi_with_mark() {
@@ -656,9 +638,7 @@ fn edge_invalid_not_transformed() {
     assert!(result.contains("http"));
 }
 
-// ============================================================
 // DELAYED CIRCUMFLEX TESTS
-// ============================================================
 //
 // Pattern: V + C + V (same vowel) triggers circumflex on first vowel
 // Examples: "toto" → "tôt", "data" → "dât"
@@ -871,9 +851,7 @@ fn delayed_circumflex_no_false_positives() {
     );
 }
 
-// ============================================================
 // SINGLE VOWEL + TONE MARK + SPACE (AUTO-RESTORE)
-// ============================================================
 
 #[test]
 fn single_vowel_sac_space() {
@@ -973,9 +951,7 @@ fn single_horn_uw_tone_space() {
     ]);
 }
 
-// ============================================================
 // DIPHTHONG (DOUBLE VOWEL) + TONE MARK + SPACE (AUTO-RESTORE)
-// ============================================================
 
 #[test]
 fn diphthong_ai_tone_space() {
@@ -1220,9 +1196,7 @@ fn diphthong_uwi_tone_space() {
     ]);
 }
 
-// ============================================================
 // TRIPHTHONG (TRIPLE VOWEL) + TONE MARK + SPACE (AUTO-RESTORE)
-// ============================================================
 
 #[test]
 fn triphthong_ieu_tone_space() {

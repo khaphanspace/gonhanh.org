@@ -7,9 +7,7 @@ use gonhanh_core::data::keys;
 use gonhanh_core::engine::{Action, Engine};
 use gonhanh_core::utils::char_to_key;
 
-// ============================================================
 // HELPER FUNCTIONS
-// ============================================================
 
 /// Type a character using on_key_with_char API (layout-independent)
 /// This simulates how the OS sends us keystrokes with character codes
@@ -52,9 +50,7 @@ fn type_qwerty(engine: &mut Engine, s: &str) -> String {
     screen
 }
 
-// ============================================================
 // QWERTY BASELINE TESTS
-// ============================================================
 
 #[test]
 fn test_qwerty_baseline_simple() {
@@ -122,9 +118,7 @@ fn test_qwerty_baseline_all_tones() {
     }
 }
 
-// ============================================================
 // LAYOUT INDEPENDENCE: CHARACTER-BASED API
-// ============================================================
 
 #[test]
 fn test_character_api_same_as_qwerty() {
@@ -168,9 +162,7 @@ fn test_character_s_applies_sac_tone() {
     );
 }
 
-// ============================================================
 // DVORAK SIMULATION TESTS
-// ============================================================
 
 /// DVORAK keyboard layout simulation
 /// In DVORAK, keys are remapped but the OS sends us the correct characters
@@ -285,9 +277,7 @@ fn test_dvorak_horn_and_breve() {
     }
 }
 
-// ============================================================
 // COLEMAK SIMULATION TESTS
-// ============================================================
 
 /// Colemak keyboard layout simulation
 /// Similar to DVORAK, but with different key positions
@@ -325,9 +315,7 @@ fn test_colemak_complex_word() {
     );
 }
 
-// ============================================================
 // char_to_key() UTILITY FUNCTION TESTS
-// ============================================================
 
 #[test]
 fn test_char_to_key_lowercase_letters() {
@@ -406,9 +394,7 @@ fn test_char_to_key_unknown_returns_255() {
     assert_eq!(char_to_key('á'), 255, "Accented char should return 255");
 }
 
-// ============================================================
 // EDGE CASES AND SPECIAL CHARACTERS
-// ============================================================
 
 #[test]
 fn test_uppercase_letters() {
@@ -470,9 +456,7 @@ fn test_special_characters_dont_break_engine() {
     // Just ensure we didn't panic
 }
 
-// ============================================================
 // CONSISTENCY TESTS
-// ============================================================
 
 #[test]
 fn test_layout_independence_same_output() {
@@ -532,9 +516,7 @@ fn test_layout_independence_same_output() {
     }
 }
 
-// ============================================================
 // REAL-WORLD VIETNAMESE WORDS
-// ============================================================
 
 #[test]
 fn test_common_vietnamese_words() {

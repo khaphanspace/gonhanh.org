@@ -5,9 +5,7 @@
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 
-// =============================================================================
 // HELPER FUNCTIONS
-// =============================================================================
 
 fn engine_off() -> Engine {
     let mut e = Engine::new();
@@ -21,9 +19,7 @@ fn engine_on() -> Engine {
     e
 }
 
-// =============================================================================
 // TEST: DEFAULT IS OFF
-// =============================================================================
 
 #[test]
 fn default_is_off() {
@@ -41,11 +37,9 @@ fn default_is_off() {
     );
 }
 
-// =============================================================================
 // PATTERN 1: AW ENDING (seesaw, raw)
 // When OFF: transforms to Vietnamese
 // When ON: restores to English
-// =============================================================================
 
 #[test]
 fn pattern1_aw_ending_off() {
@@ -67,11 +61,9 @@ fn pattern1_aw_ending_on() {
     assert_eq!(result, "seesaw ", "ON: 'seesaw ' should restore to English");
 }
 
-// =============================================================================
 // PATTERN 2: FOREIGN WORD (swim, swim)
 // When OFF: w becomes ư
 // When ON: restores when invalid pattern detected
-// =============================================================================
 
 #[test]
 fn pattern2_foreign_word_off() {
@@ -92,11 +84,9 @@ fn pattern2_foreign_word_on() {
     assert_eq!(result, "swim ", "ON: 'swim ' should restore to English");
 }
 
-// =============================================================================
 // PATTERN 3: MID-WORD CONSONANT (text, expect)
 // When OFF: x applies ngã mark
 // When ON: restores when consonant after mark detected
-// =============================================================================
 
 #[test]
 fn pattern3_mid_word_consonant_off() {
@@ -136,11 +126,9 @@ fn pattern3_expect_on() {
     assert_eq!(result, "expect ", "ON: 'expect ' should restore to English");
 }
 
-// =============================================================================
 // PATTERN 4: SPACE/BREAK AUTO-RESTORE (structural validation)
 // When OFF: invalid structure stays
 // When ON: invalid structure restores
-// =============================================================================
 
 #[test]
 fn pattern4_space_restore_off() {
@@ -162,9 +150,7 @@ fn pattern4_space_restore_on() {
     assert_eq!(result, "would ", "ON: 'would ' should restore to English");
 }
 
-// =============================================================================
 // VIETNAMESE WORDS: Should NEVER be affected (OFF or ON)
-// =============================================================================
 
 #[test]
 fn vietnamese_preserved_off() {
@@ -214,9 +200,7 @@ fn vietnamese_preserved_on() {
     );
 }
 
-// =============================================================================
 // EDGE CASES: Words that look like both
-// =============================================================================
 
 #[test]
 fn edge_case_mix_stays_vietnamese() {

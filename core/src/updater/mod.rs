@@ -59,9 +59,7 @@ impl std::fmt::Display for Version {
     }
 }
 
-// ============================================================
 // FFI Interface for Version Comparison
-// ============================================================
 
 /// Compare two version strings
 /// Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2, -99 if parse error
@@ -125,9 +123,7 @@ pub extern "C" fn version_has_update(
     }
 }
 
-// ============================================================
 // Tests
-// ============================================================
 
 #[cfg(test)]
 mod tests {

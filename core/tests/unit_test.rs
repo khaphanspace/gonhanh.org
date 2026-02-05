@@ -4,9 +4,7 @@
 mod common;
 use common::{telex, vni};
 
-// ============================================================
 // TELEX: SINGLE VOWELS WITH ALL MARKS
-// ============================================================
 
 const TELEX_VOWELS: &[(&str, &str)] = &[
     // a
@@ -156,9 +154,7 @@ const TELEX_DELAYED: &[(&str, &str)] = &[
     ("wong", "ương"), // w → ư, o → ơ (horn compound) + ng final
 ];
 
-// ============================================================
 // VNI: SINGLE VOWELS WITH ALL MARKS
-// ============================================================
 
 const VNI_VOWELS: &[(&str, &str)] = &[
     // a: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
@@ -292,9 +288,7 @@ const VNI_DELAYED: &[(&str, &str)] = &[
     ("Du9ng1", "Đúng"),
 ];
 
-// ============================================================
 // WORDS: Common Vietnamese words
-// ============================================================
 
 const TELEX_WORDS: &[(&str, &str)] = &[
     // Single vowel
@@ -483,9 +477,7 @@ const VNI_WORDS: &[(&str, &str)] = &[
     ("muon61", "muốn"),
 ];
 
-// ============================================================
 // CONSONANT-ONLY & EDGE CASES
-// ============================================================
 
 const TELEX_EDGE: &[(&str, &str)] = &[
     // Consonant only
@@ -511,9 +503,7 @@ const TELEX_EDGE: &[(&str, &str)] = &[
     ("aiw", "aiw"),
 ];
 
-// ============================================================
 // TEST FUNCTIONS
-// ============================================================
 
 #[test]
 fn telex_single_vowels() {

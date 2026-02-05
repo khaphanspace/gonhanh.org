@@ -138,10 +138,8 @@ fn char_to_key(c: char) -> u16 {
     }
 }
 
-// =============================================================================
 // INVALID INITIALS - bl, br, cl, cr, dr, fl, fr, gl, gr, pl, pr, sc, sk, sl, sm, sn, sp, st
 // (Excludes sw-, tw-, wr- vì bị transform thành sư-, tư-, ư-)
-// =============================================================================
 
 const INVALID_INITIALS: &[&str] = &[
     // bl-
@@ -176,9 +174,7 @@ const INVALID_INITIALS: &[&str] = &[
     "stress", "strict", "string", "strip", "struct", "student", "study", "style", "submit",
 ];
 
-// =============================================================================
 // INVALID VOWEL PATTERNS - ou, yo (không tồn tại trong tiếng Việt)
-// =============================================================================
 
 const INVALID_OU_PATTERN: &[&str] = &[
     "you", "your", "out", "our", "hour", "four", "pour", "tour", "soup", "soul", "loud", "proud",
@@ -191,19 +187,15 @@ const INVALID_YO_PATTERN: &[&str] = &[
     "you", "your", "york", "yoga", "young", "youth", "beyond", "anyone",
 ];
 
-// =============================================================================
 // INVALID FINAL CLUSTERS - T+R, C+R patterns (detected by is_foreign_word_pattern)
 // NOTE: "describe" removed - now handled via auto-restore (D+E pattern)
-// =============================================================================
 
 const INVALID_FINAL_CLUSTERS: &[&str] = &[
     "metric", "matrix", "electric", "spectrum", "control", "central", "abstract", "contract",
 ];
 
-// =============================================================================
 // DE + S pattern (describe, design...)
 // These words are auto-restored when space is typed
-// =============================================================================
 
 const AUTO_RESTORE_DE_S: &[&str] = &[
     "describe",
@@ -214,9 +206,7 @@ const AUTO_RESTORE_DE_S: &[&str] = &[
     "desperate",
 ];
 
-// =============================================================================
 // TECH TERMS - chỉ những từ có invalid structure
-// =============================================================================
 
 const TECH_TERMS: &[&str] = &[
     // Invalid initials - protected
@@ -262,9 +252,7 @@ const TECH_TERMS: &[&str] = &[
     // "postgres" (po+s→pó), "terraform" (te+r→tẻ), "travis" (tra+v→valid)
 ];
 
-// =============================================================================
 // TESTS
-// =============================================================================
 
 #[test]
 fn protect_invalid_initials() {

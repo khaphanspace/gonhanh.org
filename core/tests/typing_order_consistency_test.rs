@@ -15,9 +15,7 @@ use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 use std::collections::HashMap;
 
-// =============================================================================
 // CHARACTER DECOMPOSITION
-// =============================================================================
 
 /// Decompose Vietnamese character into (base, mark, tone)
 fn decompose_char(c: char) -> (char, Option<char>, Option<char>) {
@@ -102,9 +100,7 @@ fn decompose_char(c: char) -> (char, Option<char>, Option<char>) {
     }
 }
 
-// =============================================================================
 // TYPING ORDER GENERATOR
-// =============================================================================
 
 /// Generate all valid Telex typing orders for a Vietnamese word
 fn generate_typing_orders(word: &str) -> Vec<String> {
@@ -295,9 +291,7 @@ fn test_word_consistency(word: &str, with_auto_restore: bool) -> (bool, Vec<(Str
     (false, failures)
 }
 
-// =============================================================================
 // DYNAMIC TESTS
-// =============================================================================
 
 #[test]
 fn ui_diphthong_consistency() {
@@ -419,9 +413,7 @@ fn tone_position_consistency() {
     );
 }
 
-// =============================================================================
 // 22K DICTIONARY TEST
-// =============================================================================
 
 #[test]
 #[ignore] // Run with: cargo test test_22k_consistency -- --ignored --nocapture

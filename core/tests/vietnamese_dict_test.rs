@@ -643,9 +643,7 @@ fn write_failures(filename: &str, result: &TestResult, header: &str) {
     }
 }
 
-// ============================================================
 // VNI TEST
-// ============================================================
 
 /// Run VNI dictionary test - converts Vietnamese output to VNI input
 fn run_vni_dict_test(content: &str) -> TestResult {
@@ -706,9 +704,7 @@ fn vietnamese_dict_vni() {
     );
 }
 
-// ============================================================
 // TELEX NORMAL TEST
-// ============================================================
 
 #[test]
 fn vietnamese_dict_telex() {
@@ -739,9 +735,7 @@ fn vietnamese_dict_telex() {
     );
 }
 
-// ============================================================
 // TELEX AUTO-RESTORE TEST
-// ============================================================
 
 #[test]
 fn vietnamese_dict_telex_auto_restore() {
@@ -773,9 +767,7 @@ fn vietnamese_dict_telex_auto_restore() {
     );
 }
 
-// ============================================================
 // TYPING VARIANTS TEST (22K)
-// ============================================================
 
 /// Detect tone style from Vietnamese word
 /// Returns true if word uses modern style (tone on main vowel in oa/oe/uy)
@@ -961,9 +953,7 @@ fn vietnamese_dict_typing_variants() {
     }
 }
 
-// ============================================================
 // UNIT TESTS
-// ============================================================
 
 #[test]
 fn test_vietnamese_to_vni_conversion() {

@@ -12,9 +12,7 @@
 mod common;
 use common::{telex, telex_auto_restore};
 
-// =============================================================================
 // CORE CONCEPT: Modifier Position Permutations
-// =============================================================================
 //
 // For a word like "nào" (naof), the modifier 'f' can be typed:
 // 1. After all vowels: n-a-o-f → "nào" (standard)
@@ -24,9 +22,7 @@ use common::{telex, telex_auto_restore};
 // 1. Consecutively: r-i-e-e-n-g → "riêng" (standard)
 // 2. After final consonant starts: r-i-e-n-e-g → "riêng" (should also work)
 
-// =============================================================================
 // TEST GROUP 1: TONE MODIFIER ORDER (s, f, r, x, j)
-// =============================================================================
 
 /// Tone modifier can be typed before or after final consonant (using sắc 's')
 #[test]
@@ -84,9 +80,7 @@ fn sac_tone_before_final() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 2: CIRCUMFLEX ORDER (aa, ee, oo)
-// =============================================================================
 
 /// Circumflex typed consecutively (standard Telex)
 #[test]
@@ -114,9 +108,7 @@ fn circumflex_diphthong_patterns() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 3: HORN MODIFIER ORDER (w)
-// =============================================================================
 
 /// Horn on single vowel (standard usage)
 #[test]
@@ -154,9 +146,7 @@ fn horn_common_words() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 4: DIPHTHONG + TONE MODIFIER COMBINATIONS
-// =============================================================================
 
 /// AO diphthong with tone at different positions (critical fix!)
 #[test]
@@ -229,9 +219,7 @@ fn ua_diphthong_tone_order() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 5: COMPLEX WORDS - MULTIPLE MODIFIERS
-// =============================================================================
 
 /// Words with both circumflex and tone
 #[test]
@@ -263,9 +251,7 @@ fn horn_and_tone_combined() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 6: REAL VIETNAMESE SENTENCES
-// =============================================================================
 
 /// Common Vietnamese phrases - test realistic typing
 #[test]
@@ -294,9 +280,7 @@ fn real_phrases_numbers() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 7: EDGE CASES - MODIFIER AT BOUNDARIES
-// =============================================================================
 
 /// Modifier at word start (after initial consonant)
 #[test]
@@ -323,9 +307,7 @@ fn double_modifiers() {
     ]);
 }
 
-// =============================================================================
 // TEST GROUP 8: AUTO-RESTORE SHOULD NOT TRIGGER
-// =============================================================================
 
 /// Valid Vietnamese that looks like English - should NOT restore
 #[test]
@@ -359,9 +341,7 @@ fn english_words_restored() {
     ]);
 }
 
-// =============================================================================
 // DYNAMIC TEST GENERATION HELPERS
-// =============================================================================
 
 /// Generate all permutations of modifier positions for a word
 /// This is a conceptual test - in practice, we'd use property-based testing
@@ -382,9 +362,7 @@ fn dynamic_permutation_concept() {
     telex(&[("owi ", "ơi "), ("oiw ", "ơi ")]);
 }
 
-// =============================================================================
 // TEST GROUP 9: CONFIRMED WORKING EDGE CASES
-// =============================================================================
 
 /// Edge cases that were bugs and are now fixed
 #[test]
