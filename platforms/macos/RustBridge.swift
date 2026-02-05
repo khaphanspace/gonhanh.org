@@ -1195,14 +1195,16 @@ private func keyboardCallback(
             0x09,  // Cmd+V (paste)
             0x07,  // Cmd+X (cut)
             0x06,  // Cmd+Z (undo)
+            0x33,  // Cmd+Backspace (delete to beginning of line)
+            0x75,  // Cmd+Delete (delete to end of line)
         ]
 
         if textModifyingKeys.contains(keyCode) {
             RustBridge.clearBuffer()
 
             if method == .selectAll {
-                if keyCode == 0x00 {
-                    // Cmd+A: clear session buffer, let next backspace pass through to delete selection
+                if keyCode == 0x00 || keyCode == 0x33 || keyCode == 0x75 {
+                    // Cmd+A, Cmd+Backspace, Cmd+Delete: clear session buffer
                     TextInjector.shared.clearSessionBuffer()
                 } else {
                     // Cmd+V, Cmd+X, Cmd+Z: sync session buffer from field after action completes
