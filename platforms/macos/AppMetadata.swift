@@ -134,19 +134,32 @@ struct KeyboardShortcut: Codable, Equatable {
         0x40: "F17", 0x4F: "F18", 0x50: "F19", 0x5A: "F20",
     ]
 
+    /// Static keycode to character mapping for US keyboard layout
+    /// Used instead of CGEvent to avoid modifier interference during shortcut recording
+    private static let keyCodeToChar: [UInt16: String] = [
+        // Letters (QWERTY layout)
+        0x00: "A", 0x01: "S", 0x02: "D", 0x03: "F", 0x04: "H",
+        0x05: "G", 0x06: "Z", 0x07: "X", 0x08: "C", 0x09: "V",
+        0x0B: "B", 0x0C: "Q", 0x0D: "W", 0x0E: "E", 0x0F: "R",
+        0x10: "Y", 0x11: "T", 0x12: "1", 0x13: "2", 0x14: "3",
+        0x15: "4", 0x16: "6", 0x17: "5", 0x18: "=", 0x19: "9",
+        0x1A: "7", 0x1B: "-", 0x1C: "8", 0x1D: "0", 0x1E: "]",
+        0x1F: "O", 0x20: "U", 0x21: "[", 0x22: "I", 0x23: "P",
+        0x25: "L", 0x26: "J", 0x27: "'", 0x28: "K", 0x29: ";",
+        0x2A: "\\", 0x2B: ",", 0x2C: "/", 0x2D: "N", 0x2E: "M",
+        0x2F: ".", 0x32: "`",
+    ]
+
     private func keyCodeToString(_ code: UInt16) -> String {
+        // Check special keys first
         if let name = Self.specialKeyNames[code] {
             return name
         }
-        // Use CGEvent to dynamically get character for regular keys
-        if let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(code), keyDown: true) {
-            var length = 0
-            var chars = [UniChar](repeating: 0, count: 4)
-            event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &chars)
-            if length > 0 {
-                return String(utf16CodeUnits: chars, count: length).uppercased()
-            }
+        // Use static mapping for regular keys (avoids modifier interference)
+        if let char = Self.keyCodeToChar[code] {
+            return char
         }
+        // Fallback to hex code for unknown keys
         return String(format: "0x%02X", code)
     }
 

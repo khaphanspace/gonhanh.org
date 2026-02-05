@@ -965,9 +965,10 @@ private func matchesModifierOnlyShortcut(flags: CGEventFlags) -> Bool {
 private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy) {
     let shift = flags.contains(.maskShift)
     let caps = shift || flags.contains(.maskAlphaShift)
-    let ctrl = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
+    // Don't bypass IME for restore shortcut - modifiers are part of the shortcut itself
+    // Always pass ctrl=false so engine performs the restore action
     let (method, delays) = detectMethod()
-    if let (bs, chars, _) = RustBridge.processKey(keyCode: UInt16(KeyCode.esc), caps: caps, ctrl: ctrl, shift: shift) {
+    if let (bs, chars, _) = RustBridge.processKey(keyCode: UInt16(KeyCode.esc), caps: caps, ctrl: false, shift: shift) {
         Log.key(UInt16(KeyCode.esc), "restore: bs=\(bs) chars='\(String(chars))'")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
     }
@@ -1150,9 +1151,22 @@ private func keyboardCallback(
     }
     // Issue #149: Restore shortcut - restore raw ASCII if enabled
     // Issue #157: Pass key through after restore so it still functions normally (Tab inserts tab, ESC closes dialog)
+    // Issue #303: Only pass through special keys (ESC, Tab, etc.), not letter/number keys with modifiers (Shift-Z, Option-Z)
     if AppState.shared.restoreShortcutEnabled && matchesRestoreShortcut(keyCode: keyCode, flags: flags) {
         triggerRestoreShortcut(flags: flags, proxy: proxy)
-        return Unmanaged.passUnretained(event)  // Pass key through after restore
+        // Only pass through special keys that should still function after restore
+        // (ESC closes dialogs, Tab moves focus, Enter submits, etc.)
+        // For letter/number keys with modifiers (Shift-Z, Option-Z), consume the event
+        let specialPassthroughKeys: Set<CGKeyCode> = [
+            KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
+            KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
+            KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
+            KeyCode.forwardDelete
+        ]
+        if specialPassthroughKeys.contains(keyCode) {
+            return Unmanaged.passUnretained(event)  // Pass through special keys
+        }
+        return nil  // Consume letter/number keys with modifiers
     }
 
     // Detect injection method once per keystroke (expensive AX query)
