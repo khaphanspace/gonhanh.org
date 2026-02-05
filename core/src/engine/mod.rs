@@ -625,7 +625,7 @@ impl Engine {
         let ch = ch.unwrap();
 
         // Map character to QWERTY keycode for layout independence
-        let res = if ch.is_alphanumeric() {
+        let mut res = if ch.is_alphanumeric() {
             let qwerty_key = crate::utils::char_to_key(ch.to_ascii_lowercase());
             if qwerty_key != 255 {
                 let is_upper = ch.is_uppercase();
@@ -638,7 +638,7 @@ impl Engine {
             if mapped_key != 255 {
                 self.on_key_ext(mapped_key, caps, ctrl, shift)
             } else {
-                self.on_key_ext(key, caps, ctrl, shift)
+                self.process(key, caps, shift)
             }
         };
 
@@ -661,6 +661,12 @@ impl Engine {
             }
         } else {
             self.shortcut_prefix.clear();
+        }
+
+        // Centralized consumption logic: only consume if there's actual output
+        // (chars produced OR backspaces needed), not just action != None
+        if res.action != Action::None as u8 && (res.backspace > 0 || res.count > 0) {
+            res.flags |= FLAG_KEY_CONSUMED;
         }
 
         res
@@ -729,9 +735,9 @@ impl Engine {
                         if key == keys::SPACE {
                             let mut output_with_space = output;
                             output_with_space.push(' ');
-                            return Result::send(backspace_count, &output_with_space);
+                            return Result::send_consumed(backspace_count, &output_with_space);
                         } else {
-                            return Result::send(backspace_count, &output);
+                            return Result::send_consumed(backspace_count, &output);
                         }
                     }
                 }
@@ -978,7 +984,7 @@ impl Engine {
                     }
                 }
                 // Delete one space
-                return Result::send(1, &[]);
+                return Result::send_consumed(1, &[]);
             }
             // DON'T reset spaces_after_commit here!
             // User might delete all new input and want to restore previous word.
@@ -1135,14 +1141,20 @@ impl Engine {
             self.raw_input.push((key, effective_caps, shift));
         }
 
-        let result = self.process(key, effective_caps, shift);
+        let mut result = self.process(key, effective_caps, shift);
 
         // If auto-capitalize triggered for first letter of a new word and process returned none,
         // we need to send the uppercase character since the original key was lowercase
         if was_auto_capitalized && result.action == Action::None as u8 && self.buf.len() == 1 {
             if let Some(ch) = crate::utils::key_to_char(key, true) {
-                return Result::send(0, &[ch]);
+                result = Result::send(0, &[ch]);
             }
+        }
+
+        // Centralized consumption logic: only consume if there's actual output
+        // (chars produced OR backspaces needed), not just action != None
+        if result.action != Action::None as u8 && (result.backspace > 0 || result.count > 0) {
+            result.flags |= FLAG_KEY_CONSUMED;
         }
 
         result
@@ -1220,7 +1232,7 @@ impl Engine {
                     }
                     self.last_transform = None;
 
-                    return Result::send(backspace, &raw_chars);
+                    return Result::send_consumed(backspace, &raw_chars);
                 }
             }
         }
@@ -1321,7 +1333,7 @@ impl Engine {
                         })
                         .collect();
 
-                    return Result::send(backspace, &output);
+                    return Result::send_consumed(backspace, &output);
                 }
             }
         }
@@ -1428,7 +1440,7 @@ impl Engine {
         {
             let output: Vec<char> = m.output.chars().collect();
             // backspace_count = trigger.len() which already includes prefix (e.g., "#fne" = 4)
-            return Result::send(m.backspace_count as u8, &output);
+            return Result::send_consumed(m.backspace_count as u8, &output);
         }
 
         Result::none()
@@ -1470,7 +1482,7 @@ impl Engine {
         // This handles "dduwowcj" where the second 'w' should be no-op
         // Use send(0, []) to intercept and consume the key without output
         if self.has_complete_uo_compound() {
-            return Some(Result::send(0, &[]));
+            return Some(Result::send_consumed(0, &[]));
         }
 
         // Check revert: ww → w (skip shortcut)
@@ -1499,7 +1511,7 @@ impl Engine {
             // Store length AFTER modification
             self.telex_double_raw_len = self.raw_input.len();
             let w = if original_caps { 'W' } else { 'w' };
-            return Some(Result::send(1, &[w]));
+            return Some(Result::send_consumed(1, &[w]));
         }
 
         // Try adding U (ư base) to buffer and validate
@@ -1521,7 +1533,7 @@ impl Engine {
             // W shortcut adds ư without replacing anything on screen
             // (the raw 'w' key was never output, so no backspace needed)
             let vowel_char = chars::to_char(keys::U, caps, tone::HORN, 0).unwrap();
-            return Some(Result::send(0, &[vowel_char]));
+            return Some(Result::send_consumed(0, &[vowel_char]));
         }
 
         // Invalid - remove the U we added
@@ -1812,7 +1824,7 @@ impl Engine {
             self.pending_breve_pos = None;
             // Return "consumed but no change" to prevent 'w' from being typed
             // action=Send with 0 backspace and 0 chars effectively consumes the key
-            return Some(Result::send(0, &[]));
+            return Some(Result::send_consumed(0, &[]));
         }
 
         // Check revert first (same key pressed twice)
@@ -2484,7 +2496,10 @@ impl Engine {
                                             .iter()
                                             .filter_map(|&c| char::from_u32(c))
                                             .collect();
-                                        return Some(Result::send(result.backspace, &chars));
+                                        return Some(Result::send_consumed(
+                                            result.backspace,
+                                            &chars,
+                                        ));
                                     }
 
                                     if !allow_circumflex {
@@ -2516,7 +2531,7 @@ impl Engine {
                 .any(|c| targets.contains(&c.key) && c.tone == tone_val);
             if has_tone_already && !is_w_revert_pending {
                 // Absorb the key (no-op)
-                return Some(Result::send(0, &[]));
+                return Some(Result::send_consumed(0, &[]));
             }
             return None;
         }
@@ -2641,7 +2656,7 @@ impl Engine {
                         self.buf.clear();
                         self.raw_input.clear();
                         self.last_transform = None;
-                        return Some(Result::send(backspace, &raw_chars));
+                        return Some(Result::send_consumed(backspace, &raw_chars));
                     }
                 }
             }
@@ -3089,7 +3104,7 @@ impl Engine {
                 } else {
                     // Vowels after (not at end): absorb (user double-tapped in same syllable)
                     // "roofif" → "rồi"
-                    return Some(Result::send(0, &[]));
+                    return Some(Result::send_consumed(0, &[]));
                 }
             }
         }
@@ -3112,7 +3127,7 @@ impl Engine {
                     .filter_map(|&c| char::from_u32(c))
                     .collect();
                 // Add 1 to backspace for the trigger 'd' that was on screen but removed from buffer
-                return Some(Result::send(result.backspace + 1, &chars));
+                return Some(Result::send_consumed(result.backspace + 1, &chars));
             }
 
             // If there was pending breve, we need extra backspace
@@ -3126,7 +3141,7 @@ impl Engine {
                     .filter_map(|&c| char::from_u32(c))
                     .collect();
                 // Add 1 to backspace to account for modifier on screen
-                return Some(Result::send(result.backspace + 1, &chars));
+                return Some(Result::send_consumed(result.backspace + 1, &chars));
             }
 
             // If delayed circumflex was applied, rebuild from earliest vowel position
@@ -3139,7 +3154,7 @@ impl Engine {
                     .filter_map(|&c| char::from_u32(c))
                     .collect();
                 // Add 1 to backspace for the removed trigger vowel still on screen
-                return Some(Result::send(result.backspace + 1, &chars));
+                return Some(Result::send_consumed(result.backspace + 1, &chars));
             }
 
             return Some(self.rebuild_from(rebuild_pos));
@@ -3660,7 +3675,7 @@ impl Engine {
             }
         }
 
-        Result::send(backspace, &output)
+        Result::send_consumed(backspace, &output)
     }
 
     /// Revert tone transformation
@@ -3742,7 +3757,7 @@ impl Engine {
                         .filter_map(|c| utils::key_to_char(c.key, c.caps))
                         .collect();
 
-                    return Result::send(backspace, &output);
+                    return Result::send_consumed(backspace, &output);
                 }
             }
         }
@@ -3800,7 +3815,7 @@ impl Engine {
 
             // Return the ơ character (o with horn)
             let vowel_char = chars::to_char(keys::O, caps, tone::HORN, 0).unwrap();
-            return Result::send(0, &[vowel_char]);
+            return Result::send_consumed(0, &[vowel_char]);
         }
 
         // Note: ShortPatternStroke revert is now handled at the beginning of process()
@@ -3962,7 +3977,7 @@ impl Engine {
                     // Screen has: ...aw (need to delete "aw", output "ă" + consonant)
                     let vowel_char = chars::to_char(keys::A, a_caps, tone::HORN, 0).unwrap_or('ă');
                     let cons_char = crate::utils::key_to_char(key, caps).unwrap_or('?');
-                    return Result::send(2, &[vowel_char, cons_char]); // backspace 2 ("aw"), output "ăm"
+                    return Result::send_consumed(2, &[vowel_char, cons_char]); // backspace 2 ("aw"), output "ăm"
                 } else if key == keys::W {
                     // 'w' is the breve modifier - don't clear pending_breve_pos
                     // It will be added as a regular letter and removed later
@@ -4057,7 +4072,7 @@ impl Engine {
                             }
                         }
                         // Backspace 1 to delete "ó", output "ost"
-                        return Result::send(1, &output);
+                        return Result::send_consumed(1, &output);
                     }
                 }
             }
@@ -4111,7 +4126,7 @@ impl Engine {
                                     .iter()
                                     .filter_map(|&c| char::from_u32(c))
                                     .collect();
-                                return Result::send(result.backspace + 1, &chars);
+                                return Result::send_consumed(result.backspace + 1, &chars);
                             }
                         }
                     }
@@ -4129,7 +4144,7 @@ impl Engine {
 
                 // No tone to reposition - just output ơ
                 let vowel_char = chars::to_char(keys::O, caps, tone::HORN, 0).unwrap();
-                return Result::send(0, &[vowel_char]);
+                return Result::send_consumed(0, &[vowel_char]);
             }
 
             // Reorder buffer when a vowel completes a diphthong with earlier vowel
@@ -4233,7 +4248,7 @@ impl Engine {
                             }
 
                             self.last_transform = None;
-                            return Result::send(backspace, &raw_chars);
+                            return Result::send_consumed(backspace, &raw_chars);
                         }
                     }
                 }
@@ -4345,7 +4360,7 @@ impl Engine {
         if output.is_empty() {
             Result::none()
         } else {
-            Result::send(backspace, &output)
+            Result::send_consumed(backspace, &output)
         }
     }
 
@@ -4379,7 +4394,7 @@ impl Engine {
         if output.is_empty() {
             Result::none()
         } else {
-            Result::send(backspace, &output)
+            Result::send_consumed(backspace, &output)
         }
     }
 
