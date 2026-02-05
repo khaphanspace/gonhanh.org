@@ -213,22 +213,25 @@ jobs:
           ED_SIGNATURE=$(echo "$SIGNATURE" | grep -oP 'edSignature="\K[^"]+' || echo "")
 
           # Generate appcast.xml (beta channel)
+          REPO="${{ github.repository }}"
+          PUB_DATE=$(date -R)
           cat > build/appcast.xml << APPCAST_EOF
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>GoNhanh Beta</title>
-    <link>https://github.com/${{ github.repository }}</link>
-    <item>
-      <title>Version ${V}</title>
-      <sparkle:version>${V}</sparkle:version>
-      <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
-      <pubDate>$(date -R)</pubDate>
-      <enclosure url="${DMG_URL}" sparkle:edSignature="${ED_SIGNATURE}" length="${DMG_SIZE}" type="application/octet-stream"/>
-    </item>
-  </channel>
-</rss>
-APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>GoNhanh Beta</title>
+              <link>https://github.com/${REPO}</link>
+              <item>
+                <title>Version ${V}</title>
+                <sparkle:version>${V}</sparkle:version>
+                <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
+                <pubDate>${PUB_DATE}</pubDate>
+                <enclosure url="${DMG_URL}" sparkle:edSignature="${ED_SIGNATURE}" length="${DMG_SIZE}" type="application/octet-stream"/>
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+          sed -i '' 's/^          //' build/appcast.xml
 
           echo "Generated beta appcast.xml for v${V}"
           cat build/appcast.xml
