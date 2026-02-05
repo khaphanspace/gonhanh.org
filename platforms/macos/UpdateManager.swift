@@ -24,14 +24,16 @@ class UpdateManager: NSObject, ObservableObject {
     func start() {
         do {
             try controller.updater.start()
+            NSLog("[UpdateManager] Updater started successfully")
             updater.publisher(for: \.canCheckForUpdates)
                 .assign(to: &$canCheckForUpdates)
         } catch {
-            print("[UpdateManager] Failed to start updater: \(error)")
+            NSLog("[UpdateManager] Failed to start updater: %@", error.localizedDescription)
         }
     }
 
     func checkForUpdates() {
+        NSLog("[UpdateManager] checkForUpdates called, canCheck=%d", canCheckForUpdates)
         controller.checkForUpdates(nil)
     }
 
