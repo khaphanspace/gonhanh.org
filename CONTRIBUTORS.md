@@ -165,15 +165,15 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/duynguyeenx96">
-        <img src="https://avatars.githubusercontent.com/u/57407583?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>duynguyeenx96</b>
-      </a>
-    </td>
-    <td align="center">
       <a href="https://github.com/meichengg">
         <img src="https://avatars.githubusercontent.com/u/25204246?v=4" width="50" style="border-radius:50%"/><br/>
         <b>meichengg</b>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/duynguyeenx96">
+        <img src="https://avatars.githubusercontent.com/u/57407583?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>duynguyeenx96</b>
       </a>
     </td>
     <td align="center">
