@@ -251,7 +251,7 @@ jobs:
           # Generate EdDSA signature using Sparkle's sign_update
           # Download Sparkle tools if not available
           if [ ! -f /tmp/sparkle/bin/sign_update ]; then
-            curl -sL "https://github.com/sparkle-project/Sparkle/releases/latest/download/Sparkle-2.6.4.tar.xz" | tar xJ -C /tmp/sparkle 2>/dev/null || true
+            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" | tar xJ -C /tmp/sparkle 2>/dev/null || true
           fi
 
           SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file /dev/stdin 2>/dev/null || echo "")
