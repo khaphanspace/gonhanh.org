@@ -70,7 +70,6 @@ enum SettingsKey {
     static let hasCompletedOnboarding = "gonhanh.onboarding.completed"
     static let permissionGranted = "gonhanh.permission.granted"
     static let toggleShortcut = "gonhanh.shortcut.toggle"
-    static let reopenSettingsAfterUpdate = "gonhanh.update.reopenSettings"
     static let perAppMode = "gonhanh.perAppMode"
     static let perAppModes = "gonhanh.perAppModes"
     static let shortcuts = "gonhanh.shortcuts"
@@ -85,7 +84,6 @@ enum SettingsKey {
     static let launchAtLoginUserDisabled = "gonhanh.launchAtLogin.userDisabled"
     static let soundEnabled = "gonhanh.soundEnabled"
     static let autoCheckUpdate = "gonhanh.update.autoCheck"
-    static let autoUpdate = "gonhanh.update.auto"
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
 }
 

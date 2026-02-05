@@ -14,11 +14,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private var statusItem: NSStatusItem!
 
     private var onboardingWindow: NSWindow?
-    private var updateWindow: NSWindow?
     private var settingsWindow: NSWindow?
 
     private let appState = AppState.shared
-    private var updateStateObserver: NSObjectProtocol?
     private var cancellables = Set<AnyCancellable>()
 
     override init() {
@@ -36,12 +34,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
         }
     }
 
-    deinit {
-        if let observer = updateStateObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
     // MARK: - Setup
 
     private func setupNotifications() {
@@ -56,13 +48,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
             self,
             selector: #selector(handleToggleVietnamese),
             name: .toggleVietnamese,
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(checkForUpdates),
-            name: .showUpdateWindow,
             object: nil
         )
 
@@ -86,15 +71,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
             name: .shortcutChanged,
             object: nil
         )
-
-        // Observe UpdateManager state changes to update menu
-        updateStateObserver = NotificationCenter.default.addObserver(
-            forName: .updateStateChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updateMenu()
-        }
 
         // Observe AppState changes via Combine
         appState.$isEnabled
@@ -143,10 +119,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
         about.target = self
         menu.addItem(about)
 
-        // Update menu item (dynamic based on state)
-        let updateItem = NSMenuItem(title: "", action: #selector(handleUpdateAction), keyEquivalent: "")
+        // Update
+        let updateItem = NSMenuItem(title: "Kiểm tra cập nhật...", action: #selector(handleUpdateAction), keyEquivalent: "")
         updateItem.target = self
-        updateItem.tag = 20
         menu.addItem(updateItem)
         menu.addItem(.separator())
 
@@ -205,59 +180,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         menu.item(withTag: 1)?.view = createHeaderView()
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
-
-        // Update menu item based on UpdateManager state
-        if let updateItem = menu.item(withTag: 20) {
-            switch UpdateManager.shared.state {
-            case .idle:
-                updateItem.title = "Kiểm tra cập nhật"
-                updateItem.isEnabled = true
-            case .checking:
-                updateItem.title = "⏳ Đang kiểm tra..."
-                updateItem.isEnabled = false
-            case .available(let info):
-                updateItem.title = "⬇️ Cập nhật v\(info.version)"
-                updateItem.isEnabled = true
-            case .downloading(let progress):
-                updateItem.title = "⏳ Đang tải... \(Int(progress * 100))%"
-                updateItem.isEnabled = false
-            case .readyToInstall:
-                updateItem.title = "🔄 Khởi động lại để cập nhật"
-                updateItem.isEnabled = true
-            case .installing:
-                updateItem.title = "🔄 Đang cài đặt..."
-                updateItem.isEnabled = false
-            case .upToDate:
-                updateItem.title = "✓ Đã mới nhất"
-                updateItem.isEnabled = false
-                // Reset to idle after 3s
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    if case .upToDate = UpdateManager.shared.state {
-                        UpdateManager.shared.state = .idle
-                    }
-                }
-            case .error:
-                updateItem.title = "⚠️ Lỗi - thử lại"
-                updateItem.isEnabled = true
-            }
-        }
     }
 
     @objc private func selectTelex() { appState.setMethod(.telex) }
     @objc private func selectVNI() { appState.setMethod(.vni) }
 
     @objc private func handleUpdateAction() {
-        switch UpdateManager.shared.state {
-        case .readyToInstall:
-            // Install the downloaded update
-            UpdateManager.shared.installReadyUpdate()
-        case .available, .idle, .error, .upToDate:
-            // Show update dialog for all clickable states
-            checkForUpdates()
-        default:
-            // Downloading/installing - do nothing (menu item disabled anyway)
-            break
-        }
+        UpdateManager.shared.checkForUpdates()
     }
 
     @objc private func showAbout() {
@@ -287,17 +216,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
         appState.syncShortcutsToEngine()
         PerAppModeManager.shared.start()
 
-        // Reopen settings if coming from update
-        if UserDefaults.standard.bool(forKey: SettingsKey.reopenSettingsAfterUpdate) {
-            UserDefaults.standard.removeObject(forKey: SettingsKey.reopenSettingsAfterUpdate)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.showSettings()
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            UpdateManager.shared.checkForUpdatesSilently()
-        }
+        // Start Sparkle updater (handles auto-check on its own schedule)
+        UpdateManager.shared.start()
     }
 
     // MARK: - Status Button
@@ -437,8 +357,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
             self?.settingsWindow?.makeFirstResponder(nil)
         }
 
-        // Auto-check for updates when opening settings
-        UpdateManager.shared.checkForUpdatesManually()
     }
 
     private func setupMainMenu() {
@@ -465,7 +383,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         // Check for updates
         let updateItem = NSMenuItem(
             title: "Kiểm tra cập nhật...",
-            action: #selector(checkForUpdates),
+            action: #selector(handleUpdateAction),
             keyEquivalent: ""
         )
         updateItem.target = self
@@ -513,34 +431,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
         mainMenu.addItem(editMenuItem)
 
         NSApp.mainMenu = mainMenu
-    }
-
-    @objc private func checkForUpdates() {
-        // Force recreate window if already downloading (sidebar auto-download triggered)
-        if case .downloading = UpdateManager.shared.state {
-            updateWindow = nil
-        }
-
-        if updateWindow == nil {
-            let controller = NSHostingController(rootView: UpdateView())
-            let window = NSWindow(contentViewController: controller)
-            window.title = "Kiểm tra cập nhật"
-            window.styleMask = [.titled, .closable]
-            window.setContentSize(controller.view.fittingSize)
-            window.center()
-            window.isReleasedWhenClosed = false
-            updateWindow = window
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        updateWindow?.makeKeyAndOrderFront(nil)
-
-        // Skip re-check if already in progress
-        switch UpdateManager.shared.state {
-        case .available, .downloading, .readyToInstall, .installing:
-            return
-        default:
-            UpdateManager.shared.checkForUpdatesManually()
-        }
     }
 
     // MARK: - NSWindowDelegate

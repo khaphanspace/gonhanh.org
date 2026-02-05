@@ -46,24 +46,6 @@ enum NavigationPage: String, CaseIterable {
     }
 }
 
-// MARK: - Update Status
-
-enum UpdateStatus: Equatable {
-    case idle, checking, upToDate, available(String), downloading(Double), readyToInstall, installing, error
-
-    var isChecking: Bool { if case .checking = self { return true }; return false }
-    var isAvailable: Bool { if case .available = self { return true }; return false }
-    var isDownloading: Bool { if case .downloading = self { return true }; return false }
-    var isReadyToInstall: Bool { if case .readyToInstall = self { return true }; return false }
-    var isInstalling: Bool { if case .installing = self { return true }; return false }
-    var isBusy: Bool { isChecking || isDownloading || isInstalling }
-
-    var downloadProgress: Double? {
-        if case .downloading(let progress) = self { return progress }
-        return nil
-    }
-}
-
 // MARK: - App State
 
 class AppState: ObservableObject {
@@ -163,12 +145,7 @@ class AppState: ObservableObject {
     @Published var autoCheckUpdate: Bool = true {
         didSet {
             UserDefaults.standard.set(autoCheckUpdate, forKey: SettingsKey.autoCheckUpdate)
-        }
-    }
-
-    @Published var autoUpdate: Bool = true {
-        didSet {
-            UserDefaults.standard.set(autoUpdate, forKey: SettingsKey.autoUpdate)
+            UpdateManager.shared.automaticallyChecksForUpdates = autoCheckUpdate
         }
     }
 
@@ -193,7 +170,6 @@ class AppState: ObservableObject {
         }
     }
 
-    @Published var updateStatus: UpdateStatus = .idle
     @Published var shortcuts: [ShortcutItem] = []
     @Published var isLaunchAtLoginEnabled: Bool = false
     @Published var requiresManualLaunchAtLogin: Bool = false
@@ -222,7 +198,6 @@ class AppState: ObservableObject {
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         autoCheckUpdate = defaults.object(forKey: SettingsKey.autoCheckUpdate) == nil ? true : defaults.bool(forKey: SettingsKey.autoCheckUpdate)
-        autoUpdate = defaults.object(forKey: SettingsKey.autoUpdate) == nil ? true : defaults.bool(forKey: SettingsKey.autoUpdate)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
 
         // Sync settings to Rust engine
@@ -231,10 +206,12 @@ class AppState: ObservableObject {
         // Load complex data
         loadShortcuts()
 
+        // Sync auto-check setting to Sparkle
+        UpdateManager.shared.automaticallyChecksForUpdates = autoCheckUpdate
+
         // Setup observers and services
         setupObservers()
         setupLaunchAtLoginMonitoring()
-        if autoCheckUpdate { checkForUpdates() }
     }
 
     private func syncAllToEngine() {
@@ -300,28 +277,6 @@ class AppState: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-
-        // Observe UpdateManager state changes
-        NotificationCenter.default.publisher(for: .updateStateChanged)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.syncUpdateStatus() }
-            .store(in: &cancellables)
-    }
-
-    private func syncUpdateStatus() {
-        switch UpdateManager.shared.state {
-        case .idle: updateStatus = .idle
-        case .checking: updateStatus = .checking
-        case .available(let info):
-            updateStatus = .available(info.version)
-            // Auto-download if auto-check is enabled
-            if autoCheckUpdate { UpdateManager.shared.downloadUpdate(info) }
-        case .upToDate: updateStatus = .upToDate
-        case .downloading(let progress): updateStatus = .downloading(progress)
-        case .readyToInstall: updateStatus = .readyToInstall
-        case .installing: updateStatus = .installing
-        case .error: updateStatus = .error
-        }
     }
 
     // MARK: - Launch at Login
@@ -463,7 +418,7 @@ class AppState: ObservableObject {
     // MARK: - Updates
 
     func checkForUpdates() {
-        UpdateManager.shared.checkForUpdatesManually()
+        UpdateManager.shared.checkForUpdates()
     }
 }
 
@@ -719,16 +674,11 @@ struct MainSettingsView: View {
             VStack(spacing: 12) {
                 Image(nsImage: AppMetadata.logo).resizable().frame(width: 96, height: 96)
                 Text(AppMetadata.name).font(.system(size: 20, weight: .bold))
-                UpdateBadgeView(status: appState.updateStatus) { appState.checkForUpdates() }
+                UpdateBadgeView { appState.checkForUpdates() }
             }
             .padding(.top, 40)
 
             Spacer()
-
-            // Update ready button - show when download complete
-            if appState.updateStatus.isReadyToInstall {
-                updateReadyButton
-            }
 
             VStack(spacing: 4) {
                 ForEach(NavigationPage.allCases, id: \.self) { page in
@@ -738,26 +688,6 @@ struct MainSettingsView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 20)
         }
-    }
-
-    private var updateReadyButton: some View {
-        Button {
-            UpdateManager.shared.installReadyUpdate()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 12))
-                Text("Khởi động lại để cập nhật")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(Color.orange))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
     }
 
     // MARK: - Content
@@ -779,80 +709,21 @@ struct MainSettingsView: View {
 // MARK: - Update Badge
 
 struct UpdateBadgeView: View {
-    let status: UpdateStatus
     let onCheck: () -> Void
     @State private var hovered = false
-    @State private var rotation: Double = 0
-
-    private var statusText: String? {
-        switch status {
-        case .idle: return nil
-        case .checking: return "Kiểm tra..."
-        case .upToDate: return "Mới nhất"
-        case .available: return "Cập nhật"
-        case .downloading(let p): return "Tải \(Int(p * 100))%"
-        case .readyToInstall: return "Sẵn sàng"
-        case .installing: return "Cài đặt..."
-        case .error: return "Thất bại"
-        }
-    }
-
-    private var statusIcon: (name: String, color: Color)? {
-        switch status {
-        case .upToDate: return ("checkmark.circle.fill", .green)
-        case .available: return ("arrow.up.circle.fill", .orange)
-        case .downloading: return ("arrow.down.circle.fill", .blue)
-        case .readyToInstall: return ("arrow.clockwise.circle.fill", .orange)
-        case .installing: return ("gearshape.circle.fill", .blue)
-        case .error: return ("exclamationmark.triangle.fill", .orange)
-        default: return nil
-        }
-    }
-
-    private var isInteractive: Bool { !status.isBusy }
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 3) {
-                Text("v\(AppMetadata.version)")
-                if status.isChecking {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(rotation))
-                        .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
-                        .onDisappear { rotation = 0 }
-                } else if let icon = statusIcon {
-                    Image(systemName: icon.name).font(.system(size: 12)).foregroundColor(icon.color)
-                }
-                if let text = statusText { Text(text) }
-            }
+        Text("v\(AppMetadata.version)")
             .font(.system(size: 11))
             .foregroundColor(Color(NSColor.tertiaryLabelColor))
-
-            // Download progress bar
-            if let progress = status.downloadProgress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .frame(width: 80)
-                    .tint(.blue)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
+            .onHover { h in
+                hovered = h
+                if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(hovered && isInteractive ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
-        .onHover { h in
-            hovered = h
-            if isInteractive && h { NSCursor.pointingHand.push() } else if isInteractive { NSCursor.pop() }
-        }
-        .onTapGesture {
-            guard isInteractive else { return }
-            if status.isAvailable {
-                if case .available(let info) = UpdateManager.shared.state {
-                    UpdateManager.shared.downloadUpdate(info)
-                }
-            } else { onCheck() }
-        }
+            .onTapGesture { onCheck() }
     }
 }
 
