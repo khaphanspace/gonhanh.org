@@ -23,12 +23,11 @@ static DICT_KEEP: LazyLock<HashSet<&'static str>> =
     LazyLock::new(|| parse_dic_to_hashset(DIC_KEEP));
 
 /// Check if word starts with foreign consonant (z, w, j, f)
-/// These consonants are not part of standard Vietnamese alphabet
 fn starts_with_foreign_consonant(word: &str) -> bool {
-    word.chars()
-        .next()
-        .map(|c| matches!(c.to_ascii_lowercase(), 'z' | 'w' | 'j' | 'f'))
-        .unwrap_or(false)
+    matches!(
+        word.as_bytes().first().map(u8::to_ascii_lowercase),
+        Some(b'z' | b'w' | b'j' | b'f')
+    )
 }
 
 /// Check if a word is valid Vietnamese
@@ -107,8 +106,7 @@ mod tests {
 
     #[test]
     fn test_foreign_consonants_allowed_when_enabled() {
-        // Words starting with z/w/j/f should pass foreign is_vietnamese when allow_foreign = true
-        // (but still need to be in dictionary to return true - these won't be)
-        assert!(!is_vietnamese("zá", true)); // Not in dict, but passes foreign is_vietnamese
+        // allow_foreign=true skips the foreign consonant check, but word must still be in dictionary
+        assert!(!is_vietnamese("zá", true)); // Not in dict → false
     }
 }
