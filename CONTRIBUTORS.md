@@ -103,7 +103,7 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
       <a href="https://github.com/khaphanspace">
         <img src="https://avatars.githubusercontent.com/u/16458012?v=4" width="80" style="border-radius:50%"/><br/>
         <b>khaphanspace</b>
-      </a><br/><sub>954 commits</sub>
+      </a><br/><sub>955 commits</sub>
     </td>
     <td align="center">
       <a href="https://github.com/tuananhht94">
@@ -229,6 +229,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/hoangtrung99">
+        <img src="https://avatars.githubusercontent.com/u/29956745?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>hoangtrung99</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/PhucHuwu">
         <img src="https://avatars.githubusercontent.com/u/142735617?v=4" width="50" style="border-radius:50%"/><br/>
         <b>PhucHuwu</b>
@@ -252,14 +258,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>lantrinh1999</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/xkhanhs">
         <img src="https://avatars.githubusercontent.com/u/27943649?v=4" width="50" style="border-radius:50%"/><br/>
         <b>xkhanhs</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/caotangdaiduong">
         <img src="https://avatars.githubusercontent.com/u/28684084?v=4" width="50" style="border-radius:50%"/><br/>
@@ -276,12 +282,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/cooldevdotcodes">
         <img src="https://avatars.githubusercontent.com/u/129320950?v=4" width="50" style="border-radius:50%"/><br/>
         <b>cooldevdotcodes</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/hoangtrung99">
-        <img src="https://avatars.githubusercontent.com/u/29956745?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>hoangtrung99</b>
       </a>
     </td>
     <td align="center">
