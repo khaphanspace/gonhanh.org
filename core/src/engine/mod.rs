@@ -948,7 +948,10 @@ impl Engine {
             // Example: "user" → buf=[u,ẻ] with mark moved from u to e, raw=[u,s,e,r]
             // After backspace: buf=[u mark=0], raw=[u,s] - but 's' is stale!
             // Fix: if remaining char has no mark but raw_input's last entry is a mark key, pop it.
-            if !self.buf.is_empty() && !self.raw_input.is_empty() {
+            // IMPORTANT: Only run this if there are active transforms (had_any_transform).
+            // After auto-restore, buffer has plain chars and raw_input has legitimate letters
+            // like 'f' that would be incorrectly treated as stale mark keys.
+            if self.had_any_transform && !self.buf.is_empty() && !self.raw_input.is_empty() {
                 let remaining_has_no_mark = self.buf.last().is_some_and(|c| c.mark == 0);
                 if remaining_has_no_mark && self.raw_input.len() >= 2 {
                     let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
@@ -4167,6 +4170,9 @@ impl Engine {
                             }
 
                             self.last_transform = None;
+                            // Reset had_any_transform since buffer now has plain chars
+                            // This prevents backspace from incorrectly popping stale keys
+                            self.had_any_transform = false;
                             return Result::send(backspace, &raw_chars);
                         }
                     }

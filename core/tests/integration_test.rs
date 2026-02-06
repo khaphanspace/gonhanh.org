@@ -3756,6 +3756,20 @@ fn test_data_double_backspace_ata_auto_restore() {
     assert_eq!(result, "data ", "data<<ata should auto-restore to data");
 }
 
+// Test case: perfec<<<<rfec (4 backspaces after auto-restore, then retype)
+// After "perfec" auto-restores, 4 backspaces should leave "pe", then "rfec" → "perfec"
+// Bug: raw_input was incorrectly popping 'f' (letter) as stale mark key
+#[test]
+fn test_perfec_4backspace_rfec_auto_restore() {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    let result = type_word(&mut e, "perfec<<<<rfec");
+    assert_eq!(
+        result, "perfec",
+        "perfec<<<<rfec should give perfec (raw_input sync after auto-restore)"
+    );
+}
+
 // Test case: abc + space + ook + space
 // Fixed: "abc ôk " (circumflex from intentional double vowel is preserved)
 #[test]
