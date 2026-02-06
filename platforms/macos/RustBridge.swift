@@ -390,12 +390,15 @@ private class TextInjector {
         }
 
         // Calculate replacement: delete `bs` chars before cursor, insert `text`
-        // IMPORTANT: cursor and bs are UTF-16 offsets, not grapheme cluster counts
+        // IMPORTANT: cursor is UTF-16 offset (from AX API), but bs is CHARACTER count (from Rust engine)
+        // We need to convert bs characters to UTF-16 offset for correct deletion
         let userUTF16 = userText.utf16
-        let deleteStartUTF16 = max(0, cursorUTF16 - bs)
 
-        // Convert UTF-16 offsets to String.Index
-        let prefixEndIdx = userUTF16.index(userUTF16.startIndex, offsetBy: min(deleteStartUTF16, userUTF16.count))
+        // Convert character count (bs) to UTF-16 offset
+        // Count back `bs` characters from end of userText, then find the UTF-16 offset
+        let charCount = userText.count
+        let charsToKeep = max(0, charCount - bs)
+        let prefixEndIdx = userText.index(userText.startIndex, offsetBy: charsToKeep)
         let suffixStartIdx = userUTF16.index(userUTF16.startIndex, offsetBy: min(cursorUTF16, userUTF16.count))
 
         let prefix = String(userText[..<prefixEndIdx])
@@ -409,7 +412,9 @@ private class TextInjector {
         }
 
         // Update cursor to end of inserted text (use UTF-16 offset)
-        var newCursor = CFRange(location: deleteStartUTF16 + text.utf16.count, length: 0)
+        // Calculate the new cursor position: prefix length (in UTF-16) + inserted text length (in UTF-16)
+        let prefixUTF16Count = prefix.utf16.count
+        var newCursor = CFRange(location: prefixUTF16Count + text.utf16.count, length: 0)
         if let newRange = AXValueCreate(.cfRange, &newCursor) {
             AXUIElementSetAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, newRange)
         }
