@@ -1414,6 +1414,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if bundleId == "texstudio" { return cached(.charByChar, (3000, 8000, 3000), "char:texstudio") }
     if bundleId.hasPrefix("com.jetbrains") { return cached(.slow, (8000, 25000, 8000), "slow:jb") }
 
+    // Caudex - char-by-char with higher delays for reliable text replacement
+    if bundleId == "com.caudex.dev" { return cached(.charByChar, (5000, 15000, 5000), "char:caudex") }
+
     // Default: safe delays
     return cached(.fast, (1000, 3000, 1500), "default")
 }
