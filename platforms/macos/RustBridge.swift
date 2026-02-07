@@ -1335,7 +1335,14 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.axDirect, (0, 0, 0), "ax:spotlight")
     }
 
-    // Browser address bars (AXTextField): emptyCharPrefix or selection depending on browser
+    // Safari: address bar uses emptyCharPrefix, content areas (Google Docs) use charByChar
+    // Must be checked BEFORE general browsers array since Safari needs special content handling
+    if bundleId == "com.apple.Safari" || bundleId == "com.apple.SafariTechnologyPreview" {
+        if role == "AXTextField" { return cached(.emptyCharPrefix, (0, 0, 0), "emptyChar:safari") }
+        return cached(.charByChar, (0, 0, 0), "char:safari")
+    }
+
+    // Browser address bars (AXTextField/AXTextArea/AXWindow): emptyCharPrefix to break autocomplete
     let browsers = [
         // The Browser Company
         "company.thebrowser.Browser", "company.thebrowser.Arc", "company.thebrowser.dia",
@@ -1365,9 +1372,6 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.operasoftware.OperaGX",     // Opera GX
         "com.operasoftware.OperaAir",    // Opera Air
         "com.opera.OperaNext",           // Opera Next
-        // Safari
-        "com.apple.Safari",              // Safari
-        "com.apple.SafariTechnologyPreview", // Safari Tech Preview
         // WebKit-based
         "com.kagi.kagimacOS",            // Orion (Kagi)
         // Others
@@ -1381,11 +1385,6 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     let addressBarRoles: Set<String> = ["AXTextField", "AXTextArea", "AXWindow"]
     if browsers.contains(bundleId), let role, addressBarRoles.contains(role) { return cached(.emptyCharPrefix, (0, 0, 0), "emptyChar:browser") }
     if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { return cached(.selection, (0, 0, 0), "sel:jb") }
-
-    // Safari content areas (Google Docs, etc.) - character-by-character with high delays
-    if bundleId == "com.apple.Safari" || bundleId == "com.apple.SafariTechnologyPreview" {
-        return cached(.charByChar, (0, 0, 0), "char:safari")
-    }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
     if bundleId == "com.microsoft.Excel" { return cached(.slow, (3000, 8000, 3000), "slow:excel") }
