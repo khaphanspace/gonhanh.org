@@ -18,7 +18,7 @@ pub mod validation;
 
 use crate::data::{
     chars::{self, mark, tone},
-    constants, english_dict, keys, telex_doubles, vietnamese_spellcheck,
+    constants, dictionary, english_dict, keys, telex_doubles,
     vowel::{Phonology, Vowel},
 };
 use crate::input::{self, ToneType};
@@ -948,7 +948,10 @@ impl Engine {
             // Example: "user" → buf=[u,ẻ] with mark moved from u to e, raw=[u,s,e,r]
             // After backspace: buf=[u mark=0], raw=[u,s] - but 's' is stale!
             // Fix: if remaining char has no mark but raw_input's last entry is a mark key, pop it.
-            if !self.buf.is_empty() && !self.raw_input.is_empty() {
+            // IMPORTANT: Only run this if there are active transforms (had_any_transform).
+            // After auto-restore, buffer has plain chars and raw_input has legitimate letters
+            // like 'f' that would be incorrectly treated as stale mark keys.
+            if self.had_any_transform && !self.buf.is_empty() && !self.raw_input.is_empty() {
                 let remaining_has_no_mark = self.buf.last().is_some_and(|c| c.mark == 0);
                 if remaining_has_no_mark && self.raw_input.len() >= 2 {
                     let (last_key, _, _) = self.raw_input[self.raw_input.len() - 1];
@@ -4167,6 +4170,9 @@ impl Engine {
                             }
 
                             self.last_transform = None;
+                            // Reset had_any_transform since buffer now has plain chars
+                            // This prevents backspace from incorrectly popping stale keys
+                            self.had_any_transform = false;
                             return Result::send(backspace, &raw_chars);
                         }
                     }
@@ -4606,15 +4612,18 @@ impl Engine {
                     // W at end + in dict → restore foreign words (moscow, warsaw, saw)
                     return self.build_raw_chars_exact();
                 } else if buffer_invalid_vn && raw_in_english_dict {
-                    // Check if collapsed buffer is also a valid English word
+                    // Check if collapsed buffer is also a valid English word or in keep list
                     // If buffer is a known English word, keep it (e.g., "lissa" → "lisa")
+                    // If buffer is in keep list, keep it (e.g., "sess" → "ses")
                     // If buffer is NOT a known word, restore original (e.g., "larissa" → "larissa")
                     let buffer_str = self.get_buffer_string().to_lowercase();
-                    if !english_dict::is_english_word(&buffer_str) {
-                        // Buffer not in dict → restore to original English
+                    if !english_dict::is_english_word(&buffer_str)
+                        && !dictionary::should_keep(&buffer_str)
+                    {
+                        // Buffer not in dict and not in keep list → restore to original English
                         return self.build_raw_chars_exact();
                     }
-                    // Buffer IS in dict → keep buffer (collapsed form is valid word)
+                    // Buffer IS in dict or keep list → keep buffer
                 }
                 // Otherwise keep buffer (valid VN or not in dict)
             }
@@ -4642,28 +4651,11 @@ impl Engine {
                         if is_double_ss || is_double_ff {
                             let original_lower = stored.to_lowercase();
                             if english_dict::is_english_word(&original_lower) {
-                                // EXCEPTIONS: certain words should keep reverted form (buffer)
-                                // instead of restoring to raw double letter pattern.
-                                // This handles cases where collapsed buffer is more common:
-                                //   "off" → "of" (common word)
-                                //   "iff" → "if" (common word)
-                                //   "ass" → "as" (common word)
-                                //   "hiss" → "his" (common word, more frequent than "hiss")
-                                let is_exception = if chars.len() == 3 {
-                                    let first = chars[0].to_ascii_lowercase();
-                                    let is_off = first == 'o' && is_double_ff;
-                                    let is_iff = first == 'i' && is_double_ff;
-                                    let is_ass = first == 'a' && is_double_ss;
-                                    is_off || is_iff || is_ass
-                                } else if chars.len() == 4 {
-                                    // 4-char exceptions: "hiss" → "his"
-                                    let first = chars[0].to_ascii_lowercase();
-                                    first == 'h' && is_double_ss
+                                // Check if buffer should be kept (in keep list or valid Vietnamese)
+                                let buffer_str = self.get_buffer_string().to_lowercase();
+                                if dictionary::should_keep(&buffer_str) {
+                                    // Buffer is in keep list → don't restore
                                 } else {
-                                    false
-                                };
-
-                                if !is_exception {
                                     return self.build_raw_chars_exact();
                                 }
                             }
@@ -5328,14 +5320,9 @@ impl Engine {
 
         // DICTIONARY-BASED VALIDATION (when english_auto_restore is enabled)
         // If word is in Vietnamese dictionary, it's definitely valid Vietnamese.
-        // Uses check_with_style to respect modern_tone setting (DauMoi vs DauCu).
         if self.english_auto_restore {
             let buffer_str = self.buf.to_full_string();
-            if vietnamese_spellcheck::check_with_style_and_foreign(
-                &buffer_str,
-                self.modern_tone,
-                self.allow_foreign_consonants,
-            ) {
+            if dictionary::is_vietnamese(&buffer_str, self.allow_foreign_consonants) {
                 return false; // Valid VN word in dictionary
             }
 

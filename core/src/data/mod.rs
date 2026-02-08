@@ -8,10 +8,10 @@
 
 pub mod chars;
 pub mod constants;
+pub mod dictionary;
 pub mod english_dict;
 pub mod keys;
 pub mod telex_doubles;
-pub mod vietnamese_spellcheck;
 pub mod vowel;
 
 pub use chars::{get_d, mark, to_char, tone};
