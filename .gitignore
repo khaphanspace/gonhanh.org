@@ -34,6 +34,8 @@ obj/
 # Build artifacts
 *.o
 *.so
+*.profraw
+*.profdata
 
 # IDE
 .vscode/
