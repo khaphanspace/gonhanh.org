@@ -849,16 +849,7 @@ struct SettingsPageView: View {
     }
 
     private var englishAutoRestoreRow: some View {
-        SettingsRow {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.turn.down.right")
-                    .font(.system(size: 10))
-                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                Text("Tự khôi phục tiếng Anh").font(.system(size: 13))
-            }
-            Spacer()
-            Toggle("", isOn: $appState.englishAutoRestore).toggleStyle(.switch).labelsHidden()
-        }
+        SettingsToggleRow("Tự khôi phục tiếng Anh", indented: true, isOn: $appState.englishAutoRestore)
     }
 
     private var shortcutsRow: some View {
@@ -1443,13 +1434,10 @@ struct AutoCapitalizeExcludedAppsSheet: View {
             }
 
         // Add excluded apps not currently running
-        for bundleId in excluded {
-            if !apps.contains(where: { $0.bundleId == bundleId }) {
-                let name = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.localizedName
-                    ?? bundleId.components(separatedBy: ".").last ?? bundleId
-                let icon = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.icon
-                apps.append(AppToggleItem(bundleId: bundleId, name: name, icon: icon))
-            }
+        for bundleId in excluded where !apps.contains(where: { $0.bundleId == bundleId }) {
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
+            let name = running?.localizedName ?? bundleId.components(separatedBy: ".").last ?? bundleId
+            apps.append(AppToggleItem(bundleId: bundleId, name: name, icon: running?.icon))
         }
 
         // Sort once: excluded first, then alphabetically
