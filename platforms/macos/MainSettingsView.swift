@@ -808,15 +808,11 @@ struct SettingsPageView: View {
             }
             .cardBackground()
 
-            // Ứng dụng
-            VStack(spacing: 0) {
-                SettingsToggleRow("Nhớ trạng thái theo app", subtitle: "Tự bật/tắt khi chuyển ứng dụng", isOn: $appState.perAppModeEnabled)
-            }
-            .cardBackground()
-
             // Mở rộng
             VStack(spacing: 0) {
                 shortcutsRow
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Nhớ trạng thái theo app", subtitle: "Tự bật/tắt khi chuyển ứng dụng", isOn: $appState.perAppModeEnabled)
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Âm thanh khi bật/tắt", isOn: $appState.soundEnabled)
             }
@@ -1094,12 +1090,13 @@ struct AboutPageView: View {
                 Image(nsImage: AppMetadata.logo).resizable().frame(width: 80, height: 80)
                 Text(AppMetadata.name).font(.system(size: 20, weight: .bold))
                 Text("Bộ gõ tiếng Việt nhanh và nhẹ").font(.system(size: 13)).foregroundColor(Color(NSColor.secondaryLabelColor))
-                Text("Phiên bản \(AppMetadata.version)").font(.system(size: 12)).foregroundColor(Color(NSColor.tertiaryLabelColor))
+                Text("Phiên bản v\(AppMetadata.version)").font(.system(size: 12)).foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
             HStack(spacing: 12) {
-                AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
-                AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
                 AboutLink(icon: "heart.fill", title: "Ủng hộ", url: AppMetadata.sponsorURL, iconColor: .pink)
+                AboutLink(icon: "hand.thumbsup.fill", title: "Vote", url: "https://unikorn.vn/p/gonhanh?ref=gonhanh", iconColor: .orange)
+                AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
+                AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
             }
             Spacer()
             HStack(spacing: 4) {
@@ -1107,7 +1104,7 @@ struct AboutPageView: View {
                 AuthorLink(name: AppMetadata.author, url: AppMetadata.authorLinkedin)
                 Text("và").foregroundColor(Color(NSColor.tertiaryLabelColor))
                 AuthorLink(name: "Cộng đồng", url: "\(AppMetadata.repository)/blob/main/CONTRIBUTORS.md")
-                Text("từ Việt Nam với tất cả ❤️").foregroundColor(Color(NSColor.tertiaryLabelColor))
+                Text("với tất cả ❤️").foregroundColor(Color(NSColor.tertiaryLabelColor))
             }
             .font(.system(size: 12))
             .padding(.bottom, 12)
