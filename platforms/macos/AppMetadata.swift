@@ -26,6 +26,7 @@ enum AppMetadata {
     static let issuesURL = "https://github.com/khaphanspace/gonhanh.org/issues"
     static let sponsorURL = "https://github.com/sponsors/khaphanspace"
     static let authorLinkedin = "https://www.linkedin.com/in/khaphanspace"
+    static let voteURL = "https://unikorn.vn/p/gonhanh?ref=gonhanh"
 
     // Legal
     static let copyright = "Copyright © 2025 \(author). All rights reserved."
@@ -70,7 +71,6 @@ enum SettingsKey {
     static let hasCompletedOnboarding = "gonhanh.onboarding.completed"
     static let permissionGranted = "gonhanh.permission.granted"
     static let toggleShortcut = "gonhanh.shortcut.toggle"
-    static let reopenSettingsAfterUpdate = "gonhanh.update.reopenSettings"
     static let perAppMode = "gonhanh.perAppMode"
     static let perAppModes = "gonhanh.perAppModes"
     static let shortcuts = "gonhanh.shortcuts"

@@ -1708,10 +1708,8 @@ class PerAppModeManager {
 
 extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
-    static let showUpdateWindow = Notification.Name("showUpdateWindow")
     static let shortcutChanged = Notification.Name("shortcutChanged")
     static let restoreShortcutChanged = Notification.Name("restoreShortcutChanged")
-    static let updateStateChanged = Notification.Name("updateStateChanged")
     static let shortcutRecorded = Notification.Name("shortcutRecorded")
     static let shortcutRecordingCancelled = Notification.Name("shortcutRecordingCancelled")
 }

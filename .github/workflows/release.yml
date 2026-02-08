@@ -233,6 +233,56 @@ jobs:
           APP="build/Build/Products/Release/GoNhanh.app"
           ../../scripts/release/dmg.sh "$APP"
 
+      # ============================================================
+      # SPARKLE APPCAST
+      # ============================================================
+      - name: Generate Sparkle Appcast
+        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          cd platforms/macos
+          V="${GITHUB_REF_NAME#v}"
+          DMG_FILE=$(ls build/*.dmg | head -1)
+          DMG_NAME=$(basename "$DMG_FILE")
+          DMG_SIZE=$(stat -f%z "$DMG_FILE")
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${DMG_NAME}"
+
+          # Generate EdDSA signature using Sparkle's sign_update
+          # Download Sparkle tools if not available
+          if [ ! -f /tmp/sparkle/bin/sign_update ]; then
+            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" | tar xJ -C /tmp/sparkle 2>/dev/null || true
+          fi
+
+          SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file /dev/stdin 2>/dev/null || echo "")
+
+          # Parse signature components (edSignature="..." length="...")
+          ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
+
+          # Generate appcast.xml
+          cat > build/appcast.xml << APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>GoNhanh</title>
+              <link>https://github.com/${{ github.repository }}</link>
+              <item>
+                <title>Version ${V}</title>
+                <sparkle:version>${V}</sparkle:version>
+                <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
+                <pubDate>$(date -R)</pubDate>
+                <enclosure url="${DMG_URL}" sparkle:edSignature="${ED_SIGNATURE}" length="${DMG_SIZE}" type="application/octet-stream"/>
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+
+          # Remove leading whitespace from heredoc
+          sed -i '' 's/^          //' build/appcast.xml
+
+          echo "Generated appcast.xml for v${V}"
+          cat build/appcast.xml
+
       - name: Get Tag Message
         id: tag_message
         run: |
@@ -283,7 +333,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: platforms/macos/build/*.dmg
+          files: |
+            platforms/macos/build/*.dmg
+            platforms/macos/build/appcast.xml
           body_path: ${{ steps.tag_message.outputs.message != '' && 'release_body.md' || '' }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
 
