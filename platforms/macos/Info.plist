@@ -30,6 +30,8 @@
     <string>NSApplication</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>Gõ Nhanh needs access to send keyboard events for Vietnamese input.</string>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
     <key>SUFeedURL</key>
     <string>https://github.com/khaphanspace/gonhanh.org/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>

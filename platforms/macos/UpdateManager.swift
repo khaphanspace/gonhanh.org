@@ -2,6 +2,7 @@ import Foundation
 import Sparkle
 
 // MARK: - Update Manager (Sparkle Wrapper)
+// Auto-check + auto-download always ON. Silent install on quit (SUAutomaticallyUpdate).
 
 class UpdateManager: NSObject, ObservableObject {
     static let shared = UpdateManager()
@@ -9,8 +10,8 @@ class UpdateManager: NSObject, ObservableObject {
     private var controller: SPUStandardUpdaterController!
 
     @Published var canCheckForUpdates = false
-
-    var updater: SPUUpdater { controller.updater }
+    @Published var updateAvailable = false
+    @Published var isChecking = false
 
     private override init() {
         super.init()
@@ -24,26 +25,38 @@ class UpdateManager: NSObject, ObservableObject {
     func start() {
         do {
             try controller.updater.start()
-            updater.publisher(for: \.canCheckForUpdates)
+            controller.updater.publisher(for: \.canCheckForUpdates)
                 .assign(to: &$canCheckForUpdates)
         } catch {
-            print("[UpdateManager] Failed to start: \(error.localizedDescription)")
+            NSLog("[UpdateManager] Failed to start: %@", error.localizedDescription)
         }
     }
 
+    /// Silent background check — no Sparkle popup, updates badge only
+    func checkInBackground() {
+        isChecking = true
+        controller.updater.checkForUpdatesInBackground()
+    }
+
+    /// Show Sparkle's update dialog (install + restart option)
     func checkForUpdates() {
         controller.checkForUpdates(nil)
-    }
-
-    var automaticallyChecksForUpdates: Bool {
-        get { updater.automaticallyChecksForUpdates }
-        set {
-            updater.automaticallyChecksForUpdates = newValue
-            updater.automaticallyDownloadsUpdates = newValue
-        }
     }
 }
 
 // MARK: - SPUUpdaterDelegate
 
-extension UpdateManager: SPUUpdaterDelegate {}
+extension UpdateManager: SPUUpdaterDelegate {
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        NSLog("[UpdateManager] Found update: %@", item.versionString)
+        DispatchQueue.main.async {
+            self.updateAvailable = true
+            self.isChecking = false
+        }
+    }
+
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+        NSLog("[UpdateManager] Cycle finished, updateCheck=%d, error=%@", updateCheck.rawValue, String(describing: error))
+        DispatchQueue.main.async { self.isChecking = false }
+    }
+}

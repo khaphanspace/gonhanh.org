@@ -1,11 +1,15 @@
 import XCTest
 @testable import GoNhanh
 
-// MARK: - Settings Key Tests
+// MARK: - Update Manager Tests
 
-final class UpdateSettingsKeyTests: XCTestCase {
+final class UpdateManagerTests: XCTestCase {
 
-    func testAutoCheckUpdateKey() {
-        XCTAssertEqual(SettingsKey.autoCheckUpdate, "gonhanh.update.autoCheck")
+    func testSharedInstanceExists() {
+        XCTAssertNotNil(UpdateManager.shared)
+    }
+
+    func testDefaultUpdateAvailableIsFalse() {
+        XCTAssertFalse(UpdateManager.shared.updateAvailable)
     }
 }

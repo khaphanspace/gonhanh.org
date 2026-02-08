@@ -26,6 +26,7 @@ enum AppMetadata {
     static let issuesURL = "https://github.com/khaphanspace/gonhanh.org/issues"
     static let sponsorURL = "https://github.com/sponsors/khaphanspace"
     static let authorLinkedin = "https://www.linkedin.com/in/khaphanspace"
+    static let voteURL = "https://unikorn.vn/p/gonhanh?ref=gonhanh"
 
     // Legal
     static let copyright = "Copyright © 2025 \(author). All rights reserved."
@@ -83,7 +84,6 @@ enum SettingsKey {
     static let autoCapitalizeExcludedApps = "gonhanh.autoCapitalize.excludedApps"
     static let launchAtLoginUserDisabled = "gonhanh.launchAtLogin.userDisabled"
     static let soundEnabled = "gonhanh.soundEnabled"
-    static let autoCheckUpdate = "gonhanh.update.autoCheck"
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
 }
 

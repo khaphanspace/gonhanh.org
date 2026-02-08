@@ -142,13 +142,6 @@ class AppState: ObservableObject {
         }
     }
 
-    @Published var autoCheckUpdate: Bool = true {
-        didSet {
-            UserDefaults.standard.set(autoCheckUpdate, forKey: SettingsKey.autoCheckUpdate)
-            UpdateManager.shared.automaticallyChecksForUpdates = autoCheckUpdate
-        }
-    }
-
     @Published var allowForeignConsonants: Bool = false {
         didSet {
             UserDefaults.standard.set(allowForeignConsonants, forKey: SettingsKey.allowForeignConsonants)
@@ -197,7 +190,6 @@ class AppState: ObservableObject {
             autoCapitalizeExcludedApps = Set(excludedApps)
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
-        autoCheckUpdate = defaults.object(forKey: SettingsKey.autoCheckUpdate) == nil ? true : defaults.bool(forKey: SettingsKey.autoCheckUpdate)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
 
         // Sync settings to Rust engine
@@ -205,9 +197,6 @@ class AppState: ObservableObject {
 
         // Load complex data
         loadShortcuts()
-
-        // Sync auto-check setting to Sparkle
-        UpdateManager.shared.automaticallyChecksForUpdates = autoCheckUpdate
 
         // Setup observers and services
         setupObservers()
@@ -413,12 +402,6 @@ class AppState: ObservableObject {
             imported += 1
         }
         return imported
-    }
-
-    // MARK: - Updates
-
-    func checkForUpdates() {
-        UpdateManager.shared.checkForUpdates()
     }
 }
 
@@ -674,7 +657,7 @@ struct MainSettingsView: View {
             VStack(spacing: 12) {
                 Image(nsImage: AppMetadata.logo).resizable().frame(width: 96, height: 96)
                 Text(AppMetadata.name).font(.system(size: 20, weight: .bold))
-                UpdateBadgeView { appState.checkForUpdates() }
+                UpdateBadgeView()
             }
             .padding(.top, 40)
 
@@ -709,21 +692,45 @@ struct MainSettingsView: View {
 // MARK: - Update Badge
 
 struct UpdateBadgeView: View {
-    let onCheck: () -> Void
+    @ObservedObject private var updateManager = UpdateManager.shared
     @State private var hovered = false
+    @State private var rotation: Double = 0
 
     var body: some View {
-        Text("v\(AppMetadata.version)")
-            .font(.system(size: 11))
-            .foregroundColor(Color(NSColor.tertiaryLabelColor))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
-            .onHover { h in
-                hovered = h
-                if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        HStack(spacing: 3) {
+            Text("v\(AppMetadata.version)")
+            if updateManager.isChecking {
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .rotationEffect(.degrees(rotation))
+                    .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
+                    .onDisappear { rotation = 0 }
+                Text("Kiểm tra")
+            } else if updateManager.updateAvailable {
+                Image(systemName: "arrow.up.circle.fill").font(.system(size: 12)).foregroundColor(.orange)
+                Text("Cập nhật")
+            } else {
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundColor(.green)
+                Text("Mới nhất")
             }
-            .onTapGesture { onCheck() }
+        }
+        .font(.system(size: 11))
+        .foregroundColor(Color(NSColor.tertiaryLabelColor))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
+        .onHover { h in
+            hovered = h
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .onTapGesture {
+            if updateManager.updateAvailable {
+                updateManager.checkForUpdates()  // Sparkle Install & Relaunch dialog
+            } else if !updateManager.isChecking {
+                updateManager.checkInBackground() // Silent check, update badge
+            }
+        }
     }
 }
 
@@ -821,8 +828,6 @@ struct SettingsPageView: View {
             // Hệ thống
             VStack(spacing: 0) {
                 LaunchAtLoginToggleRow(appState: appState)
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Tự động kiểm tra cập nhật", isOn: $appState.autoCheckUpdate)
             }
             .cardBackground()
 
@@ -850,15 +855,6 @@ struct SettingsPageView: View {
                     .font(.system(size: 10))
                     .foregroundColor(Color(NSColor.tertiaryLabelColor))
                 Text("Tự khôi phục tiếng Anh").font(.system(size: 13))
-                Link(destination: URL(string: "https://github.com/khaphanspace/gonhanh.org/issues/26")!) {
-                    Text("Beta · Góp ý")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(Color.orange))
-                }
-                .buttonStyle(.plain)
             }
             Spacer()
             Toggle("", isOn: $appState.englishAutoRestore).toggleStyle(.switch).labelsHidden()
@@ -1094,7 +1090,7 @@ struct AboutPageView: View {
             }
             HStack(spacing: 12) {
                 AboutLink(icon: "heart.fill", title: "Ủng hộ", url: AppMetadata.sponsorURL, iconColor: .pink)
-                AboutLink(icon: "hand.thumbsup.fill", title: "Vote", url: "https://unikorn.vn/p/gonhanh?ref=gonhanh", iconColor: .orange)
+                AboutLink(icon: "hand.thumbsup.fill", title: "Vote", url: AppMetadata.voteURL, iconColor: .orange)
                 AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
                 AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
             }
