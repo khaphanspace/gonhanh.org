@@ -212,6 +212,10 @@ jobs:
           SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file /dev/stdin 2>/dev/null || echo "")
           ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
 
+          # Generate release notes from recent commits
+          NOTES=$(git log --oneline -10 --pretty=format:"• %s" 2>/dev/null)
+          NOTES_HTML=$(echo "$NOTES" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | sed 's/$/<br\/>/' | tr -d '\n')
+
           # Generate appcast.xml (beta channel)
           REPO="${{ github.repository }}"
           PUB_DATE=$(date -R)
@@ -223,6 +227,7 @@ jobs:
               <link>https://github.com/${REPO}</link>
               <item>
                 <title>Version ${V}</title>
+                <description><![CDATA[${NOTES_HTML}]]></description>
                 <sparkle:version>${V}</sparkle:version>
                 <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
                 <pubDate>${PUB_DATE}</pubDate>
