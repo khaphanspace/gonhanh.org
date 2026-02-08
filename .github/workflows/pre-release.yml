@@ -210,7 +210,7 @@ jobs:
 
           # Generate EdDSA signature
           SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file /dev/stdin 2>/dev/null || echo "")
-          ED_SIGNATURE=$(echo "$SIGNATURE" | grep -oP 'edSignature="\K[^"]+' || echo "")
+          ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
 
           # Generate appcast.xml (beta channel)
           REPO="${{ github.repository }}"
