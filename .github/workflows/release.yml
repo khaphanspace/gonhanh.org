@@ -259,10 +259,11 @@ jobs:
           # Parse signature components (edSignature="..." length="...")
           ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
 
-          # Get release notes from GitHub release (created by release workflow)
-          NOTES=$(gh release view "${GITHUB_REF_NAME}" --json body --jq '.body' 2>/dev/null || echo "")
+          # Get release notes from git tag message (available since workflow triggers on tag push)
+          git fetch origin tag "${GITHUB_REF_NAME}" --force 2>/dev/null || true
+          NOTES=$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}" 2>/dev/null || echo "")
           if [ -z "$NOTES" ]; then
-            NOTES=$(git log --oneline -5 --pretty=format:"• %s" 2>/dev/null)
+            NOTES=$(git log --oneline -10 --pretty=format:"• %s" 2>/dev/null)
           fi
           NOTES_HTML=$(echo "$NOTES" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | sed 's/$/<br\/>/' | tr -d '\n')
 
