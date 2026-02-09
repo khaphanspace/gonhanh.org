@@ -251,7 +251,7 @@ jobs:
           # Generate EdDSA signature using Sparkle's sign_update
           mkdir -p /tmp/sparkle
           if [ ! -f /tmp/sparkle/bin/sign_update ]; then
-            curl -sL "https://github.com/nicklama/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" -o /tmp/sparkle.tar.xz
+            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" -o /tmp/sparkle.tar.xz
             # macOS may not have xz; try tar xJ first, fallback to bsdtar
             tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || \
               bsdtar xf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || true
