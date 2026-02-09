@@ -67,6 +67,18 @@ private enum Log {
 
 // MARK: - Constants
 
+/// Key codes that modify text content and require buffer clearing when pressed with Cmd modifier.
+/// These keys cause the document state to change (select all, paste, cut, undo), so the IME buffer
+/// must be cleared to prevent stale state from producing garbled output.
+let textModifyingKeys: Set<UInt16> = [
+    0x00,  // Cmd+A (select all)
+    0x09,  // Cmd+V (paste)
+    0x07,  // Cmd+X (cut)
+    0x06,  // Cmd+Z (undo)
+    0x33,  // Cmd+Backspace (clears to beginning of line)
+    0x75,  // Cmd+Delete (clears to end of line)
+]
+
 private enum KeyCode {
     // Navigation keys
     static let backspace: CGKeyCode = 0x33
@@ -1265,13 +1277,6 @@ private func keyboardCallback(
     if flags.contains(.maskCommand) && !flags.contains(.maskControl) && !flags.contains(.maskAlternate) {
 
         // Shortcuts that modify text content
-        let textModifyingKeys: Set<UInt16> = [
-            0x00,  // Cmd+A (select all)
-            0x09,  // Cmd+V (paste)
-            0x07,  // Cmd+X (cut)
-            0x06,  // Cmd+Z (undo)
-        ]
-
         if textModifyingKeys.contains(keyCode) {
             RustBridge.clearBuffer()
 
