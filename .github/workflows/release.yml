@@ -254,7 +254,12 @@ jobs:
             curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" | tar xJ -C /tmp/sparkle 2>/dev/null || true
           fi
 
-          SIGNATURE=$(echo -n "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file /dev/stdin 2>/dev/null || echo "")
+          # Write key to temp file (pipe to stdin unreliable on macOS CI)
+          KEY_FILE=$(mktemp)
+          echo -n "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
+          SIGNATURE=$(/tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file "$KEY_FILE" 2>&1 || echo "")
+          rm -f "$KEY_FILE"
+          echo "sign_update output: $SIGNATURE"
 
           # Parse signature components (edSignature="..." length="...")
           ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
