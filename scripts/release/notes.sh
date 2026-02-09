@@ -117,6 +117,9 @@ info "🤖 Calling Claude Code..."
 # Call Claude Code with strict settings
 AI_OUTPUT=$(claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || error "Claude Code failed to execute"
 
+# Strip leading/trailing blank lines
+AI_OUTPUT=$(echo "$AI_OUTPUT" | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
 # Validate output quality - STRICT validation
 validate_release_notes() {
     local text="$1"
