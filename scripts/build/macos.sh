@@ -232,6 +232,16 @@ if [ -d "GoNhanh.xcodeproj" ]; then
     codesign -vvv --deep --strict build/Release/GoNhanh.app
     echo "Signature verified!"
 
+    # Reset TCC permissions after re-signing
+    # Ad-hoc signing changes the code identity, which invalidates existing
+    # permissions. The app will re-prompt on launch.
+    # Required: Accessibility (for AX APIs) + ListenEvent (for CGEventTap)
+    if [ "$SIGN_APP" != true ]; then
+        echo "Resetting TCC permissions (ad-hoc signing changes identity)..."
+        tccutil reset Accessibility org.gonhanh.GoNhanh 2>/dev/null || true
+        tccutil reset ListenEvent org.gonhanh.GoNhanh 2>/dev/null || true
+    fi
+
     # Notarize if requested
     if [ "$NOTARIZE_APP" = true ]; then
         echo ""
