@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          manifest-path: core/Cargo.toml
+          manifest-path: Cargo.toml
 
   style_format:
     name: Style/format
@@ -171,13 +171,12 @@ jobs:
           persist-credentials: false
       - name: Build Rust Core
         run: |
-          cd core
-          cargo build --release
+          cargo build --release -p ffi
           # Copy library to where Xcode expects it
-          mkdir -p ../platforms/macos
-          cp target/release/libgonhanh_core.a ../platforms/macos/libgonhanh_core.a || \
-          cp target/x86_64-apple-darwin/release/libgonhanh_core.a ../platforms/macos/libgonhanh_core.a || \
-          cp target/aarch64-apple-darwin/release/libgonhanh_core.a ../platforms/macos/libgonhanh_core.a
+          mkdir -p platforms/macos
+          cp target/release/libgonhanh_core.a platforms/macos/libgonhanh_core.a || \
+          cp target/x86_64-apple-darwin/release/libgonhanh_core.a platforms/macos/libgonhanh_core.a || \
+          cp target/aarch64-apple-darwin/release/libgonhanh_core.a platforms/macos/libgonhanh_core.a
       - name: Install xcbeautify
         run: brew install xcbeautify
       - name: Run Swift Tests

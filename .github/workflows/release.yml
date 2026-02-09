@@ -67,13 +67,12 @@ jobs:
       # ============================================================
       - name: Build Rust Core (Universal Binary)
         run: |
-          cd core
-          cargo build --release --target aarch64-apple-darwin
-          cargo build --release --target x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin -p ffi
+          cargo build --release --target x86_64-apple-darwin -p ffi
           lipo -create \
             target/aarch64-apple-darwin/release/libgonhanh_core.a \
             target/x86_64-apple-darwin/release/libgonhanh_core.a \
-            -output ../platforms/macos/libgonhanh_core.a
+            -output platforms/macos/libgonhanh_core.a
 
       - name: Build macOS App
         env:
@@ -413,11 +412,10 @@ jobs:
       - name: Build
         run: |
           # Rust core
-          cd core
-          cargo build --release
+          cargo build --release -p ffi
 
           # Fcitx5 addon
-          cd ../platforms/linux
+          cd platforms/linux
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
@@ -546,10 +544,9 @@ jobs:
 
       - name: Build Rust Core
         run: |
-          cd core
-          cargo build --release --target x86_64-pc-windows-msvc
+          cargo build --release --target x86_64-pc-windows-msvc -p ffi
           Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
-                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
+                    "platforms/windows/GoNhanh/Native/gonhanh_core.dll"
 
       - name: Build WPF App
         run: |
