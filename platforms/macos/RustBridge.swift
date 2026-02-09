@@ -146,6 +146,7 @@ private enum InjectionMethod {
     case selection      // Browser address bars: Shift+Left select + type replacement
     case axDirect       // Spotlight primary: AX API direct text manipulation (macOS 13+)
     case emptyCharPrefix // Browser address bars: empty char to break autocomplete + extra backspace
+    case syncProxy      // Games: synchronous injection via CGEventTapPostEvent(proxy)
     case passthrough    // iPhone Mirroring: pass through all keys (remote device handles input)
 }
 
@@ -184,6 +185,8 @@ private class TextInjector {
             injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
         case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
+        case .syncProxy:
+            injectViaProxy(bs: bs, text: text, proxy: proxy)
         case .passthrough:
             // Should not reach here - passthrough is handled in keyboard callback
             break
@@ -236,6 +239,18 @@ private class TextInjector {
             let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
             Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
         }
+    }
+
+    /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for zero-delay delivery
+    /// Events are injected directly into the event tap pipeline, guaranteeing correct ordering
+    private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
+        guard let src = CGEventSource(stateID: .privateState) else { return }
+
+        for _ in 0..<bs {
+            postKey(KeyCode.backspace, source: src, proxy: proxy)
+        }
+
+        postText(text, source: src, proxy: proxy)
     }
 
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
@@ -1421,6 +1436,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     // Caudex - char-by-char with higher delays for reliable text replacement
     if bundleId == "com.caudex.dev" { return cached(.charByChar, (5000, 15000, 5000), "char:caudex") }
+
+    // Games - synchronous proxy injection (Issue #264: Vietnamese typing in LOL)
+    if bundleId.hasPrefix("com.riotgames") { return cached(.syncProxy, (0, 0, 0), "sync:game") }
 
     // Default: safe delays
     return cached(.fast, (1000, 3000, 1500), "default")
