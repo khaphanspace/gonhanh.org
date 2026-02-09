@@ -281,15 +281,24 @@ jobs:
           if [ -z "$NOTES" ]; then
             NOTES=$(git log --oneline -10 --pretty=format:"• %s" 2>/dev/null)
           fi
-          # Convert markdown to simple HTML for Sparkle release notes
+          # Generate release notes HTML file for Sparkle
           NOTES_HTML=$(echo "$NOTES" | sed \
             -e 's/&/\&amp;/g' \
             -e 's/^## \(.*\)/<h2>\1<\/h2>/' \
             -e 's/^### \(.*\)/<h3>\1<\/h3>/' \
             -e 's/^\*\*\(.*\)\*\*/<p><strong>\1<\/strong><\/p>/' \
             -e 's/^- \(.*\)/<li>\1<\/li>/' \
-            -e '/^$/d' \
-          | tr '\n' ' ')
+            -e '/^$/d')
+          cat > build/release-notes.html << NOTES_EOF
+          <html><body style="font-family:-apple-system,system-ui,sans-serif;font-size:13px;padding:8px">
+          ${NOTES_HTML}
+          </body></html>
+          NOTES_EOF
+          sed -i '' 's/^          //' build/release-notes.html
+
+          REPO="${{ github.repository }}"
+          TAG_NAME="${{ github.ref_name }}"
+          NOTES_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}/release-notes.html"
 
           # Generate appcast.xml
           cat > build/appcast.xml << APPCAST_EOF
@@ -297,10 +306,10 @@ jobs:
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
             <channel>
               <title>GoNhanh</title>
-              <link>https://github.com/${{ github.repository }}</link>
+              <link>https://github.com/${REPO}</link>
               <item>
                 <title>Version ${V}</title>
-                <description><![CDATA[${NOTES_HTML}]]></description>
+                <sparkle:releaseNotesLink>${NOTES_URL}</sparkle:releaseNotesLink>
                 <sparkle:version>${V}</sparkle:version>
                 <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
                 <pubDate>$(date -R)</pubDate>
@@ -369,6 +378,7 @@ jobs:
           files: |
             platforms/macos/build/*.dmg
             platforms/macos/build/appcast.xml
+            platforms/macos/build/release-notes.html
           body_path: ${{ steps.tag_message.outputs.message != '' && 'release_body.md' || '' }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
 

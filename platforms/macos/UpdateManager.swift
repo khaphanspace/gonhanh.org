@@ -63,7 +63,10 @@ extension UpdateManager: SPUUpdaterDelegate {
             self.isChecking = false
             if self.showDialogOnFind {
                 self.showDialogOnFind = false
-                self.checkForUpdates()
+                // Delay to let background check cycle finish before showing UI
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.checkForUpdates()
+                }
             }
         }
     }
