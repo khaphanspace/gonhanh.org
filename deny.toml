@@ -1,0 +1,56 @@
+# Configuration for cargo-deny (https://github.com/EmbarkStudios/cargo-deny/)
+# Run locally: cargo deny --manifest-path core/Cargo.toml --all-features check all
+
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+version = 2
+yanked = "warn"
+ignore = [
+  #"RUSTSEC-0000-0000",
+]
+
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+version = 2
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "ISC",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CC0-1.0",
+  "Unicode-3.0",
+  "Zlib",
+  "MPL-2.0",
+  "GPL-3.0",
+]
+confidence-threshold = 0.8
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+multiple-versions = "deny"
+wildcards = "allow"
+highlight = "all"
+
+# For each duplicate dependency, indicate the name of the dependency which
+# introduces it.
+skip = [
+  #{ name = "example-crate", version = "0.1.0" },
+]
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
