@@ -708,13 +708,17 @@ class KeyboardHookManager {
     private var runLoopSource: CFRunLoopSource?
     private var mouseMonitor: Any?  // NSEvent monitor for mouse clicks
     private var isRunning = false
+    private var tapHealthTimer: Timer?
 
     private init() {}
 
     func start() {
         guard !isRunning else { return }
 
-        guard AXIsProcessTrusted() else {
+        let axTrusted = AXIsProcessTrusted()
+        Log.info("KeyboardHook: AXIsProcessTrusted=\(axTrusted)")
+
+        guard axTrusted else {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(opts)
             return
@@ -725,17 +729,26 @@ class KeyboardHookManager {
         // Listen for keyboard events only (mouse handled by NSEvent monitor)
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
                                 (1 << CGEventType.flagsChanged.rawValue)
-        let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
+
+        // Try HID-level tap first, then session-level fallback
+        var tapLocation = "cghidEventTap"
+        var tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
                                     options: .defaultTap, eventsOfInterest: mask,
                                     callback: keyboardCallback, userInfo: nil)
-            ?? CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
-                                 options: .defaultTap, eventsOfInterest: mask,
-                                 callback: keyboardCallback, userInfo: nil)
+        if tap == nil {
+            tapLocation = "cgSessionEventTap"
+            tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                     options: .defaultTap, eventsOfInterest: mask,
+                                     callback: keyboardCallback, userInfo: nil)
+        }
 
         guard let tap = tap else {
+            Log.info("KeyboardHook: FAILED to create event tap")
             showAccessibilityAlert()
             return
         }
+
+        Log.info("KeyboardHook: tap created via \(tapLocation)")
 
         eventTap = tap
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
@@ -745,6 +758,8 @@ class KeyboardHookManager {
             isRunning = true
             setupShortcutObserver()
             startMouseMonitor()
+            startTapHealthCheck()
+            Log.info("KeyboardHook: running")
         }
     }
 
@@ -759,8 +774,47 @@ class KeyboardHookManager {
         }
     }
 
-    func stop() {
+    /// Periodic health check: detect disabled event taps and auto-recover
+    private func startTapHealthCheck() {
+        tapHealthTimer?.invalidate()
+        tapHealthTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            self?.performHealthCheck()
+        }
+    }
+
+    private func performHealthCheck() {
         guard isRunning else { return }
+
+        // Check if AX permission was revoked
+        if !AXIsProcessTrusted() {
+            Log.info("KeyboardHook: AX permission revoked")
+            teardownTap()
+            showAccessibilityAlert()
+            return
+        }
+
+        // Check if tap is still valid
+        guard let tap = eventTap else {
+            Log.info("KeyboardHook: eventTap nil, restarting")
+            restartTap()
+            return
+        }
+
+        // macOS can silently disable taps — re-enable or restart
+        if !CGEvent.tapIsEnabled(tap: tap) {
+            Log.info("KeyboardHook: tap disabled, re-enabling")
+            CGEvent.tapEnable(tap: tap, enable: true)
+            if !CGEvent.tapIsEnabled(tap: tap) {
+                Log.info("KeyboardHook: re-enable failed, restarting")
+                restartTap()
+            }
+        }
+    }
+
+    /// Tear down tap resources
+    private func teardownTap() {
+        tapHealthTimer?.invalidate()
+        tapHealthTimer = nil
         if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let src = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetCurrent(), src, .commonModes) }
         if let monitor = mouseMonitor { NSEvent.removeMonitor(monitor) }
@@ -770,18 +824,36 @@ class KeyboardHookManager {
         isRunning = false
     }
 
+    /// Full restart: tear down and re-create the event tap
+    private func restartTap() {
+        Log.info("KeyboardHook: restarting")
+        teardownTap()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.start()
+        }
+    }
+
+    func stop() {
+        guard isRunning else { return }
+        teardownTap()
+    }
+
     func getTap() -> CFMachPort? { eventTap }
 
     private func showAccessibilityAlert() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
             let alert = NSAlert()
             alert.messageText = "Cần quyền Accessibility"
-            alert.informativeText = "Gõ Nhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Bật Gõ Nhanh\n3. Khởi động lại app"
+            alert.informativeText = "Gõ Nhanh cần quyền Accessibility để gõ tiếng Việt.\n\n1. Mở System Settings > Privacy & Security > Accessibility\n2. Xóa Gõ Nhanh khỏi danh sách (nếu có) rồi thêm lại\n3. Bật Gõ Nhanh\n4. Bấm \"Thử lại\" bên dưới"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Mở System Settings")
+            alert.addButton(withTitle: "Thử lại")
             alert.addButton(withTitle: "Hủy")
-            if alert.runModal() == .alertFirstButtonReturn {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            } else if response == .alertSecondButtonReturn {
+                self?.start()
             }
         }
     }
@@ -980,7 +1052,10 @@ private func keyboardCallback(
 ) -> Unmanaged<CGEvent>? {
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        if let tap = KeyboardHookManager.shared.getTap() { CGEvent.tapEnable(tap: tap, enable: true) }
+        Log.info("KeyboardHook: tap disabled by \(type == .tapDisabledByTimeout ? "timeout" : "userInput")")
+        if let tap = KeyboardHookManager.shared.getTap() {
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
         return Unmanaged.passUnretained(event)
     }
 
