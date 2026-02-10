@@ -71,11 +71,11 @@ brew install --cask gonhanh
 
 ### 📦 Tải thủ công
 
-|  Nền tảng   | Trạng thái  |                                               Tải xuống                                                | Hướng dẫn                                |
-| :---------: | :---------: | :----------------------------------------------------------------------------------------------------: | :--------------------------------------- |
-|  **macOS**  | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md)   |
-|  **Linux**  |   🧪 Beta   |                                                   —                                                    | [Xem hướng dẫn](docs/install-linux.md)   |
-| **Windows** |   🧪 Beta   |                                                   —                                                    | [Xem hướng dẫn](docs/install-windows.md) |
+|  Nền tảng   | Trạng thái  |                                        Tải xuống                                        | Hướng dẫn                                |
+| :---------: | :---------: | :-------------------------------------------------------------------------------------: | :--------------------------------------- |
+|  **macOS**  | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/tag/v1.0.120) | [Xem hướng dẫn](docs/install-macos.md)   |
+|  **Linux**  |   🧪 Beta   |                                            —                                            | [Xem hướng dẫn](docs/install-linux.md)   |
+| **Windows** |   🧪 Beta   |                                            —                                            | [Xem hướng dẫn](docs/install-windows.md) |
 
 <details>
 <summary><strong>⚠️ macOS: App không mở được?</strong></summary>
