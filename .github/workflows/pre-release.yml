@@ -119,17 +119,24 @@ jobs:
       # ============================================================
       # PACKAGE (Set version BEFORE signing)
       # ============================================================
-      - name: Get version from latest tag
+      - name: Get version from latest release tag
         id: version
         run: |
           git fetch --tags
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          # Find latest RELEASE tag (exclude pre-release tags with "-")
+          LATEST_TAG=$(git tag --sort=-v:refname | grep -v '-' | head -1)
+          LATEST_TAG="${LATEST_TAG:-v1.0.0}"
           BASE_VERSION="${LATEST_TAG#v}"
+          # Bump patch version by 1 so pre-release is HIGHER than current release
+          MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$BASE_VERSION" | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BUILD_NUM="${GITHUB_RUN_NUMBER}"
-          VERSION="${BASE_VERSION}-pre.${BUILD_NUM}.${SHORT_SHA}"
+          VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-pre.${BUILD_NUM}.${SHORT_SHA}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
+          echo "Pre-release version: $VERSION (base: $LATEST_TAG, build #${BUILD_NUM})"
 
       - name: Set version in app
         run: |
@@ -336,17 +343,24 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
 
-      - name: Get version from latest tag
+      - name: Get version from latest release tag
         id: version
         run: |
           git fetch --tags
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          # Find latest RELEASE tag (exclude pre-release tags with "-")
+          LATEST_TAG=$(git tag --sort=-v:refname | grep -v '-' | head -1)
+          LATEST_TAG="${LATEST_TAG:-v1.0.0}"
           BASE_VERSION="${LATEST_TAG#v}"
+          # Bump patch version by 1 so pre-release is HIGHER than current release
+          MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$BASE_VERSION" | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BUILD_NUM="${GITHUB_RUN_NUMBER}"
-          VERSION="${BASE_VERSION}-pre.${BUILD_NUM}.${SHORT_SHA}"
+          VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-pre.${BUILD_NUM}.${SHORT_SHA}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Pre-release version: $VERSION (build #${BUILD_NUM})"
+          echo "Pre-release version: $VERSION (base: $LATEST_TAG, build #${BUILD_NUM})"
 
       - name: Package
         run: |
