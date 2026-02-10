@@ -186,11 +186,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     @objc private func selectVNI() { appState.setMethod(.vni) }
 
     @objc private func handleUpdateAction() {
-        if UpdateManager.shared.updateAvailable {
-            UpdateManager.shared.checkForUpdates()  // Show install dialog
-        } else {
-            UpdateManager.shared.checkAndShowIfAvailable()
-        }
+        UpdateManager.shared.checkForUpdates()
     }
 
     @objc private func showAbout() {

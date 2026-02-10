@@ -12,7 +12,6 @@ class UpdateManager: NSObject, ObservableObject {
     @Published var canCheckForUpdates = false
     @Published var updateAvailable = false
     @Published var isChecking = false
-    private var showDialogOnFind = false
 
     private override init() {
         super.init()
@@ -35,21 +34,11 @@ class UpdateManager: NSObject, ObservableObject {
 
     /// Silent background check — no Sparkle popup, updates badge only
     func checkInBackground() {
-        showDialogOnFind = false
         isChecking = true
         controller.updater.checkForUpdatesInBackground()
     }
 
-    /// User-initiated check — silent, but auto-show dialog if update found
-    func checkAndShowIfAvailable() {
-        showDialogOnFind = true
-        isChecking = true
-        // Reset last check date to bypass Sparkle's 1-hour cooldown
-        UserDefaults.standard.removeObject(forKey: "SULastCheckTime")
-        controller.updater.checkForUpdatesInBackground()
-    }
-
-    /// Show Sparkle's update dialog (install + restart option)
+    /// User-initiated check — always shows Sparkle's standard UI
     func checkForUpdates() {
         controller.checkForUpdates(nil)
     }
@@ -63,13 +52,6 @@ extension UpdateManager: SPUUpdaterDelegate {
         DispatchQueue.main.async {
             self.updateAvailable = true
             self.isChecking = false
-            if self.showDialogOnFind {
-                self.showDialogOnFind = false
-                // Delay to let background check cycle finish before showing UI
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.checkForUpdates()
-                }
-            }
         }
     }
 
