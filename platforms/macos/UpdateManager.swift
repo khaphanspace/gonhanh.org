@@ -44,6 +44,8 @@ class UpdateManager: NSObject, ObservableObject {
     func checkAndShowIfAvailable() {
         showDialogOnFind = true
         isChecking = true
+        // Reset last check date to bypass Sparkle's 1-hour cooldown
+        UserDefaults.standard.removeObject(forKey: "SULastCheckTime")
         controller.updater.checkForUpdatesInBackground()
     }
 
