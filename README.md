@@ -4,20 +4,15 @@
 </h1>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/khaphanspace/gonhanh.org/total?label=Downloads" />
-  <img src="https://img.shields.io/github/last-commit/khaphanspace/gonhanh.org" />
-  <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="License: BSD-3-Clause">
-  <img src="https://github.com/khaphanspace/gonhanh.org/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://unikorn.vn/p/gonhanh?ref=unikorn" target="_blank"><img src="https://unikorn.vn/api/widgets/badge/gonhanh?theme=dark" alt="Gõ Nhanh trên Unikorn.vn" width="250" height="54" /></a>
+  <a href="https://launch.j2team.dev/products/go-nhanh" target="_blank"><img src="https://launch.j2team.dev/badge/go-nhanh/dark" alt="Gõ Nhanh on J2TEAM Launch" width="250" height="54" /></a>
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/downloads/khaphanspace/gonhanh.org/total?label=Downloads" />
+  <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="License: BSD-3-Clause">
   <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" />
   <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" />
-</p>
-
-<p align="center">
-  <a href="https://unikorn.vn/p/gonhanh?ref=unikorn" target="_blank"><img src="https://unikorn.vn/api/widgets/badge/gonhanh?theme=dark" alt="Gõ Nhanh trên Unikorn.vn" style="width: 210px; height: 54px;" width="210" height="54" /></a>
-  <a href="https://launch.j2team.dev/products/go-nhanh" target="_blank"><img src="https://launch.j2team.dev/badge/go-nhanh/dark" alt="Gõ Nhanh on J2TEAM Launch" width="250" height="54" /></a>
 </p>
 
 <p align="center">
