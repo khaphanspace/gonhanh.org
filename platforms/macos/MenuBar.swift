@@ -186,11 +186,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     @objc private func selectVNI() { appState.setMethod(.vni) }
 
     @objc private func handleUpdateAction() {
-        if UpdateManager.shared.updateAvailable {
-            UpdateManager.shared.checkForUpdates()
-        } else {
-            UpdateManager.shared.checkAndShowIfAvailable()
-        }
+        UpdateManager.shared.checkForUpdatesManually()
     }
 
     @objc private func showAbout() {
@@ -220,8 +216,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
         appState.syncShortcutsToEngine()
         PerAppModeManager.shared.start()
 
-        // Start Sparkle updater (handles auto-check on its own schedule)
-        UpdateManager.shared.start()
+        // Background update check (silent, 24h interval)
+        UpdateManager.shared.checkForUpdatesSilently()
     }
 
     // MARK: - Status Button

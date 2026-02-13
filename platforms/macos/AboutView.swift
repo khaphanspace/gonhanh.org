@@ -11,6 +11,8 @@ struct AboutView: View {
             Divider()
             linksSection
             Divider()
+            launchBadgesSection
+            Divider()
             footer
         }
         .frame(width: 360)
@@ -129,6 +131,49 @@ struct AboutView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+
+    // MARK: - Launch Badges
+    private var launchBadgesSection: some View {
+        HStack(spacing: 12) {
+            launchBadge(
+                url: "https://unikorn.vn/p/gonhanh?ref=unikorn",
+                imageURL: "https://unikorn.vn/api/widgets/badge/gonhanh?theme=\(colorScheme == .dark ? "dark" : "light")"
+            )
+            launchBadge(
+                url: "https://launch.j2team.dev/products/go-nhanh",
+                imageURL: "https://launch.j2team.dev/badge/go-nhanh/\(colorScheme == .dark ? "dark" : "light")"
+            )
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+    }
+
+    private func launchBadge(url: String, imageURL: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            AsyncImage(url: URL(string: imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                case .failure:
+                    EmptyView()
+                default:
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+            .frame(height: 36)
+        }
+        .buttonStyle(.plain)
         .onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.push()

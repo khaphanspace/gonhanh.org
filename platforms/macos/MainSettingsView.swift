@@ -725,11 +725,7 @@ struct UpdateBadgeView: View {
             if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
         .onTapGesture {
-            if updateManager.updateAvailable {
-                updateManager.checkForUpdates()
-            } else {
-                updateManager.checkAndShowIfAvailable()
-            }
+            updateManager.checkForUpdatesManually()
         }
     }
 }
@@ -1081,9 +1077,19 @@ struct AboutPageView: View {
             }
             HStack(spacing: 12) {
                 AboutLink(icon: "heart.fill", title: "Ủng hộ", url: AppMetadata.sponsorURL, iconColor: .pink)
-                AboutLink(icon: "hand.thumbsup.fill", title: "Vote", url: AppMetadata.voteURL, iconColor: .orange)
                 AboutLink(icon: "ant", title: "Báo lỗi", url: AppMetadata.issuesURL)
                 AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
+            }
+            // Launch platform badges
+            HStack(spacing: 12) {
+                LaunchBadge(
+                    url: "https://unikorn.vn/p/gonhanh?ref=unikorn",
+                    imageURL: "https://unikorn.vn/api/widgets/badge/gonhanh?theme="
+                )
+                LaunchBadge(
+                    url: "https://launch.j2team.dev/products/go-nhanh",
+                    imageURL: "https://launch.j2team.dev/badge/go-nhanh/"
+                )
             }
             Spacer()
             HStack(spacing: 4) {
@@ -1135,6 +1141,47 @@ struct AuthorLink: View {
             .buttonStyle(.plain)
             .foregroundColor(Color.accentColor)
             .onHover { hovered = $0 }
+    }
+}
+
+struct LaunchBadge: View {
+    let url: String
+    let imageURL: String
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var hovered = false
+    @State private var badgeImage: NSImage?
+
+    private var fullImageURL: String { imageURL + (colorScheme == .dark ? "dark" : "light") }
+
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            Group {
+                if let badgeImage {
+                    Image(nsImage: badgeImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .frame(width: 160, height: 40)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5))
+            .opacity(hovered ? 0.8 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .onAppear { loadImage() }
+        .onChange(of: colorScheme) { _ in loadImage() }
+    }
+
+    private func loadImage() {
+        guard let imageUrl = URL(string: fullImageURL) else { return }
+        URLSession.shared.dataTask(with: imageUrl) { data, _, _ in
+            if let data, let image = NSImage(data: data) {
+                DispatchQueue.main.async { badgeImage = image }
+            }
+        }.resume()
     }
 }
 

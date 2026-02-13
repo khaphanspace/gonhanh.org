@@ -24,7 +24,7 @@
 		B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000001 /* KeyboardShortcutTests.swift */; };
 		B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000002 /* LaunchAtLoginTests.swift */; };
 		B1000001000000000000003 /* SoundManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000003 /* SoundManagerTests.swift */; };
-		SPARKLE0001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SPARKLE0002 /* Sparkle */; };
+		UPDATECHK001 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UPDATECHK002 /* UpdateChecker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +53,7 @@
 		A100000200000000000000F /* MainSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSettingsView.swift; sourceTree = "<group>"; };
 		SPECIALPANEL002 /* SpecialPanelAppDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialPanelAppDetector.swift; sourceTree = "<group>"; };
 		A1000002000000000000010 /* InputSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceManager.swift; sourceTree = "<group>"; };
+		UPDATECHK002 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		A1000003000000000000001 /* GoNhanh.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GoNhanh.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1000002000000000000001 /* KeyboardShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutTests.swift; sourceTree = "<group>"; };
 		B1000002000000000000002 /* LaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginTests.swift; sourceTree = "<group>"; };
@@ -66,7 +67,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000001000000000000005 /* libgonhanh_core.a in Frameworks */,
-				SPARKLE0001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +91,7 @@
 				A1000002000000000000009 /* AboutView.swift */,
 				A1000002000000000000004 /* RustBridge.swift */,
 				A100000200000000000000B /* UpdateManager.swift */,
+				UPDATECHK002 /* UpdateChecker.swift */,
 				A100000200000000000000D /* LaunchAtLogin.swift */,
 				A100000200000000000000F /* MainSettingsView.swift */,
 				SPECIALPANEL002 /* SpecialPanelAppDetector.swift */,
@@ -139,7 +140,6 @@
 			);
 			name = GoNhanh;
 			packageProductDependencies = (
-				SPARKLE0002 /* Sparkle */,
 			);
 			productName = GoNhanh;
 			productReference = A1000003000000000000001 /* GoNhanh.app */;
@@ -192,7 +192,6 @@
 			);
 			mainGroup = A1000005000000000000001;
 			packageReferences = (
-				SPARKLE0003 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = A1000005000000000000002 /* Products */;
 			projectDirPath = "";
@@ -235,6 +234,7 @@
 				A1000001000000000000009 /* AboutView.swift in Sources */,
 				A1000001000000000000004 /* RustBridge.swift in Sources */,
 				A100000100000000000000B /* UpdateManager.swift in Sources */,
+				UPDATECHK001 /* UpdateChecker.swift in Sources */,
 				A100000100000000000000D /* LaunchAtLogin.swift in Sources */,
 				A100000100000000000000F /* MainSettingsView.swift in Sources */,
 				SPECIALPANEL001 /* SpecialPanelAppDetector.swift in Sources */,
@@ -529,24 +529,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		SPARKLE0003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.8.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		SPARKLE0002 /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = SPARKLE0003 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A1000010000000000000001 /* Project object */;
 }
