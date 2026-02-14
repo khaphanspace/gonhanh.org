@@ -79,19 +79,19 @@ class UpdateManager: NSObject, ObservableObject {
         }
     }
 
-    /// User manually checks (shows window)
+    /// User manually checks (only shows window if update available)
     func checkForUpdatesManually() {
         if case .readyToInstall = state {
             showUpdateWindow()
             return
         }
         state = .checking
-        showUpdateWindow()
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .available(let info):
                 self.state = .available(info)
+                self.showUpdateWindow()
             case .upToDate:
                 self.state = .upToDate
             case .error(let message):

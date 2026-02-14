@@ -44,6 +44,7 @@ help:
 	@echo "  release       Patch  $(TAG) → v$(NEXT_PATCH)"
 	@echo "  release-minor Minor  $(TAG) → v$(NEXT_MINOR)"
 	@echo "  release-major Major  $(TAG) → v$(NEXT_MAJOR)"
+	@echo "  pre-release   Trigger pre-release build on CI"
 
 # ============================================================================
 # Development
@@ -123,7 +124,7 @@ dmg: build ## Create DMG installer
 # Release (auto-versioning from git tags)
 # ============================================================================
 
-.PHONY: release release-minor release-major
+.PHONY: release release-minor release-major pre-release
 
 release: ## Patch release (1.0.9 → 1.0.10)
 	@git pull --rebase origin main --tags
@@ -151,3 +152,8 @@ release-major: ## Major release (1.0.9 → 2.0.0)
 	@git tag -a v$(NEXT_MAJOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MAJOR)
 	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
+
+pre-release: ## Trigger pre-release build on CI
+	@gh workflow run pre-release.yml -f platform=macos -R khaphanspace/gonhanh.org
+	@echo "✅ Pre-release build triggered"
+	@echo "→ https://github.com/khaphanspace/gonhanh.org/actions/workflows/pre-release.yml"
