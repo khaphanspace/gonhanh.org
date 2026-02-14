@@ -226,6 +226,10 @@ private class TextInjector {
             bs += 1  // +1 to also delete the empty char
         }
 
+        // Pre-delay: allow previous pass-through event to be processed by the app
+        // before sending backspaces (prevents race condition in webview/Electron apps)
+        if bs > 0 { usleep(delays.0) }
+
         for _ in 0..<bs {
             postKey(KeyCode.backspace, source: src)
             usleep(delays.0)
@@ -236,7 +240,7 @@ private class TextInjector {
 
         if Log.isEnabled {
             let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
+            let expected = ((bs > 0 ? Double(delays.0) : 0) + Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
             Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
         }
     }
@@ -1411,7 +1415,6 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if bundleId == "com.microsoft.Word" { return cached(.slow, (3000, 8000, 3000), "slow:word") }
 
     // Electron apps - higher delays for Monaco editor
-    if bundleId == "com.todesktop.230313mzl4w4u92" { return cached(.slow, (8000, 15000, 8000), "slow:claude") }
     if bundleId == "notion.id" { return cached(.slow, (12000, 25000, 12000), "slow:notion") }
 
     // Code editors & terminals - higher delays for Monaco/Electron-based apps
@@ -1419,7 +1422,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     let codeApps = [
         // VSCode-based IDEs
         "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
-        "com.visualstudio.code.oss", "com.vscodium",
+        "com.visualstudio.code.oss", "com.vscodium", "com.todesktop.230313mzl4w4u92",
         // Terminals
         "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
         "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
@@ -1428,7 +1431,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         // Other code editors
         "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
     ]
-    if codeApps.contains(bundleId) { return cached(.slow, (8000, 25000, 8000), "slow:code") }
+    if codeApps.contains(bundleId) { return cached(.fast, (1000, 3000, 1500), "fast:code") }
 
     // LaTeX editors (Qt-based) - need charByChar for reliable Unicode input
     if bundleId == "texstudio" { return cached(.charByChar, (3000, 8000, 3000), "char:texstudio") }
