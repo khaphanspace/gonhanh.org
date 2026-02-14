@@ -14,7 +14,6 @@
 		A1000001000000000000005 /* libgonhanh_core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1000002000000000000005 /* libgonhanh_core.a */; };
 		A1000001000000000000007 /* AppMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000007 /* AppMetadata.swift */; };
 		A1000001000000000000008 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000008 /* OnboardingView.swift */; };
-		A1000001000000000000009 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000009 /* AboutView.swift */; };
 		A100000100000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A100000200000000000000A /* Assets.xcassets */; };
 		A100000100000000000000B /* UpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000200000000000000B /* UpdateManager.swift */; };
 		A100000100000000000000D /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000200000000000000D /* LaunchAtLogin.swift */; };
@@ -46,7 +45,6 @@
 		A1000002000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000002000000000000007 /* AppMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadata.swift; sourceTree = "<group>"; };
 		A1000002000000000000008 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		A1000002000000000000009 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		A100000200000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A100000200000000000000B /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
 		A100000200000000000000D /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
@@ -88,7 +86,6 @@
 				A1000002000000000000002 /* MenuBar.swift */,
 				A1000002000000000000003 /* SettingsView.swift */,
 				A1000002000000000000008 /* OnboardingView.swift */,
-				A1000002000000000000009 /* AboutView.swift */,
 				A1000002000000000000004 /* RustBridge.swift */,
 				A100000200000000000000B /* UpdateManager.swift */,
 				UPDATECHK002 /* UpdateChecker.swift */,
@@ -231,7 +228,6 @@
 				A1000001000000000000002 /* MenuBar.swift in Sources */,
 				A1000001000000000000003 /* SettingsView.swift in Sources */,
 				A1000001000000000000008 /* OnboardingView.swift in Sources */,
-				A1000001000000000000009 /* AboutView.swift in Sources */,
 				A1000001000000000000004 /* RustBridge.swift in Sources */,
 				A100000100000000000000B /* UpdateManager.swift in Sources */,
 				UPDATECHK001 /* UpdateChecker.swift in Sources */,

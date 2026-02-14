@@ -1088,15 +1088,9 @@ struct AboutPageView: View {
                 AboutLink(icon: "chevron.left.forwardslash.chevron.right", title: "GitHub", url: AppMetadata.repository)
             }
             // Launch platform badges
-            HStack(spacing: 12) {
-                LaunchBadge(
-                    url: "https://unikorn.vn/p/gonhanh?ref=unikorn",
-                    imageURL: "https://unikorn.vn/api/widgets/badge/gonhanh?theme="
-                )
-                LaunchBadge(
-                    url: "https://launch.j2team.dev/products/go-nhanh",
-                    imageURL: "https://launch.j2team.dev/badge/go-nhanh/"
-                )
+            HStack(spacing: 8) {
+                PlatformBadge(title: "Unikorn", icon: "star.fill", url: "https://unikorn.vn/p/gonhanh?ref=unikorn")
+                PlatformBadge(title: "J2TEAM", icon: "bolt.fill", url: "https://launch.j2team.dev/products/go-nhanh")
             }
             Spacer()
             HStack(spacing: 4) {
@@ -1151,44 +1145,35 @@ struct AuthorLink: View {
     }
 }
 
-struct LaunchBadge: View {
+struct PlatformBadge: View {
+    let title: String
+    let icon: String
     let url: String
-    let imageURL: String
     @Environment(\.colorScheme) private var colorScheme
     @State private var hovered = false
-    @State private var badgeImage: NSImage?
-
-    private var fullImageURL: String { imageURL + (colorScheme == .dark ? "dark" : "light") }
 
     var body: some View {
         Link(destination: URL(string: url)!) {
-            Group {
-                if let badgeImage {
-                    Image(nsImage: badgeImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    ProgressView().controlSize(.small)
-                }
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                Image(systemName: "arrowtriangle.up.fill")
+                    .font(.system(size: 6))
+                    .foregroundStyle(.tertiary)
             }
-            .frame(width: 160, height: 40)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5))
-            .opacity(hovered ? 0.8 : 1.0)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+            )
+            .opacity(hovered ? 0.7 : 1.0)
         }
         .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
         .onHover { hovered = $0 }
-        .onAppear { loadImage() }
-        .onChange(of: colorScheme) { _ in loadImage() }
-    }
-
-    private func loadImage() {
-        guard let imageUrl = URL(string: fullImageURL) else { return }
-        URLSession.shared.dataTask(with: imageUrl) { data, _, _ in
-            if let data, let image = NSImage(data: data) {
-                DispatchQueue.main.async { badgeImage = image }
-            }
-        }.resume()
     }
 }
 
