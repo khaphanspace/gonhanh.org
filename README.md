@@ -4,8 +4,8 @@
 </h1>
 
 <p align="center">
-  <a href="https://unikorn.vn/p/gonhanh?ref=unikorn" target="_blank"><img src="https://unikorn.vn/api/widgets/badge/gonhanh?theme=dark" alt="Gõ Nhanh trên Unikorn.vn" width="250" height="54" /></a>
-  <a href="https://launch.j2team.dev/products/go-nhanh" target="_blank"><img src="https://launch.j2team.dev/badge/go-nhanh/dark" alt="Gõ Nhanh on J2TEAM Launch" width="250" height="54" /></a>
+  <a href="https://unikorn.vn/p/gonhanh?ref=gonhanh" target="_blank"><img src="https://unikorn.vn/api/widgets/badge/gonhanh?theme=dark" alt="Gõ Nhanh trên Unikorn.vn" width="250" height="54" /></a>
+  <a href="https://launch.j2team.dev/products/go-nhanh?ref=gonhanh" target="_blank"><img src="https://launch.j2team.dev/badge/go-nhanh/dark" alt="Gõ Nhanh on J2TEAM Launch" width="250" height="54" /></a>
 </p>
 
 <p align="center">

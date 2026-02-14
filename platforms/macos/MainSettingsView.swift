@@ -1089,8 +1089,8 @@ struct AboutPageView: View {
             }
             // Launch platform badges
             HStack(spacing: 8) {
-                PlatformBadge(title: "Unikorn", icon: "star.fill", url: "https://unikorn.vn/p/gonhanh?ref=unikorn")
-                PlatformBadge(title: "J2TEAM", icon: "bolt.fill", url: "https://launch.j2team.dev/products/go-nhanh")
+                PlatformBadge(title: "Unikorn", icon: "star.fill", url: "https://unikorn.vn/p/gonhanh?ref=gonhanh")
+                PlatformBadge(title: "J2TEAM", icon: "bolt.fill", url: "https://launch.j2team.dev/products/go-nhanh?ref=gonhanh")
             }
             Spacer()
             HStack(spacing: 4) {

@@ -39,7 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.bracketShortcut: false,
             SettingsKey.restoreShortcutEnabled: false,
             SettingsKey.modernTone: true,
-            SettingsKey.englishAutoRestore: false,
+            SettingsKey.englishAutoRestore: true,
             SettingsKey.autoCapitalize: false,
             SettingsKey.soundEnabled: false,
             SettingsKey.allowForeignConsonants: false,
