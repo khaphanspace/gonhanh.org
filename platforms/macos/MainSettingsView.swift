@@ -707,9 +707,12 @@ struct UpdateBadgeView: View {
                     .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { rotation = 360 } }
                     .onDisappear { rotation = 0 }
                 Text("Kiểm tra")
+            } else if updateManager.isReadyToInstall {
+                Image(systemName: "arrow.uturn.forward.circle.fill").font(.system(size: 12)).foregroundColor(.orange)
+                Text("Khởi động lại")
             } else if updateManager.updateAvailable {
-                Image(systemName: "arrow.up.circle.fill").font(.system(size: 12)).foregroundColor(.orange)
-                Text("Cập nhật")
+                Image(systemName: "arrow.down.circle.fill").font(.system(size: 12)).foregroundColor(.blue)
+                Text("Đang tải...")
             } else {
                 Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundColor(.green)
                 Text("Mới nhất")
@@ -725,7 +728,11 @@ struct UpdateBadgeView: View {
             if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
         .onTapGesture {
-            updateManager.checkForUpdatesManually()
+            if updateManager.isReadyToInstall {
+                updateManager.restartToUpdate()
+            } else {
+                updateManager.checkForUpdatesManually()
+            }
         }
     }
 }

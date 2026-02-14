@@ -12,6 +12,8 @@ extension Notification.Name {
 
 class MenuBarController: NSObject, NSWindowDelegate {
     private var statusItem: NSStatusItem!
+    private var updateMenuItem: NSMenuItem!
+    private var stateObserver: NSObjectProtocol?
 
     private var onboardingWindow: NSWindow?
     private var settingsWindow: NSWindow?
@@ -120,9 +122,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
         menu.addItem(about)
 
         // Update
-        let updateItem = NSMenuItem(title: "Kiểm tra cập nhật...", action: #selector(handleUpdateAction), keyEquivalent: "")
-        updateItem.target = self
-        menu.addItem(updateItem)
+        updateMenuItem = NSMenuItem(title: "Kiểm tra cập nhật...", action: #selector(handleUpdateAction), keyEquivalent: "")
+        updateMenuItem.target = self
+        menu.addItem(updateMenuItem)
         menu.addItem(.separator())
 
         // Quit
@@ -186,7 +188,26 @@ class MenuBarController: NSObject, NSWindowDelegate {
     @objc private func selectVNI() { appState.setMethod(.vni) }
 
     @objc private func handleUpdateAction() {
-        UpdateManager.shared.checkForUpdatesManually()
+        if UpdateManager.shared.isReadyToInstall {
+            UpdateManager.shared.restartToUpdate()
+        } else {
+            UpdateManager.shared.checkForUpdatesManually()
+        }
+    }
+
+    private func syncUpdateMenuItem() {
+        let mgr = UpdateManager.shared
+        let title: String
+        if mgr.isReadyToInstall {
+            title = "⟳ Khởi động lại để cập nhật (\(mgr.pendingVersion))"
+        } else if mgr.isChecking {
+            title = "Đang kiểm tra cập nhật..."
+        } else {
+            title = "Kiểm tra cập nhật..."
+        }
+        updateMenuItem.title = title
+        // Also sync the main menu bar item (tag 999)
+        NSApp.mainMenu?.item(at: 0)?.submenu?.item(withTag: 999)?.title = title
     }
 
     @objc private func showAbout() {
@@ -216,8 +237,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         appState.syncShortcutsToEngine()
         PerAppModeManager.shared.start()
 
-        // Background update check (silent, 24h interval)
-        UpdateManager.shared.checkForUpdatesSilently()
+        // Background auto-update (check every 1h, download silently)
+        UpdateManager.shared.startBackgroundUpdates()
+
+        // Observe update state to sync menu item
+        stateObserver = NotificationCenter.default.addObserver(
+            forName: .updateStateChanged, object: nil, queue: .main
+        ) { [weak self] _ in self?.syncUpdateMenuItem() }
     }
 
     // MARK: - Status Button
@@ -381,13 +407,14 @@ class MenuBarController: NSObject, NSWindowDelegate {
         appMenu.addItem(NSMenuItem.separator())
 
         // Check for updates
-        let updateItem = NSMenuItem(
-            title: "Kiểm tra cập nhật...",
+        let mainUpdateItem = NSMenuItem(
+            title: updateMenuItem.title,
             action: #selector(handleUpdateAction),
             keyEquivalent: ""
         )
-        updateItem.target = self
-        appMenu.addItem(updateItem)
+        mainUpdateItem.tag = 999
+        mainUpdateItem.target = self
+        appMenu.addItem(mainUpdateItem)
 
         appMenu.addItem(NSMenuItem.separator())
 

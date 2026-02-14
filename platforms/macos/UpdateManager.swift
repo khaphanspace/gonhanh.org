@@ -2,6 +2,10 @@ import Foundation
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    static let updateStateChanged = Notification.Name("gonhanh.updateStateChanged")
+}
+
 // MARK: - Update State
 
 enum UpdateState {
@@ -19,20 +23,31 @@ enum UpdateState {
 class UpdateManager: NSObject, ObservableObject {
     static let shared = UpdateManager()
 
-    @Published var state: UpdateState = .idle
-    @Published var lastCheckDate: Date?
+    @Published var state: UpdateState = .idle {
+        didSet { NotificationCenter.default.post(name: .updateStateChanged, object: nil) }
+    }
 
     private var downloadTask: URLSessionDownloadTask?
     private var updateWindow: NSWindow?
+    private var backgroundTimer: Timer?
 
-    private let autoCheckInterval: TimeInterval = 24 * 60 * 60
-    private let autoCheckKey = "gonhanh.update.lastCheck"
-    private let skipVersionKey = "gonhanh.update.skipVersion"
+    private let checkInterval: TimeInterval = 60 * 60 // 1 hour
+    private let dmgKey = "gonhanh.update.dmgPath"
+    private let versionKey = "gonhanh.update.pendingVersion"
 
     private override init() {
         super.init()
-        lastCheckDate = UserDefaults.standard.object(forKey: autoCheckKey) as? Date
+        // Restore pending update from previous session
+        if let path = UserDefaults.standard.string(forKey: dmgKey),
+           FileManager.default.fileExists(atPath: path) {
+            let version = UserDefaults.standard.string(forKey: versionKey) ?? "?"
+            state = .readyToInstall(dmgPath: URL(fileURLWithPath: path))
+            pendingVersion = version
+        }
     }
+
+    /// Version string of the pending update
+    var pendingVersion: String = ""
 
     // MARK: - Computed Properties
 
@@ -43,23 +58,49 @@ class UpdateManager: NSObject, ObservableObject {
 
     var updateAvailable: Bool {
         if case .available = state { return true }
+        if case .readyToInstall = state { return true }
+        return false
+    }
+
+    var isReadyToInstall: Bool {
+        if case .readyToInstall = state { return true }
         return false
     }
 
     // MARK: - Public API
 
-    func checkForUpdatesManually() {
-        checkForUpdates(silent: false)
+    /// Start background auto-update loop (call once at app launch)
+    func startBackgroundUpdates() {
+        // Check immediately on launch
+        checkAndDownloadSilently()
+        // Then every hour
+        backgroundTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+            self?.checkAndDownloadSilently()
+        }
     }
 
-    func checkForUpdatesSilently() {
-        if let lastCheck = lastCheckDate,
-           Date().timeIntervalSince(lastCheck) < autoCheckInterval {
+    /// User manually checks (shows window)
+    func checkForUpdatesManually() {
+        if case .readyToInstall = state {
+            showUpdateWindow()
             return
         }
-        checkForUpdates(silent: true)
+        state = .checking
+        showUpdateWindow()
+        UpdateChecker.shared.checkForUpdates { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .available(let info):
+                self.state = .available(info)
+            case .upToDate:
+                self.state = .upToDate
+            case .error(let message):
+                self.state = .error(message)
+            }
+        }
     }
 
+    /// Download update (from popup CTA)
     func downloadUpdate(_ info: UpdateInfo) {
         state = .downloading(progress: 0)
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
@@ -67,31 +108,57 @@ class UpdateManager: NSObject, ObservableObject {
         downloadTask?.resume()
     }
 
-    func installUpdate() {
+    /// Mount DMG, copy .app to /Applications, relaunch
+    func restartToUpdate() {
         guard case .readyToInstall(let dmgPath) = state else { return }
-        NSWorkspace.shared.open(dmgPath)
-        // Brief delay for DMG to mount, then quit
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            NSApp.terminate(nil)
-        }
-    }
 
-    func skipVersion(_ version: String) {
-        UserDefaults.standard.set(version, forKey: skipVersionKey)
-        state = .idle
-        dismissWindow()
-    }
+        let appName = "GoNhanh"
+        let appBundlePath = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
 
-    func cancelDownload() {
-        downloadTask?.cancel()
-        downloadTask = nil
-        state = .idle
+        // Shell script: mount DMG silently → copy app → unmount → relaunch
+        let script = """
+        #!/bin/bash
+        DMG="\(dmgPath.path)"
+        MOUNT=$(hdiutil attach "$DMG" -nobrowse -noverify -noautoopen 2>/dev/null | grep '/Volumes/' | awk -F'\t' '{print $NF}')
+        if [ -z "$MOUNT" ]; then exit 1; fi
+        APP="$MOUNT/\(appName).app"
+        if [ ! -d "$APP" ]; then hdiutil detach "$MOUNT" -quiet; exit 1; fi
+        # Wait for app to quit
+        while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
+        # Copy new app
+        DEST="\(appBundlePath)"
+        rm -rf "$DEST"
+        cp -R "$APP" "$DEST"
+        # Unmount & cleanup
+        hdiutil detach "$MOUNT" -quiet
+        rm -f "$DMG"
+        # Relaunch
+        open "$DEST"
+        """
+
+        let tmpScript = FileManager.default.temporaryDirectory.appendingPathComponent("gonhanh-update.sh")
+        try? script.write(to: tmpScript, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tmpScript.path)
+
+        // Clear pending update state
+        UserDefaults.standard.removeObject(forKey: dmgKey)
+        UserDefaults.standard.removeObject(forKey: versionKey)
+
+        // Launch script in background and quit
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [tmpScript.path]
+        try? process.run()
+
+        NSApp.terminate(nil)
     }
 
     func dismiss() {
-        if case .available = state { state = .idle }
-        if case .upToDate = state { state = .idle }
-        if case .error = state { state = .idle }
+        switch state {
+        case .available, .upToDate, .error: state = .idle
+        default: break
+        }
         dismissWindow()
     }
 
@@ -125,42 +192,38 @@ class UpdateManager: NSObject, ObservableObject {
         updateWindow?.close()
     }
 
-    // MARK: - Private Methods
+    // MARK: - Background Silent Check + Download
 
-    private func checkForUpdates(silent: Bool) {
-        if !silent {
-            state = .checking
-            showUpdateWindow()
-        }
+    private func checkAndDownloadSilently() {
+        // Skip if already downloaded
+        if case .readyToInstall = state { return }
+        // Skip if currently downloading
+        if case .downloading = state { return }
 
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self = self else { return }
-
-            self.lastCheckDate = Date()
-            UserDefaults.standard.set(self.lastCheckDate, forKey: self.autoCheckKey)
-
             switch result {
             case .available(let info):
-                let skippedVersion = UserDefaults.standard.string(forKey: self.skipVersionKey)
-                if silent && skippedVersion == info.version {
-                    self.state = .idle
-                    return
-                }
-                self.state = .available(info)
-                if !silent {
-                    // Window already shown from checking state
-                } else {
-                    // Silent check found update — just update badge, don't show popup
-                }
-
-            case .upToDate:
-                self.state = silent ? .idle : .upToDate
-
-            case .error(let message):
-                self.state = .error(message)
-                if silent { self.state = .idle }
+                // Auto-download in background
+                self.pendingVersion = info.version
+                self.downloadSilently(info)
+            case .upToDate, .error:
+                break
             }
         }
+    }
+
+    private func downloadSilently(_ info: UpdateInfo) {
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+        downloadTask = session.downloadTask(with: info.downloadURL)
+        downloadTask?.resume()
+        // Don't update state to .downloading — keep it silent
+    }
+
+    fileprivate func finishDownload(to destinationURL: URL) {
+        UserDefaults.standard.set(destinationURL.path, forKey: dmgKey)
+        UserDefaults.standard.set(pendingVersion, forKey: versionKey)
+        state = .readyToInstall(dmgPath: destinationURL)
     }
 }
 
@@ -168,25 +231,32 @@ class UpdateManager: NSObject, ObservableObject {
 
 extension UpdateManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let destinationURL = downloadsURL.appendingPathComponent("GoNhanh.dmg")
+        let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let destinationURL = cachesURL.appendingPathComponent("GoNhanh-update.dmg")
 
         do {
             try? FileManager.default.removeItem(at: destinationURL)
             try FileManager.default.moveItem(at: location, to: destinationURL)
-            state = .readyToInstall(dmgPath: destinationURL)
+            finishDownload(to: destinationURL)
         } catch {
-            state = .error("Không thể lưu bản cập nhật")
+            if case .downloading = state {
+                state = .error("Không thể lưu bản cập nhật")
+            }
         }
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        state = .downloading(progress: Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        // Only show progress if user triggered download manually
+        if case .downloading = state {
+            state = .downloading(progress: Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
-            state = (error as NSError).code == NSURLErrorCancelled ? .idle : .error("Tải về thất bại")
+        if let error = error, (error as NSError).code != NSURLErrorCancelled {
+            if case .downloading = state {
+                state = .error("Tải về thất bại")
+            }
         }
     }
 }
@@ -195,7 +265,6 @@ extension UpdateManager: URLSessionDownloadDelegate {
 
 struct UpdatePopupView: View {
     @ObservedObject private var manager = UpdateManager.shared
-    @Environment(\.colorScheme) private var colorScheme
 
     private var popupWidth: CGFloat {
         if case .available = manager.state { return 480 }
@@ -290,8 +359,8 @@ struct UpdatePopupView: View {
                     .foregroundColor(.secondary)
             }
 
-            Button(action: { manager.cancelDownload(); manager.dismiss() }) {
-                Text("Huỷ")
+            Button(action: { manager.dismiss() }) {
+                Text("Ẩn")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -304,34 +373,28 @@ struct UpdatePopupView: View {
 
     private var readyContent: some View {
         VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.green)
+            Image(systemName: "arrow.uturn.forward.circle.fill")
+                .font(.system(size: 36))
+                .foregroundColor(.orange)
 
-            Text("Sẵn sàng cài đặt")
-                .font(.system(size: 17, weight: .semibold))
+            Text("Bản cập nhật đã sẵn sàng")
+                .font(.system(size: 15, weight: .semibold))
 
-            Text("Ứng dụng sẽ thoát để hoàn tất cài đặt.\nKéo GoNhanh vào thư mục Applications khi DMG mở.")
+            Text("Phiên bản \(manager.pendingVersion) đã được tải về.\nKhởi động lại để áp dụng bản cập nhật.")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
 
-            Button(action: { manager.installUpdate() }) {
-                Text("Cài đặt và thoát")
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+            HStack(spacing: 10) {
+                Spacer()
+                Button("Để sau") { manager.dismiss() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                Button("Khởi động lại") { manager.restartToUpdate() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-
-            Button(action: { manager.dismiss() }) {
-                Text("Để sau")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
         }
         .padding(28)
     }
