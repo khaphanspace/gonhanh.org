@@ -9,14 +9,21 @@ pub struct Version {
     pub major: u32,
     pub minor: u32,
     pub patch: u32,
+    pub pre: Option<String>,
 }
 
 impl Version {
-    /// Parse a version string like "1.2.3" or "v1.2.3"
+    /// Parse a version string like "1.2.3", "v1.2.3", or "1.2.3-pre.100"
     pub fn parse(s: &str) -> Option<Version> {
         let s = s.trim().strip_prefix('v').unwrap_or(s);
-        let parts: Vec<&str> = s.split('.').collect();
 
+        // Split off pre-release suffix: "1.0.121-pre.368" → ("1.0.121", "pre.368")
+        let (version_part, pre) = match s.find('-') {
+            Some(idx) => (&s[..idx], Some(s[idx + 1..].to_string())),
+            None => (s, None),
+        };
+
+        let parts: Vec<&str> = version_part.split('.').collect();
         if parts.len() < 2 {
             return None;
         }
@@ -29,11 +36,13 @@ impl Version {
             major,
             minor,
             patch,
+            pre,
         })
     }
 
-    /// Compare two versions
+    /// Compare two versions (semver rules)
     /// Returns: -1 if self < other, 0 if equal, 1 if self > other
+    /// Pre-release has lower precedence: 1.0.1-pre.1 < 1.0.1
     pub fn compare(&self, other: &Version) -> i32 {
         if self.major != other.major {
             return if self.major < other.major { -1 } else { 1 };
@@ -44,7 +53,13 @@ impl Version {
         if self.patch != other.patch {
             return if self.patch < other.patch { -1 } else { 1 };
         }
-        0
+        // Semver: pre-release < release when major.minor.patch equal
+        match (&self.pre, &other.pre) {
+            (None, None) => 0,
+            (Some(_), None) => -1, // self is pre-release, other is stable → self < other
+            (None, Some(_)) => 1,  // self is stable, other is pre-release → self > other
+            (Some(a), Some(b)) => a.cmp(b) as i32, // both pre-release: lexicographic
+        }
     }
 
     /// Check if update is available (other > self)
@@ -55,7 +70,11 @@ impl Version {
 
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
+        if let Some(pre) = &self.pre {
+            write!(f, "-{}", pre)?;
+        }
+        Ok(())
     }
 }
 
@@ -129,31 +148,28 @@ mod tests {
 
     #[test]
     fn test_version_parse() {
-        assert_eq!(
-            Version::parse("1.2.3"),
-            Some(Version {
-                major: 1,
-                minor: 2,
-                patch: 3
-            })
-        );
-        assert_eq!(
-            Version::parse("v1.2.3"),
-            Some(Version {
-                major: 1,
-                minor: 2,
-                patch: 3
-            })
-        );
-        assert_eq!(
-            Version::parse("1.0"),
-            Some(Version {
-                major: 1,
-                minor: 0,
-                patch: 0
-            })
-        );
+        let v = Version::parse("1.2.3").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (1, 2, 3));
+        assert_eq!(v.pre, None);
+
+        let v = Version::parse("v1.2.3").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (1, 2, 3));
+
+        let v = Version::parse("1.0").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (1, 0, 0));
+
         assert_eq!(Version::parse("invalid"), None);
+    }
+
+    #[test]
+    fn test_version_parse_prerelease() {
+        let v = Version::parse("1.0.121-pre.368").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (1, 0, 121));
+        assert_eq!(v.pre, Some("pre.368".to_string()));
+
+        let v = Version::parse("v2.1.0-beta.1").unwrap();
+        assert_eq!((v.major, v.minor, v.patch), (2, 1, 0));
+        assert_eq!(v.pre, Some("beta.1".to_string()));
     }
 
     #[test]
@@ -168,6 +184,24 @@ mod tests {
         assert_eq!(v2.compare(&v1), 1);
         assert_eq!(v1.compare(&v3), -1);
         assert_eq!(v1.compare(&v4), -1);
+    }
+
+    #[test]
+    fn test_version_compare_prerelease() {
+        // pre-release < stable when same major.minor.patch
+        let pre = Version::parse("1.0.121-pre.368").unwrap();
+        let stable = Version::parse("1.0.121").unwrap();
+        assert_eq!(pre.compare(&stable), -1); // pre < stable
+
+        // pre-release > lower stable version
+        let pre = Version::parse("1.0.121-pre.368").unwrap();
+        let older = Version::parse("1.0.120").unwrap();
+        assert_eq!(pre.compare(&older), 1); // 121-pre > 120
+
+        // THE BUG SCENARIO: should NOT suggest downgrade
+        let current = Version::parse("1.0.121-pre.368").unwrap();
+        let latest = Version::parse("1.0.120").unwrap();
+        assert!(!current.has_update(&latest)); // no update, current is higher
     }
 
     #[test]
@@ -201,5 +235,19 @@ mod tests {
 
         assert_eq!(version_has_update(current.as_ptr(), latest.as_ptr()), 1);
         assert_eq!(version_has_update(latest.as_ptr(), current.as_ptr()), 0);
+    }
+
+    #[test]
+    fn test_ffi_prerelease_no_downgrade() {
+        use std::ffi::CString;
+
+        // 1.0.121-pre.368 should NOT downgrade to 1.0.120
+        let current = CString::new("1.0.121-pre.368").unwrap();
+        let latest = CString::new("1.0.120").unwrap();
+        assert_eq!(version_has_update(current.as_ptr(), latest.as_ptr()), 0);
+
+        // 1.0.121-pre.368 SHOULD update to 1.0.121 (stable release)
+        let stable = CString::new("1.0.121").unwrap();
+        assert_eq!(version_has_update(current.as_ptr(), stable.as_ptr()), 1);
     }
 }

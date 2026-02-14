@@ -89,15 +89,17 @@ class UpdateChecker {
             }
 
             let currentVersion = AppMetadata.version
+            let includePrerelease = currentVersion.contains("pre")
 
-            // Find the highest version release (not draft/prerelease)
+            // Find the highest version release
+            // Pre-release builds check pre-releases too; stable builds only check stable
             var bestRelease: [String: Any]?
             var bestVersion = ""
 
             for release in releases {
                 guard let tagName = release["tag_name"] as? String,
-                      release["draft"] as? Bool != true,
-                      release["prerelease"] as? Bool != true else { continue }
+                      release["draft"] as? Bool != true else { continue }
+                if !includePrerelease && release["prerelease"] as? Bool == true { continue }
 
                 let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
 

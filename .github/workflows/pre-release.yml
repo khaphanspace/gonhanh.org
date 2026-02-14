@@ -28,10 +28,9 @@ permissions:
   pull-requests: read
 
 env:
-  # Apple Developer Configuration (only used if sign=true or for release builds)
+  # Apple Developer Configuration (only used if sign=true)
   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
   APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-  SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
 
 jobs:
   build-macos:
@@ -135,7 +134,7 @@ jobs:
           BUILD_NUM="${GITHUB_RUN_NUMBER}"
           # Display version (human-readable, shown in UI)
           DISPLAY_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-pre.${BUILD_NUM}"
-          # Bundle version (pure numeric for Sparkle comparison)
+          # Bundle version (pure numeric for comparison)
           BUNDLE_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.${BUILD_NUM}"
           echo "version=$DISPLAY_VERSION" >> $GITHUB_OUTPUT
           echo "bundle_version=$BUNDLE_VERSION" >> $GITHUB_OUTPUT
@@ -197,109 +196,20 @@ jobs:
           path: platforms/macos/build/*.dmg
           retention-days: 14
 
-      # ============================================================
-      # SPARKLE APPCAST (Beta)
-      # ============================================================
-      - name: Generate Sparkle Appcast
-        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: |
-          cd platforms/macos
-          V="${{ steps.version.outputs.version }}"
-          BV="${{ steps.version.outputs.bundle_version }}"
-          DMG_FILE=$(ls build/*.dmg | head -1)
-          DMG_NAME=$(basename "$DMG_FILE")
-          DMG_SIZE=$(stat -f%z "$DMG_FILE")
-          TAG_NAME="v${V}"
-          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/${DMG_NAME}"
-
-          # Download Sparkle tools
-          mkdir -p /tmp/sparkle
-          if [ ! -f /tmp/sparkle/bin/sign_update ]; then
-            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" -o /tmp/sparkle.tar.xz
-            tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || \
-              bsdtar xf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || true
-            rm -f /tmp/sparkle.tar.xz
-          fi
-
-          # Generate EdDSA signature
-          ED_SIGNATURE=""
-          if [ -f /tmp/sparkle/bin/sign_update ]; then
-            KEY_FILE=$(mktemp)
-            echo -n "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
-            SIGNATURE=$(/tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file "$KEY_FILE" 2>&1 || echo "")
-            rm -f "$KEY_FILE"
-            echo "sign_update output: $SIGNATURE"
-            ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
-          else
-            echo "WARNING: sign_update not found, skipping EdDSA signature"
-            ls -R /tmp/sparkle/ 2>/dev/null | head -30
-          fi
-
-          # Generate release notes from recent commits
-          NOTES=$(git log --oneline -10 --pretty=format:"- %s" 2>/dev/null)
-          # Generate release notes HTML file for Sparkle
-          NOTES_HTML=$(echo "$NOTES" | sed \
-            -e 's/&/\&amp;/g' \
-            -e 's/^## \(.*\)/<h2>\1<\/h2>/' \
-            -e 's/^### \(.*\)/<h3>\1<\/h3>/' \
-            -e 's/^\*\*\(.*\)\*\*/<p><strong>\1<\/strong><\/p>/' \
-            -e 's/^- \(.*\)/<li>\1<\/li>/' \
-            -e '/^$/d')
-          cat > build/release-notes.html << NOTES_EOF
-          <html><body style="font-family:-apple-system,system-ui,sans-serif;font-size:13px;padding:8px">
-          <h3>Recent Changes (Pre-release)</h3>
-          ${NOTES_HTML}
-          </body></html>
-          NOTES_EOF
-          sed -i '' 's/^          //' build/release-notes.html
-
-          # Generate appcast.xml (same structure as release for full update flow testing)
-          REPO="${{ github.repository }}"
-          PUB_DATE=$(date -R)
-          NOTES_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}/release-notes.html"
-          cat > build/appcast.xml << APPCAST_EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-            <channel>
-              <title>GoNhanh</title>
-              <link>https://github.com/${REPO}</link>
-              <item>
-                <title>Version ${V}</title>
-                <sparkle:releaseNotesLink>${NOTES_URL}</sparkle:releaseNotesLink>
-                <sparkle:version>${BV}</sparkle:version>
-                <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
-                <pubDate>${PUB_DATE}</pubDate>
-                <enclosure url="${DMG_URL}" sparkle:edSignature="${ED_SIGNATURE}" length="${DMG_SIZE}" type="application/octet-stream"/>
-              </item>
-            </channel>
-          </rss>
-          APPCAST_EOF
-          sed -i '' 's/^          //' build/appcast.xml
-
-          echo "Generated appcast.xml for v${V}"
-          cat build/appcast.xml
-
       - name: Create GitHub Pre-release
-        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           cd platforms/macos
           V="${{ steps.version.outputs.version }}"
           TAG_NAME="v${V}"
           DMG_FILE=$(ls build/*.dmg | head -1)
 
-          # Create release (marked latest so SUFeedURL /releases/latest/download/ works)
           gh release create "$TAG_NAME" \
             --title "GoNhanh $V (Pre-release)" \
-            --notes "Pre-release build for testing Sparkle updates." \
-            --latest \
-            "$DMG_FILE" \
-            build/appcast.xml \
-            build/release-notes.html
+            --notes "Pre-release build from CI." \
+            --prerelease \
+            "$DMG_FILE"
 
           echo "Created pre-release: $TAG_NAME"
 

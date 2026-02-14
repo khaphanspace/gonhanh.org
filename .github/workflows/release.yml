@@ -233,98 +233,6 @@ jobs:
           APP="build/Build/Products/Release/GoNhanh.app"
           ../../scripts/release/dmg.sh "$APP"
 
-      # ============================================================
-      # SPARKLE APPCAST
-      # ============================================================
-      - name: Generate Sparkle Appcast
-        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: |
-          cd platforms/macos
-          V="${GITHUB_REF_NAME#v}"
-          DMG_FILE=$(ls build/*.dmg | head -1)
-          DMG_NAME=$(basename "$DMG_FILE")
-          DMG_SIZE=$(stat -f%z "$DMG_FILE")
-          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${DMG_NAME}"
-
-          # Generate EdDSA signature using Sparkle's sign_update
-          mkdir -p /tmp/sparkle
-          if [ ! -f /tmp/sparkle/bin/sign_update ]; then
-            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz" -o /tmp/sparkle.tar.xz
-            # macOS may not have xz; try tar xJ first, fallback to bsdtar
-            tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || \
-              bsdtar xf /tmp/sparkle.tar.xz -C /tmp/sparkle 2>/dev/null || true
-            rm -f /tmp/sparkle.tar.xz
-            # Sparkle 2.x puts tools in bin/ at root of archive
-            ls -la /tmp/sparkle/bin/ 2>/dev/null || echo "WARNING: Sparkle bin/ not found"
-          fi
-
-          ED_SIGNATURE=""
-          if [ -f /tmp/sparkle/bin/sign_update ]; then
-            KEY_FILE=$(mktemp)
-            echo -n "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
-            SIGNATURE=$(/tmp/sparkle/bin/sign_update "$DMG_FILE" --ed-key-file "$KEY_FILE" 2>&1 || echo "")
-            rm -f "$KEY_FILE"
-            echo "sign_update output: $SIGNATURE"
-            ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
-          else
-            echo "WARNING: sign_update not found, skipping EdDSA signature"
-            # Fallback: list what was extracted
-            find /tmp/sparkle -type f -name "sign_update" 2>/dev/null || echo "sign_update binary not found anywhere"
-            ls -R /tmp/sparkle/ 2>/dev/null | head -30
-          fi
-
-          # Get release notes from git tag message (available since workflow triggers on tag push)
-          git fetch origin tag "${GITHUB_REF_NAME}" --force 2>/dev/null || true
-          NOTES=$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}" 2>/dev/null || echo "")
-          if [ -z "$NOTES" ]; then
-            NOTES=$(git log --oneline -10 --pretty=format:"• %s" 2>/dev/null)
-          fi
-          # Generate release notes HTML file for Sparkle
-          NOTES_HTML=$(echo "$NOTES" | sed \
-            -e 's/&/\&amp;/g' \
-            -e 's/^## \(.*\)/<h2>\1<\/h2>/' \
-            -e 's/^### \(.*\)/<h3>\1<\/h3>/' \
-            -e 's/^\*\*\(.*\)\*\*/<p><strong>\1<\/strong><\/p>/' \
-            -e 's/^- \(.*\)/<li>\1<\/li>/' \
-            -e '/^$/d')
-          cat > build/release-notes.html << NOTES_EOF
-          <html><body style="font-family:-apple-system,system-ui,sans-serif;font-size:13px;padding:8px">
-          ${NOTES_HTML}
-          </body></html>
-          NOTES_EOF
-          sed -i '' 's/^          //' build/release-notes.html
-
-          REPO="${{ github.repository }}"
-          TAG_NAME="${{ github.ref_name }}"
-          NOTES_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}/release-notes.html"
-
-          # Generate appcast.xml
-          cat > build/appcast.xml << APPCAST_EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-            <channel>
-              <title>GoNhanh</title>
-              <link>https://github.com/${REPO}</link>
-              <item>
-                <title>Version ${V}</title>
-                <sparkle:releaseNotesLink>${NOTES_URL}</sparkle:releaseNotesLink>
-                <sparkle:version>${V}</sparkle:version>
-                <sparkle:shortVersionString>${V}</sparkle:shortVersionString>
-                <pubDate>$(date -R)</pubDate>
-                <enclosure url="${DMG_URL}" sparkle:edSignature="${ED_SIGNATURE}" length="${DMG_SIZE}" type="application/octet-stream"/>
-              </item>
-            </channel>
-          </rss>
-          APPCAST_EOF
-
-          # Remove leading whitespace from heredoc
-          sed -i '' 's/^          //' build/appcast.xml
-
-          echo "Generated appcast.xml for v${V}"
-          cat build/appcast.xml
-
       - name: Get Tag Message
         id: tag_message
         run: |
@@ -377,8 +285,6 @@ jobs:
         with:
           files: |
             platforms/macos/build/*.dmg
-            platforms/macos/build/appcast.xml
-            platforms/macos/build/release-notes.html
           body_path: ${{ steps.tag_message.outputs.message != '' && 'release_body.md' || '' }}
           generate_release_notes: ${{ steps.tag_message.outputs.message == '' }}
 
