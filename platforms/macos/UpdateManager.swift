@@ -82,7 +82,7 @@ class UpdateManager: NSObject, ObservableObject {
     /// User manually checks (only shows window if update available)
     func checkForUpdatesManually() {
         if case .readyToInstall = state {
-            showUpdateWindow()
+            restartToUpdate()
             return
         }
         state = .checking
