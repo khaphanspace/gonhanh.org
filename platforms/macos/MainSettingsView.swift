@@ -439,7 +439,8 @@ extension View {
 // MARK: - Reusable Components
 
 struct SettingsRow<Content: View>: View {
-    @ViewBuilder let content: Content var body: some View {
+    @ViewBuilder let content: Content
+    var body: some View {
         HStack { content }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)

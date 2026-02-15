@@ -1,2 +1,3 @@
 --swiftversion 5.9
 --exclude build
+--disable wrapPropertyBodies
