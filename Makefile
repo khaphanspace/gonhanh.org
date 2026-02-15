@@ -23,7 +23,8 @@ help:
 	@echo ""
 	@echo "\033[1;32mDev:\033[0m"
 	@echo "  test        Run Rust tests"
-	@echo "  format      Format + lint"
+	@echo "  format      Format code (Rust + Swift)"
+	@echo "  lint        Check lint (clippy + swiftformat)"
 	@echo "  build       Build + auto-open app"
 	@echo "  build-linux Build Linux Fcitx5"
 	@echo "  clean       Clean artifacts"
@@ -50,7 +51,7 @@ help:
 # Development
 # ============================================================================
 
-.PHONY: test format build build-linux clean all
+.PHONY: test format lint build build-linux clean all
 all: test build
 
 test:
@@ -58,8 +59,12 @@ test:
 	@./scripts/test/dict.sh
 
 format:
-	@cd core && cargo fmt && cargo clippy -- -D warnings
+	@cd core && cargo fmt
 	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --quiet || echo "⚠️  swiftformat not found. Run: brew install swiftformat"
+
+lint:
+	@cd core && cargo clippy -- -D warnings
+	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --lint || echo "⚠️  swiftformat not found"
 
 build: format ## Build core + macos app
 	@./scripts/build/core.sh

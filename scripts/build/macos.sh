@@ -136,7 +136,8 @@ if [ -n "$CUSTOM_VERSION" ]; then
     VERSION="$CUSTOM_VERSION"
     echo "Version (custom): $VERSION"
 else
-    GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+    # Use latest stable tag for local builds; CI sets its own version
+    GIT_TAG=$(git tag --sort=-v:refname | grep -v '-' | head -1 2>/dev/null || echo "v0.0.0")
     VERSION=${GIT_TAG#v}  # Remove 'v' prefix
     echo "Version (git tag): $VERSION"
 fi
