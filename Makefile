@@ -59,6 +59,7 @@ test:
 
 format:
 	@cd core && cargo fmt && cargo clippy -- -D warnings
+	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --quiet || echo "⚠️  swiftformat not found. Run: brew install swiftformat"
 
 build: format ## Build core + macos app
 	@./scripts/build/core.sh

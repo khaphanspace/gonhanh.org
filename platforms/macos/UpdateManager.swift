@@ -81,10 +81,18 @@ class UpdateManager: NSObject, ObservableObject {
 
     /// User manually checks (only shows window if update available)
     func checkForUpdatesManually() {
-        if case .readyToInstall = state {
-            restartToUpdate()
+        if case .readyToInstall(let dmgPath) = state {
+            // Verify DMG still exists before restart
+            if FileManager.default.fileExists(atPath: dmgPath.path) {
+                restartToUpdate()
+            } else {
+                // DMG deleted — re-check
+                state = .idle
+            }
             return
         }
+        // Prevent concurrent checks
+        if case .checking = state { return }
         state = .checking
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self = self else { return }
@@ -195,16 +203,17 @@ class UpdateManager: NSObject, ObservableObject {
     // MARK: - Background Silent Check + Download
 
     private func checkAndDownloadSilently() {
-        // Skip if already downloaded
-        if case .readyToInstall = state { return }
-        // Skip if currently downloading
+        // Skip if currently downloading or user is checking
         if case .downloading = state { return }
+        if case .checking = state { return }
 
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .available(let info):
-                // Auto-download in background
+                // Skip if same version already downloaded
+                if info.version == self.pendingVersion, case .readyToInstall = self.state { return }
+                // Download new version (or newer version replacing old pending)
                 self.pendingVersion = info.version
                 self.downloadSilently(info)
             case .upToDate, .error:
