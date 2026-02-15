@@ -1799,6 +1799,38 @@ fn backspace_after_space_stroke_word() {
     assert_eq!(result, "đí", "Stroke should be preserved after restore");
 }
 
+/// Restore plain word then apply stroke: di + SPACE + DELETE + d → đi
+/// Bug: 'd' was clearing the restored buffer because stroke wasn't recognized as modifier
+#[test]
+fn backspace_after_space_restore_apply_stroke() {
+    let mut e = Engine::new();
+    // "di " + backspace + "d" → "đi" (dd triggers stroke on initial d)
+    let result = type_word(&mut e, "di <d");
+    assert_eq!(
+        result, "đi",
+        "di + space + backspace + d should produce đi (stroke modifier)"
+    );
+}
+
+/// Restore plain word then apply stroke: do + SPACE + DELETE + d → đo
+#[test]
+fn backspace_after_space_restore_apply_stroke_do() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "do <d");
+    assert_eq!(result, "đo", "do + space + backspace + d should produce đo");
+}
+
+/// Restore plain word then apply stroke: dua + SPACE + DELETE + d → đua
+#[test]
+fn backspace_after_space_restore_apply_stroke_dua() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "dua <d");
+    assert_eq!(
+        result, "đua",
+        "dua + space + backspace + d should produce đua"
+    );
+}
+
 // ============================================================
 // BACKSPACE-AFTER-SPACE: Extended behaviors
 // ============================================================
