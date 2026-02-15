@@ -30,6 +30,14 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 fi
 
+# Install swiftformat
+if ! command -v swiftformat &> /dev/null; then
+    echo "📦 Installing swiftformat..."
+    brew install swiftformat
+else
+    echo "✅ swiftformat found: $(swiftformat --version)"
+fi
+
 # Make scripts executable
 chmod +x scripts/**/*.sh
 

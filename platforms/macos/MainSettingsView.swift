@@ -1,7 +1,7 @@
+import AppKit
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
-import Combine
-import AppKit
 
 // MARK: - Sound Manager
 
@@ -40,8 +40,8 @@ enum NavigationPage: String, CaseIterable {
 
     var icon: String {
         switch self {
-        case .settings: return "gearshape"
-        case .about: return "bolt.fill"
+        case .settings: "gearshape"
+        case .about: "bolt.fill"
         }
     }
 }
@@ -240,7 +240,8 @@ class AppState: ObservableObject {
 
     private func loadShortcuts() {
         if let data = UserDefaults.standard.data(forKey: SettingsKey.shortcuts),
-           let saved = try? JSONDecoder().decode([ShortcutItem].self, from: data) {
+           let saved = try? JSONDecoder().decode([ShortcutItem].self, from: data)
+        {
             shortcuts = saved
         } else {
             shortcuts = [
@@ -275,7 +276,7 @@ class AppState: ObservableObject {
 
         // Auto-enable unless user has explicitly disabled it
         let userDisabled = UserDefaults.standard.bool(forKey: SettingsKey.launchAtLoginUserDisabled)
-        if !userDisabled && !isLaunchAtLoginEnabled {
+        if !userDisabled, !isLaunchAtLoginEnabled {
             autoEnableLaunchAtLogin()
         }
 
@@ -345,7 +346,7 @@ class AppState: ObservableObject {
 
     func savePerAppMode(bundleId: String, enabled: Bool) {
         var modes = UserDefaults.standard.dictionary(forKey: SettingsKey.perAppModes) as? [String: Bool] ?? [:]
-        modes[bundleId] = enabled  // Store both ON and OFF so hasPerAppMode works correctly
+        modes[bundleId] = enabled // Store both ON and OFF so hasPerAppMode works correctly
         UserDefaults.standard.set(modes, forKey: SettingsKey.perAppModes)
     }
 
@@ -365,8 +366,13 @@ class AppState: ObservableObject {
         isSilentUpdate = false
     }
 
-    func toggle() { isEnabled.toggle() }
-    func setMethod(_ method: InputMode) { currentMethod = method }
+    func toggle() {
+        isEnabled.toggle()
+    }
+
+    func setMethod(_ method: InputMode) {
+        currentMethod = method
+    }
 
     // MARK: - Shortcuts
 
@@ -425,15 +431,15 @@ struct CardBackground: ViewModifier {
 }
 
 extension View {
-    func cardBackground() -> some View { modifier(CardBackground()) }
+    func cardBackground() -> some View {
+        modifier(CardBackground())
+    }
 }
 
 // MARK: - Reusable Components
 
 struct SettingsRow<Content: View>: View {
-    let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
-    var body: some View {
+    @ViewBuilder let content: Content var body: some View {
         HStack { content }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -450,7 +456,7 @@ struct SettingsToggleRow: View {
         self.title = title
         self.subtitle = subtitle
         self.indented = indented
-        self._isOn = isOn
+        _isOn = isOn
     }
 
     var body: some View {
@@ -463,7 +469,7 @@ struct SettingsToggleRow: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.system(size: 13))
-                    if let subtitle = subtitle {
+                    if let subtitle {
                         Text(subtitle).font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
                     }
                 }
@@ -480,18 +486,18 @@ struct KeyCap: View {
     private var displayText: String {
         switch text {
         // Modifiers
-        case "⌃": return "⌃ control"
-        case "⌥": return "⌥ option"
-        case "⇧": return "⇧ shift"
-        case "⌘": return "⌘ command"
-        case "fn": return "fn"
+        case "⌃": "⌃ control"
+        case "⌥": "⌥ option"
+        case "⇧": "⇧ shift"
+        case "⌘": "⌘ command"
+        case "fn": "fn"
         // Special keys
-        case "Esc", "⎋": return "⎋ esc"
-        case "Tab", "⇥": return "⇥ tab"
-        case "Space", "␣": return "␣ space"
-        case "Return", "↩": return "↩ return"
-        case "Delete", "⌫": return "⌫ delete"
-        default: return text
+        case "Esc", "⎋": "⎋ esc"
+        case "Tab", "⇥": "⇥ tab"
+        case "Space", "␣": "␣ space"
+        case "Return", "↩": "↩ return"
+        case "Delete", "⌫": "⌫ delete"
+        default: text
         }
     }
 
@@ -539,7 +545,7 @@ struct SheetToolbar<Actions: View>: View {
     }
 
     init() where Actions == EmptyView {
-        self.actions = nil
+        actions = nil
     }
 
     var body: some View {
@@ -569,15 +575,20 @@ struct ClickableTextField: NSViewRepresentable {
         return textField
     }
 
-    func updateNSView(_ nsView: NSTextField, context: Context) {
+    func updateNSView(_ nsView: NSTextField, context _: Context) {
         if nsView.stringValue != text { nsView.stringValue = text }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
 
     class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: ClickableTextField
-        init(_ parent: ClickableTextField) { self.parent = parent }
+        init(_ parent: ClickableTextField) {
+            self.parent = parent
+        }
+
         func controlTextDidChange(_ obj: Notification) {
             guard let textField = obj.object as? NSTextField else { return }
             parent.text = textField.stringValue
@@ -605,7 +616,7 @@ struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .sidebar
     var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
 
-    func makeNSView(context: Context) -> NSVisualEffectView {
+    func makeNSView(context _: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
         view.blendingMode = blendingMode
@@ -613,7 +624,7 @@ struct VisualEffectBackground: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+    func updateNSView(_ nsView: NSVisualEffectView, context _: Context) {
         nsView.material = material
         nsView.blendingMode = blendingMode
     }
@@ -761,7 +772,7 @@ struct NavButton: View {
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isSelected ? Color(NSColor.controlBackgroundColor).opacity(0.6) :
-                      hovered ? Color(NSColor.controlBackgroundColor).opacity(0.4) : Color.clear)
+                    hovered ? Color(NSColor.controlBackgroundColor).opacity(0.4) : Color.clear)
         )
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
@@ -868,11 +879,16 @@ struct ShortcutsSheet: View {
     // Form state
     @State private var formKey: String = ""
     @State private var formValue: String = ""
-    @State private var editingId: UUID? = nil  // For form editing
-    @State private var selectedIds: Set<UUID> = []  // For table multi-selection
+    @State private var editingId: UUID? = nil // For form editing
+    @State private var selectedIds: Set<UUID> = [] // For table multi-selection
 
-    private var isEditing: Bool { editingId != nil }
-    private var canSave: Bool { !formKey.isEmpty && !formValue.isEmpty }
+    private var isEditing: Bool {
+        editingId != nil
+    }
+
+    private var canSave: Bool {
+        !formKey.isEmpty && !formValue.isEmpty
+    }
 
     private var subtitle: String {
         let enabled = appState.shortcuts.filter(\.isEnabled).count
@@ -984,7 +1000,8 @@ struct ShortcutsSheet: View {
             .onChange(of: selectedIds) { newSelection in
                 // Load single selection into form for editing
                 if newSelection.count == 1, let id = newSelection.first,
-                   let item = appState.shortcuts.first(where: { $0.id == id }) {
+                   let item = appState.shortcuts.first(where: { $0.id == id })
+                {
                     selectItem(item)
                 } else {
                     clearForm()
@@ -1111,7 +1128,7 @@ struct AboutLink: View {
     let icon: String
     let title: String
     let url: String
-    var iconColor: Color? = nil
+    var iconColor: Color?
     @State private var hovered = false
 
     var body: some View {
@@ -1193,7 +1210,9 @@ struct ShortcutRecorderRow: View {
     @State private var cancelledObserver: NSObjectProtocol?
     @State private var windowObserver: NSObjectProtocol?
 
-    private var hasConflict: Bool { systemShortcuts.contains(shortcut.displayParts.joined()) }
+    private var hasConflict: Bool {
+        systemShortcuts.contains(shortcut.displayParts.joined())
+    }
 
     var body: some View {
         HStack {
@@ -1215,7 +1234,6 @@ struct ShortcutRecorderRow: View {
         .onDisappear { stopRecording() }
     }
 
-    @ViewBuilder
     private var shortcutDisplay: some View {
         HStack(spacing: 4) {
             if isRecording {
@@ -1289,9 +1307,9 @@ struct RestoreShortcutRecorderRow: View {
         .padding(.vertical, 10)
         .background((hovered || isRecording) ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
         .contentShape(Rectangle())
-        .onHover { hovered = isEnabled && $0 }  // Only hover effect when enabled
+        .onHover { hovered = isEnabled && $0 } // Only hover effect when enabled
         .onTapGesture {
-            guard isEnabled else { return }  // Disable click when OFF
+            guard isEnabled else { return } // Disable click when OFF
             isRecording ? stopRecording() : startRecording()
         }
         .onDisappear { stopRecording() }
@@ -1300,7 +1318,6 @@ struct RestoreShortcutRecorderRow: View {
         }
     }
 
-    @ViewBuilder
     private var shortcutDisplay: some View {
         HStack(spacing: 4) {
             if isRecording {
@@ -1325,7 +1342,7 @@ struct RestoreShortcutRecorderRow: View {
         }
         cancelledObserver = NotificationCenter.default.addObserver(forName: .shortcutRecordingCancelled, object: nil, queue: .main) { _ in stopRecording() }
         windowObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { _ in stopRecording() }
-        startRestoreShortcutRecording()  // Use restore-specific recording that allows single keys
+        startRestoreShortcutRecording() // Use restore-specific recording that allows single keys
     }
 
     private func stopRecording() {
@@ -1350,8 +1367,8 @@ struct ShortcutsRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Bảng gõ tắt").font(.system(size: 13))
                 Text(appState.shortcuts.isEmpty
-                     ? "Chưa có từ viết tắt"
-                     : "\(appState.shortcuts.filter(\.isEnabled).count)/\(appState.shortcuts.count) đang bật")
+                    ? "Chưa có từ viết tắt"
+                    : "\(appState.shortcuts.filter(\.isEnabled).count)/\(appState.shortcuts.count) đang bật")
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
             }
@@ -1398,9 +1415,9 @@ struct AutoCapitalizeRow: View {
 
     private var subtitleText: String {
         if appState.autoCapitalizeExcludedApps.isEmpty {
-            return "Loại trừ ứng dụng"
+            "Loại trừ ứng dụng"
         } else {
-            return "Loại trừ \(appState.autoCapitalizeExcludedApps.count) ứng dụng"
+            "Loại trừ \(appState.autoCapitalizeExcludedApps.count) ứng dụng"
         }
     }
 }
@@ -1505,7 +1522,7 @@ struct AppToggleRow: View {
         HStack(spacing: 12) {
             // App icon
             Group {
-                if let icon = icon {
+                if let icon {
                     Image(nsImage: icon).resizable()
                 } else {
                     Image(systemName: "app.fill")

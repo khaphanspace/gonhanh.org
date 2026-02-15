@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 import SwiftUI
 
 extension Notification.Name {
@@ -35,11 +35,12 @@ class UpdateManager: NSObject, ObservableObject {
     private let dmgKey = "gonhanh.update.dmgPath"
     private let versionKey = "gonhanh.update.pendingVersion"
 
-    private override init() {
+    override private init() {
         super.init()
         // Restore pending update from previous session
         if let path = UserDefaults.standard.string(forKey: dmgKey),
-           FileManager.default.fileExists(atPath: path) {
+           FileManager.default.fileExists(atPath: path)
+        {
             let version = UserDefaults.standard.string(forKey: versionKey) ?? "?"
             state = .readyToInstall(dmgPath: URL(fileURLWithPath: path))
             pendingVersion = version
@@ -81,7 +82,7 @@ class UpdateManager: NSObject, ObservableObject {
 
     /// User manually checks (only shows window if update available)
     func checkForUpdatesManually() {
-        if case .readyToInstall(let dmgPath) = state {
+        if case let .readyToInstall(dmgPath) = state {
             // Verify DMG still exists before restart
             if FileManager.default.fileExists(atPath: dmgPath.path) {
                 restartToUpdate()
@@ -95,15 +96,15 @@ class UpdateManager: NSObject, ObservableObject {
         if case .checking = state { return }
         state = .checking
         UpdateChecker.shared.checkForUpdates { [weak self] result in
-            guard let self = self else { return }
+            guard let self else { return }
             switch result {
-            case .available(let info):
-                self.state = .available(info)
-                self.showUpdateWindow()
+            case let .available(info):
+                state = .available(info)
+                showUpdateWindow()
             case .upToDate:
-                self.state = .upToDate
-            case .error(let message):
-                self.state = .error(message)
+                state = .upToDate
+            case let .error(message):
+                state = .error(message)
             }
         }
     }
@@ -118,7 +119,7 @@ class UpdateManager: NSObject, ObservableObject {
 
     /// Mount DMG, copy .app to /Applications, relaunch
     func restartToUpdate() {
-        guard case .readyToInstall(let dmgPath) = state else { return }
+        guard case let .readyToInstall(dmgPath) = state else { return }
 
         let appName = "GoNhanh"
         let appBundlePath = Bundle.main.bundlePath
@@ -208,14 +209,14 @@ class UpdateManager: NSObject, ObservableObject {
         if case .checking = state { return }
 
         UpdateChecker.shared.checkForUpdates { [weak self] result in
-            guard let self = self else { return }
+            guard let self else { return }
             switch result {
-            case .available(let info):
+            case let .available(info):
                 // Skip if same version already downloaded
-                if info.version == self.pendingVersion, case .readyToInstall = self.state { return }
+                if info.version == pendingVersion, case .readyToInstall = state { return }
                 // Download new version (or newer version replacing old pending)
-                self.pendingVersion = info.version
-                self.downloadSilently(info)
+                pendingVersion = info.version
+                downloadSilently(info)
             case .upToDate, .error:
                 break
             }
@@ -239,7 +240,7 @@ class UpdateManager: NSObject, ObservableObject {
 // MARK: - URLSession Download Delegate
 
 extension UpdateManager: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+    func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let destinationURL = cachesURL.appendingPathComponent("GoNhanh-update.dmg")
 
@@ -254,15 +255,15 @@ extension UpdateManager: URLSessionDownloadDelegate {
         }
     }
 
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         // Only show progress if user triggered download manually
         if case .downloading = state {
             state = .downloading(progress: Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
         }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error, (error as NSError).code != NSURLErrorCancelled {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error, (error as NSError).code != NSURLErrorCancelled {
             if case .downloading = state {
                 state = .error("Tải về thất bại")
             }
@@ -285,15 +286,15 @@ struct UpdatePopupView: View {
             switch manager.state {
             case .checking:
                 checkingContent
-            case .available(let info):
+            case let .available(info):
                 availableContent(info)
-            case .downloading(let progress):
+            case let .downloading(progress):
                 downloadingContent(progress)
             case .readyToInstall:
                 readyContent
             case .upToDate:
                 upToDateContent
-            case .error(let message):
+            case let .error(message):
                 errorContent(message)
             default:
                 EmptyView()
@@ -498,13 +499,13 @@ struct UpdatePopupView: View {
     @ViewBuilder
     private func noteItemView(_ item: NoteItem) -> some View {
         switch item {
-        case .heading(let text):
+        case let .heading(text):
             Text(text)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.primary.opacity(0.7))
                 .padding(.top, 6)
                 .padding(.bottom, 1)
-        case .bullet(let text):
+        case let .bullet(text):
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("•")
                     .font(.system(size: 9))
@@ -528,7 +529,9 @@ struct UpdatePopupView: View {
             if l.lowercased().contains("full changelog") { continue }
 
             if l.hasPrefix("#") {
-                while l.hasPrefix("#") { l = String(l.dropFirst()) }
+                while l.hasPrefix("#") {
+                    l = String(l.dropFirst())
+                }
                 l = cleanNote(l)
                 if !l.isEmpty { items.append(.heading(l)) }
                 continue
@@ -562,7 +565,7 @@ struct VisualEffectBlur: NSViewRepresentable {
     let material: NSVisualEffectView.Material
     let blendingMode: NSVisualEffectView.BlendingMode
 
-    func makeNSView(context: Context) -> NSVisualEffectView {
+    func makeNSView(context _: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
         view.blendingMode = blendingMode
@@ -570,7 +573,7 @@ struct VisualEffectBlur: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+    func updateNSView(_ nsView: NSVisualEffectView, context _: Context) {
         nsView.material = material
         nsView.blendingMode = blendingMode
     }

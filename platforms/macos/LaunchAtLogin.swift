@@ -5,7 +5,7 @@ import ServiceManagement
 
 private func debugLog(_ message: String) {
     #if DEBUG
-    print(message)
+        print(message)
     #endif
 }
 
@@ -42,7 +42,7 @@ class LaunchAtLoginManager: LaunchAtLoginProtocol {
             let status = SMAppService.mainApp.status
             // Don't register if already enabled or user added manually (requiresApproval)
             // This prevents duplicate login items on version updates
-            if status != .enabled && status != .requiresApproval {
+            if status != .enabled, status != .requiresApproval {
                 try SMAppService.mainApp.register()
                 debugLog("[LaunchAtLogin] Enabled successfully")
             } else {

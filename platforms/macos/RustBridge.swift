@@ -1,6 +1,6 @@
-import Foundation
-import Carbon
 import AppKit
+import Carbon
+import Foundation
 
 // MARK: - Debug Logging
 
@@ -21,10 +21,14 @@ private enum Log {
     }
 
     /// Call to refresh enabled state (e.g., on app activation)
-    static func refresh() { _enabled = nil }
+    static func refresh() {
+        _enabled = nil
+    }
 
     /// Increment keystroke counter (for perf stats)
-    static func countKey() { keystrokeCount += 1 }
+    static func countKey() {
+        keystrokeCount += 1
+    }
 
     private static func write(_ msg: @autoclosure () -> String) {
         guard isEnabled, let handle = FileHandle(forWritingAtPath: logPath) else { return }
@@ -40,7 +44,7 @@ private enum Log {
     /// Start periodic performance logging (every 5 min)
     private static func startPerfLogging() {
         guard perfTimer == nil else { return }
-        logPerf()  // Log immediately on start
+        logPerf() // Log immediately on start
         perfTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in logPerf() }
     }
 
@@ -59,10 +63,21 @@ private enum Log {
         }
     }
 
-    static func key(_ code: UInt16, _ result: @autoclosure () -> String) { guard isEnabled else { return }; countKey(); write("K:\(code) → \(result())") }
-    static func method(_ name: @autoclosure () -> String) { guard isEnabled else { return }; write("M: \(name())") }
-    static func info(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("I: \(msg())") }
-    static func queue(_ msg: @autoclosure () -> String) { guard isEnabled else { return }; write("Q: \(msg())") }
+    static func key(_ code: UInt16, _ result: @autoclosure () -> String) {
+        guard isEnabled else { return }; countKey(); write("K:\(code) → \(result())")
+    }
+
+    static func method(_ name: @autoclosure () -> String) {
+        guard isEnabled else { return }; write("M: \(name())")
+    }
+
+    static func info(_ msg: @autoclosure () -> String) {
+        guard isEnabled else { return }; write("I: \(msg())")
+    }
+
+    static func queue(_ msg: @autoclosure () -> String) {
+        guard isEnabled else { return }; write("Q: \(msg())")
+    }
 }
 
 // MARK: - Constants
@@ -120,7 +135,7 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
         KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
         KeyCode.dot, KeyCode.comma, KeyCode.slash, KeyCode.semicolon, KeyCode.quote,
         KeyCode.lbracket, KeyCode.rbracket, KeyCode.backslash, KeyCode.minus,
-        KeyCode.equal, KeyCode.backquote
+        KeyCode.equal, KeyCode.backquote,
     ]
 
     if standardBreak.contains(keyCode) { return true }
@@ -129,7 +144,7 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
     if shift {
         let numberKeys: Set<CGKeyCode> = [
             KeyCode.n0, KeyCode.n1, KeyCode.n2, KeyCode.n3, KeyCode.n4,
-            KeyCode.n5, KeyCode.n6, KeyCode.n7, KeyCode.n8, KeyCode.n9
+            KeyCode.n5, KeyCode.n6, KeyCode.n7, KeyCode.n8, KeyCode.n9,
         ]
         return numberKeys.contains(keyCode)
     }
@@ -140,14 +155,14 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 // MARK: - Injection Method
 
 private enum InjectionMethod {
-    case fast           // Default: backspace + text with minimal delays
-    case slow           // Terminals/Electron: backspace + text with higher delays
-    case charByChar     // Safari Google Docs: backspace + text character-by-character
-    case selection      // Browser address bars: Shift+Left select + type replacement
-    case axDirect       // Spotlight primary: AX API direct text manipulation (macOS 13+)
+    case fast // Default: backspace + text with minimal delays
+    case slow // Terminals/Electron: backspace + text with higher delays
+    case charByChar // Safari Google Docs: backspace + text character-by-character
+    case selection // Browser address bars: Shift+Left select + type replacement
+    case axDirect // Spotlight primary: AX API direct text manipulation (macOS 13+)
     case emptyCharPrefix // Browser address bars: empty char to break autocomplete + extra backspace
-    case syncProxy      // Games: synchronous injection via CGEventTapPostEvent(proxy)
-    case passthrough    // iPhone Mirroring: pass through all keys (remote device handles input)
+    case syncProxy // Games: synchronous injection via CGEventTapPostEvent(proxy)
+    case passthrough // iPhone Mirroring: pass through all keys (remote device handles input)
 }
 
 // MARK: - Text Injector
@@ -214,7 +229,8 @@ private class TextInjector {
         if emptyCharPrefix {
             let emptyChar: [UniChar] = [0x202F]
             if let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) {
+               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false)
+            {
                 dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
                 up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
                 dn.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
@@ -223,10 +239,10 @@ private class TextInjector {
                 up.post(tap: .cgSessionEventTap)
             }
             usleep(delays.0 > 0 ? delays.0 : 1000)
-            bs += 1  // +1 to also delete the empty char
+            bs += 1 // +1 to also delete the empty char
         }
 
-        for _ in 0..<bs {
+        for _ in 0 ..< bs {
             postKey(KeyCode.backspace, source: src)
             usleep(delays.0)
         }
@@ -246,7 +262,7 @@ private class TextInjector {
     private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
-        for _ in 0..<bs {
+        for _ in 0 ..< bs {
             postKey(KeyCode.backspace, source: src, proxy: proxy)
         }
 
@@ -268,13 +284,13 @@ private class TextInjector {
             // This fixes issue where Shift+Left selects space instead of deleting it
             if text.isEmpty {
                 // Backspace-only: use backspace for all deletions
-                for _ in 0..<bs {
+                for _ in 0 ..< bs {
                     postKey(KeyCode.backspace, source: src)
                     usleep(selDelay)
                 }
             } else {
                 // Text replacement: use Shift+Left to select (normal selection method)
-                for _ in 0..<bs {
+                for _ in 0 ..< bs {
                     postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
                     usleep(selDelay)
                 }
@@ -295,7 +311,7 @@ private class TextInjector {
         usleep(3000)
 
         // Backspaces remove typed characters
-        for _ in 0..<bs {
+        for _ in 0 ..< bs {
             postKey(KeyCode.backspace, source: src, proxy: proxy)
             usleep(1000)
         }
@@ -313,7 +329,8 @@ private class TextInjector {
         let systemWide = AXUIElementCreateSystemWide()
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
-              let ref = focusedRef else {
+              let ref = focusedRef
+        else {
             Log.info("AX: no focus")
             return false
         }
@@ -330,7 +347,8 @@ private class TextInjector {
         // Read cursor position and selection
         var rangeRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axEl, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
-              let axRange = rangeRef else {
+              let axRange = rangeRef
+        else {
             Log.info("AX: no range")
             return false
         }
@@ -350,7 +368,7 @@ private class TextInjector {
         let cursorUTF16 = min(cursor, utf16View.count)
 
         let userText: String
-        if selection > 0 && cursorUTF16 <= utf16View.count {
+        if selection > 0, cursorUTF16 <= utf16View.count {
             let endIdx = utf16View.index(utf16View.startIndex, offsetBy: cursorUTF16)
             userText = String(fullText[..<endIdx])
         } else {
@@ -394,12 +412,12 @@ private class TextInjector {
     /// Spotlight can be busy searching, causing AX API to fail temporarily
     func injectViaAXWithFallback(bs: Int, text: String, proxy: CGEventTapProxy) {
         // Try AX API up to 3 times (Spotlight might be busy)
-        for attempt in 0..<3 {
+        for attempt in 0 ..< 3 {
             if attempt > 0 {
-                usleep(5000)  // 5ms delay before retry
+                usleep(5000) // 5ms delay before retry
             }
             if injectViaAX(bs: bs, text: text) {
-                return  // Success!
+                return // Success!
             }
         }
 
@@ -418,7 +436,7 @@ private class TextInjector {
         up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
         if !flags.isEmpty { dn.flags = flags; up.flags = flags }
 
-        if let proxy = proxy {
+        if let proxy {
             dn.tapPostEvent(proxy)
             up.tapPostEvent(proxy)
         } else {
@@ -438,11 +456,12 @@ private class TextInjector {
 
         while offset < utf16.count {
             let end = min(offset + chunkSize, utf16.count)
-            let chunk = Array(utf16[offset..<end])
+            let chunk = Array(utf16[offset ..< end])
             chunkNum += 1
 
             guard let dn = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
-                  let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else {
+                  let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+            else {
                 Log.info("postText FAILED: chunk \(chunkNum)")
                 break
             }
@@ -451,7 +470,7 @@ private class TextInjector {
             dn.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
             up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
 
-            if let proxy = proxy {
+            if let proxy {
                 dn.tapPostEvent(proxy)
                 up.tapPostEvent(proxy)
             } else {
@@ -471,49 +490,49 @@ private class TextInjector {
 /// Size: 256 UInt32 chars (1024 bytes) + 4 bytes = 1028 bytes
 /// Max replacement: 255 UTF-32 codepoints (Vietnamese diacritics = 1 each)
 private struct ImeResult {
-    // 256 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
-    // 32 lines × 8 values = 256 total
+    /// 256 UInt32 values for UTF-32 codepoints (matches core/src/engine/buffer.rs MAX)
+    /// 32 lines × 8 values = 256 total
     var chars: (
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 1
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 2
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 3
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 4
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 5
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 6
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 7
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 8
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 9
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 10
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 11
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 12
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 13
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 14
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 15
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 16
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 17
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 18
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 19
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 20
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 21
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 22
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 23
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 24
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 25
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 26
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 27
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 28
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 29
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 30
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32,  // 31
-        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32   // 32
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 1
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 2
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 3
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 4
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 5
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 6
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 7
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 8
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 9
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 10
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 11
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 12
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 13
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 14
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 15
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 16
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 17
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 18
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 19
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 20
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 21
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 22
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 23
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 24
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 25
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 26
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 27
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 28
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 29
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 30
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, // 31
+        UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32, UInt32 // 32
     )
     var action: UInt8
     var backspace: UInt8
     var count: UInt8
-    var flags: UInt8  // bit 0: key_consumed
+    var flags: UInt8 // bit 0: key_consumed
 }
 
-private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, don't pass through
+private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don't pass through
 
 @_silgen_name("ime_init") private func ime_init()
 @_silgen_name("ime_key_ext") private func ime_key_ext(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool) -> UnsafeMutablePointer<ImeResult>?
@@ -537,7 +556,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01  // Key was consumed by shortcut, do
 @_silgen_name("ime_remove_shortcut") private func ime_remove_shortcut(_ trigger: UnsafePointer<CChar>?)
 @_silgen_name("ime_clear_shortcuts") private func ime_clear_shortcuts()
 
-// Word Restore FFI
+/// Word Restore FFI
 @_silgen_name("ime_restore_word") private func ime_restore_word(_ word: UnsafePointer<CChar>?)
 
 // MARK: - RustBridge (Public API)
@@ -565,14 +584,14 @@ class RustBridge {
         guard isInitialized else { return nil }
 
         let ptr: UnsafeMutablePointer<ImeResult>?
-        if let char = char {
+        if let char {
             let charCode = char.unicodeScalars.first?.value ?? 0
             ptr = ime_key_with_char(keyCode, caps, ctrl, shift, charCode)
         } else {
             ptr = ime_key_ext(keyCode, caps, ctrl, shift)
         }
 
-        guard let ptr = ptr else { return nil }
+        guard let ptr else { return nil }
         defer { ime_free(ptr) }
 
         let r = ptr.pointee
@@ -580,14 +599,16 @@ class RustBridge {
 
         let chars = withUnsafePointer(to: r.chars) { p in
             p.withMemoryRebound(to: UInt32.self, capacity: 256) { bound in
-                (0..<Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
+                (0 ..< Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
             }
         }
         let keyConsumed = (r.flags & FLAG_KEY_CONSUMED) != 0
         return (Int(r.backspace), chars, keyConsumed)
     }
 
-    static func setMethod(_ method: Int) { ime_method(UInt8(method)) }
+    static func setMethod(_ method: Int) {
+        ime_method(UInt8(method))
+    }
 
     static func setEnabled(_ enabled: Bool) {
         // GATE: Only enable if input source is allowed, always allow disable
@@ -595,28 +616,42 @@ class RustBridge {
     }
 
     /// Set whether to skip w→ư shortcut in Telex mode
-    static func setSkipWShortcut(_ skip: Bool) { ime_skip_w_shortcut(skip) }
+    static func setSkipWShortcut(_ skip: Bool) {
+        ime_skip_w_shortcut(skip)
+    }
 
     /// Set whether bracket shortcuts are enabled: ] → ư, [ → ơ (Issue #159)
-    static func setBracketShortcut(_ enabled: Bool) { ime_bracket_shortcut(enabled) }
+    static func setBracketShortcut(_ enabled: Bool) {
+        ime_bracket_shortcut(enabled)
+    }
 
     /// Set whether restore shortcut is enabled
     /// NOTE: Enable in Rust engine so we can get restore data, but Swift controls when to trigger
-    static func setRestoreShortcutEnabled(_ enabled: Bool) { ime_esc_restore(enabled) }
+    static func setRestoreShortcutEnabled(_ enabled: Bool) {
+        ime_esc_restore(enabled)
+    }
 
     /// Set whether to enable free tone placement (skip validation)
-    static func setFreeTone(_ enabled: Bool) { ime_free_tone(enabled) }
+    static func setFreeTone(_ enabled: Bool) {
+        ime_free_tone(enabled)
+    }
 
     /// Set whether to use modern orthography for tone placement
-    static func setModernTone(_ modern: Bool) { ime_modern(modern) }
+    static func setModernTone(_ modern: Bool) {
+        ime_modern(modern)
+    }
 
     /// Set whether to enable English auto-restore (experimental)
     /// When enabled, automatically restores English words that were transformed
-    static func setEnglishAutoRestore(_ enabled: Bool) { ime_english_auto_restore(enabled) }
+    static func setEnglishAutoRestore(_ enabled: Bool) {
+        ime_english_auto_restore(enabled)
+    }
 
     /// Set whether to enable auto-capitalize after sentence-ending punctuation
     /// When enabled, capitalizes first letter after . ! ? Enter
-    static func setAutoCapitalize(_ enabled: Bool) { ime_auto_capitalize(enabled) }
+    static func setAutoCapitalize(_ enabled: Bool) {
+        ime_auto_capitalize(enabled)
+    }
 
     /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
     /// When enabled, these letters are accepted as Vietnamese consonants for loanwords
@@ -625,10 +660,14 @@ class RustBridge {
         Log.info("Allow foreign consonants: \(enabled)")
     }
 
-    static func clearBuffer() { ime_clear() }
+    static func clearBuffer() {
+        ime_clear()
+    }
 
     /// Clear buffer and word history (use on mouse click, focus change)
-    static func clearBufferAll() { ime_clear_all() }
+    static func clearBufferAll() {
+        ime_clear_all()
+    }
 
     /// Restore buffer from a Vietnamese word (for backspace-into-word editing)
     static func restoreWord(_ word: String) {
@@ -650,7 +689,9 @@ class RustBridge {
     }
 
     /// Clear all shortcuts from the engine
-    static func clearShortcuts() { ime_clear_shortcuts() }
+    static func clearShortcuts() {
+        ime_clear_shortcuts()
+    }
 
     /// Sync shortcuts from UI to engine
     static func syncShortcuts(_ shortcuts: [(key: String, value: String, enabled: Bool)]) {
@@ -668,7 +709,7 @@ class KeyboardHookManager {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var mouseMonitor: Any?  // NSEvent monitor for mouse clicks
+    private var mouseMonitor: Any? // NSEvent monitor for mouse clicks
     private var isRunning = false
 
     private init() {}
@@ -686,7 +727,7 @@ class KeyboardHookManager {
 
         // Listen for keyboard events only (mouse handled by NSEvent monitor)
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
-                                (1 << CGEventType.flagsChanged.rawValue)
+            (1 << CGEventType.flagsChanged.rawValue)
         let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
                                     options: .defaultTap, eventsOfInterest: mask,
                                     callback: keyboardCallback, userInfo: nil)
@@ -694,7 +735,7 @@ class KeyboardHookManager {
                                  options: .defaultTap, eventsOfInterest: mask,
                                  callback: keyboardCallback, userInfo: nil)
 
-        guard let tap = tap else {
+        guard let tap else {
             showAccessibilityAlert()
             return
         }
@@ -715,7 +756,7 @@ class KeyboardHookManager {
     private func startMouseMonitor() {
         // Monitor both mouseDown and mouseUp to catch clicks and drag-selects
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { _ in
-            RustBridge.clearBufferAll()  // Clear everything including word history
+            RustBridge.clearBufferAll() // Clear everything including word history
             skipWordRestoreAfterClick = true
         }
     }
@@ -731,7 +772,9 @@ class KeyboardHookManager {
         isRunning = false
     }
 
-    func getTap() -> CFMachPort? { eventTap }
+    func getTap() -> CFMachPort? {
+        eventTap
+    }
 
     private func showAccessibilityAlert() {
         DispatchQueue.main.async {
@@ -750,15 +793,15 @@ class KeyboardHookManager {
 
 // MARK: - Keyboard Callback
 
-private let kEventMarker: Int64 = 0x474E4820  // "GNH "
+private let kEventMarker: Int64 = 0x474E_4820 // "GNH "
 private let kModifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .maskAlternate, .maskShift, .maskCommand]
 private var wasModifierShortcutPressed = false
-private var wasRestoreModifierPressed = false  // Track modifier-only restore shortcut
+private var wasRestoreModifierPressed = false // Track modifier-only restore shortcut
 private var currentShortcut = KeyboardShortcut.load()
 private var currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
 private var isRecordingShortcut = false
-private var recordingModifiers: CGEventFlags = []      // Current modifiers being held
-private var peakRecordingModifiers: CGEventFlags = []  // Peak modifiers during recording
+private var recordingModifiers: CGEventFlags = [] // Current modifiers being held
+private var peakRecordingModifiers: CGEventFlags = [] // Peak modifiers during recording
 private var shortcutObserver: NSObjectProtocol?
 private var restoreShortcutObserver: NSObjectProtocol?
 /// Skip word restore after mouse click (user may be selecting/deleting text)
@@ -813,7 +856,7 @@ private func getWordToRestoreOnBackspace() -> String? {
     var wordEnd = cursorPos - 1
 
     // Skip all trailing spaces/punctuation to find the word
-    while wordEnd > 0 && (textChars[wordEnd - 1].isWhitespace || textChars[wordEnd - 1].isPunctuation) {
+    while wordEnd > 0, textChars[wordEnd - 1].isWhitespace || textChars[wordEnd - 1].isPunctuation {
         wordEnd -= 1
     }
 
@@ -821,16 +864,16 @@ private func getWordToRestoreOnBackspace() -> String? {
 
     // But we only want to restore when deleting THE LAST space before the word
     // If there are more spaces between cursor and word, don't restore yet
-    if wordEnd < cursorPos - 1 { return nil }  // More than one space/punct between cursor and word
+    if wordEnd < cursorPos - 1 { return nil } // More than one space/punct between cursor and word
 
     // Find start of word
     var wordStart = wordEnd
-    while wordStart > 0 && !textChars[wordStart - 1].isWhitespace && !textChars[wordStart - 1].isPunctuation {
+    while wordStart > 0, !textChars[wordStart - 1].isWhitespace, !textChars[wordStart - 1].isPunctuation {
         wordStart -= 1
     }
 
     // Extract word
-    let word = String(textChars[wordStart..<wordEnd])
+    let word = String(textChars[wordStart ..< wordEnd])
     guard !word.isEmpty else { return nil }
 
     // Only return if it looks like Vietnamese (has diacritics or is pure ASCII letters)
@@ -861,20 +904,20 @@ private extension CGEventFlags {
 
     /// Check if only fn key is pressed (no other modifiers)
     var isFnOnly: Bool {
-        contains(.maskSecondaryFn) && 
-        !contains(.maskControl) && 
-        !contains(.maskAlternate) && 
-        !contains(.maskShift) && 
-        !contains(.maskCommand)
+        contains(.maskSecondaryFn) &&
+            !contains(.maskControl) &&
+            !contains(.maskAlternate) &&
+            !contains(.maskShift) &&
+            !contains(.maskCommand)
     }
 }
 
 // MARK: - Shortcut Recording
 
-private var isRecordingRestoreShortcut = false  // Separate flag for restore shortcut recording
+private var isRecordingRestoreShortcut = false // Separate flag for restore shortcut recording
 
 func startShortcutRecording() {
-    guard !isRecordingShortcut else { return }  // Prevent simultaneous recording
+    guard !isRecordingShortcut else { return } // Prevent simultaneous recording
     isRecordingShortcut = true
     isRecordingRestoreShortcut = false
     recordingModifiers = []
@@ -889,7 +932,7 @@ func stopShortcutRecording() {
 }
 
 func startRestoreShortcutRecording() {
-    guard !isRecordingShortcut else { return }  // Prevent simultaneous recording
+    guard !isRecordingShortcut else { return } // Prevent simultaneous recording
     isRecordingShortcut = true
     isRecordingRestoreShortcut = true
     recordingModifiers = []
@@ -906,7 +949,7 @@ func setupShortcutObserver() {
 }
 
 private func matchesToggleShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
-    return currentShortcut.matches(keyCode: keyCode, flags: flags)
+    currentShortcut.matches(keyCode: keyCode, flags: flags)
 }
 
 private func matchesRestoreShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
@@ -919,7 +962,7 @@ private func matchesRestoreShortcut(keyCode: UInt16, flags: CGEventFlags) -> Boo
 }
 
 private func matchesModifierOnlyShortcut(flags: CGEventFlags) -> Bool {
-    return currentShortcut.matchesModifierOnly(flags: flags)
+    currentShortcut.matchesModifierOnly(flags: flags)
 }
 
 /// Trigger restore shortcut - restore raw ASCII and clear buffer
@@ -937,9 +980,8 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
 }
 
 private func keyboardCallback(
-    proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
+    proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon _: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let tap = KeyboardHookManager.shared.getTap() { CGEvent.tapEnable(tap: tap, enable: true) }
         return Unmanaged.passUnretained(event)
@@ -954,6 +996,7 @@ private func keyboardCallback(
     let flags = event.flags
 
     // MARK: Shortcut Recording Mode
+
     if isRecordingShortcut {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let mods = flags.intersection(kModifierMask)
@@ -969,7 +1012,7 @@ private func keyboardCallback(
             }
             if type == .flagsChanged {
                 // Any modifier(s) released - save if we had modifiers
-                if mods.isEmpty && !peakRecordingModifiers.isEmpty {
+                if mods.isEmpty, !peakRecordingModifiers.isEmpty {
                     let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: peakRecordingModifiers.rawValue)
                     stopShortcutRecording()
                     DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }
@@ -985,7 +1028,7 @@ private func keyboardCallback(
         }
 
         // ESC cancels (only for toggle shortcut recording)
-        if type == .keyDown && keyCode == KeyCode.esc {
+        if type == .keyDown, keyCode == KeyCode.esc {
             stopShortcutRecording()
             DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecordingCancelled, object: nil) }
             return nil
@@ -995,7 +1038,7 @@ private func keyboardCallback(
         if type == .flagsChanged {
             // Allow: fn alone OR 2+ modifiers (to prevent accidental single Ctrl/Shift/etc)
             let canSave = peakRecordingModifiers.isFnOnly || peakRecordingModifiers.modifierCount >= 2
-            if mods.isEmpty && canSave {
+            if mods.isEmpty, canSave {
                 // All modifiers released - save using peak modifiers
                 let captured = KeyboardShortcut(keyCode: 0xFFFF, modifiers: peakRecordingModifiers.rawValue)
                 stopShortcutRecording()
@@ -1011,7 +1054,7 @@ private func keyboardCallback(
         }
 
         // Key + modifier: save shortcut (e.g., Ctrl+N, Cmd+Shift+N)
-        if type == .keyDown && !mods.isEmpty {
+        if type == .keyDown, !mods.isEmpty {
             let captured = KeyboardShortcut(keyCode: keyCode, modifiers: mods.rawValue)
             stopShortcutRecording()
             DispatchQueue.main.async { NotificationCenter.default.post(name: .shortcutRecorded, object: captured) }
@@ -1025,14 +1068,14 @@ private func keyboardCallback(
     if type == .flagsChanged {
         // Issue #150: Control key press clears buffer (rhythm break like EVKey)
         let isControlNowPressed = flags.contains(.maskControl)
-        if isControlNowPressed && !wasControlPressed {
+        if isControlNowPressed, !wasControlPressed {
             // Control just pressed - clear buffer to break rhythm
             RustBridge.clearBuffer()
         }
         wasControlPressed = isControlNowPressed
 
         // Handle modifier-only restore shortcut (e.g., Ctrl alone, Shift alone)
-        if AppState.shared.restoreShortcutEnabled && currentRestoreShortcut.isModifierOnly {
+        if AppState.shared.restoreShortcutEnabled, currentRestoreShortcut.isModifierOnly {
             if currentRestoreShortcut.matchesModifierOnly(flags: flags) {
                 wasRestoreModifierPressed = true
             } else if wasRestoreModifierPressed {
@@ -1090,7 +1133,7 @@ private func keyboardCallback(
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
     // then clear buffer. Engine sets pending_capitalize when it sees Enter key.
     // Also handle auto-restore and shortcut results (same as ESC handling)
-    if keyCode == 0x24 || keyCode == 0x4C {  // Return (0x24) or Enter/Numpad (0x4C)
+    if keyCode == 0x24 || keyCode == 0x4C { // Return (0x24) or Enter/Numpad (0x4C)
         let (method, delays) = detectMethod()
 
         if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
@@ -1118,12 +1161,12 @@ private func keyboardCallback(
             KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
             KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
             KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
-            KeyCode.forwardDelete
+            KeyCode.forwardDelete,
         ]
         if specialPassthroughKeys.contains(keyCode) {
-            return Unmanaged.passUnretained(event)  // Pass through special keys
+            return Unmanaged.passUnretained(event) // Pass through special keys
         }
-        return nil  // Consume letter/number keys with modifiers
+        return nil // Consume letter/number keys with modifiers
     }
 
     // Detect injection method once per keystroke (expensive AX query)
@@ -1140,32 +1183,31 @@ private func keyboardCallback(
     // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
     // All of these invalidate the current composition context
     let navigationKeys: Set<UInt16> = [
-        UInt16(KeyCode.leftArrow),   // 0x7B
-        UInt16(KeyCode.rightArrow),  // 0x7C
-        UInt16(KeyCode.upArrow),     // 0x7E
-        UInt16(KeyCode.downArrow),   // 0x7D
-        UInt16(KeyCode.home),        // 0x73
-        UInt16(KeyCode.end),         // 0x77
-        UInt16(KeyCode.pageUp),      // 0x74
-        UInt16(KeyCode.pageDown),    // 0x79
+        UInt16(KeyCode.leftArrow), // 0x7B
+        UInt16(KeyCode.rightArrow), // 0x7C
+        UInt16(KeyCode.upArrow), // 0x7E
+        UInt16(KeyCode.downArrow), // 0x7D
+        UInt16(KeyCode.home), // 0x73
+        UInt16(KeyCode.end), // 0x77
+        UInt16(KeyCode.pageUp), // 0x74
+        UInt16(KeyCode.pageDown), // 0x79
     ]
     let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
-    if navigationKeys.contains(keyCode) && hasModifier {
+    if navigationKeys.contains(keyCode), hasModifier {
         RustBridge.clearBuffer()
         return Unmanaged.passUnretained(event)
     }
 
     // Pass through all Cmd+key shortcuts (Cmd+A, Cmd+C, Cmd+V, Cmd+X, Cmd+Z, etc.)
-    if flags.contains(.maskCommand) && !flags.contains(.maskControl) && !flags.contains(.maskAlternate) {
-
+    if flags.contains(.maskCommand), !flags.contains(.maskControl), !flags.contains(.maskAlternate) {
         // Shortcuts that modify text content
         let textModifyingKeys: Set<UInt16> = [
-            0x00,  // Cmd+A (select all)
-            0x09,  // Cmd+V (paste)
-            0x07,  // Cmd+X (cut)
-            0x06,  // Cmd+Z (undo)
-            0x33,  // Cmd+Backspace (delete to beginning of line)
-            0x75,  // Cmd+Delete (delete to end of line)
+            0x00, // Cmd+A (select all)
+            0x09, // Cmd+V (paste)
+            0x07, // Cmd+X (cut)
+            0x06, // Cmd+Z (undo)
+            0x33, // Cmd+Backspace (delete to beginning of line)
+            0x75, // Cmd+Delete (delete to end of line)
         ]
 
         if textModifyingKeys.contains(keyCode) {
@@ -1177,14 +1219,14 @@ private func keyboardCallback(
 
     // Issue #293: Option+Backspace deletes whole word at OS level
     // Clear engine buffer so state doesn't become stale after word deletion
-    if keyCode == KeyCode.backspace && hasOption && !bypassIME {
+    if keyCode == KeyCode.backspace, hasOption, !bypassIME {
         RustBridge.clearBuffer()
         return Unmanaged.passUnretained(event)
     }
 
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
-    if keyCode == KeyCode.backspace && !bypassIME {
+    if keyCode == KeyCode.backspace, !bypassIME {
         // First try Rust engine (handles immediate backspace-after-space)
         if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
@@ -1206,14 +1248,14 @@ private func keyboardCallback(
 
     // Reset skip flag only when a real letter key is pressed (not backspace/delete/modifiers)
     // This ensures we skip word restore for ALL backspaces after a mouse click
-    let isLetterKey = keyCode <= 0x32 && keyCode != KeyCode.backspace  // Rough check for letter keys
+    let isLetterKey = keyCode <= 0x32 && keyCode != KeyCode.backspace // Rough check for letter keys
     if isLetterKey {
         skipWordRestoreAfterClick = false
     }
 
     // Block ESC from reaching Rust if restoreShortcutEnabled is enabled but shortcut is NOT ESC
     // This prevents Rust from auto-restoring when user configured a different shortcut
-    if keyCode == KeyCode.esc && AppState.shared.restoreShortcutEnabled {
+    if keyCode == KeyCode.esc, AppState.shared.restoreShortcutEnabled {
         let isEscShortcut = currentRestoreShortcut.keyCode == KeyCode.esc && currentRestoreShortcut.modifiers == 0
         if !isEscShortcut {
             // ESC pressed but shortcut is not ESC - just pass through without restore
@@ -1224,7 +1266,7 @@ private func keyboardCallback(
     // Issue #275: Handle Option-modified keys for special character shortcuts
     // When Option is pressed (without Cmd/Ctrl), the key produces a special character
     // (e.g., Option+V → √). Pass this character to engine for shortcut matching.
-    if hasOption && !bypassIME {
+    if hasOption, !bypassIME {
         if let char = event.keyboardCharacter() {
             // Process the actual character for shortcut matching
             if let (bs, chars, keyConsumed) = RustBridge.processKey(
@@ -1232,7 +1274,7 @@ private func keyboardCallback(
             ) {
                 Log.key(keyCode, "option: bs=\(bs) chars='\(String(chars))' char='\(char)' consumed=\(keyConsumed)")
                 sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
-                return nil  // Consume the event when shortcut matches
+                return nil // Consume the event when shortcut matches
             }
             // No shortcut match - let the character pass through normally
             return Unmanaged.passUnretained(event)
@@ -1247,18 +1289,16 @@ private func keyboardCallback(
         let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
-            if bs > 0 && !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
+            if bs > 0, !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
             else { return Unmanaged.passUnretained(event) }
         }
         return nil
     }
 
-
     return Unmanaged.passUnretained(event)
 }
 
 // MARK: - Helper Functions
-
 
 // MARK: - Text Replacement
 
@@ -1270,8 +1310,8 @@ private func keyboardCallback(
 private enum DetectionCache {
     static var result: (method: InjectionMethod, delays: (UInt32, UInt32, UInt32))?
     static var timestamp: CFAbsoluteTime = 0
-    static var lastLoggedKey: String = ""  // Only log when method+app changes
-    static let ttl: CFAbsoluteTime = 0.2  // 200ms
+    static var lastLoggedKey: String = "" // Only log when method+app changes
+    static let ttl: CFAbsoluteTime = 0.2 // 200ms
 
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
         guard let cached = result,
@@ -1311,7 +1351,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     var bundleId: String?
 
     if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-       let el = focused {
+       let el = focused
+    {
         let axEl = el as! AXUIElement
 
         // Get role
@@ -1333,9 +1374,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
     }
 
-    guard let bundleId = bundleId else { return (.fast, (200, 800, 500)) }
+    guard let bundleId else { return (.fast, (200, 800, 500)) }
 
-    // Helper to cache and return result (only logs when method+app changes)
+    /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
         DetectionCache.set(m, d, logKey: logKey); return (m, d)
@@ -1372,39 +1413,39 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "one.ablaze.floorp", "org.torproject.torbrowser", "net.mullvad.mullvadbrowser",
         "app.zen-browser.zen",
         // Chromium-based
-        "com.google.Chrome",             // Google Chrome
-        "com.google.Chrome.canary",      // Chrome Canary
-        "com.google.Chrome.beta",        // Chrome Beta
-        "org.chromium.Chromium",         // Chromium
-        "com.brave.Browser",             // Brave
-        "com.brave.Browser.beta",        // Brave Beta
-        "com.brave.Browser.nightly",     // Brave Nightly
-        "com.microsoft.edgemac",         // Microsoft Edge
-        "com.microsoft.edgemac.Beta",    // Edge Beta
-        "com.microsoft.edgemac.Dev",     // Edge Dev
-        "com.microsoft.edgemac.Canary",  // Edge Canary
-        "com.vivaldi.Vivaldi",           // Vivaldi
-        "com.vivaldi.Vivaldi.snapshot",  // Vivaldi Snapshot
+        "com.google.Chrome", // Google Chrome
+        "com.google.Chrome.canary", // Chrome Canary
+        "com.google.Chrome.beta", // Chrome Beta
+        "org.chromium.Chromium", // Chromium
+        "com.brave.Browser", // Brave
+        "com.brave.Browser.beta", // Brave Beta
+        "com.brave.Browser.nightly", // Brave Nightly
+        "com.microsoft.edgemac", // Microsoft Edge
+        "com.microsoft.edgemac.Beta", // Edge Beta
+        "com.microsoft.edgemac.Dev", // Edge Dev
+        "com.microsoft.edgemac.Canary", // Edge Canary
+        "com.vivaldi.Vivaldi", // Vivaldi
+        "com.vivaldi.Vivaldi.snapshot", // Vivaldi Snapshot
         "ru.yandex.desktop.yandex-browser", // Yandex Browser
         // Opera
-        "com.opera.Opera",               // Opera
-        "com.operasoftware.Opera",       // Opera (alt)
-        "com.operasoftware.OperaGX",     // Opera GX
-        "com.operasoftware.OperaAir",    // Opera Air
-        "com.opera.OperaNext",           // Opera Next
+        "com.opera.Opera", // Opera
+        "com.operasoftware.Opera", // Opera (alt)
+        "com.operasoftware.OperaGX", // Opera GX
+        "com.operasoftware.OperaAir", // Opera Air
+        "com.opera.OperaNext", // Opera Next
         // WebKit-based
-        "com.kagi.kagimacOS",            // Orion (Kagi)
+        "com.kagi.kagimacOS", // Orion (Kagi)
         // Others
-        "com.sigmaos.sigmaos.macos",     // SigmaOS
-        "com.pushplaylabs.sidekick",     // Sidekick
-        "com.firstversionist.polypane",  // Polypane
-        "ai.perplexity.comet",           // Comet (Perplexity AI)
-        "com.duckduckgo.macos.browser",  // DuckDuckGo
-        "com.openai.atlas"               // ChatGPT Atlas
+        "com.sigmaos.sigmaos.macos", // SigmaOS
+        "com.pushplaylabs.sidekick", // Sidekick
+        "com.firstversionist.polypane", // Polypane
+        "ai.perplexity.comet", // Comet (Perplexity AI)
+        "com.duckduckgo.macos.browser", // DuckDuckGo
+        "com.openai.atlas", // ChatGPT Atlas
     ]
     let addressBarRoles: Set<String> = ["AXTextField", "AXTextArea", "AXWindow"]
     if browsers.contains(bundleId), let role, addressBarRoles.contains(role) { return cached(.emptyCharPrefix, (0, 0, 0), "emptyChar:browser") }
-    if role == "AXTextField" && bundleId.hasPrefix("com.jetbrains") { return cached(.selection, (0, 0, 0), "sel:jb") }
+    if role == "AXTextField", bundleId.hasPrefix("com.jetbrains") { return cached(.selection, (0, 0, 0), "sel:jb") }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
     if bundleId == "com.microsoft.Excel" { return cached(.slow, (3000, 8000, 3000), "slow:excel") }
@@ -1426,7 +1467,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
         "com.raphaelamorim.rio", "com.termius-dmg.mac",
         // Other code editors
-        "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova"
+        "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova",
     ]
     if codeApps.contains(bundleId) { return cached(.slow, (8000, 25000, 8000), "slow:code") }
 
@@ -1465,7 +1506,7 @@ private class FocusChangeObserver {
 
     /// Debounce: prevent rapid-fire processing from multiple AX notifications
     private static var lastProcessedTime: CFAbsoluteTime = 0
-    private static let debounceInterval: CFAbsoluteTime = 0.15  // 150ms
+    private static let debounceInterval: CFAbsoluteTime = 0.15 // 150ms
 
     private init() {}
 
@@ -1509,8 +1550,8 @@ private class FocusChangeObserver {
         launchObserver = nil
         terminateObserver = nil
 
-        observers.values.forEach {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource($0), .defaultMode)
+        for value in observers.values {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(value), .defaultMode)
         }
         observers.removeAll()
     }
@@ -1523,7 +1564,7 @@ private class FocusChangeObserver {
         var observer: AXObserver?
 
         // Callback for AX notifications - must be a C function pointer
-        let callback: AXObserverCallback = { (_, element, notification, _) in
+        let callback: AXObserverCallback = { _, element, notification, _ in
             // Debounce: skip if processed recently (prevents rapid-fire from multiple notifications)
             let now = CFAbsoluteTimeGetCurrent()
             guard now - FocusChangeObserver.lastProcessedTime > FocusChangeObserver.debounceInterval else { return }
@@ -1536,12 +1577,14 @@ private class FocusChangeObserver {
 
                 if let app = NSRunningApplication(processIdentifier: pid),
                    let bundleId = app.bundleIdentifier,
-                   SpecialPanelAppDetector.isSpecialPanelApp(bundleId) {
+                   SpecialPanelAppDetector.isSpecialPanelApp(bundleId)
+                {
                     // When special panel app window is destroyed (closed), switch to actual frontmost app
                     if notification == kAXUIElementDestroyedNotification as CFString {
                         if let frontmost = NSWorkspace.shared.frontmostApplication,
                            let frontBundleId = frontmost.bundleIdentifier,
-                           frontBundleId != bundleId {
+                           frontBundleId != bundleId
+                        {
                             Log.info("AX: panel close → \(frontBundleId)")
                             PerAppModeManager.shared.handlePanelClosed(previousApp: frontBundleId)
                         }
@@ -1557,7 +1600,7 @@ private class FocusChangeObserver {
         }
 
         let result = AXObserverCreate(pid, callback, &observer)
-        guard result == .success, let observer = observer else { return }
+        guard result == .success, let observer else { return }
 
         let appElement = AXUIElementCreateApplication(pid)
 
@@ -1593,7 +1636,7 @@ class PerAppModeManager {
 
     /// Get the current frontmost app bundle ID (includes special panel apps like Spotlight)
     func getCurrentBundleId() -> String? {
-        return currentBundleId
+        currentBundleId
     }
 
     /// Start observing frontmost app changes
@@ -1629,7 +1672,7 @@ class PerAppModeManager {
 
     /// Stop observing
     func stop() {
-        if let observer = observer {
+        if let observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             self.observer = nil
         }
@@ -1639,7 +1682,7 @@ class PerAppModeManager {
     /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
     /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
     func handleSpecialPanelAppActivated(_ bundleId: String) {
-        spotlightChecked = true  // Mark as checked (AXObserver detected it)
+        spotlightChecked = true // Mark as checked (AXObserver detected it)
         handleAppSwitch(bundleId)
     }
 
@@ -1692,9 +1735,9 @@ class PerAppModeManager {
         spotlightChecked = false
         currentBundleId = bundleId
 
-        Log.refresh()  // Re-check debug log file existence on app switch
+        Log.refresh() // Re-check debug log file existence on app switch
         RustBridge.clearBuffer()
-        clearDetectionCache()  // Clear injection method cache on app switch
+        clearDetectionCache() // Clear injection method cache on app switch
 
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()

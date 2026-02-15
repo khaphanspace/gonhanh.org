@@ -1,6 +1,6 @@
 import Cocoa
-import SwiftUI
 import Combine
+import SwiftUI
 
 // MARK: - Notifications
 
@@ -29,7 +29,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         setupNotifications()
         updateStatusButton()
 
-        if UserDefaults.standard.bool(forKey: SettingsKey.hasCompletedOnboarding) && AXIsProcessTrusted() {
+        if UserDefaults.standard.bool(forKey: SettingsKey.hasCompletedOnboarding), AXIsProcessTrusted() {
             startEngine()
         } else {
             showOnboarding()
@@ -169,8 +169,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
             ))
             .toggleStyle(.switch)
             .labelsHidden()
-            .scaleEffect(0.8)
-        )
+            .scaleEffect(0.8))
         toggleView.frame = NSRect(x: 162, y: 4, width: 50, height: 28)
         view.addSubview(toggleView)
 
@@ -184,8 +183,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
     }
 
-    @objc private func selectTelex() { appState.setMethod(.telex) }
-    @objc private func selectVNI() { appState.setMethod(.vni) }
+    @objc private func selectTelex() {
+        appState.setMethod(.telex)
+    }
+
+    @objc private func selectVNI() {
+        appState.setMethod(.vni)
+    }
 
     @objc private func handleUpdateAction() {
         if UpdateManager.shared.isReadyToInstall {
@@ -197,13 +201,12 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     private func syncUpdateMenuItem() {
         let mgr = UpdateManager.shared
-        let title: String
-        if mgr.isReadyToInstall {
-            title = "⟳ Khởi động lại để cập nhật (\(mgr.pendingVersion))"
+        let title = if mgr.isReadyToInstall {
+            "⟳ Khởi động lại để cập nhật (\(mgr.pendingVersion))"
         } else if mgr.isChecking {
-            title = "Đang kiểm tra cập nhật..."
+            "Đang kiểm tra cập nhật..."
         } else {
-            title = "Kiểm tra cập nhật..."
+            "Kiểm tra cập nhật..."
         }
         updateMenuItem.title = title
         // Also sync the main menu bar item (tag 999)
@@ -250,19 +253,18 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     private func updateStatusButton() {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, let button = self.statusItem.button else { return }
+            guard let self, let button = statusItem.button else { return }
             button.title = ""
 
             let observer = InputSourceObserver.shared
-            let text: String
-            if observer.isAllowedInputSource {
+            let text: String = if observer.isAllowedInputSource {
                 // ABC keyboard: show V (enabled) or E (disabled)
-                text = self.appState.isEnabled ? "V" : "E"
+                appState.isEnabled ? "V" : "E"
             } else {
                 // Non-ABC keyboard: show input source character
-                text = observer.currentDisplayChar
+                observer.currentDisplayChar
             }
-            button.image = self.createStatusIcon(text: text)
+            button.image = createStatusIcon(text: text)
         }
     }
 
@@ -283,7 +285,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         let font = NSFont.systemFont(ofSize: 13, weight: .bold)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.black
+            .foregroundColor: NSColor.black,
         ]
         let textSize = text.size(withAttributes: attrs)
         let textRect = NSRect(
@@ -371,7 +373,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         }
         // Show app in menu bar temporarily
         NSApp.setActivationPolicy(.regular)
-        setupMainMenu()  // Set menu before showing window
+        setupMainMenu() // Set menu before showing window
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
         // Override default menu after window is shown (macOS may reset it)
@@ -382,7 +384,6 @@ class MenuBarController: NSObject, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.settingsWindow?.makeFirstResponder(nil)
         }
-
     }
 
     private func setupMainMenu() {

@@ -1,11 +1,10 @@
-import XCTest
 @testable import GoNhanh
+import XCTest
 
 // MARK: - Sound Manager Tests
 
 /// Tests for SoundManager focusing on rapid toggle behavior (Issue #168)
 final class SoundManagerTests: XCTestCase {
-
     var mockSound: MockNSSound!
 
     override func setUp() {
@@ -98,11 +97,11 @@ final class SoundManagerTests: XCTestCase {
         // Before fix: Each toggle created new NSSound instance
         // After fix: Cached instances are reused, stop() called before play()
 
-        var currentState = true  // Start in Vietnamese mode
+        var currentState = true // Start in Vietnamese mode
         var soundOperations: [(action: String, state: Bool)] = []
 
         // Simulate 10 rapid toggles
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             currentState.toggle()
 
             // Track stop operation (except first)

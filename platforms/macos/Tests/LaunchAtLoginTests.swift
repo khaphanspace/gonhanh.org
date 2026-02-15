@@ -1,10 +1,9 @@
-import XCTest
 @testable import GoNhanh
+import XCTest
 
 // MARK: - Launch at Login Tests
 
 final class LaunchAtLoginTests: XCTestCase {
-
     var mock: MockLaunchAtLoginManager!
 
     override func setUp() {
@@ -115,7 +114,6 @@ final class LaunchAtLoginTests: XCTestCase {
 // MARK: - UserDefaults Integration Tests
 
 final class LaunchAtLoginUserDefaultsTests: XCTestCase {
-
     let testKey = "testLaunchAtLogin"
 
     override func tearDown() {
@@ -142,7 +140,6 @@ final class LaunchAtLoginUserDefaultsTests: XCTestCase {
 // MARK: - Onboarding Flow Tests
 
 final class OnboardingLaunchAtLoginTests: XCTestCase {
-
     var mock: MockLaunchAtLoginManager!
 
     override func setUp() {
@@ -150,7 +147,7 @@ final class OnboardingLaunchAtLoginTests: XCTestCase {
         mock = MockLaunchAtLoginManager()
     }
 
-    func testOnboardingEnablesLaunchAtLogin() throws {
+    func testOnboardingEnablesLaunchAtLogin() {
         // Simulate onboarding completion
         simulateOnboardingComplete()
 
@@ -181,7 +178,6 @@ final class OnboardingLaunchAtLoginTests: XCTestCase {
 // MARK: - App Restart Behavior Tests
 
 final class AppRestartTests: XCTestCase {
-
     func testAppStartsWithPreviousState() {
         // Test scenario: App was enabled, user restarts Mac
         // Expected: App should start automatically
@@ -222,7 +218,6 @@ final class AppRestartTests: XCTestCase {
 // MARK: - Status Description Tests
 
 final class LaunchAtLoginStatusTests: XCTestCase {
-
     func testStatusDescriptionValues() {
         let manager = LaunchAtLoginManager.shared
 

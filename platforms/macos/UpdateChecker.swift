@@ -30,7 +30,7 @@ enum UpdateCheckResult {
 class UpdateChecker {
     static let shared = UpdateChecker()
 
-    // Use /releases instead of /releases/latest to get highest version, not most recent publish
+    /// Use /releases instead of /releases/latest to get highest version, not most recent publish
     private let githubAPIURL = "https://api.github.com/repos/khaphanspace/gonhanh.org/releases"
 
     private init() {}
@@ -47,7 +47,7 @@ class UpdateChecker {
         request.timeoutInterval = 10
 
         let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            if let error = error {
+            if let error {
                 DispatchQueue.main.async {
                     completion(.error("Network error: \(error.localizedDescription)"))
                 }
@@ -68,7 +68,7 @@ class UpdateChecker {
                 return
             }
 
-            guard let data = data else {
+            guard let data else {
                 DispatchQueue.main.async {
                     completion(.error("No data received"))
                 }
@@ -99,7 +99,7 @@ class UpdateChecker {
             for release in releases {
                 guard let tagName = release["tag_name"] as? String,
                       release["draft"] as? Bool != true else { continue }
-                if !includePrerelease && release["prerelease"] as? Bool == true { continue }
+                if !includePrerelease, release["prerelease"] as? Bool == true { continue }
 
                 let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
 
@@ -143,7 +143,8 @@ class UpdateChecker {
                     if let name = asset["name"] as? String,
                        name.lowercased().hasSuffix(".dmg"),
                        let urlString = asset["browser_download_url"] as? String,
-                       let url = URL(string: urlString) {
+                       let url = URL(string: urlString)
+                    {
                         downloadURL = url
                         break
                     }

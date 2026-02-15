@@ -1,10 +1,9 @@
-import XCTest
 @testable import GoNhanh
+import XCTest
 
 // MARK: - Update Manager Tests
 
 final class UpdateManagerTests: XCTestCase {
-
     func testSharedInstanceExists() {
         XCTAssertNotNil(UpdateManager.shared)
     }

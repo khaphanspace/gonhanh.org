@@ -7,8 +7,13 @@ struct OnboardingView: View {
     @State private var selectedMode: InputMode = .telex
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private var totalSteps: Int { step >= 10 ? 2 : 3 }
-    private var stepIndex: Int { step >= 10 ? step - 10 : step }
+    private var totalSteps: Int {
+        step >= 10 ? 2 : 3
+    }
+
+    private var stepIndex: Int {
+        step >= 10 ? step - 10 : step
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,22 +24,22 @@ struct OnboardingView: View {
         .frame(width: 440)
         .onAppear {
             hasPermission = AXIsProcessTrusted()
-            if UserDefaults.standard.bool(forKey: SettingsKey.permissionGranted) && hasPermission {
+            if UserDefaults.standard.bool(forKey: SettingsKey.permissionGranted), hasPermission {
                 step = 10
             }
         }
         .onReceive(timer) { _ in
             hasPermission = AXIsProcessTrusted()
-            if step == 1 && hasPermission { step = 2 }
+            if step == 1, hasPermission { step = 2 }
         }
     }
 
     @ViewBuilder
     private var content: some View {
         switch step {
-        case 0:  WelcomeStep()
-        case 1:  PermissionStep()
-        case 2:  ReadyStep()
+        case 0: WelcomeStep()
+        case 1: PermissionStep()
+        case 2: ReadyStep()
         case 10: SuccessStep()
         case 11: SetupStep(selectedMode: $selectedMode)
         default: EmptyView()
@@ -44,7 +49,7 @@ struct OnboardingView: View {
     private var footer: some View {
         HStack {
             HStack(spacing: 6) {
-                ForEach(0..<totalSteps, id: \.self) { i in
+                ForEach(0 ..< totalSteps, id: \.self) { i in
                     Circle()
                         .fill(i == stepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
                         .frame(width: 6, height: 6)
@@ -63,9 +68,9 @@ struct OnboardingView: View {
     @ViewBuilder
     private var primaryButton: some View {
         switch step {
-        case 0:  Button("Tiếp tục") { step = 1 }.buttonStyle(.borderedProminent)
-        case 1:  Button("Mở Cài đặt") { openSettings() }.buttonStyle(.borderedProminent)
-        case 2:  Button("Khởi động lại") { restart() }.buttonStyle(.borderedProminent)
+        case 0: Button("Tiếp tục") { step = 1 }.buttonStyle(.borderedProminent)
+        case 1: Button("Mở Cài đặt") { openSettings() }.buttonStyle(.borderedProminent)
+        case 2: Button("Khởi động lại") { restart() }.buttonStyle(.borderedProminent)
         case 10: Button("Tiếp tục") { step = 11 }.buttonStyle(.borderedProminent)
         case 11: Button("Hoàn tất") { finish() }.buttonStyle(.borderedProminent)
         default: EmptyView()

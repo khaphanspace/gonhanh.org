@@ -1,10 +1,9 @@
-import XCTest
 @testable import GoNhanh
+import XCTest
 
 // MARK: - Keyboard Shortcut Tests
 
 final class KeyboardShortcutTests: XCTestCase {
-
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: SettingsKey.toggleShortcut)
         super.tearDown()
@@ -15,7 +14,7 @@ final class KeyboardShortcutTests: XCTestCase {
     func testDefaultShortcut() {
         let defaultShortcut = KeyboardShortcut.default
 
-        XCTAssertEqual(defaultShortcut.keyCode, 0x31)  // Space
+        XCTAssertEqual(defaultShortcut.keyCode, 0x31) // Space
         XCTAssertEqual(defaultShortcut.modifiers, CGEventFlags.maskControl.rawValue)
     }
 
@@ -46,7 +45,7 @@ final class KeyboardShortcutTests: XCTestCase {
 
     func testDisplayPartsAllModifiers() {
         let modifiers = CGEventFlags([.maskControl, .maskAlternate, .maskShift, .maskCommand]).rawValue
-        let shortcut = KeyboardShortcut(keyCode: 0x00, modifiers: modifiers)  // A key
+        let shortcut = KeyboardShortcut(keyCode: 0x00, modifiers: modifiers) // A key
         let parts = shortcut.displayParts
 
         XCTAssertEqual(parts, ["⌃", "⌥", "⇧", "⌘", "A"])
@@ -191,7 +190,7 @@ final class KeyboardShortcutTests: XCTestCase {
     // MARK: - Shortcut Matching (Key + Modifier)
 
     func testMatchesExact() {
-        let shortcut = KeyboardShortcut.default  // Ctrl+Space
+        let shortcut = KeyboardShortcut.default // Ctrl+Space
         XCTAssertTrue(shortcut.matches(keyCode: 0x31, flags: .maskControl))
     }
 
@@ -213,7 +212,7 @@ final class KeyboardShortcutTests: XCTestCase {
     }
 
     func testMatchesRejectsDifferentKeyCode() {
-        let shortcut = KeyboardShortcut.default  // Ctrl+Space (0x31)
+        let shortcut = KeyboardShortcut.default // Ctrl+Space (0x31)
         XCTAssertFalse(shortcut.matches(keyCode: 0x00, flags: .maskControl))
     }
 
@@ -223,14 +222,14 @@ final class KeyboardShortcutTests: XCTestCase {
     }
 
     func testMatchesRejectsDifferentModifier() {
-        let shortcut = KeyboardShortcut.default  // Ctrl+Space
+        let shortcut = KeyboardShortcut.default // Ctrl+Space
         XCTAssertFalse(shortcut.matches(keyCode: 0x31, flags: .maskCommand))
     }
 
     func testMatchesIgnoresNonModifierFlags() {
         let shortcut = KeyboardShortcut.default
         var flags = CGEventFlags.maskControl
-        flags.insert(.maskNumericPad)  // Non-modifier flag (numpad indicator)
+        flags.insert(.maskNumericPad) // Non-modifier flag (numpad indicator)
         XCTAssertTrue(shortcut.matches(keyCode: 0x31, flags: flags))
     }
 
@@ -257,7 +256,7 @@ final class KeyboardShortcutTests: XCTestCase {
     }
 
     func testMatchesModifierOnlyReturnsFalseForKeyShortcut() {
-        let shortcut = KeyboardShortcut.default  // Ctrl+Space
+        let shortcut = KeyboardShortcut.default // Ctrl+Space
         XCTAssertFalse(shortcut.matchesModifierOnly(flags: .maskControl))
     }
 
