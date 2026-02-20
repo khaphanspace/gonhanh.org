@@ -116,8 +116,10 @@ pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> 
 
 /// Process a key event with the actual Unicode character.
 ///
-/// Used for Option-modified keys on macOS where the keycode doesn't change
-/// but the actual character is different (e.g., Option+V produces √).
+/// Used on macOS to pass the layout-aware character (Colemak, Dvorak, etc.)
+/// so the engine processes based on what the user typed instead of QWERTY
+/// key positions. Also used for Option-modified keys where the keycode doesn't
+/// change but the character does (e.g., Option+V produces √).
 ///
 /// # Arguments
 /// * `key` - macOS virtual keycode (0-127 for standard keys)
@@ -125,7 +127,7 @@ pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> 
 /// * `ctrl` - true if Cmd/Ctrl is pressed (bypasses IME)
 /// * `shift` - true if Shift key is pressed
 /// * `char_code` - The actual Unicode character code (UTF-32). If > 0, uses this
-///   for shortcut matching instead of deriving from keycode.
+///   as the layout-aware character for processing and shortcut matching.
 ///
 /// # Returns
 /// * Pointer to `Result` struct (caller must free with `ime_free`)

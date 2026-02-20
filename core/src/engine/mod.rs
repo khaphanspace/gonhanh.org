@@ -540,17 +540,20 @@ impl Engine {
         self.on_key_ext(key, caps, ctrl, false)
     }
 
-    /// Handle key event with actual Unicode character for shortcuts.
+    /// Handle key event with actual Unicode character.
     ///
-    /// Used for Option-modified keys on macOS where the keycode doesn't change
-    /// but the character is different (e.g., Option+V produces √).
+    /// Used on macOS to pass the layout-aware character (Colemak, Dvorak, etc.)
+    /// so the engine processes based on what the user typed instead of QWERTY
+    /// key positions. Also used for Option-modified keys where the keycode
+    /// doesn't change but the character is different (e.g., Option+V produces √).
     ///
     /// # Arguments
     /// * `key` - macOS virtual keycode
     /// * `caps` - true if Caps Lock is active
     /// * `ctrl` - true if Cmd/Ctrl is pressed (bypasses IME)
     /// * `shift` - true if Shift is pressed
-    /// * `ch` - The actual Unicode character. If Some, uses this for shortcut matching.
+    /// * `ch` - The actual Unicode character. If Some, uses this for layout-aware
+    ///   processing and shortcut matching.
     ///
     /// # Issue #275
     /// This enables shortcuts with special characters like √√ → ✅
@@ -574,6 +577,11 @@ impl Engine {
             self.word_history.clear();
             self.spaces_after_commit = 0;
             return Result::none();
+        }
+
+        // Layout-aware character path
+        if let Some(mapped_key) = crate::utils::char_to_key(ch) {
+            return self.on_key_ext(mapped_key, caps, ctrl, shift);
         }
 
         // Accumulate character for suffix matching
@@ -4164,8 +4172,7 @@ impl Engine {
                             // Example: "ook" -> raw_input=[o,o,k] but raw_chars=[o,k] after collapse
                             self.buf.clear();
                             for ch in &raw_chars {
-                                let key = utils::char_to_key(*ch);
-                                if key != 255 {
+                                if let Some(key) = utils::char_to_key(*ch) {
                                     self.buf.push(Char::new(key, ch.is_uppercase()));
                                 }
                             }

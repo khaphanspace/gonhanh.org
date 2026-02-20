@@ -87,6 +87,84 @@ pub fn key_to_char_ext(key: u16, caps: bool, shift: bool) -> Option<char> {
     key_to_char(key, caps)
 }
 
+/// Convert character to key code
+pub fn char_to_key(c: char) -> Option<u16> {
+    match c.to_ascii_lowercase() {
+        'a' => Some(keys::A),
+        'b' => Some(keys::B),
+        'c' => Some(keys::C),
+        'd' => Some(keys::D),
+        'e' => Some(keys::E),
+        'f' => Some(keys::F),
+        'g' => Some(keys::G),
+        'h' => Some(keys::H),
+        'i' => Some(keys::I),
+        'j' => Some(keys::J),
+        'k' => Some(keys::K),
+        'l' => Some(keys::L),
+        'm' => Some(keys::M),
+        'n' => Some(keys::N),
+        'o' => Some(keys::O),
+        'p' => Some(keys::P),
+        'q' => Some(keys::Q),
+        'r' => Some(keys::R),
+        's' => Some(keys::S),
+        't' => Some(keys::T),
+        'u' => Some(keys::U),
+        'v' => Some(keys::V),
+        'w' => Some(keys::W),
+        'x' => Some(keys::X),
+        'y' => Some(keys::Y),
+        'z' => Some(keys::Z),
+        '0' => Some(keys::N0),
+        '1' => Some(keys::N1),
+        '2' => Some(keys::N2),
+        '3' => Some(keys::N3),
+        '4' => Some(keys::N4),
+        '5' => Some(keys::N5),
+        '6' => Some(keys::N6),
+        '7' => Some(keys::N7),
+        '8' => Some(keys::N8),
+        '9' => Some(keys::N9),
+        '.' => Some(keys::DOT),
+        ',' => Some(keys::COMMA),
+        ';' => Some(keys::SEMICOLON),
+        ':' => Some(keys::SEMICOLON), // Approximate
+        '\'' => Some(keys::QUOTE),
+        '"' => Some(keys::QUOTE),
+        '_' => Some(keys::MINUS), // Shift+-
+        '+' => Some(keys::EQUAL), // Shift+=
+        '-' => Some(keys::MINUS),
+        '=' => Some(keys::EQUAL),
+        '[' => Some(keys::LBRACKET),
+        ']' => Some(keys::RBRACKET),
+        '{' => Some(keys::LBRACKET),
+        '}' => Some(keys::RBRACKET),
+        '\\' => Some(keys::BACKSLASH),
+        '|' => Some(keys::BACKSLASH),
+        '/' => Some(keys::SLASH),
+        '?' => Some(keys::SLASH),
+        '`' => Some(keys::BACKQUOTE),
+        '~' => Some(keys::BACKQUOTE),
+        '<' => Some(keys::COMMA),
+        '>' => Some(keys::DOT),
+        // Common symbols - map to base key (handler checks shift state)
+        '@' => Some(keys::N2),     // Shift+2
+        '!' => Some(keys::N1),     // Shift+1
+        '#' => Some(keys::N3),     // Shift+3
+        '$' => Some(keys::N4),     // Shift+4
+        '%' => Some(keys::N5),     // Shift+5
+        '^' => Some(keys::N6),     // Shift+6
+        '&' => Some(keys::N7),     // Shift+7
+        '*' => Some(keys::N8),     // Shift+8
+        '(' => Some(keys::N9),     // Shift+9
+        ')' => Some(keys::N0),     // Shift+0
+        '\x1b' => Some(keys::ESC), // ESC character
+        ' ' => Some(keys::SPACE),
+        _ => None, // Unknown/Other
+    }
+}
+
 /// Collect vowels from buffer with phonological info
 pub fn collect_vowels(buf: &Buffer) -> Vec<Vowel> {
     buf.iter()
@@ -154,74 +232,13 @@ mod test_utils {
 
     /// Convert character to key code
     pub fn char_to_key(c: char) -> u16 {
-        match c.to_ascii_lowercase() {
-            'a' => keys::A,
-            'b' => keys::B,
-            'c' => keys::C,
-            'd' => keys::D,
-            'e' => keys::E,
-            'f' => keys::F,
-            'g' => keys::G,
-            'h' => keys::H,
-            'i' => keys::I,
-            'j' => keys::J,
-            'k' => keys::K,
-            'l' => keys::L,
-            'm' => keys::M,
-            'n' => keys::N,
-            'o' => keys::O,
-            'p' => keys::P,
-            'q' => keys::Q,
-            'r' => keys::R,
-            's' => keys::S,
-            't' => keys::T,
-            'u' => keys::U,
-            'v' => keys::V,
-            'w' => keys::W,
-            'x' => keys::X,
-            'y' => keys::Y,
-            'z' => keys::Z,
-            '0' => keys::N0,
-            '1' => keys::N1,
-            '2' => keys::N2,
-            '3' => keys::N3,
-            '4' => keys::N4,
-            '5' => keys::N5,
-            '6' => keys::N6,
-            '7' => keys::N7,
-            '8' => keys::N8,
-            '9' => keys::N9,
-            '.' => keys::DOT,
-            ',' => keys::COMMA,
-            ';' => keys::SEMICOLON,
-            ':' => keys::SEMICOLON, // Approximate
-            '\'' => keys::QUOTE,
-            '"' => keys::QUOTE,
-            '-' => keys::MINUS,
-            '=' => keys::EQUAL,
-            '[' => keys::LBRACKET,
-            ']' => keys::RBRACKET,
-            '\\' => keys::BACKSLASH,
-            '/' => keys::SLASH,
-            '`' => keys::BACKQUOTE,
-            '<' => keys::DELETE,
-            ' ' => keys::SPACE,
-            '\x1b' => keys::ESC, // ESC character
-            // Common symbols - map to base key (handler checks shift state)
-            '@' => keys::N2,    // Shift+2
-            '!' => keys::N1,    // Shift+1
-            '#' => keys::N3,    // Shift+3
-            '$' => keys::N4,    // Shift+4
-            '%' => keys::N5,    // Shift+5
-            '^' => keys::N6,    // Shift+6
-            '&' => keys::N7,    // Shift+7
-            '*' => keys::N8,    // Shift+8
-            '(' => keys::N9,    // Shift+9
-            ')' => keys::N0,    // Shift+0
-            '_' => keys::MINUS, // Shift+-
-            '+' => keys::EQUAL, // Shift+=
-            _ => 255,           // Unknown/Other
+        if c == '<' {
+            return keys::DELETE;
         }
+        if c == '\x1b' {
+            return keys::ESC;
+        }
+        super::char_to_key(c).unwrap_or(255)
     }
 
     /// Convert string to key codes
