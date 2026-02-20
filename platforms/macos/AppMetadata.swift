@@ -151,7 +151,7 @@ struct KeyboardShortcut: Codable, Equatable {
         let layoutPtr = dataPtr.withMemoryRebound(to: UCKeyboardLayout.self, capacity: 1) { $0 }
 
         var deadKeyState: UInt32 = 0
-        var length: Int = 0
+        var length = 0
         var chars = [UniChar](repeating: 0, count: 8)
         let result = UCKeyTranslate(
             layoutPtr,

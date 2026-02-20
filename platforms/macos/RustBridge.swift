@@ -152,6 +152,12 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
     return false
 }
 
+/// Check if layout-aware character is a break key (punctuation/space)
+private func isBreakChar(_ char: Character?) -> Bool {
+    guard let char else { return false }
+    return " .,:;!?()[]{}\\/\"'`~".contains(char)
+}
+
 // MARK: - Injection Method
 
 private enum InjectionMethod {
@@ -912,7 +918,7 @@ private enum KeyboardLayoutTranslator {
         let layoutPtr = dataPtr.withMemoryRebound(to: UCKeyboardLayout.self, capacity: 1) { $0 }
 
         var modifierKeyState = translateModifiers(flags)
-        var length: Int = 0
+        var length = 0
         var chars = [UniChar](repeating: 0, count: 8)
 
         let result = UCKeyTranslate(
@@ -1334,7 +1340,9 @@ private func keyboardCallback(
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
         // Break keys (punctuation, not space): pass through or post synthetically
-        let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
+        let isBreak = (layoutChar.map { isBreakChar($0) } ?? isBreakKey(keyCode, shift: shift))
+            && keyCode != KeyCode.space
+            && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
             if bs > 0, !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
