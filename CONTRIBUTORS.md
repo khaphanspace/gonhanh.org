@@ -76,6 +76,12 @@ Những người đã tin tưởng và ủng hộ dự án.
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/DieuNN">
+        <img src="https://avatars.githubusercontent.com/u/85010559?u=f3419e9c1043f171a06bb5beadae844f1bb6d48c&v=4" width="50" style="border-radius:50%"/><br/>
+        <b>DieuNN</b> 💜
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/ngthminhdev">
         <img src="https://avatars.githubusercontent.com/u/95201788?u=3168c88c7931dd81ee002d6e7c801b489a480b1a&v=4" width="50" style="border-radius:50%"/><br/>
         <b>ngthminhdev</b> 💜
@@ -907,6 +913,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 19/02/2026*
+*Được cập nhật tự động · Lần cuối: 20/02/2026*
 
 </div>
