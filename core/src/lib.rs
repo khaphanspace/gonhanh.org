@@ -186,8 +186,8 @@ pub extern "C" fn ime_enabled(enabled: bool) {
 
 /// Set whether to skip w→ư shortcut in Telex mode.
 ///
-/// When `skip` is true, typing 'w' at word start stays as 'w'
-/// instead of converting to 'ư'.
+/// When `skip` is true, typing 'w' stays as 'w' instead of
+/// converting to 'ư'. Horn modifier still works: "ow" → "ơ", "uw" → "ư".
 /// No-op if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_skip_w_shortcut(skip: bool) {
