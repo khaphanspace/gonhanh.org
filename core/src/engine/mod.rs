@@ -260,7 +260,8 @@ pub struct Engine {
     /// Used to prevent false shortcut matches (e.g., "149k" should not match "k")
     has_non_letter_prefix: bool,
     /// Skip w→ư shortcut in Telex mode (user preference)
-    /// When true, typing 'w' at word start stays as 'w' instead of converting to 'ư'
+    /// When true, typing 'w' stays as 'w' instead of converting to 'ư'
+    /// Horn modifier (try_tone) still works: "ow" → "ơ", "uw" → "ư"
     skip_w_shortcut: bool,
     /// Enable bracket shortcuts: ] → ư, [ → ơ (Issue #159)
     bracket_shortcut: bool,
@@ -1393,9 +1394,9 @@ impl Engine {
             return None;
         }
 
-        // If user disabled w→ư shortcut at word start, only skip when buffer is empty
-        // This allows "hw" → "hư" even when shortcut is disabled
-        if self.skip_w_shortcut && self.buf.is_empty() {
+        // If user disabled w→ư shortcut, skip w→ư conversion entirely
+        // Horn modifier (try_tone) still works: "ow" → "ơ", "uw" → "ư"
+        if self.skip_w_shortcut {
             return None;
         }
 

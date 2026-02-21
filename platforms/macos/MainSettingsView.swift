@@ -798,7 +798,7 @@ struct SettingsPageView: View {
                 inputMethodRow
                 if appState.currentMethod == .telex {
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ W thành Ư ở đầu từ", indented: true, isOn: $appState.autoWShortcut)
+                    SettingsToggleRow("Gõ W thành Ư", indented: true, isOn: $appState.autoWShortcut)
                     Divider().padding(.leading, 12)
                     SettingsToggleRow("Gõ [ ] thành Ơ Ư", indented: true, isOn: $appState.bracketShortcut)
                     Divider().padding(.leading, 12)

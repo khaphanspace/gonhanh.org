@@ -1492,7 +1492,7 @@ fn telex_doc_in_sentence() {
 }
 
 // ============================================================
-// SKIP W SHORTCUT: User preference for w→ư at word start
+// SKIP W SHORTCUT: User preference for w→ư (unified toggle)
 // ============================================================
 
 /// When skip_w_shortcut is enabled, standalone "w" should NOT convert to "ư"
@@ -1507,34 +1507,27 @@ fn skip_w_shortcut_standalone_w_stays_w() {
     assert_eq!(r.action, Action::None as u8, "w should pass through");
 }
 
-/// When skip_w_shortcut is enabled, "hw" should still produce "hư"
-/// (only word-start w is skipped, not w after consonants)
+/// When skip_w_shortcut is enabled, "hw" should NOT produce "hư"
+/// (w→ư is skipped everywhere, not just at word start)
 #[test]
-fn skip_w_shortcut_hw_still_produces_hu() {
+fn skip_w_shortcut_hw_stays_hw() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
     e.set_skip_w_shortcut(true);
 
-    // "h" + "w" should produce "hư" (w after consonant is NOT skipped)
-    e.on_key(keys::H, false, false);
-    let r = e.on_key(keys::W, false, false);
-    assert_eq!(r.action, Action::Send as u8, "hw should produce ư");
-    assert_eq!(r.chars[0], 'ư' as u32);
+    let result = type_word(&mut e, "hw");
+    assert_eq!(result, "hw", "hw should stay hw with skip enabled");
 }
 
-/// When skip_w_shortcut is enabled, "nhw" should produce "như"
+/// When skip_w_shortcut is enabled, "nhw" should NOT produce "như"
 #[test]
-fn skip_w_shortcut_nhw_produces_nhu() {
+fn skip_w_shortcut_nhw_stays_nhw() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
     e.set_skip_w_shortcut(true);
 
-    // "nh" + "w" should produce "như"
-    e.on_key(keys::N, false, false);
-    e.on_key(keys::H, false, false);
-    let r = e.on_key(keys::W, false, false);
-    assert_eq!(r.action, Action::Send as u8, "nhw should produce ư");
-    assert_eq!(r.chars[0], 'ư' as u32);
+    let result = type_word(&mut e, "nhw");
+    assert_eq!(result, "nhw", "nhw should stay nhw with skip enabled");
 }
 
 /// When skip_w_shortcut is DISABLED (default), standalone "w" converts to "ư"
@@ -1562,29 +1555,26 @@ fn skip_w_shortcut_vni_mode_unaffected() {
     assert_eq!(r.action, Action::None as u8, "VNI: w should pass through");
 }
 
-/// Full word test: "như" with skip_w_shortcut enabled
+/// Full word test: "như" with skip_w_shortcut enabled should NOT convert
 #[test]
-fn skip_w_shortcut_full_word_nhu() {
+fn skip_w_shortcut_full_word_nhw_stays() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
     e.set_skip_w_shortcut(true);
 
     let result = type_word(&mut e, "nhw");
-    assert_eq!(
-        result, "như",
-        "nhw should produce như even with skip enabled"
-    );
+    assert_eq!(result, "nhw", "nhw should stay nhw with skip enabled");
 }
 
-/// Full word test: "tư" with skip_w_shortcut enabled
+/// Full word test: "tw" with skip_w_shortcut enabled should NOT convert
 #[test]
-fn skip_w_shortcut_full_word_tu() {
+fn skip_w_shortcut_full_word_tw_stays() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
     e.set_skip_w_shortcut(true);
 
     let result = type_word(&mut e, "tw");
-    assert_eq!(result, "tư", "tw should produce tư even with skip enabled");
+    assert_eq!(result, "tw", "tw should stay tw with skip enabled");
 }
 
 /// Full word test: "được" with skip_w_shortcut enabled
@@ -1611,18 +1601,15 @@ fn skip_w_shortcut_uppercase_w_stays_w() {
     assert_eq!(r.action, Action::None as u8, "W should pass through");
 }
 
-/// Uppercase W after consonant still converts
+/// Uppercase W after consonant is also skipped
 #[test]
-fn skip_w_shortcut_uppercase_hw_produces_hu() {
+fn skip_w_shortcut_uppercase_hw_stays_hw() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
     e.set_skip_w_shortcut(true);
 
-    // "H" + "W" should produce "HƯ"
-    e.on_key(keys::H, true, false); // H
-    let r = e.on_key(keys::W, true, false); // W
-    assert_eq!(r.action, Action::Send as u8, "HW should produce Ư");
-    assert_eq!(r.chars[0], 'Ư' as u32);
+    let result = type_word(&mut e, "HW");
+    assert_eq!(result, "HW", "HW should stay HW with skip enabled");
 }
 
 /// Complex test: Multiple words with skip_w_shortcut
@@ -1637,12 +1624,12 @@ fn skip_w_shortcut_multiple_words() {
     assert_eq!(r1.action, Action::None as u8);
     e.clear();
 
-    // Word 2: "như" → converts "w" after "nh"
+    // Word 2: "nhw" → stays "nhw" (w→ư skipped everywhere)
     let result2 = type_word(&mut e, "nhw");
-    assert_eq!(result2, "như");
+    assert_eq!(result2, "nhw");
     e.clear();
 
-    // Word 3: "uw" → "ư" (u at start, then w as horn)
+    // Word 3: "uw" → "ư" (horn modifier still works)
     let result3 = type_word(&mut e, "uw");
     assert_eq!(result3, "ư");
 }
