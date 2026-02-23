@@ -709,9 +709,9 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/canhduongse">
+      <a href="https://github.com/dgmcanh">
         <img src="https://avatars.githubusercontent.com/u/39360747?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>canhduongse</b>
+        <b>dgmcanh</b>
       </a>
     </td>
     <td align="center">
@@ -913,6 +913,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 22/02/2026*
+*Được cập nhật tự động · Lần cuối: 23/02/2026*
 
 </div>
