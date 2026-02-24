@@ -99,6 +99,24 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("luwsow", "lướ"), // l + uw + s + ow → lướ
     ("suwsow", "sướ"), // s + uw + s + ow → sướ
     //
+    // --- Issue #318: Invalid diphthong blocking (V1+tone+V2+V2 where V1≠V2) ---
+    // Circumflex is blocked. Tone may reposition as vowel cluster changes.
+    // Auto-restore at space produces final correct form (tested in english_auto_restore_test).
+    // huyền (f) + different double vowel
+    ("mufaa", "muàa"), // m + ù + aa → block circumflex
+    ("tafoo", "tàoo"), // t + à + oo → block circumflex
+    ("tefoo", "tèoo"), // t + è + oo → block circumflex
+    ("tofaa", "toàa"), // t + ò + aa → block circumflex
+    ("tofee", "toèe"), // t + ò + ee → block circumflex
+    ("tifaa", "tìaa"), // t + ì + aa → block circumflex
+    // sắc (s) + different double vowel
+    ("tasoo", "táoo"), // t + á + oo → block circumflex
+    ("tesaa", "teáa"), // t + é + aa → block circumflex, tone repositions
+    // gi/qu initial: i/u is part of consonant, NOT a separate vowel → allow circumflex
+    ("gifoo", "giồ"),   // gi + f + oo → giồ (i is part of gi-initial)
+    ("gixoo", "giỗ"),   // gi + x + oo → giỗ
+    ("gisoo", "giố"),   // gi + s + oo → giố
+    //
     // ============================================================
     // GROUP 2: TONE STAYS ON 1ST VOWEL (Main + Glide patterns)
     // When typing tone on 1st vowel then adding glide → tone stays

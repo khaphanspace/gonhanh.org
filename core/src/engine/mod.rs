@@ -1904,6 +1904,52 @@ impl Engine {
                         return None;
                     }
 
+                    // Issue #318: Block circumflex when raw_input shows
+                    // V1(different) + tone_modifier + V2(trigger) + V2(current) pattern.
+                    // User typed a different vowel, applied tone, then double vowel.
+                    // "mufaa" → raw=[M,U,F,A,A]: A+F+U → block → "mùaa"
+                    // "tuasat" → raw=[T,U,A,S,A]: [-2]=S ≠ trigger → allow → "tuất"
+                    // Note: raw_input already includes current key (pushed before process())
+                    {
+                        let raw_len = self.raw_input.len();
+                        if raw_len >= 4 {
+                            let (prev_key, _, _) = self.raw_input[raw_len - 2];
+                            let (tone_key, _, _) = self.raw_input[raw_len - 3];
+                            let (diff_vowel, _, _) = self.raw_input[raw_len - 4];
+
+                            // Allow if the diphthong forms a valid V2 circumflex (iê, uê, yê, uô)
+                            let is_valid_v2 = matches!(
+                                (diff_vowel, key),
+                                (keys::I, keys::E)
+                                    | (keys::U, keys::E)
+                                    | (keys::Y, keys::E)
+                                    | (keys::U, keys::O)
+                            );
+
+                            // Skip if "diff_vowel" is part of gi/qu initial (not a real vowel)
+                            // "gifoo" → raw=[G,I,F,O,O]: I is part of gi-initial → allow
+                            // "qufaa" → raw=[Q,U,F,A,A]: U is part of qu-initial → allow
+                            let is_initial_vowel = raw_len >= 5
+                                && ((diff_vowel == keys::I
+                                    && self.raw_input[raw_len - 5].0 == keys::G)
+                                    || (diff_vowel == keys::U
+                                        && self.raw_input[raw_len - 5].0 == keys::Q));
+
+                            if prev_key == key
+                                && matches!(
+                                    tone_key,
+                                    keys::S | keys::F | keys::R | keys::X | keys::J
+                                )
+                                && keys::is_vowel(diff_vowel)
+                                && diff_vowel != key
+                                && !is_valid_v2
+                                && !is_initial_vowel
+                            {
+                                return None;
+                            }
+                        }
+                    }
+
                     // Check if buffer has multiple vowel types and any has a mark
                     // Skip circumflex if it would create invalid diphthong (like ôà, âo)
                     // But allow if circumflex creates valid pattern (like uê, iê, yê)
