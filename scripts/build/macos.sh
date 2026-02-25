@@ -222,10 +222,19 @@ if [ -d "GoNhanh.xcodeproj" ]; then
             build/Release/GoNhanh.app
         echo "Signed with Developer ID: $APPLE_SIGNING_IDENTITY"
     else
-        codesign --force --deep --sign - \
-            --entitlements GoNhanh.entitlements \
-            build/Release/GoNhanh.app
-        echo "Signed with ad-hoc identity (development only)"
+        # Use Developer ID cert if available, fallback to ad-hoc
+        DEV_CERT=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
+        if [ -n "$DEV_CERT" ]; then
+            codesign --force --deep --sign "$DEV_CERT" \
+                --entitlements GoNhanh.entitlements \
+                build/Release/GoNhanh.app
+            echo "Signed with: $DEV_CERT"
+        else
+            codesign --force --deep --sign - \
+                --entitlements GoNhanh.entitlements \
+                build/Release/GoNhanh.app
+            echo "Signed with ad-hoc identity (development only)"
+        fi
     fi
 
     # Verify signature
