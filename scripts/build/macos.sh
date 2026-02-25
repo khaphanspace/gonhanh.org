@@ -243,7 +243,7 @@ if [ -d "GoNhanh.xcodeproj" ]; then
     echo "Signature verified!"
 
     # Grant Accessibility permission (update TCC database with new csreq)
-    BUNDLE_ID="org.gonhanh.GoNhanh"
+    BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" build/Release/GoNhanh.app/Contents/Info.plist)
     TCC_DB="/Library/Application Support/com.apple.TCC/TCC.db"
     NEW_CSREQ=$(codesign -d -r- build/Release/GoNhanh.app 2>&1 | awk -F ' => ' '/designated/{print $2}' | csreq -r- -b /dev/stdout | xxd -p | tr -d '\n' | tr '[:lower:]' '[:upper:]')
     OLD_CSREQ=$(sqlite3 "$TCC_DB" "SELECT hex(csreq) FROM access WHERE service='kTCCServiceAccessibility' AND client='$BUNDLE_ID'" 2>/dev/null || echo "")
