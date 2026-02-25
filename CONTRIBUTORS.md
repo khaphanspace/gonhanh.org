@@ -177,23 +177,23 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/tuantmtb">
+        <img src="https://avatars.githubusercontent.com/u/9003486?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>tuantmtb</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/duynguyeenx96">
         <img src="https://avatars.githubusercontent.com/u/57407583?v=4" width="50" style="border-radius:50%"/><br/>
         <b>duynguyeenx96</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/ngthminhdev">
         <img src="https://avatars.githubusercontent.com/u/95201788?v=4" width="50" style="border-radius:50%"/><br/>
         <b>ngthminhdev</b>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/tuantmtb">
-        <img src="https://avatars.githubusercontent.com/u/9003486?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>tuantmtb</b>
       </a>
     </td>
     <td align="center">
