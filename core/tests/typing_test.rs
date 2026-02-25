@@ -113,9 +113,9 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("tasoo", "táoo"), // t + á + oo → block circumflex
     ("tesaa", "teáa"), // t + é + aa → block circumflex, tone repositions
     // gi/qu initial: i/u is part of consonant, NOT a separate vowel → allow circumflex
-    ("gifoo", "giồ"),   // gi + f + oo → giồ (i is part of gi-initial)
-    ("gixoo", "giỗ"),   // gi + x + oo → giỗ
-    ("gisoo", "giố"),   // gi + s + oo → giố
+    ("gifoo", "giồ"), // gi + f + oo → giồ (i is part of gi-initial)
+    ("gixoo", "giỗ"), // gi + x + oo → giỗ
+    ("gisoo", "giố"), // gi + s + oo → giố
     //
     // ============================================================
     // GROUP 2: TONE STAYS ON 1ST VOWEL (Main + Glide patterns)
