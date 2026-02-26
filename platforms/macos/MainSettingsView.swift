@@ -182,22 +182,11 @@ class AppState: ObservableObject {
     /// Per-app profiles: delay preset + method override per bundleId
     @Published var perAppProfiles: [String: PerAppConfig] = [:] {
         didSet {
-            clearDetectionCache() // Immediate: affects next keystroke
-            scheduleProfilePersistence() // Debounced: avoids rapid slider writes
-        }
-    }
-
-    private var profilePersistTask: DispatchWorkItem?
-    private func scheduleProfilePersistence() {
-        profilePersistTask?.cancel()
-        let profiles = perAppProfiles
-        let task = DispatchWorkItem {
-            if let data = try? JSONEncoder().encode(profiles) {
+            if let data = try? JSONEncoder().encode(perAppProfiles) {
                 UserDefaults.standard.set(data, forKey: SettingsKey.perAppProfiles)
             }
+            clearDetectionCache()
         }
-        profilePersistTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: task)
     }
 
     @Published var shortcuts: [ShortcutItem] = []
