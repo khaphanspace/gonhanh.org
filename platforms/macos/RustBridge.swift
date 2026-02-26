@@ -1313,6 +1313,10 @@ private enum DetectionCache {
     static var lastLoggedKey: String = "" // Only log when method+app changes
     static let ttl: CFAbsoluteTime = 0.2 // 200ms
 
+    /// Snapshot of per-app profile for current app, set on app switch to avoid
+    /// accessing @Published dictionary from keystroke hot path (thread safety)
+    static var activeProfile: PerAppConfig?
+
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
         guard let cached = result,
               CFAbsoluteTimeGetCurrent() - timestamp < ttl else { return nil }
@@ -1335,9 +1339,10 @@ private enum DetectionCache {
     }
 }
 
-/// Clear detection cache (call on app switch)
+/// Clear detection cache (call on app switch or profile change)
 func clearDetectionCache() {
     DetectionCache.clear()
+    DetectionCache.activeProfile = nil
 }
 
 private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
@@ -1378,9 +1383,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-        // Apply per-app profile overrides (delay + injection method)
-        let profiles = AppState.shared.perAppProfiles
-        if let profile = profiles[bundleId] {
+        // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
+        if let profile = DetectionCache.activeProfile {
             var finalMethod = m
             var finalDelays = d
 
@@ -1722,6 +1726,8 @@ class PerAppModeManager {
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
+        DetectionCache.activeProfile = AppState.shared.perAppProfiles[previousApp]
+        // Same order as handleAppSwitch: profile first, then per-app mode
         AppState.shared.applyPerAppProfile(bundleId: previousApp)
         restorePerAppMode(for: previousApp)
     }
@@ -1772,10 +1778,15 @@ class PerAppModeManager {
         RustBridge.clearBuffer()
         clearDetectionCache() // Clear injection method cache on app switch
 
+        // Snapshot per-app profile for keystroke hot path (thread-safe read)
+        DetectionCache.activeProfile = AppState.shared.perAppProfiles[bundleId]
+
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()
 
-        // Apply per-app profile override (kiểu gõ)
+        // Apply per-app profile override (enabled/method).
+        // IMPORTANT: Must run BEFORE restorePerAppMode — profile may disable GN,
+        // and restorePerAppMode's guard checks profile.enabled to avoid re-enabling.
         AppState.shared.applyPerAppProfile(bundleId: bundleId)
 
         guard AppState.shared.perAppModeEnabled else { return }

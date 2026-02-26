@@ -243,6 +243,7 @@ struct LogViewerSection: View {
     @State private var logLines: [String] = []
     @State private var timer: Timer?
     @State private var copyFeedback = false
+    @State private var lastFileSize: UInt64 = 0
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -346,6 +347,7 @@ struct LogViewerSection: View {
     private func clearLog() {
         try? "".write(toFile: "/tmp/gonhanh_debug.log", atomically: true, encoding: .utf8)
         logLines = []
+        lastFileSize = 0
     }
 
     private func startPolling() {
@@ -358,12 +360,20 @@ struct LogViewerSection: View {
     }
 
     private func loadLog() {
-        guard let data = FileManager.default.contents(atPath: "/tmp/gonhanh_debug.log"),
-              let content = String(data: data, encoding: .utf8), !content.isEmpty
-        else {
-            if !logLines.isEmpty { logLines = [] }
+        let path = "/tmp/gonhanh_debug.log"
+        // Skip re-read if file size unchanged (avoids reading MBs every second)
+        let attrs = try? FileManager.default.attributesOfItem(atPath: path)
+        let size = attrs?[.size] as? UInt64 ?? 0
+        if size == 0 {
+            if !logLines.isEmpty { logLines = []; lastFileSize = 0 }
             return
         }
+        guard size != lastFileSize else { return }
+        lastFileSize = size
+
+        guard let data = FileManager.default.contents(atPath: path),
+              let content = String(data: data, encoding: .utf8), !content.isEmpty
+        else { return }
         let lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
         let tail = Array(lines.suffix(80))
         if tail != logLines { logLines = tail }
