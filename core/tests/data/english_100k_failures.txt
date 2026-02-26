@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 393
+# Total failures: 396
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -94,6 +94,7 @@ referee	referee	referee	rểee	referê
 woo	woo	woo	uô	wô
 chow	chow	chow	chơ	chơ
 gowns	gowns	gowns	gớn	gơns
+powerlessness	powwerlessness	powerlessness	powwerlessness	pơwerlessness
 eel	eel	eel	êl	êl
 rowan	rowan	rowan	rơan	rơan
 cowan	cowan	cowan	cơan	cơan
@@ -110,6 +111,7 @@ beets	beets	beets	bết	bêts
 norwood	norwood	norwood	noỏd	norwôd
 pee	pee	pee	pê	pê
 saws	saws	saws	sắ	săs
+lawlessness	lawwlessness	lawlessness	lawwlessness	lăwlessness
 geertz	geeertz	geertz	geeertz	gêertz
 cocoon	cocoon	cocoon	cocon	cocôn
 ree	ree	ree	rê	rê
@@ -277,6 +279,7 @@ neer	neer	neer	nể	nêr
 tows	tows	tows	tớ	tơs
 koop	kooop	koop	kooop	kôop
 gowan	gowan	gowan	gơan	gơan
+lowpass	lowwpass	lowpass	lowwpass	lơwpass
 kawamura	kawwamura	kawamura	kawwamura	kăwamura
 longwood	longwood	longwood	longod	longwôd
 ddp	ddp	ddp	đp	đp
@@ -353,7 +356,7 @@ beseeched	beseeched	beseeched	beéched	besêched
 lowdown	lowwdowwn	lowdown	lowdowwn	lơwdơwn
 geert	geeert	geert	geeert	gêert
 aab	aab	aab	âb	âb
-tyree	tyreee	tyree	tỷee	tyrêe
+tyree	tyreee	tyree	tyẻe	tyrêe
 owa	owa	owa	ơa	ơa
 gawk	gawk	gawk	găk	găk
 kaaba	kaaaba	kaaba	kaaaba	kâaba

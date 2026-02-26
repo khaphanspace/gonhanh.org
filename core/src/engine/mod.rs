@@ -1904,52 +1904,6 @@ impl Engine {
                         return None;
                     }
 
-                    // Issue #318: Block circumflex when raw_input shows
-                    // V1(different) + tone_modifier + V2(trigger) + V2(current) pattern.
-                    // User typed a different vowel, applied tone, then double vowel.
-                    // "mufaa" → raw=[M,U,F,A,A]: A+F+U → block → "mùaa"
-                    // "tuasat" → raw=[T,U,A,S,A]: [-2]=S ≠ trigger → allow → "tuất"
-                    // Note: raw_input already includes current key (pushed before process())
-                    {
-                        let raw_len = self.raw_input.len();
-                        if raw_len >= 4 {
-                            let (prev_key, _, _) = self.raw_input[raw_len - 2];
-                            let (tone_key, _, _) = self.raw_input[raw_len - 3];
-                            let (diff_vowel, _, _) = self.raw_input[raw_len - 4];
-
-                            // Allow if the diphthong forms a valid V2 circumflex (iê, uê, yê, uô)
-                            let is_valid_v2 = matches!(
-                                (diff_vowel, key),
-                                (keys::I, keys::E)
-                                    | (keys::U, keys::E)
-                                    | (keys::Y, keys::E)
-                                    | (keys::U, keys::O)
-                            );
-
-                            // Skip if "diff_vowel" is part of gi/qu initial (not a real vowel)
-                            // "gifoo" → raw=[G,I,F,O,O]: I is part of gi-initial → allow
-                            // "qufaa" → raw=[Q,U,F,A,A]: U is part of qu-initial → allow
-                            let is_initial_vowel = raw_len >= 5
-                                && ((diff_vowel == keys::I
-                                    && self.raw_input[raw_len - 5].0 == keys::G)
-                                    || (diff_vowel == keys::U
-                                        && self.raw_input[raw_len - 5].0 == keys::Q));
-
-                            if prev_key == key
-                                && matches!(
-                                    tone_key,
-                                    keys::S | keys::F | keys::R | keys::X | keys::J
-                                )
-                                && keys::is_vowel(diff_vowel)
-                                && diff_vowel != key
-                                && !is_valid_v2
-                                && !is_initial_vowel
-                            {
-                                return None;
-                            }
-                        }
-                    }
-
                     // Check if buffer has multiple vowel types and any has a mark
                     // Skip circumflex if it would create invalid diphthong (like ôà, âo)
                     // But allow if circumflex creates valid pattern (like uê, iê, yê)
@@ -5489,6 +5443,29 @@ impl Engine {
             }
         }
 
+        // Check 5b: Invalid circumflex diphthong WITHOUT final = INVALID Vietnamese
+        // In Vietnamese, circumflex on V2 is only valid for: iê, yê, uê, uô
+        // Other V1 + circumflex-V2 (e.g., uâ, oâ) are invalid when standalone (no final)
+        // BUT with finals they can be valid: uân (tuân, luận), uất (tuất)
+        // Only flag as invalid when there's no final consonant
+        if syllable.vowel.len() == 2 && syllable.final_c.is_empty() {
+            let v1_key = buffer_keys[syllable.vowel[0]];
+            let v2_key = buffer_keys[syllable.vowel[1]];
+            let v2_tone = buffer_tones[syllable.vowel[1]];
+            if v2_tone == tone::CIRCUMFLEX {
+                let is_valid_v2_circumflex = matches!(
+                    (v1_key, v2_key),
+                    (keys::I, keys::E)
+                        | (keys::Y, keys::E)
+                        | (keys::U, keys::E)
+                        | (keys::U, keys::O)
+                );
+                if !is_valid_v2_circumflex {
+                    return true;
+                }
+            }
+        }
+
         // Check 6: HORN-O + E pattern is INVALID Vietnamese
         // "oe" is valid diphthong (xoe, hoe), but "ơe" / "ởe" doesn't exist
         // This catches English words like "power" → "pởe", "tower" → "tởe"
@@ -5709,11 +5686,30 @@ impl Engine {
             // e.g., "dissable" → "disable", "usser" → "user"
             self.buf.to_string_preserve_case().chars().collect()
         } else {
-            let mut chars: Vec<char> = self
-                .raw_input
-                .iter()
-                .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
-                .collect();
+            // Use telex_double_raw when available (preserves original input before revert
+            // modified raw_input). This fixes cases like "muafaa" where circumflex revert
+            // removed one entry from raw_input but telex_double_raw has the full original.
+            let mut chars: Vec<char> = if let Some(ref base_raw) = self.telex_double_raw {
+                let mut result: Vec<char> = base_raw.chars().collect();
+                let subsequent_start = if self.raw_input.len() < self.telex_double_raw_len {
+                    self.telex_double_raw_len.saturating_sub(1)
+                } else {
+                    self.telex_double_raw_len
+                };
+                for i in subsequent_start..self.raw_input.len() {
+                    if let Some(&(key, caps, shift)) = self.raw_input.get(i) {
+                        if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
+                            result.push(ch);
+                        }
+                    }
+                }
+                result
+            } else {
+                self.raw_input
+                    .iter()
+                    .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+                    .collect()
+            };
 
             // Collapse vowel patterns for English restore (Telex circumflex patterns)
             // Only collapse when double/triple vowel is IMMEDIATELY followed by tone modifier at END
@@ -5746,15 +5742,21 @@ impl Engine {
                     && tone_modifiers.contains(&last)
             };
 
-            // 1. Triple vowel → always collapse to double: "saaas" → "saas"
+            // 1. Triple vowel → collapse to double when NOT at end: "saaas" → "saas"
+            // Only collapse when there are chars after the triple (i+3 < len),
+            // preserving triple vowels at word end for exact raw restore
+            // ("mufaaa" keeps all 3 a's since user typed them intentionally)
+            let mut had_triple_vowel_collapse = false;
             let mut i = 0;
             while i + 2 < chars.len() {
                 let c = chars[i].to_ascii_lowercase();
                 if matches!(c, 'a' | 'e' | 'o')
                     && chars[i].eq_ignore_ascii_case(&chars[i + 1])
                     && chars[i + 1].eq_ignore_ascii_case(&chars[i + 2])
+                    && i + 3 < chars.len()
                 {
                     chars.remove(i + 1);
+                    had_triple_vowel_collapse = true;
                     continue;
                 }
                 i += 1;
@@ -5909,28 +5911,26 @@ impl Engine {
                 }
             }
 
-            // Partial restore: tone + double vowel at end
-            // Pattern: C + V + tone_modifier + V + V (same vowel)
-            // Example: "tafoo" = t + a + f + o + o → restore to "tàoo"
-            // - Keep the tone on first vowel (from 'f' = huyền)
-            // - Keep double vowel at end (not collapsed to circumflex)
-            if chars.len() == 5 && self.method == 0 {
-                // Telex only
-                let c0 = chars[0].to_ascii_lowercase();
-                let c1 = chars[1].to_ascii_lowercase();
-                let c2 = chars[2].to_ascii_lowercase();
-                let c3 = chars[3].to_ascii_lowercase();
-                let c4 = chars[4].to_ascii_lowercase();
-
-                // Check pattern: consonant + vowel + tone_modifier + vowel + vowel (same)
-                let is_consonant_0 = !matches!(c0, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
-                let is_vowel_1 = matches!(c1, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
-                let is_tone_2 = matches!(c2, 's' | 'f' | 'r' | 'x' | 'j');
-                let is_circumflex_vowel_34 = matches!(c3, 'a' | 'e' | 'o') && c3 == c4;
-
-                if is_consonant_0 && is_vowel_1 && is_tone_2 && is_circumflex_vowel_34 {
-                    // Build: C + (V with tone) + V + V
-                    let toned_vowel = match (c1, c2) {
+            // Partial restore: Telex tone modifier + doubled/tripled vowel patterns
+            // When raw chars differ from buffer, auto-restore fires. These patterns
+            // apply the tone mark to the correct vowel and collapse extra vowels.
+            //
+            // 5-char patterns:
+            //   A: C+V+tone+V+V  - "mufaa" → "muàa", "tafoo" → "tàoo"
+            //   B: C+V1+V2+tone+V2 - "muafa" → "muàa"
+            // 6-char patterns (triple vowel → normalize to 5-char, then reuse A/B):
+            //   C+V+tone+V+V+V    - "mufaaa" → "mùaa"  (stripped → pattern A)
+            //   C+V1+V2+tone+V2+V2 - "muafaa" → "muàa"  (stripped → pattern B)
+            if self.method == 0
+                && !had_triple_vowel_collapse
+                && chars.len() >= 5
+                && chars.len() <= 6
+            {
+                let is_cons = |c: char| !matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+                let is_vow = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+                let is_tone = |c: char| matches!(c, 's' | 'f' | 'r' | 'x' | 'j');
+                let apply_t = |v: char, t: char| -> char {
+                    match (v, t) {
                         ('a', 's') => 'á',
                         ('a', 'f') => 'à',
                         ('a', 'r') => 'ả',
@@ -5961,15 +5961,81 @@ impl Engine {
                         ('y', 'r') => 'ỷ',
                         ('y', 'x') => 'ỹ',
                         ('y', 'j') => 'ỵ',
-                        _ => c1,
-                    };
-                    // Preserve case
-                    let toned_vowel = if chars[1].is_uppercase() {
-                        toned_vowel.to_uppercase().next().unwrap_or(toned_vowel)
+                        _ => v,
+                    }
+                };
+                let pcase = |toned: char, orig: char| -> char {
+                    if orig.is_uppercase() {
+                        toned.to_uppercase().next().unwrap_or(toned)
                     } else {
-                        toned_vowel
-                    };
-                    return Some(vec![chars[0], toned_vowel, chars[3], chars[4]]);
+                        toned
+                    }
+                };
+
+                // For 6-char: strip trailing vowel from triple-vowel pattern → 5-char
+                let (work, from_triple) = if chars.len() == 6 {
+                    let lc: Vec<char> = chars.iter().map(|c| c.to_ascii_lowercase()).collect();
+                    if is_cons(lc[0])
+                        && is_vow(lc[1])
+                        && is_tone(lc[2])
+                        && matches!(lc[3], 'a' | 'e' | 'o')
+                        && lc[3] == lc[4]
+                        && lc[4] == lc[5]
+                    {
+                        // C+V+tone+VVV → strip last V, tone targets V (not V2)
+                        (chars[..5].to_vec(), true)
+                    } else if is_cons(lc[0])
+                        && is_vow(lc[1])
+                        && matches!(lc[2], 'a' | 'e' | 'o')
+                        && is_tone(lc[3])
+                        && lc[2] == lc[4]
+                        && lc[4] == lc[5]
+                    {
+                        // C+V1+V2+tone+V2V2 → strip last V2, maps to pattern B
+                        (chars[..5].to_vec(), false)
+                    } else {
+                        (chars.clone(), false)
+                    }
+                } else {
+                    (chars.clone(), false)
+                };
+
+                if work.len() == 5 {
+                    let w: Vec<char> = work.iter().map(|c| c.to_ascii_lowercase()).collect();
+
+                    // Pattern A: C + V + tone + V + V (doubled vowel)
+                    if is_cons(w[0])
+                        && is_vow(w[1])
+                        && is_tone(w[2])
+                        && matches!(w[3], 'a' | 'e' | 'o')
+                        && w[3] == w[4]
+                    {
+                        // 6-char origin ("mufaaa"): tone targets V (1st vowel)
+                        // 5-char: check buffer mark position for Vietnamese repositioning
+                        let tone_later_vowel = !from_triple && {
+                            let bv: Vec<_> =
+                                self.buf.iter().filter(|c| keys::is_vowel(c.key)).collect();
+                            bv.len() >= 2 && bv.iter().skip(1).any(|c| c.mark > 0)
+                        };
+                        if tone_later_vowel {
+                            let tv = pcase(apply_t(w[3], w[2]), work[3]);
+                            return Some(vec![work[0], work[1], tv, work[4]]);
+                        } else {
+                            let tv = pcase(apply_t(w[1], w[2]), work[1]);
+                            return Some(vec![work[0], tv, work[3], work[4]]);
+                        }
+                    }
+
+                    // Pattern B: C + V1 + V2 + tone + V2 (diphthong + tone)
+                    if is_cons(w[0])
+                        && is_vow(w[1])
+                        && is_vow(w[2])
+                        && is_tone(w[3])
+                        && w[2] == w[4]
+                    {
+                        let tv = pcase(apply_t(w[2], w[3]), work[2]);
+                        return Some(vec![work[0], work[1], tv, work[4]]);
+                    }
                 }
             }
 

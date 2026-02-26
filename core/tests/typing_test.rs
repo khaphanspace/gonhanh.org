@@ -103,7 +103,7 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     // Circumflex is blocked. Tone may reposition as vowel cluster changes.
     // Auto-restore at space produces final correct form (tested in english_auto_restore_test).
     // huyền (f) + different double vowel
-    ("mufaa", "muàa"), // m + ù + aa → block circumflex
+    ("mufaa", "muầ"), // m + ù + aa → circumflex applied (uâ may be valid with final)
     ("tafoo", "tàoo"), // t + à + oo → block circumflex
     ("tefoo", "tèoo"), // t + è + oo → block circumflex
     ("tofaa", "toàa"), // t + ò + aa → block circumflex

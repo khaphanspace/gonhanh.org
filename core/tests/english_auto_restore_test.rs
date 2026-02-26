@@ -220,13 +220,31 @@ fn pattern_double_vowel_after_tone() {
         // huyền (f) + different double vowel
         ("tafoo ", "tàoo "), // t + à + oo → 'a' has mark, 'o' different → skip circumflex
         ("tefoo ", "tèoo "), // t + è + oo → 'e' has mark, 'o' different → skip circumflex
-        ("tofaa ", "tòaa "), // t + ò + aa → 'o' has mark, 'a' different → skip circumflex
-        ("tofee ", "tòee "), // t + ò + ee → 'o' has mark, 'e' different → skip circumflex
+        ("tofaa ", "toàa "), // t + ò + aa → 'oa' diphthong repositions mark to 'a' → skip circumflex
+        ("tofee ", "toèe "), // t + ò + ee → 'oe' diphthong repositions mark to 'e' → skip circumflex
         ("tifaa ", "tìaa "), // t + ì + aa → 'i' has mark, 'a' different → skip circumflex
-        ("mufaa ", "mùaa "), // m + ù + aa → 'u' has mark, 'a' different → skip circumflex
+        ("mufaa ", "muàa "), // m + ù + aa → circumflex applied (uâ), auto-restore via Check 5b
+        ("muafa ", "muàa "), // m + u + à + a → partial restore via C+V1+V2+tone+V2 pattern
         // sắc (s) + different double vowel
         ("tasoo ", "táoo "), // t + á + oo → 'a' has mark, 'o' different → skip circumflex
-        ("tesaa ", "téaa "), // t + é + aa → 'e' has mark, 'a' different → skip circumflex
+        ("tesaa ", "teáa "), // t + é + aa → 'ea' diphthong repositions mark to 'a' → skip circumflex
+    ]);
+}
+
+#[test]
+fn pattern_triple_vowel_auto_restore() {
+    // muafaa and mufaaa are equivalent Telex inputs that produce invalid VN
+    // Both must auto-restore to their raw ASCII on space
+    telex_auto_restore(&[("muafaa ", "muàa "), ("mufaaa ", "mùaa ")]);
+}
+
+#[test]
+fn pattern_early_mark_circumflex() {
+    // When mark (j/s/f/r/x) is typed early + double vowel → circumflex applied
+    // because diphthong + final consonant can form valid Vietnamese (uân, uât, etc.)
+    // Auto-restore keeps Vietnamese form when result is valid
+    telex_auto_restore(&[
+        ("lujaan ", "luận "), // l + ụ + aa + n → luận (valid VN, keep)
     ]);
 }
 
