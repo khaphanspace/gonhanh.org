@@ -5887,22 +5887,17 @@ impl Engine {
             // Partial restore: Telex tone modifier + doubled/tripled vowel patterns
             // When raw chars differ from buffer, auto-restore fires. These patterns
             // apply the tone mark to the correct vowel and collapse extra vowels.
+            // Works with any consonant cluster length (ch, tr, ng, ngh, etc.)
             //
-            // 5-char patterns:
-            //   A: C+V+tone+V+V  - "mufaa" → "muàa", "tafoo" → "tàoo"
-            //   B: C+V1+V2+tone+V2 - "muafa" → "muàa"
-            // 6-char patterns (triple vowel → normalize to 5-char, then reuse A/B):
-            //   C+V+tone+V+V+V    - "mufaaa" → "mùaa"  (stripped → pattern A)
-            //   C+V1+V2+tone+V2+V2 - "muafaa" → "muàa"  (stripped → pattern B)
-            if self.method == 0
-                && !had_triple_vowel_collapse
-                && chars.len() >= 5
-                && chars.len() <= 6
-            {
+            // Tail patterns (after consonant prefix):
+            //   A: V+tone+V+V    - "mufaa"→"muàa", "chufaa"→"chuàa"
+            //   B: V1+V2+tone+V2 - "muafa"→"muàa", "chaofo"→"chàoo"
+            // Triple vowel → strip last, reuse A/B:
+            //   V+tone+VVV       - "mufaaa"→"mùaa"  (→ pattern A, from_triple)
+            //   V1+V2+tone+V2V2  - "muafaa"→"muàa"  (→ pattern B)
+            if self.method == 0 && !had_triple_vowel_collapse && chars.len() >= 5 {
                 let is_vowel = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
                 let is_tone = |c: char| matches!(c, 's' | 'f' | 'r' | 'x' | 'j');
-                // Telex tone table: vowel + tone key → toned vowel
-                //                    s    f    r    x    j
                 let apply_t = |v: char, t: char| -> char {
                     let tones: &[char] = match v {
                         'a' => &['á', 'à', 'ả', 'ã', 'ạ'],
@@ -5931,67 +5926,87 @@ impl Engine {
                     }
                 };
 
-                // For 6-char: strip trailing vowel from triple-vowel pattern → 5-char
-                // For 5-char: use directly
-                let lc: Vec<char> = chars.iter().map(|c| c.to_ascii_lowercase()).collect();
-                let (work, from_triple) = if chars.len() == 6 && !is_vowel(lc[0]) && is_vowel(lc[1])
-                {
-                    if is_tone(lc[2])
-                        && matches!(lc[3], 'a' | 'e' | 'o')
-                        && lc[3] == lc[4]
-                        && lc[4] == lc[5]
-                    {
-                        // C+V+tone+VVV → strip last V, tone targets V (not V2)
-                        (&chars[..5], true)
-                    } else if matches!(lc[2], 'a' | 'e' | 'o')
-                        && is_tone(lc[3])
-                        && lc[2] == lc[4]
-                        && lc[4] == lc[5]
-                    {
-                        // C+V1+V2+tone+V2V2 → strip last V2, maps to pattern B
-                        (&chars[..5], false)
+                // Split into leading consonants + vowel tail
+                let cons_end = chars
+                    .iter()
+                    .position(|c| is_vowel(c.to_ascii_lowercase()))
+                    .unwrap_or(chars.len());
+
+                if cons_end > 0 && cons_end < chars.len() {
+                    let cons = &chars[..cons_end];
+                    let tail = &chars[cons_end..];
+                    let tl: Vec<char> = tail.iter().map(|c| c.to_ascii_lowercase()).collect();
+
+                    // Normalize triple vowel in tail (5→4)
+                    let (vtail, from_triple) = if tl.len() == 5 {
+                        if is_vowel(tl[0])
+                            && is_tone(tl[1])
+                            && matches!(tl[2], 'a' | 'e' | 'o')
+                            && tl[2] == tl[3]
+                            && tl[3] == tl[4]
+                        {
+                            // V+tone+VVV → strip last V, tone targets V
+                            (&tail[..4], true)
+                        } else if is_vowel(tl[0])
+                            && matches!(tl[1], 'a' | 'e' | 'o')
+                            && is_tone(tl[2])
+                            && tl[1] == tl[3]
+                            && tl[3] == tl[4]
+                        {
+                            // V1+V2+tone+V2V2 → strip last V2
+                            (&tail[..4], false)
+                        } else {
+                            (tail, false)
+                        }
                     } else {
-                        (chars.as_slice(), false)
-                    }
-                } else {
-                    (chars.as_slice(), false)
-                };
+                        (tail, false)
+                    };
 
-                if work.len() == 5 {
-                    let w: Vec<char> = work.iter().map(|c| c.to_ascii_lowercase()).collect();
+                    if vtail.len() == 4 {
+                        let vl: Vec<char> = vtail.iter().map(|c| c.to_ascii_lowercase()).collect();
 
-                    // Pattern A: C + V + tone + V + V (doubled vowel)
-                    if !is_vowel(w[0])
-                        && is_vowel(w[1])
-                        && is_tone(w[2])
-                        && matches!(w[3], 'a' | 'e' | 'o')
-                        && w[3] == w[4]
-                    {
-                        // 6-char origin ("mufaaa"): tone targets V (1st vowel)
-                        // 5-char: check buffer mark position for Vietnamese repositioning
-                        let tone_later_vowel = !from_triple && {
+                        // Buffer mark position: determines which vowel gets the tone
+                        let mark_on_later_vowel = || -> bool {
                             let bv: Vec<_> =
                                 self.buf.iter().filter(|c| keys::is_vowel(c.key)).collect();
                             bv.len() >= 2 && bv.iter().skip(1).any(|c| c.mark > 0)
                         };
-                        if tone_later_vowel {
-                            let tv = pcase(apply_t(w[3], w[2]), work[3]);
-                            return Some(vec![work[0], work[1], tv, work[4]]);
-                        } else {
-                            let tv = pcase(apply_t(w[1], w[2]), work[1]);
-                            return Some(vec![work[0], tv, work[3], work[4]]);
-                        }
-                    }
 
-                    // Pattern B: C + V1 + V2 + tone + V2 (diphthong + tone)
-                    if !is_vowel(w[0])
-                        && is_vowel(w[1])
-                        && is_vowel(w[2])
-                        && is_tone(w[3])
-                        && w[2] == w[4]
-                    {
-                        let tv = pcase(apply_t(w[2], w[3]), work[2]);
-                        return Some(vec![work[0], work[1], tv, work[4]]);
+                        // Pattern A: V + tone + V + V (doubled vowel after tone)
+                        if is_vowel(vl[0])
+                            && is_tone(vl[1])
+                            && matches!(vl[2], 'a' | 'e' | 'o')
+                            && vl[2] == vl[3]
+                        {
+                            let tone_later = !from_triple && mark_on_later_vowel();
+                            let mut result: Vec<char> = cons.to_vec();
+                            if tone_later {
+                                result.push(vtail[0]);
+                                result.push(pcase(apply_t(vl[2], vl[1]), vtail[2]));
+                                result.push(vtail[3]);
+                            } else {
+                                result.push(pcase(apply_t(vl[0], vl[1]), vtail[0]));
+                                result.push(vtail[2]);
+                                result.push(vtail[3]);
+                            }
+                            return Some(result);
+                        }
+
+                        // Pattern B: V1 + V2 + tone + V2 (diphthong + tone)
+                        if is_vowel(vl[0]) && is_vowel(vl[1]) && is_tone(vl[2]) && vl[1] == vl[3] {
+                            let tone_later = mark_on_later_vowel();
+                            let mut result: Vec<char> = cons.to_vec();
+                            if tone_later {
+                                result.push(vtail[0]);
+                                result.push(pcase(apply_t(vl[1], vl[2]), vtail[1]));
+                                result.push(vtail[3]);
+                            } else {
+                                result.push(pcase(apply_t(vl[0], vl[2]), vtail[0]));
+                                result.push(vtail[1]);
+                                result.push(vtail[3]);
+                            }
+                            return Some(result);
+                        }
                     }
                 }
             }

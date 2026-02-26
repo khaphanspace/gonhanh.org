@@ -239,6 +239,15 @@ fn pattern_triple_vowel_auto_restore() {
 }
 
 #[test]
+fn pattern_multi_consonant_partial_restore() {
+    // Multi-char consonant clusters (ch, tr, th, ng, etc.) + tone + doubled vowel
+    telex_auto_restore(&[
+        ("chaofo ", "chàoo "), // ch + ao + f(huyền) + o → "chàoo"
+        ("chaoso ", "cháoo "), // ch + ao + s(sắc) + o → "cháoo"
+    ]);
+}
+
+#[test]
 fn pattern_early_mark_circumflex() {
     // When mark (j/s/f/r/x) is typed early + double vowel → circumflex applied
     // because diphthong + final consonant can form valid Vietnamese (uân, uât, etc.)
