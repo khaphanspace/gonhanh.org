@@ -36,11 +36,13 @@ class SoundManager {
 
 enum NavigationPage: String, CaseIterable {
     case settings = "Cài đặt"
+    case advanced = "Nâng cao"
     case about = "Giới thiệu"
 
     var icon: String {
         switch self {
         case .settings: "gearshape"
+        case .advanced: "wrench.and.screwdriver"
         case .about: "bolt.fill"
         }
     }
@@ -77,8 +79,9 @@ class AppState: ObservableObject {
 
     @Published var currentMethod: InputMode {
         didSet {
-            UserDefaults.standard.set(currentMethod.rawValue, forKey: SettingsKey.method)
             RustBridge.setMethod(currentMethod.rawValue)
+            guard !isSilentUpdate else { return }
+            UserDefaults.standard.set(currentMethod.rawValue, forKey: SettingsKey.method)
         }
     }
 
@@ -163,6 +166,29 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var advancedMode: Bool = false {
+        didSet {
+            UserDefaults.standard.set(advancedMode, forKey: SettingsKey.advancedMode)
+        }
+    }
+
+    /// Disable Spotlight/Raycast panel detection for better performance
+    @Published var disablePanelDetection: Bool = false {
+        didSet {
+            UserDefaults.standard.set(disablePanelDetection, forKey: SettingsKey.disablePanelDetection)
+        }
+    }
+
+    /// Per-app profiles: delay preset + method override per bundleId
+    @Published var perAppProfiles: [String: PerAppConfig] = [:] {
+        didSet {
+            if let data = try? JSONEncoder().encode(perAppProfiles) {
+                UserDefaults.standard.set(data, forKey: SettingsKey.perAppProfiles)
+            }
+            clearDetectionCache()
+        }
+    }
+
     @Published var shortcuts: [ShortcutItem] = []
     @Published var isLaunchAtLoginEnabled: Bool = false
     @Published var requiresManualLaunchAtLogin: Bool = false
@@ -191,6 +217,13 @@ class AppState: ObservableObject {
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
+        advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
+        disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
+        if let data = defaults.data(forKey: SettingsKey.perAppProfiles),
+           let profiles = try? JSONDecoder().decode([String: PerAppConfig].self, from: data)
+        {
+            perAppProfiles = profiles
+        }
 
         // Sync settings to Rust engine
         syncAllToEngine()
@@ -236,6 +269,71 @@ class AppState: ObservableObject {
     /// Remove an app from auto-capitalize exclusion list
     func includeAppInAutoCapitalize(_ bundleId: String) {
         autoCapitalizeExcludedApps.remove(bundleId)
+    }
+
+    /// Track global state before per-app profile override, so we can restore on app switch
+    private var profileSavedMethod: InputMode?
+    private var profileSavedEnabled: Bool?
+
+    /// Apply per-app profile override when switching apps
+    func applyPerAppProfile(bundleId: String) {
+        guard let profile = perAppProfiles[bundleId] else {
+            restoreProfileDefaults()
+            return
+        }
+
+        let hasEnabledOverride = !profile.enabled
+        let hasMethodOverride = profile.methodOverride != MethodOverride.auto.rawValue
+
+        // No overrides at all — restore defaults
+        if !hasEnabledOverride, !hasMethodOverride {
+            restoreProfileDefaults()
+            return
+        }
+
+        // "Tắt" GN — disable Vietnamese for this app
+        if !profile.enabled {
+            if profileSavedMethod == nil { profileSavedMethod = currentMethod }
+            if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
+            RustBridge.setEnabled(false)
+            setEnabledSilently(false)
+            return
+        }
+
+        // Telex/VNI override (enabled = true)
+        if let method = InputMode(rawValue: profile.methodOverride) {
+            if profileSavedMethod == nil { profileSavedMethod = currentMethod }
+            // Re-enable if was disabled by "Tắt" on previous app
+            if let savedEnabled = profileSavedEnabled {
+                profileSavedEnabled = nil
+                RustBridge.setEnabled(savedEnabled)
+                setEnabledSilently(savedEnabled)
+            }
+            RustBridge.setMethod(method.rawValue)
+            setMethodSilently(method)
+        }
+    }
+
+    private func restoreProfileDefaults() {
+        if let saved = profileSavedMethod {
+            profileSavedMethod = nil
+            let ground = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? saved
+            RustBridge.setMethod(ground.rawValue)
+            setMethodSilently(ground)
+        }
+        if let savedEnabled = profileSavedEnabled {
+            profileSavedEnabled = nil
+            RustBridge.setEnabled(savedEnabled)
+            setEnabledSilently(savedEnabled)
+        }
+    }
+
+    /// Update method UI without triggering didSet persistence
+    private func setMethodSilently(_ method: InputMode) {
+        guard currentMethod != method else { return }
+        isSilentUpdate = true
+        currentMethod = method
+        isSilentUpdate = false
     }
 
     private func loadShortcuts() {
@@ -660,6 +758,9 @@ struct MainSettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showSettingsPage)) { notification in
             if let page = notification.object as? NavigationPage { selectedPage = page }
         }
+        .onChange(of: appState.advancedMode) { newValue in
+            if !newValue, selectedPage == .advanced { selectedPage = .settings }
+        }
     }
 
     // MARK: - Sidebar
@@ -676,7 +777,7 @@ struct MainSettingsView: View {
             Spacer()
 
             VStack(spacing: 4) {
-                ForEach(NavigationPage.allCases, id: \.self) { page in
+                ForEach(NavigationPage.allCases.filter { $0 != .advanced || appState.advancedMode }, id: \.self) { page in
                     NavButton(page: page, isSelected: selectedPage == page) { selectedPage = page }
                 }
             }
@@ -695,6 +796,9 @@ struct MainSettingsView: View {
                 SettingsPageView(appState: appState).padding(28)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .advanced:
+            AdvancedSettingsView(appState: appState).padding(28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .about:
             AboutPageView().padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -843,6 +947,8 @@ struct SettingsPageView: View {
             // Hệ thống
             VStack(spacing: 0) {
                 LaunchAtLoginToggleRow(appState: appState)
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Hiển thị cài đặt nâng cao", isOn: $appState.advancedMode)
             }
             .cardBackground()
 

@@ -1378,6 +1378,35 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
+        // Apply per-app profile overrides (delay + injection method)
+        let profiles = AppState.shared.perAppProfiles
+        if let profile = profiles[bundleId] {
+            var finalMethod = m
+            var finalDelays = d
+
+            // Injection method override
+            if profile.injectionOverride >= 0, let inject = InjectionOverride(rawValue: profile.injectionOverride) {
+                switch inject {
+                case .fast: finalMethod = .fast
+                case .slow: finalMethod = .slow
+                case .charByChar: finalMethod = .charByChar
+                case .selection: finalMethod = .selection
+                case .emptyCharPrefix: finalMethod = .emptyCharPrefix
+                case .auto: break
+                }
+            }
+
+            // Delay override (preset != 0 means non-auto)
+            if profile.delayPreset != 0, let delayPreset = DelayPreset(rawValue: profile.delayPreset) {
+                finalDelays = delayPreset.delays
+            }
+
+            if profile.injectionOverride >= 0 || profile.delayPreset != 0 {
+                let logKey = "override:\(methodName) [\(bundleId)] m=\(finalMethod) d=\(finalDelays)"
+                DetectionCache.set(finalMethod, finalDelays, logKey: logKey)
+                return (finalMethod, finalDelays)
+            }
+        }
         let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
         DetectionCache.set(m, d, logKey: logKey); return (m, d)
     }
@@ -1682,6 +1711,7 @@ class PerAppModeManager {
     /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
     /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
     func handleSpecialPanelAppActivated(_ bundleId: String) {
+        guard !AppState.shared.disablePanelDetection else { return }
         spotlightChecked = true // Mark as checked (AXObserver detected it)
         handleAppSwitch(bundleId)
     }
@@ -1692,6 +1722,7 @@ class PerAppModeManager {
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
+        AppState.shared.applyPerAppProfile(bundleId: previousApp)
         restorePerAppMode(for: previousApp)
     }
 
@@ -1702,6 +1733,8 @@ class PerAppModeManager {
     private static let spotlightBundleId = "com.apple.Spotlight"
 
     func checkSpotlightOnce() {
+        // Skip if panel detection is disabled (performance optimization)
+        guard !AppState.shared.disablePanelDetection else { return }
         // Skip if already checked in this session
         guard !spotlightChecked else { return }
         spotlightChecked = true
@@ -1742,6 +1775,9 @@ class PerAppModeManager {
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()
 
+        // Apply per-app profile override (kiểu gõ)
+        AppState.shared.applyPerAppProfile(bundleId: bundleId)
+
         guard AppState.shared.perAppModeEnabled else { return }
 
         if AppState.shared.hasPerAppMode(bundleId: bundleId) {
@@ -1754,6 +1790,9 @@ class PerAppModeManager {
 
     /// Restore per-app mode for a bundle ID and update UI
     private func restorePerAppMode(for bundleId: String) {
+        // Skip if per-app profile has disabled GN — applyPerAppProfile handles it
+        if let profile = AppState.shared.perAppProfiles[bundleId],
+           !profile.enabled { return }
         guard AppState.shared.perAppModeEnabled,
               AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
 
