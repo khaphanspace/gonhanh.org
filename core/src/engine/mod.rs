@@ -5626,44 +5626,40 @@ impl Engine {
         has_vowel
     }
 
-    /// Build raw chars from raw_input EXACTLY as typed (no collapsing)
-    /// Used for whitelist-based restore where we want the exact English word.
-    fn build_raw_chars_exact(&self) -> Option<Vec<char>> {
-        // If telex_double_raw is stored (original input before modification), use it
-        // plus any subsequent chars typed after the revert
-        // Example: "daddy" → telex_double_raw="dadd", subsequent="y" → "daddy"
-        if let Some(ref raw_str) = self.telex_double_raw {
-            if !raw_str.is_empty() && self.telex_double_raw_len > 0 {
-                let mut result: Vec<char> = raw_str.chars().collect();
-                // Append subsequent chars from raw_input
-                // For stroke revert (dd): raw_input was modified (1 char removed)
-                //   → subsequent_start = stored_len - 1
-                // For mark revert (ss): raw_input was NOT modified (deferred pop)
-                //   → subsequent_start = stored_len
-                // Detect by comparing current length with stored length
+    /// Build raw chars from telex_double_raw (if stored) + subsequent raw_input,
+    /// or fall back to converting all of raw_input to chars.
+    ///
+    /// telex_double_raw stores the original input before a mark/stroke revert modified
+    /// raw_input. Subsequent chars typed after the revert are appended from raw_input.
+    fn collect_raw_chars(&self) -> Vec<char> {
+        if let Some(ref base_raw) = self.telex_double_raw {
+            if !base_raw.is_empty() && self.telex_double_raw_len > 0 {
+                let mut result: Vec<char> = base_raw.chars().collect();
+                // For stroke revert (dd): raw_input had 1 char removed → start 1 earlier
+                // For mark revert (ss): raw_input unchanged → start at stored len
                 let subsequent_start = if self.raw_input.len() < self.telex_double_raw_len {
-                    // raw_input was modified (1 char removed)
                     self.telex_double_raw_len.saturating_sub(1)
                 } else {
-                    // raw_input was NOT modified
                     self.telex_double_raw_len
                 };
-                for i in subsequent_start..self.raw_input.len() {
-                    if let Some(&(key, caps, shift)) = self.raw_input.get(i) {
-                        if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
-                            result.push(ch);
-                        }
+                for &(key, caps, shift) in &self.raw_input[subsequent_start..] {
+                    if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
+                        result.push(ch);
                     }
                 }
-                return Some(result);
+                return result;
             }
         }
-        // Fallback to current raw_input
-        let chars: Vec<char> = self
-            .raw_input
+        self.raw_input
             .iter()
             .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
-            .collect();
+            .collect()
+    }
+
+    /// Build raw chars from raw_input EXACTLY as typed (no collapsing).
+    /// Used for whitelist-based restore where we want the exact English word.
+    fn build_raw_chars_exact(&self) -> Option<Vec<char>> {
+        let chars = self.collect_raw_chars();
         if chars.is_empty() {
             None
         } else {
@@ -5686,30 +5682,7 @@ impl Engine {
             // e.g., "dissable" → "disable", "usser" → "user"
             self.buf.to_string_preserve_case().chars().collect()
         } else {
-            // Use telex_double_raw when available (preserves original input before revert
-            // modified raw_input). This fixes cases like "muafaa" where circumflex revert
-            // removed one entry from raw_input but telex_double_raw has the full original.
-            let mut chars: Vec<char> = if let Some(ref base_raw) = self.telex_double_raw {
-                let mut result: Vec<char> = base_raw.chars().collect();
-                let subsequent_start = if self.raw_input.len() < self.telex_double_raw_len {
-                    self.telex_double_raw_len.saturating_sub(1)
-                } else {
-                    self.telex_double_raw_len
-                };
-                for i in subsequent_start..self.raw_input.len() {
-                    if let Some(&(key, caps, shift)) = self.raw_input.get(i) {
-                        if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
-                            result.push(ch);
-                        }
-                    }
-                }
-                result
-            } else {
-                self.raw_input
-                    .iter()
-                    .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
-                    .collect()
-            };
+            let mut chars: Vec<char> = self.collect_raw_chars();
 
             // Collapse vowel patterns for English restore (Telex circumflex patterns)
             // Only collapse when double/triple vowel is IMMEDIATELY followed by tone modifier at END
@@ -5926,43 +5899,29 @@ impl Engine {
                 && chars.len() >= 5
                 && chars.len() <= 6
             {
-                let is_cons = |c: char| !matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
-                let is_vow = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+                let is_vowel = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
                 let is_tone = |c: char| matches!(c, 's' | 'f' | 'r' | 'x' | 'j');
+                // Telex tone table: vowel + tone key → toned vowel
+                //                    s    f    r    x    j
                 let apply_t = |v: char, t: char| -> char {
-                    match (v, t) {
-                        ('a', 's') => 'á',
-                        ('a', 'f') => 'à',
-                        ('a', 'r') => 'ả',
-                        ('a', 'x') => 'ã',
-                        ('a', 'j') => 'ạ',
-                        ('e', 's') => 'é',
-                        ('e', 'f') => 'è',
-                        ('e', 'r') => 'ẻ',
-                        ('e', 'x') => 'ẽ',
-                        ('e', 'j') => 'ẹ',
-                        ('i', 's') => 'í',
-                        ('i', 'f') => 'ì',
-                        ('i', 'r') => 'ỉ',
-                        ('i', 'x') => 'ĩ',
-                        ('i', 'j') => 'ị',
-                        ('o', 's') => 'ó',
-                        ('o', 'f') => 'ò',
-                        ('o', 'r') => 'ỏ',
-                        ('o', 'x') => 'õ',
-                        ('o', 'j') => 'ọ',
-                        ('u', 's') => 'ú',
-                        ('u', 'f') => 'ù',
-                        ('u', 'r') => 'ủ',
-                        ('u', 'x') => 'ũ',
-                        ('u', 'j') => 'ụ',
-                        ('y', 's') => 'ý',
-                        ('y', 'f') => 'ỳ',
-                        ('y', 'r') => 'ỷ',
-                        ('y', 'x') => 'ỹ',
-                        ('y', 'j') => 'ỵ',
-                        _ => v,
-                    }
+                    let tones: &[char] = match v {
+                        'a' => &['á', 'à', 'ả', 'ã', 'ạ'],
+                        'e' => &['é', 'è', 'ẻ', 'ẽ', 'ẹ'],
+                        'i' => &['í', 'ì', 'ỉ', 'ĩ', 'ị'],
+                        'o' => &['ó', 'ò', 'ỏ', 'õ', 'ọ'],
+                        'u' => &['ú', 'ù', 'ủ', 'ũ', 'ụ'],
+                        'y' => &['ý', 'ỳ', 'ỷ', 'ỹ', 'ỵ'],
+                        _ => return v,
+                    };
+                    let idx = match t {
+                        's' => 0,
+                        'f' => 1,
+                        'r' => 2,
+                        'x' => 3,
+                        'j' => 4,
+                        _ => return v,
+                    };
+                    tones[idx]
                 };
                 let pcase = |toned: char, orig: char| -> char {
                     if orig.is_uppercase() {
@@ -5973,39 +5932,37 @@ impl Engine {
                 };
 
                 // For 6-char: strip trailing vowel from triple-vowel pattern → 5-char
-                let (work, from_triple) = if chars.len() == 6 {
-                    let lc: Vec<char> = chars.iter().map(|c| c.to_ascii_lowercase()).collect();
-                    if is_cons(lc[0])
-                        && is_vow(lc[1])
-                        && is_tone(lc[2])
+                // For 5-char: use directly
+                let lc: Vec<char> = chars.iter().map(|c| c.to_ascii_lowercase()).collect();
+                let (work, from_triple) = if chars.len() == 6 && !is_vowel(lc[0]) && is_vowel(lc[1])
+                {
+                    if is_tone(lc[2])
                         && matches!(lc[3], 'a' | 'e' | 'o')
                         && lc[3] == lc[4]
                         && lc[4] == lc[5]
                     {
                         // C+V+tone+VVV → strip last V, tone targets V (not V2)
-                        (chars[..5].to_vec(), true)
-                    } else if is_cons(lc[0])
-                        && is_vow(lc[1])
-                        && matches!(lc[2], 'a' | 'e' | 'o')
+                        (&chars[..5], true)
+                    } else if matches!(lc[2], 'a' | 'e' | 'o')
                         && is_tone(lc[3])
                         && lc[2] == lc[4]
                         && lc[4] == lc[5]
                     {
                         // C+V1+V2+tone+V2V2 → strip last V2, maps to pattern B
-                        (chars[..5].to_vec(), false)
+                        (&chars[..5], false)
                     } else {
-                        (chars.clone(), false)
+                        (chars.as_slice(), false)
                     }
                 } else {
-                    (chars.clone(), false)
+                    (chars.as_slice(), false)
                 };
 
                 if work.len() == 5 {
                     let w: Vec<char> = work.iter().map(|c| c.to_ascii_lowercase()).collect();
 
                     // Pattern A: C + V + tone + V + V (doubled vowel)
-                    if is_cons(w[0])
-                        && is_vow(w[1])
+                    if !is_vowel(w[0])
+                        && is_vowel(w[1])
                         && is_tone(w[2])
                         && matches!(w[3], 'a' | 'e' | 'o')
                         && w[3] == w[4]
@@ -6027,9 +5984,9 @@ impl Engine {
                     }
 
                     // Pattern B: C + V1 + V2 + tone + V2 (diphthong + tone)
-                    if is_cons(w[0])
-                        && is_vow(w[1])
-                        && is_vow(w[2])
+                    if !is_vowel(w[0])
+                        && is_vowel(w[1])
+                        && is_vowel(w[2])
                         && is_tone(w[3])
                         && w[2] == w[4]
                     {
