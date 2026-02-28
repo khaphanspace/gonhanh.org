@@ -1313,6 +1313,42 @@ private enum DetectionCache {
     static var lastLoggedKey: String = "" // Only log when method+app changes
     static let ttl: CFAbsoluteTime = 0.2 // 200ms
 
+    /// Snapshot of per-app profile for current app, set on app switch to avoid
+    /// accessing @Published dictionary from keystroke hot path (thread safety)
+    /// Accessed from keystroke thread (read) and main thread (write) — use lock
+    private static var _activeProfile: PerAppConfig?
+    private static let profileLock = NSLock()
+
+    static var activeProfile: PerAppConfig? {
+        get {
+            profileLock.lock()
+            defer { profileLock.unlock() }
+            return _activeProfile
+        }
+        set {
+            profileLock.lock()
+            _activeProfile = newValue
+            profileLock.unlock()
+        }
+    }
+
+    /// Base detection results per bundleId (before overrides), for UI hint
+    /// Accessed from keystroke thread (write) and main thread (read) — use lock
+    private static var _detectedDefaults: [String: (method: String, delays: (UInt32, UInt32, UInt32))] = [:]
+    private static let defaultsLock = NSLock()
+
+    static func setDetectedDefault(for bundleId: String, value: (method: String, delays: (UInt32, UInt32, UInt32))) {
+        defaultsLock.lock()
+        _detectedDefaults[bundleId] = value
+        defaultsLock.unlock()
+    }
+
+    static func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+        defaultsLock.lock()
+        defer { defaultsLock.unlock() }
+        return _detectedDefaults[bundleId]
+    }
+
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
         guard let cached = result,
               CFAbsoluteTimeGetCurrent() - timestamp < ttl else { return nil }
@@ -1335,9 +1371,15 @@ private enum DetectionCache {
     }
 }
 
-/// Clear detection cache (call on app switch)
+/// Get detected default for a bundleId (method name + delay tuple)
+func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+    DetectionCache.getDetectedDefault(for: bundleId)
+}
+
+/// Clear detection cache (call on app switch or profile change)
 func clearDetectionCache() {
     DetectionCache.clear()
+    DetectionCache.activeProfile = nil
 }
 
 private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
@@ -1378,6 +1420,30 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
+        // Store base detection result (before overrides) for UI hint
+        DetectionCache.setDetectedDefault(for: bundleId, value: (method: "\(m)", delays: d))
+
+        // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
+        if let profile = DetectionCache.activeProfile {
+            var finalMethod = m
+            let finalDelays = DelayPreset(rawValue: profile.delayPreset)?.delays ?? d
+
+            // Injection method override
+            if profile.injectionOverride >= 0, let inject = InjectionOverride(rawValue: profile.injectionOverride) {
+                switch inject {
+                case .fast: finalMethod = .fast
+                case .slow: finalMethod = .slow
+                case .charByChar: finalMethod = .charByChar
+                case .selection: finalMethod = .selection
+                case .emptyCharPrefix: finalMethod = .emptyCharPrefix
+                case .auto: break
+                }
+            }
+
+            let logKey = "override:\(methodName) [\(bundleId)] m=\(finalMethod) d=\(finalDelays)"
+            DetectionCache.set(finalMethod, finalDelays, logKey: logKey)
+            return (finalMethod, finalDelays)
+        }
         let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
         DetectionCache.set(m, d, logKey: logKey); return (m, d)
     }
@@ -1682,6 +1748,7 @@ class PerAppModeManager {
     /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
     /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
     func handleSpecialPanelAppActivated(_ bundleId: String) {
+        guard !(AppState.shared.advancedMode && AppState.shared.disablePanelDetection) else { return }
         spotlightChecked = true // Mark as checked (AXObserver detected it)
         handleAppSwitch(bundleId)
     }
@@ -1692,6 +1759,9 @@ class PerAppModeManager {
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
+        DetectionCache.activeProfile = AppState.shared.advancedMode ? AppState.shared.perAppProfiles[previousApp] : nil
+        // Same order as handleAppSwitch: profile first, then per-app mode
+        AppState.shared.applyPerAppProfile(bundleId: previousApp)
         restorePerAppMode(for: previousApp)
     }
 
@@ -1702,6 +1772,8 @@ class PerAppModeManager {
     private static let spotlightBundleId = "com.apple.Spotlight"
 
     func checkSpotlightOnce() {
+        // Skip if panel detection is disabled (advanced setting)
+        guard !(AppState.shared.advancedMode && AppState.shared.disablePanelDetection) else { return }
         // Skip if already checked in this session
         guard !spotlightChecked else { return }
         spotlightChecked = true
@@ -1739,8 +1811,16 @@ class PerAppModeManager {
         RustBridge.clearBuffer()
         clearDetectionCache() // Clear injection method cache on app switch
 
+        // Snapshot per-app profile for keystroke hot path (thread-safe read)
+        DetectionCache.activeProfile = AppState.shared.advancedMode ? AppState.shared.perAppProfiles[bundleId] : nil
+
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()
+
+        // Apply per-app profile override (enabled/method).
+        // IMPORTANT: Must run BEFORE restorePerAppMode — profile may disable GN,
+        // and restorePerAppMode's guard checks profile.enabledState to avoid re-enabling.
+        AppState.shared.applyPerAppProfile(bundleId: bundleId)
 
         guard AppState.shared.perAppModeEnabled else { return }
 
@@ -1754,6 +1834,10 @@ class PerAppModeManager {
 
     /// Restore per-app mode for a bundle ID and update UI
     private func restorePerAppMode(for bundleId: String) {
+        // Skip if per-app profile has disabled GN — applyPerAppProfile handles it
+        if AppState.shared.advancedMode,
+           let profile = AppState.shared.perAppProfiles[bundleId],
+           profile.enabledState == -1 { return }
         guard AppState.shared.perAppModeEnabled,
               AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
 
