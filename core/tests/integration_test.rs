@@ -2386,7 +2386,11 @@ fn restore_and_type(e: &mut Engine, initial: &str, input: &str) -> String {
         let key = char_to_key(c);
         let is_caps = c.is_uppercase();
 
-        let r = e.on_key(key, is_caps, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, is_caps, false)
+        } else {
+            e.on_key_with_char(0, is_caps, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen.pop();
@@ -2513,7 +2517,11 @@ fn restore_word_non_vietnamese_then_type_new() {
     for c in "Nuw".chars() {
         let key = char_to_key(c);
         let caps = c.is_uppercase();
-        let r = e.on_key_ext(key, caps, false, false);
+        let r = if let Some(key) = key {
+            e.on_key_ext(key, caps, false, false)
+        } else {
+            e.on_key_with_char(0, caps, false, false, Some(c))
+        };
         if r.action == 1 {
             for _ in 0..r.backspace {
                 screen.pop();
@@ -2551,7 +2559,11 @@ fn restore_word_ascii_then_vowel() {
     for c in "uw".chars() {
         let key = char_to_key(c);
         let caps = c.is_uppercase();
-        let r = e.on_key_ext(key, caps, false, false);
+        let r = if let Some(key) = key {
+            e.on_key_ext(key, caps, false, false)
+        } else {
+            e.on_key_with_char(0, caps, false, false, Some(c))
+        };
         if r.action == 1 {
             for _ in 0..r.backspace {
                 screen.pop();

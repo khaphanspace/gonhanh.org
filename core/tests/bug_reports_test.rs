@@ -140,7 +140,11 @@ fn ddddd_behavior() {
 
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             println!(
@@ -612,7 +616,11 @@ fn bug_derde_to_de_hoi() {
 
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
@@ -698,7 +706,11 @@ fn bug_nesue_to_neu_circumflex() {
 
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
@@ -740,7 +752,11 @@ fn test_neus_tone_position() {
 
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
@@ -1119,7 +1135,11 @@ fn issue200_khoang_loses_tone_on_space() {
     println!("\n=== Step-by-step debug ===");
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e3.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e3.on_key(key, false, false)
+        } else {
+            e3.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
@@ -1174,7 +1194,11 @@ fn issue197_mark_removal_after_backspace() {
     // Type "serv" → should become "sẻv"
     for c in ['s', 'e', 'r', 'v'] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen.pop();
@@ -1192,8 +1216,7 @@ fn issue197_mark_removal_after_backspace() {
     assert_eq!(screen, "sẻv", "'serv' should produce 'sẻv'");
 
     // Backspace → should be "sẻ"
-    let key = gonhanh_core::utils::char_to_key('<'); // '<' = DELETE
-    let r = e.on_key(key, false, false);
+    let r = e.on_key(gonhanh_core::data::keys::DELETE, false, false);
     if r.action == Action::Send as u8 {
         for _ in 0..r.backspace {
             screen.pop();
@@ -1206,7 +1229,11 @@ fn issue197_mark_removal_after_backspace() {
 
     // Type "r" → should become "ser" (mark removed)
     let key = gonhanh_core::utils::char_to_key('r');
-    let r = e.on_key(key, false, false);
+    let r = if let Some(key) = key {
+        e.on_key(key, false, false)
+    } else {
+        e.on_key_with_char(0, false, false, false, Some('r'))
+    };
     if r.action == Action::Send as u8 {
         for _ in 0..r.backspace {
             screen.pop();
@@ -1249,7 +1276,11 @@ fn issue197_caos_double_s_restore() {
     // Type "caos" → should become "cáo"
     for c in ['c', 'a', 'o', 's'] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, false, false)
+        } else {
+            e.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen.pop();
@@ -1268,7 +1299,11 @@ fn issue197_caos_double_s_restore() {
 
     // Type another "s" → should restore to "caos"
     let key = gonhanh_core::utils::char_to_key('s');
-    let r = e.on_key(key, false, false);
+    let r = if let Some(key) = key {
+        e.on_key(key, false, false)
+    } else {
+        e.on_key_with_char(0, false, false, false, Some('s'))
+    };
     if r.action == Action::Send as u8 {
         for _ in 0..r.backspace {
             screen.pop();
@@ -1413,7 +1448,11 @@ fn issue230_there_space_duplicates_chars() {
     println!("\n=== Issue #230 Step-by-step debug ===");
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e3.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e3.on_key(key, false, false)
+        } else {
+            e3.on_key_with_char(0, false, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
@@ -1466,7 +1505,11 @@ fn issue230_debug_revert_difference() {
     let mut screen1 = String::new();
     for c in ['c', 'a', 'o', 's', 's', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e1.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e1.on_key(key, false, false)
+        } else {
+            e1.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen1.pop();
@@ -1498,7 +1541,11 @@ fn issue230_debug_revert_difference() {
     let mut screen2 = String::new();
     for c in ['h', 'e', 'r', 'e', 'r', 'e', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e2.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e2.on_key(key, false, false)
+        } else {
+            e2.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen2.pop();
@@ -1530,7 +1577,11 @@ fn issue230_debug_revert_difference() {
     let mut screen3 = String::new();
     for c in ['l', 'a', 'w', 'w', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e3.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e3.on_key(key, false, false)
+        } else {
+            e3.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen3.pop();
@@ -1562,7 +1613,11 @@ fn issue230_debug_revert_difference() {
     let mut screen4 = String::new();
     for c in ['t', 'h', 'e', 'r', 'r', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e4.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e4.on_key(key, false, false)
+        } else {
+            e4.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen4.pop();
@@ -1597,7 +1652,11 @@ fn issue230_debug_revert_difference() {
     let mut screen5 = String::new();
     for c in ['h', 'e', 'r', 'e', 'r', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e5.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e5.on_key(key, false, false)
+        } else {
+            e5.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen5.pop();
@@ -1629,7 +1688,11 @@ fn issue230_debug_revert_difference() {
     let mut screen6 = String::new();
     for c in ['l', 'i', 's', 't', 's', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e6.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e6.on_key(key, false, false)
+        } else {
+            e6.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen6.pop();
@@ -1664,7 +1727,11 @@ fn issue230_debug_revert_difference() {
     let mut screen7 = String::new();
     for c in ['m', 'i', 's', 's', ' '] {
         let key = gonhanh_core::utils::char_to_key(c);
-        let r = e7.on_key(key, false, false);
+        let r = if let Some(key) = key {
+            e7.on_key(key, false, false)
+        } else {
+            e7.on_key_with_char(0, false, false, false, Some(c))
+        };
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
                 screen7.pop();
@@ -1707,7 +1774,11 @@ fn issue230_therere_exact_input() {
     for c in inputs {
         let key = gonhanh_core::utils::char_to_key(c);
         let caps = c.is_uppercase();
-        let r = e.on_key(key, caps, false);
+        let r = if let Some(key) = key {
+            e.on_key(key, caps, false)
+        } else {
+            e.on_key_with_char(0, caps, false, false, Some(c))
+        };
 
         if r.action == Action::Send as u8 {
             for _ in 0..r.backspace {
