@@ -170,7 +170,7 @@ struct AdvancedSettingsView: View {
             Divider().padding(.horizontal, 14)
             SettingsToggleRow(
                 "Khởi động lại khi đóng cài đặt",
-                subtitle: "Tự động giải phóng memory của cài đặt khi đóng",
+                subtitle: "Tự động giải phóng RAM của cài đặt khi đóng",
                 isOn: $appState.restartOnClose
             )
         }
