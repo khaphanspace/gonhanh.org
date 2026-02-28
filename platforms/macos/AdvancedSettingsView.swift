@@ -4,25 +4,32 @@ import SwiftUI
 // MARK: - Per-App Profile Model
 
 struct PerAppConfig: Codable, Equatable {
-    var enabled: Bool = true // Bật/Tắt Gõ Nhanh cho app này
-    var delayPreset: Int = 0 // DelayPreset raw value
-    var methodOverride: Int = -1 // MethodOverride raw value: -1=auto, 0=telex, 1=vni
-    var injectionOverride: Int = -1 // InjectionOverride raw value: -1=auto, 0-4=specific
+    var enabledState: Int = 0 // 0=auto, 1=on, -1=off
+    var delayPreset: Int = 0
+    var methodOverride: Int = -1
+    var injectionOverride: Int = -1
+
+    /// Create config pre-filled from system-detected defaults for this app
+    static func fromDetected(bundleId: String) -> PerAppConfig {
+        guard let info = getDetectedDefault(for: bundleId) else { return PerAppConfig() }
+        return PerAppConfig(
+            delayPreset: DelayPreset.closest(to: info.delays).rawValue,
+            injectionOverride: InjectionOverride.from(detectedMethod: info.method).rawValue
+        )
+    }
 }
 
 // MARK: - Delay Preset
 
 enum DelayPreset: Int, CaseIterable {
-    case auto = 0
-    case none = 1
-    case low = 2
-    case medium = 3
-    case high = 4
-    case veryHigh = 5
+    case none = 0
+    case low = 1
+    case medium = 2
+    case high = 3
+    case veryHigh = 4
 
     var name: String {
         switch self {
-        case .auto: "Tự động"
         case .none: "Không"
         case .low: "Thấp"
         case .medium: "Vừa"
@@ -31,21 +38,27 @@ enum DelayPreset: Int, CaseIterable {
         }
     }
 
-    /// Delay tuple: (backspace µs, wait µs, text µs)
+    /// Delay tuple: (backspace µs, wait µs, text µs) — matches detectMethod() values
     var delays: (UInt32, UInt32, UInt32) {
         switch self {
-        case .auto: (0, 0, 0) // Sentinel: use system default
-        case .none: (0, 0, 0) // Force zero delay
+        case .none: (200, 800, 500) // fast default
         case .low: (1000, 3000, 1500)
-        case .medium: (3000, 8000, 3000)
+        case .medium: (3000, 8000, 3000) // slow/Electron
         case .high: (8000, 25000, 8000)
         case .veryHigh: (12000, 25000, 12000)
         }
     }
 
+    /// Find closest preset matching a delay tuple (by wait µs)
+    static func closest(to delays: (UInt32, UInt32, UInt32)) -> DelayPreset {
+        let wait = delays.1
+        return allCases.min(by: {
+            abs(Int($0.delays.1) - Int(wait)) < abs(Int($1.delays.1) - Int(wait))
+        }) ?? .none
+    }
+
     var color: Color {
         switch self {
-        case .auto: Color(NSColor.secondaryLabelColor)
         case .none: .blue
         case .low: .green
         case .medium: .orange
@@ -90,10 +103,10 @@ enum InjectionOverride: Int, CaseIterable {
     var name: String {
         switch self {
         case .auto: "Tự động"
-        case .fast: "Nhanh"
-        case .slow: "Chậm"
-        case .charByChar: "Từng ký tự"
-        case .selection: "Chọn thay thế"
+        case .fast: "Fast"
+        case .slow: "Slow"
+        case .charByChar: "Char-by-char"
+        case .selection: "Selection"
         case .emptyCharPrefix: "Empty char"
         }
     }
@@ -107,6 +120,11 @@ enum InjectionOverride: Int, CaseIterable {
         case .selection: "Select + replace, combo box"
         case .emptyCharPrefix: "Phá autocomplete trình duyệt"
         }
+    }
+
+    /// Find override matching a detected method name string
+    static func from(detectedMethod: String) -> InjectionOverride {
+        allCases.first(where: { $0.internalMethodName == detectedMethod }) ?? .auto
     }
 
     /// Map to internal InjectionMethod string for RustBridge
@@ -182,7 +200,7 @@ struct AdvancedSettingsView: View {
             SettingsRow {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tuỳ chỉnh theo ứng dụng").font(.system(size: 13, weight: .medium))
-                    Text("Ghi đè delay, kiểu gõ, kiểu inject cho từng app")
+                    Text("Tuỳ chỉnh cách Gõ Nhanh hoạt động cho từng ứng dụng")
                         .font(.system(size: 11))
                         .foregroundColor(Color(NSColor.secondaryLabelColor))
                 }
@@ -208,7 +226,7 @@ struct AdvancedSettingsView: View {
         .cardBackground()
         .sheet(isPresented: $showAddApp) {
             AppPickerSheet(existingBundleIds: Set(appState.perAppProfiles.keys)) { bundleId in
-                appState.perAppProfiles[bundleId] = PerAppConfig()
+                appState.perAppProfiles[bundleId] = PerAppConfig.fromDetected(bundleId: bundleId)
             }
         }
     }
@@ -388,87 +406,103 @@ struct PerAppProfileRow: View {
     let onChange: (PerAppConfig) -> Void
     let onRemove: () -> Void
     @State private var removeHovered = false
+    @State private var resetHovered = false
+
+    private let labelWidth: CGFloat = 48
+    private let labelColor = Color(NSColor.tertiaryLabelColor)
+    private let labelFont = Font.system(size: 10)
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Header: icon + name + remove
+        VStack(spacing: 10) {
+            // Header
             HStack(spacing: 8) {
                 AppIconView(bundleId: bundleId)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(appName).font(.system(size: 12, weight: .medium))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(appName).font(.system(size: 12, weight: .medium))
+                        if let hint = detectedHint {
+                            Text(hint)
+                                .font(.system(size: 9))
+                                .foregroundColor(labelColor)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(labelColor.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        }
+                    }
                     Text(bundleId)
                         .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                        .foregroundColor(labelColor)
+                        .lineLimit(1).truncationMode(.middle)
                 }
                 Spacer()
+                Button(action: { onChange(PerAppConfig.fromDetected(bundleId: bundleId)) }) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(resetHovered ? .accentColor : Color(NSColor.quaternaryLabelColor))
+                }
+                .buttonStyle(.plain).onHover { resetHovered = $0 }
+                .help("Reset về mặc định")
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 13))
+                        .font(.system(size: 14))
                         .foregroundColor(removeHovered ? .red : Color(NSColor.quaternaryLabelColor))
                 }
-                .buttonStyle(.plain)
-                .onHover { removeHovered = $0 }
+                .buttonStyle(.plain).onHover { removeHovered = $0 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.top, 10)
 
-            // Delay slider
-            HStack(spacing: 6) {
-                Text("Delay").font(.system(size: 10)).foregroundColor(Color(NSColor.tertiaryLabelColor))
-                    .frame(width: 34, alignment: .leading)
-                Slider(value: delaySliderBinding, in: 0 ... Double(DelayPreset.allCases.count - 1), step: 1)
-                Text(delayPresetName)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(delayPresetColor)
-                    .frame(width: 52, alignment: .trailing)
+            // Delay
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("Delay").font(labelFont).foregroundColor(labelColor)
+                        .frame(width: labelWidth, alignment: .leading)
+                    Slider(value: delaySliderBinding, in: 0 ... Double(DelayPreset.allCases.count - 1), step: 1)
+                    Text(delayPresetName)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(delayPresetColor)
+                        .frame(width: 52, alignment: .trailing)
+                }
+                Text("Tăng nếu bị nuốt chữ · Giảm nếu app phản hồi nhanh")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .padding(.leading, labelWidth + 6)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
 
-            // Trạng thái + Kiểu gõ + Kiểu inject
-            HStack(spacing: 10) {
-                HStack(spacing: 4) {
-                    Text("GN").font(.system(size: 10)).foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        .lineLimit(1).fixedSize()
-                    Picker("", selection: enabledBinding) {
-                        Text("Bật").tag(true)
-                        Text("Tắt").tag(false)
-                    }
-                    .labelsHidden()
-                    .frame(width: 62)
+            // GN · Kiểu gõ · Inject
+            HStack(spacing: 8) {
+                profilePicker("Bật Gõ Nhanh", selection: enabledBinding, width: 80) {
+                    Text("Tự động").tag(0)
+                    Text("Bật").tag(1)
+                    Text("Tắt").tag(-1)
                 }
-                HStack(spacing: 4) {
-                    Text("Kiểu gõ").font(.system(size: 10)).foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        .lineLimit(1).fixedSize()
-                    Picker("", selection: methodBinding) {
-                        ForEach(MethodOverride.inputCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
-                    }
-                    .labelsHidden()
-                    .frame(width: 85)
-                }
-                HStack(spacing: 4) {
-                    Text("Inject").font(.system(size: 10)).foregroundColor(Color(NSColor.tertiaryLabelColor))
-                        .lineLimit(1).fixedSize()
-                    Picker("", selection: injectionBinding) {
-                        ForEach(InjectionOverride.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
-                    }
-                    .labelsHidden()
-                    .frame(width: 110)
+                profilePicker("Kiểu Inject", selection: injectionBinding, width: 110) {
+                    ForEach(InjectionOverride.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
                 }
                 Spacer()
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
+    }
+
+    private func profilePicker(_ label: String, selection: Binding<some Hashable>, width: CGFloat, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: 4) {
+            Text(label).font(labelFont).foregroundColor(labelColor)
+                .lineLimit(1).fixedSize()
+            Picker("", selection: selection, content: content)
+                .labelsHidden().frame(width: width)
+        }
     }
 
     // MARK: - Helpers
 
-    private var enabledBinding: Binding<Bool> {
+    private var enabledBinding: Binding<Int> {
         Binding(
-            get: { config.enabled },
-            set: { on in var c = config; c.enabled = on; onChange(c) }
+            get: { config.enabledState },
+            set: { v in var c = config; c.enabledState = v; onChange(c) }
         )
     }
 
@@ -494,11 +528,16 @@ struct PerAppProfileRow: View {
     }
 
     private var delayPresetName: String {
-        (DelayPreset(rawValue: config.delayPreset) ?? .auto).name
+        (DelayPreset(rawValue: config.delayPreset) ?? .none).name
     }
 
     private var delayPresetColor: Color {
-        (DelayPreset(rawValue: config.delayPreset) ?? .auto).color
+        (DelayPreset(rawValue: config.delayPreset) ?? .none).color
+    }
+
+    /// Show detected default injection method as badge (e.g. "fast", "slow")
+    private var detectedHint: String? {
+        getDetectedDefault(for: bundleId)?.method
     }
 
     private var appName: String {

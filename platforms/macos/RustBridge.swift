@@ -1317,6 +1317,9 @@ private enum DetectionCache {
     /// accessing @Published dictionary from keystroke hot path (thread safety)
     static var activeProfile: PerAppConfig?
 
+    /// Base detection results per bundleId (before overrides), for UI hint
+    static var detectedDefaults: [String: (method: String, delays: (UInt32, UInt32, UInt32))] = [:]
+
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
         guard let cached = result,
               CFAbsoluteTimeGetCurrent() - timestamp < ttl else { return nil }
@@ -1337,6 +1340,11 @@ private enum DetectionCache {
         result = nil
         timestamp = 0
     }
+}
+
+/// Get detected default for a bundleId (method name + delay tuple)
+func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+    DetectionCache.detectedDefaults[bundleId]
 }
 
 /// Clear detection cache (call on app switch or profile change)
@@ -1383,10 +1391,13 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
 
     /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
+        // Store base detection result (before overrides) for UI hint
+        DetectionCache.detectedDefaults[bundleId] = (method: "\(m)", delays: d)
+
         // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
         if let profile = DetectionCache.activeProfile {
             var finalMethod = m
-            var finalDelays = d
+            let finalDelays = DelayPreset(rawValue: profile.delayPreset)?.delays ?? d
 
             // Injection method override
             if profile.injectionOverride >= 0, let inject = InjectionOverride(rawValue: profile.injectionOverride) {
@@ -1400,16 +1411,9 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
                 }
             }
 
-            // Delay override (preset != 0 means non-auto)
-            if profile.delayPreset != 0, let delayPreset = DelayPreset(rawValue: profile.delayPreset) {
-                finalDelays = delayPreset.delays
-            }
-
-            if profile.injectionOverride >= 0 || profile.delayPreset != 0 {
-                let logKey = "override:\(methodName) [\(bundleId)] m=\(finalMethod) d=\(finalDelays)"
-                DetectionCache.set(finalMethod, finalDelays, logKey: logKey)
-                return (finalMethod, finalDelays)
-            }
+            let logKey = "override:\(methodName) [\(bundleId)] m=\(finalMethod) d=\(finalDelays)"
+            DetectionCache.set(finalMethod, finalDelays, logKey: logKey)
+            return (finalMethod, finalDelays)
         }
         let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
         DetectionCache.set(m, d, logKey: logKey); return (m, d)
@@ -1786,7 +1790,7 @@ class PerAppModeManager {
 
         // Apply per-app profile override (enabled/method).
         // IMPORTANT: Must run BEFORE restorePerAppMode — profile may disable GN,
-        // and restorePerAppMode's guard checks profile.enabled to avoid re-enabling.
+        // and restorePerAppMode's guard checks profile.enabledState to avoid re-enabling.
         AppState.shared.applyPerAppProfile(bundleId: bundleId)
 
         guard AppState.shared.perAppModeEnabled else { return }
@@ -1803,7 +1807,7 @@ class PerAppModeManager {
     private func restorePerAppMode(for bundleId: String) {
         // Skip if per-app profile has disabled GN — applyPerAppProfile handles it
         if let profile = AppState.shared.perAppProfiles[bundleId],
-           !profile.enabled { return }
+           profile.enabledState == -1 { return }
         guard AppState.shared.perAppModeEnabled,
               AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }
 

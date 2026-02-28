@@ -288,7 +288,7 @@ class AppState: ObservableObject {
             return
         }
 
-        let hasEnabledOverride = !profile.enabled
+        let hasEnabledOverride = profile.enabledState != 0
         let hasMethodOverride = profile.methodOverride != MethodOverride.auto.rawValue
 
         // No overrides at all — restore defaults
@@ -297,8 +297,8 @@ class AppState: ObservableObject {
             return
         }
 
-        // "Tắt" GN — disable Vietnamese for this app
-        if !profile.enabled {
+        // "Tắt" — disable Vietnamese for this app
+        if profile.enabledState == -1 {
             if profileSavedMethod == nil { profileSavedMethod = currentMethod }
             if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
             RustBridge.setEnabled(false)
@@ -306,11 +306,17 @@ class AppState: ObservableObject {
             return
         }
 
-        // Telex/VNI override (enabled = true)
+        // "Bật" — force enable Vietnamese for this app
+        if profile.enabledState == 1 {
+            if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
+            RustBridge.setEnabled(true)
+            setEnabledSilently(true)
+        }
+
+        // Telex/VNI override
         if let method = InputMode(rawValue: profile.methodOverride) {
             if profileSavedMethod == nil { profileSavedMethod = currentMethod }
-            // Re-enable if was disabled by "Tắt" on previous app
-            if let savedEnabled = profileSavedEnabled {
+            if let savedEnabled = profileSavedEnabled, profile.enabledState == 0 {
                 profileSavedEnabled = nil
                 RustBridge.setEnabled(savedEnabled)
                 setEnabledSilently(savedEnabled)
