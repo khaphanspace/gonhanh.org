@@ -470,8 +470,12 @@ class MenuBarController: NSObject, NSWindowDelegate {
         settingsWindow = nil
         NSApp.setActivationPolicy(.accessory)
         // Restart app to reclaim memory if enabled
+        // Skip restart if app is quitting (Cmd+Q or menu Thoát)
+        let isQuitting = (NSApp.delegate as? AppDelegate)?.isQuitting ?? false
+        guard !isQuitting,
+              AppState.shared.advancedMode,
+              AppState.shared.restartOnClose else { return }
         // Terminate first, then relaunch via detached shell script after short delay
-        guard AppState.shared.advancedMode, AppState.shared.restartOnClose else { return }
         let path = Bundle.main.bundleURL.path
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
