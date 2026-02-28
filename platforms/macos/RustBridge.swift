@@ -1318,7 +1318,21 @@ private enum DetectionCache {
     static var activeProfile: PerAppConfig?
 
     /// Base detection results per bundleId (before overrides), for UI hint
-    static var detectedDefaults: [String: (method: String, delays: (UInt32, UInt32, UInt32))] = [:]
+    /// Accessed from keystroke thread (write) and main thread (read) — use lock
+    private static var _detectedDefaults: [String: (method: String, delays: (UInt32, UInt32, UInt32))] = [:]
+    private static let defaultsLock = NSLock()
+
+    static func setDetectedDefault(for bundleId: String, value: (method: String, delays: (UInt32, UInt32, UInt32))) {
+        defaultsLock.lock()
+        _detectedDefaults[bundleId] = value
+        defaultsLock.unlock()
+    }
+
+    static func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+        defaultsLock.lock()
+        defer { defaultsLock.unlock() }
+        return _detectedDefaults[bundleId]
+    }
 
     static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
         guard let cached = result,
@@ -1344,7 +1358,7 @@ private enum DetectionCache {
 
 /// Get detected default for a bundleId (method name + delay tuple)
 func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
-    DetectionCache.detectedDefaults[bundleId]
+    DetectionCache.getDetectedDefault(for: bundleId)
 }
 
 /// Clear detection cache (call on app switch or profile change)
@@ -1392,7 +1406,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     /// Helper to cache and return result (only logs when method+app changes)
     func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         // Store base detection result (before overrides) for UI hint
-        DetectionCache.detectedDefaults[bundleId] = (method: "\(m)", delays: d)
+        DetectionCache.setDetectedDefault(for: bundleId, value: (method: "\(m)", delays: d))
 
         // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
         if let profile = DetectionCache.activeProfile {

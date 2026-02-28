@@ -340,10 +340,11 @@ class AppState: ObservableObject {
             RustBridge.setMethod(ground.rawValue)
             setMethodSilently(ground)
         }
-        if let savedEnabled = profileSavedEnabled {
+        if profileSavedEnabled != nil {
             profileSavedEnabled = nil
-            RustBridge.setEnabled(savedEnabled)
-            setEnabledSilently(savedEnabled)
+            let ground = UserDefaults.standard.bool(forKey: SettingsKey.enabled)
+            RustBridge.setEnabled(ground)
+            setEnabledSilently(ground)
         }
     }
 

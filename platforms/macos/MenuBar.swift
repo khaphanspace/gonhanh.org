@@ -472,12 +472,15 @@ class MenuBarController: NSObject, NSWindowDelegate {
         // Restart app to reclaim memory if enabled
         guard AppState.shared.advancedMode, AppState.shared.restartOnClose else { return }
         let url = Bundle.main.bundleURL
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.global(qos: .utility).async {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
             task.arguments = [url.path]
-            try? task.run()
-            NSApp.terminate(nil)
+            do {
+                try task.run()
+                task.waitUntilExit()
+            } catch { return }
+            DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }
 }
