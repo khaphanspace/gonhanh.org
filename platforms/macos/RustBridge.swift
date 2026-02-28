@@ -1719,7 +1719,7 @@ class PerAppModeManager {
     /// Called by FocusChangeObserver when a special panel app (Spotlight, Raycast) becomes active.
     /// This is event-driven and happens BEFORE any keystroke, fixing the race condition.
     func handleSpecialPanelAppActivated(_ bundleId: String) {
-        guard !AppState.shared.disablePanelDetection else { return }
+        guard !(AppState.shared.advancedMode && AppState.shared.disablePanelDetection) else { return }
         spotlightChecked = true // Mark as checked (AXObserver detected it)
         handleAppSwitch(bundleId)
     }
@@ -1730,7 +1730,7 @@ class PerAppModeManager {
         // Reset to previous app - this ensures next panel open will trigger handleAppSwitch
         currentBundleId = previousApp
         spotlightChecked = false
-        DetectionCache.activeProfile = AppState.shared.perAppProfiles[previousApp]
+        DetectionCache.activeProfile = AppState.shared.advancedMode ? AppState.shared.perAppProfiles[previousApp] : nil
         // Same order as handleAppSwitch: profile first, then per-app mode
         AppState.shared.applyPerAppProfile(bundleId: previousApp)
         restorePerAppMode(for: previousApp)
@@ -1743,8 +1743,8 @@ class PerAppModeManager {
     private static let spotlightBundleId = "com.apple.Spotlight"
 
     func checkSpotlightOnce() {
-        // Skip if panel detection is disabled (performance optimization)
-        guard !AppState.shared.disablePanelDetection else { return }
+        // Skip if panel detection is disabled (advanced setting)
+        guard !(AppState.shared.advancedMode && AppState.shared.disablePanelDetection) else { return }
         // Skip if already checked in this session
         guard !spotlightChecked else { return }
         spotlightChecked = true
@@ -1783,7 +1783,7 @@ class PerAppModeManager {
         clearDetectionCache() // Clear injection method cache on app switch
 
         // Snapshot per-app profile for keystroke hot path (thread-safe read)
-        DetectionCache.activeProfile = AppState.shared.perAppProfiles[bundleId]
+        DetectionCache.activeProfile = AppState.shared.advancedMode ? AppState.shared.perAppProfiles[bundleId] : nil
 
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()
@@ -1806,7 +1806,8 @@ class PerAppModeManager {
     /// Restore per-app mode for a bundle ID and update UI
     private func restorePerAppMode(for bundleId: String) {
         // Skip if per-app profile has disabled GN — applyPerAppProfile handles it
-        if let profile = AppState.shared.perAppProfiles[bundleId],
+        if AppState.shared.advancedMode,
+           let profile = AppState.shared.perAppProfiles[bundleId],
            profile.enabledState == -1 { return }
         guard AppState.shared.perAppModeEnabled,
               AppState.shared.hasPerAppMode(bundleId: bundleId) else { return }

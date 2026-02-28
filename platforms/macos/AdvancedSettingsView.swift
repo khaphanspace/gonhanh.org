@@ -167,6 +167,12 @@ struct AdvancedSettingsView: View {
                 subtitle: "Bỏ qua panel app, giảm CPU/RAM sử dụng",
                 isOn: $appState.disablePanelDetection
             )
+            Divider().padding(.horizontal, 14)
+            SettingsToggleRow(
+                "Khởi động lại khi đóng cài đặt",
+                subtitle: "Tự động giải phóng memory của cài đặt khi đóng",
+                isOn: $appState.restartOnClose
+            )
         }
         .cardBackground()
     }

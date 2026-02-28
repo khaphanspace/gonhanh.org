@@ -466,7 +466,18 @@ class MenuBarController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window === settingsWindow else { return }
-        // Revert to background app when settings window closes
+        window.contentViewController = nil
+        settingsWindow = nil
         NSApp.setActivationPolicy(.accessory)
+        // Restart app to reclaim memory if enabled
+        guard AppState.shared.advancedMode, AppState.shared.restartOnClose else { return }
+        let url = Bundle.main.bundleURL
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = [url.path]
+            try? task.run()
+            NSApp.terminate(nil)
+        }
     }
 }

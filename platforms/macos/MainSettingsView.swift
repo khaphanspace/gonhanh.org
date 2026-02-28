@@ -179,6 +179,12 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var restartOnClose: Bool = false {
+        didSet {
+            UserDefaults.standard.set(restartOnClose, forKey: SettingsKey.restartOnClose)
+        }
+    }
+
     /// Per-app profiles: delay preset + method override per bundleId
     @Published var perAppProfiles: [String: PerAppConfig] = [:] {
         didSet {
@@ -219,6 +225,7 @@ class AppState: ObservableObject {
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
+        restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
         if let data = defaults.data(forKey: SettingsKey.perAppProfiles),
            let profiles = try? JSONDecoder().decode([String: PerAppConfig].self, from: data)
         {
@@ -283,7 +290,7 @@ class AppState: ObservableObject {
     /// Runs BEFORE restorePerAppMode in handleAppSwitch. restorePerAppMode checks
     /// profile.enabled to avoid re-enabling GN when profile has it disabled.
     func applyPerAppProfile(bundleId: String) {
-        guard let profile = perAppProfiles[bundleId] else {
+        guard advancedMode, let profile = perAppProfiles[bundleId] else {
             restoreProfileDefaults()
             return
         }
