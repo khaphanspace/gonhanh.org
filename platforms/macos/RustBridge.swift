@@ -1315,7 +1315,22 @@ private enum DetectionCache {
 
     /// Snapshot of per-app profile for current app, set on app switch to avoid
     /// accessing @Published dictionary from keystroke hot path (thread safety)
-    static var activeProfile: PerAppConfig?
+    /// Accessed from keystroke thread (read) and main thread (write) — use lock
+    private static var _activeProfile: PerAppConfig?
+    private static let profileLock = NSLock()
+
+    static var activeProfile: PerAppConfig? {
+        get {
+            profileLock.lock()
+            defer { profileLock.unlock() }
+            return _activeProfile
+        }
+        set {
+            profileLock.lock()
+            _activeProfile = newValue
+            profileLock.unlock()
+        }
+    }
 
     /// Base detection results per bundleId (before overrides), for UI hint
     /// Accessed from keystroke thread (write) and main thread (read) — use lock

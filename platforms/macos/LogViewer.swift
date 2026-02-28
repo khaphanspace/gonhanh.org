@@ -145,21 +145,31 @@ struct LogViewerSection: View {
 
     private func loadLog() {
         let path = "/tmp/gonhanh_debug.log"
-        // Skip re-read if file size unchanged (avoids reading MBs every second)
         let attrs = try? FileManager.default.attributesOfItem(atPath: path)
         let size = attrs?[.size] as? UInt64 ?? 0
+
+        // File cleared or deleted
         if size == 0 {
             if !logLines.isEmpty { logLines = []; lastFileSize = 0 }
             return
         }
+
+        // File truncated (e.g., user cleared log) — reset and re-read
+        if size < lastFileSize { lastFileSize = 0 }
+
         guard size != lastFileSize else { return }
+
+        // Tail-read: only read new bytes since last poll
+        guard let handle = FileHandle(forReadingAtPath: path) else { return }
+        defer { handle.closeFile() }
+        handle.seek(toFileOffset: lastFileSize)
+        let newData = handle.readDataToEndOfFile()
         lastFileSize = size
 
-        guard let data = FileManager.default.contents(atPath: path),
-              let content = String(data: data, encoding: .utf8), !content.isEmpty
-        else { return }
-        let lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
-        let tail = Array(lines.suffix(80))
+        guard let newContent = String(data: newData, encoding: .utf8), !newContent.isEmpty else { return }
+        let newLines = newContent.components(separatedBy: "\n").filter { !$0.isEmpty }
+        let combined = logLines + newLines
+        let tail = Array(combined.suffix(80))
         if tail != logLines { logLines = tail }
     }
 }

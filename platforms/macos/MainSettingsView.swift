@@ -278,14 +278,13 @@ class AppState: ObservableObject {
         autoCapitalizeExcludedApps.remove(bundleId)
     }
 
-    /// Track global state before per-app profile override, so we can restore on app switch
-    private var profileSavedMethod: InputMode?
+    /// Track global enabled state before per-app profile override, so we can restore on app switch
     private var profileSavedEnabled: Bool?
 
     /// Apply per-app profile override when switching apps.
     ///
-    /// State machine: Tắt → saves method+enabled → Override → restores enabled, sets method
-    ///                → No profile → restores both from UserDefaults (ground truth)
+    /// State machine: Tắt → saves enabled → Bật → force enable
+    ///                → No profile → restores from UserDefaults (ground truth)
     ///
     /// Runs BEFORE restorePerAppMode in handleAppSwitch. restorePerAppMode checks
     /// profile.enabled to avoid re-enabling GN when profile has it disabled.
@@ -295,18 +294,14 @@ class AppState: ObservableObject {
             return
         }
 
-        let hasEnabledOverride = profile.enabledState != 0
-        let hasMethodOverride = profile.methodOverride != MethodOverride.auto.rawValue
-
-        // No overrides at all — restore defaults
-        if !hasEnabledOverride, !hasMethodOverride {
+        // No overrides — restore defaults
+        guard profile.enabledState != 0 else {
             restoreProfileDefaults()
             return
         }
 
         // "Tắt" — disable Vietnamese for this app
         if profile.enabledState == -1 {
-            if profileSavedMethod == nil { profileSavedMethod = currentMethod }
             if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
             RustBridge.setEnabled(false)
             setEnabledSilently(false)
@@ -319,41 +314,15 @@ class AppState: ObservableObject {
             RustBridge.setEnabled(true)
             setEnabledSilently(true)
         }
-
-        // Telex/VNI override
-        if let method = InputMode(rawValue: profile.methodOverride) {
-            if profileSavedMethod == nil { profileSavedMethod = currentMethod }
-            if let savedEnabled = profileSavedEnabled, profile.enabledState == 0 {
-                profileSavedEnabled = nil
-                RustBridge.setEnabled(savedEnabled)
-                setEnabledSilently(savedEnabled)
-            }
-            RustBridge.setMethod(method.rawValue)
-            setMethodSilently(method)
-        }
     }
 
     private func restoreProfileDefaults() {
-        if let saved = profileSavedMethod {
-            profileSavedMethod = nil
-            let ground = InputMode(rawValue: UserDefaults.standard.integer(forKey: SettingsKey.method)) ?? saved
-            RustBridge.setMethod(ground.rawValue)
-            setMethodSilently(ground)
-        }
         if profileSavedEnabled != nil {
             profileSavedEnabled = nil
             let ground = UserDefaults.standard.bool(forKey: SettingsKey.enabled)
             RustBridge.setEnabled(ground)
             setEnabledSilently(ground)
         }
-    }
-
-    /// Update method UI without triggering didSet persistence
-    private func setMethodSilently(_ method: InputMode) {
-        guard currentMethod != method else { return }
-        isSilentUpdate = true
-        currentMethod = method
-        isSilentUpdate = false
     }
 
     private func loadShortcuts() {

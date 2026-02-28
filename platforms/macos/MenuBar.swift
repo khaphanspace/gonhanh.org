@@ -470,17 +470,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         settingsWindow = nil
         NSApp.setActivationPolicy(.accessory)
         // Restart app to reclaim memory if enabled
+        // Terminate first, then relaunch via detached shell script after short delay
         guard AppState.shared.advancedMode, AppState.shared.restartOnClose else { return }
-        let url = Bundle.main.bundleURL
-        DispatchQueue.global(qos: .utility).async {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            task.arguments = [url.path]
-            do {
-                try task.run()
-                task.waitUntilExit()
-            } catch { return }
-            DispatchQueue.main.async { NSApp.terminate(nil) }
-        }
+        let path = Bundle.main.bundleURL.path
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.5 && open '\(path)'"]
+        try? task.run()
+        NSApp.terminate(nil)
     }
 }

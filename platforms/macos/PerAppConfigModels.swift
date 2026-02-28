@@ -5,7 +5,6 @@ import SwiftUI
 struct PerAppConfig: Codable, Equatable {
     var enabledState: Int = 0 // 0=auto, 1=on, -1=off
     var delayPreset: Int = 0
-    var methodOverride: Int = -1
     var injectionOverride: Int = -1
 
     /// Create config pre-filled from system-detected defaults for this app
@@ -63,24 +62,6 @@ enum DelayPreset: Int, CaseIterable {
         case .medium: .orange
         case .high: Color(NSColor.systemRed)
         case .veryHigh: .purple
-        }
-    }
-}
-
-// MARK: - Method Override (Kiểu gõ)
-
-enum MethodOverride: Int, CaseIterable {
-    case auto = -1
-    case off = -2
-    case telex = 0
-    case vni = 1
-
-    var name: String {
-        switch self {
-        case .auto: "Tự động"
-        case .off: "Tắt"
-        case .telex: "Telex"
-        case .vni: "VNI"
         }
     }
 }
