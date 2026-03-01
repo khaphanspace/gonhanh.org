@@ -37,7 +37,7 @@ struct AdvancedSettingsView: View {
             Divider().padding(.horizontal, 14)
             SettingsToggleRow(
                 "Tắt tự động kiểm tra cập nhật",
-                subtitle: "Kiểm tra cập nhật thủ công từ menu",
+                subtitle: "Không tự động kiểm tra phiên bản mới",
                 isOn: $appState.disableUpdateCheck
             )
         }
