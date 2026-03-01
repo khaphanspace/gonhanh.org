@@ -16,7 +16,7 @@ env:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -306,7 +306,7 @@ jobs:
   staple-notarization:
     needs: build-macos
     if: ${{ needs.build-macos.outputs.submission_id != '' && needs.build-macos.outputs.stapled == 'false' }}
-    runs-on: macos-latest
+    runs-on: macos-26
     continue-on-error: true  # Don't fail the whole workflow if stapling fails
     steps:
       - uses: actions/checkout@v4

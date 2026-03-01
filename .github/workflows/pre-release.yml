@@ -38,7 +38,7 @@ jobs:
     if: |
       (github.event_name == 'workflow_dispatch' && (inputs.platform == 'macos' || inputs.platform == 'all')) ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.user.login == github.repository_owner)
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
