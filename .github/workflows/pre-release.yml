@@ -16,7 +16,7 @@ on:
       sign:
         description: 'Code sign with Developer ID (requires secrets)'
         required: false
-        default: false
+        default: true
         type: boolean
   # Auto trigger on merged PR to main (owner only)
   pull_request:
