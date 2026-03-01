@@ -13,6 +13,7 @@ struct GoNhanhApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBar: MenuBarController?
+    var isQuitting = false
 
     func applicationDidFinishLaunching(_: Notification) {
         // Register default settings before anything else
@@ -23,6 +24,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start observing input source changes
         InputSourceObserver.shared.start()
+    }
+
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        isQuitting = true
+        return .terminateNow
     }
 
     func applicationWillTerminate(_: Notification) {
