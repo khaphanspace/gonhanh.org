@@ -1941,3 +1941,19 @@ fn bug_sess_auto_restore() {
         ("hiss ", "his "), // hiss → his (exception)
     ]);
 }
+
+// =============================================================================
+// BUG: "dataad" → "đata", expected "datad"
+// After circumflex revert (dât → data), buffer [D,A,T,A] falsely matches
+// has_circumflex_trigger_pattern in try_stroke, causing final 'd' to apply
+// stroke on initial 'd'.
+// Fix: Skip circumflex trigger pattern when had_circumflex_revert is true.
+// =============================================================================
+
+#[test]
+fn bug_dataad_false_stroke_after_circumflex_revert() {
+    telex(&[
+        ("dataad", "datad"), // aa revert + d should NOT stroke
+        ("dduotoj", "đuột"), // legitimate stroke still works
+    ]);
+}

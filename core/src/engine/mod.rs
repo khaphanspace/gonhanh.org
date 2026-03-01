@@ -1575,8 +1575,12 @@ impl Engine {
         // 3. There must be a non-extending final (t, m, p) between them
         let has_circumflex_trigger_pattern = {
             let first_is_d = buffer_keys.first() == Some(&keys::D);
+            // After circumflex revert (e.g., "dât" → "data"), buffer has [D,A,T,A]
+            // which falsely matches D + V1 + C + V2 pattern. The duplicate vowels are
+            // from the revert, not intentional Vietnamese input, so skip detection.
+            let after_revert = self.had_circumflex_revert;
 
-            if first_is_d {
+            if first_is_d && !after_revert {
                 let vowel_positions: Vec<(usize, u16)> = buffer_keys
                     .iter()
                     .enumerate()
