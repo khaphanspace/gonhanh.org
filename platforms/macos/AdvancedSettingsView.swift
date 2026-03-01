@@ -34,6 +34,12 @@ struct AdvancedSettingsView: View {
                 subtitle: "Tự động giải phóng RAM của cài đặt khi đóng",
                 isOn: $appState.restartOnClose
             )
+            Divider().padding(.horizontal, 14)
+            SettingsToggleRow(
+                "Tắt tự động kiểm tra cập nhật",
+                subtitle: "Không kiểm tra và tải cập nhật ngầm",
+                isOn: $appState.disableUpdateCheck
+            )
         }
         .cardBackground()
     }

@@ -72,12 +72,20 @@ class UpdateManager: NSObject, ObservableObject {
 
     /// Start background auto-update loop (call once at app launch)
     func startBackgroundUpdates() {
+        // Skip if user disabled update checks in advanced settings
+        if UserDefaults.standard.bool(forKey: SettingsKey.disableUpdateCheck) { return }
         // Check immediately on launch
         checkAndDownloadSilently()
         // Then every hour
         backgroundTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             self?.checkAndDownloadSilently()
         }
+    }
+
+    /// Stop background auto-update loop
+    func stopBackgroundUpdates() {
+        backgroundTimer?.invalidate()
+        backgroundTimer = nil
     }
 
     /// User manually checks (only shows window if update available)

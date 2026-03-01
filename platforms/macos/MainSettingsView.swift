@@ -185,6 +185,18 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Disable background update checks entirely
+    @Published var disableUpdateCheck: Bool = false {
+        didSet {
+            UserDefaults.standard.set(disableUpdateCheck, forKey: SettingsKey.disableUpdateCheck)
+            if disableUpdateCheck {
+                UpdateManager.shared.stopBackgroundUpdates()
+            } else {
+                UpdateManager.shared.startBackgroundUpdates()
+            }
+        }
+    }
+
     /// Per-app profiles: delay preset + method override per bundleId
     @Published var perAppProfiles: [String: PerAppConfig] = [:] {
         didSet {
@@ -226,6 +238,7 @@ class AppState: ObservableObject {
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
+        disableUpdateCheck = defaults.bool(forKey: SettingsKey.disableUpdateCheck)
         if let data = defaults.data(forKey: SettingsKey.perAppProfiles),
            let profiles = try? JSONDecoder().decode([String: PerAppConfig].self, from: data)
         {
