@@ -92,7 +92,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private func setupMenu() {
         let menu = NSMenu()
 
-        // Header with toggle
+        // Header with toggle (Wi-Fi style)
         let header = NSMenuItem()
         header.view = createHeaderView()
         header.tag = 1
@@ -135,30 +135,36 @@ class MenuBarController: NSObject, NSWindowDelegate {
         updateMenu()
     }
 
+    /// Header: bold title + subtitle on left, toggle switch on right
     private func createHeaderView() -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 36))
+        let width: CGFloat = 250
+        let height: CGFloat = 44
+        let padding: CGFloat = 14
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
         // App icon
-        let iconView = NSImageView(frame: NSRect(x: 14, y: 4, width: 28, height: 28))
-        iconView.image = AppMetadata.logo
+        let iconView = NSImageView(image: AppMetadata.logo)
+        iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        view.addSubview(iconView)
+        container.addSubview(iconView)
 
-        // App name + status
-        let nameLabel = NSTextField(labelWithString: AppMetadata.name)
-        nameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        nameLabel.frame = NSRect(x: 48, y: 16, width: 100, height: 16)
-        view.addSubview(nameLabel)
+        // Title
+        let titleLabel = NSTextField(labelWithString: AppMetadata.name)
+        titleLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(titleLabel)
 
+        // Status subtitle (tag 100 for in-place updates)
         let statusText = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
-        let statusLabel = NSTextField(labelWithString: "\(statusText) · \(appState.toggleShortcut.displayParts.joined())")
-        statusLabel.font = .systemFont(ofSize: 11)
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.frame = NSRect(x: 48, y: 2, width: 100, height: 14)
-        statusLabel.tag = 100
-        view.addSubview(statusLabel)
+        let subtitle = NSTextField(labelWithString: "\(statusText) · \(appState.toggleShortcut.displayParts.joined())")
+        subtitle.font = .systemFont(ofSize: 11)
+        subtitle.textColor = .secondaryLabelColor
+        subtitle.translatesAutoresizingMaskIntoConstraints = false
+        subtitle.tag = 100
+        container.addSubview(subtitle)
 
-        // Toggle switch using SwiftUI
+        // SwiftUI Toggle switch (same component as settings view)
         let toggleView = NSHostingView(rootView:
             Toggle("", isOn: Binding(
                 get: { [weak self] in self?.appState.isEnabled ?? true },
@@ -168,17 +174,39 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 }
             ))
             .toggleStyle(.switch)
-            .labelsHidden()
-            .scaleEffect(0.8))
-        toggleView.frame = NSRect(x: 162, y: 4, width: 50, height: 28)
-        view.addSubview(toggleView)
+            .labelsHidden())
+        toggleView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(toggleView)
 
-        return view
+        NSLayoutConstraint.activate([
+            container.widthAnchor.constraint(equalToConstant: width),
+            container.heightAnchor.constraint(equalToConstant: height),
+            iconView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: padding),
+            iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 32),
+            iconView.heightAnchor.constraint(equalToConstant: 32),
+            titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8),
+            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 5),
+            subtitle.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitle.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
+            toggleView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -padding),
+            toggleView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+
+        return container
     }
 
     private func updateMenu() {
         guard let menu = statusItem.menu else { return }
-        menu.item(withTag: 1)?.view = createHeaderView()
+
+        // Update subtitle text in-place (don't recreate view — preserves toggle animation)
+        if let headerView = menu.item(withTag: 1)?.view,
+           let subtitle = headerView.viewWithTag(100) as? NSTextField
+        {
+            let statusText = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
+            subtitle.stringValue = "\(statusText) · \(appState.toggleShortcut.displayParts.joined())"
+        }
+
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
     }
