@@ -92,7 +92,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private func setupMenu() {
         let menu = NSMenu()
 
-        // Header with toggle (Wi-Fi style)
+        // Header with toggle
         let header = NSMenuItem()
         header.view = createHeaderView()
         header.tag = 1
@@ -135,36 +135,26 @@ class MenuBarController: NSObject, NSWindowDelegate {
         updateMenu()
     }
 
-    /// Header: bold title + subtitle on left, toggle switch on right
+    private var statusSubtitle: String {
+        let mode = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
+        return "\(mode) · \(appState.toggleShortcut.displayParts.joined())"
+    }
+
+    /// Header: icon + bold title + subtitle on left, toggle switch on right
     private func createHeaderView() -> NSView {
-        let width: CGFloat = 250
-        let height: CGFloat = 44
-        let padding: CGFloat = 14
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 44))
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
-
-        // App icon
         let iconView = NSImageView(image: AppMetadata.logo)
-        iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        container.addSubview(iconView)
 
-        // Title
         let titleLabel = NSTextField(labelWithString: AppMetadata.name)
         titleLabel.font = .systemFont(ofSize: 13, weight: .bold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(titleLabel)
 
-        // Status subtitle (tag 100 for in-place updates)
-        let statusText = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
-        let subtitle = NSTextField(labelWithString: "\(statusText) · \(appState.toggleShortcut.displayParts.joined())")
+        let subtitle = NSTextField(labelWithString: statusSubtitle)
         subtitle.font = .systemFont(ofSize: 11)
         subtitle.textColor = .secondaryLabelColor
-        subtitle.translatesAutoresizingMaskIntoConstraints = false
-        subtitle.tag = 100
-        container.addSubview(subtitle)
+        subtitle.tag = 100 // For in-place updates
 
-        // SwiftUI Toggle switch (same component as settings view)
         let toggleView = NSHostingView(rootView:
             Toggle("", isOn: Binding(
                 get: { [weak self] in self?.appState.isEnabled ?? true },
@@ -175,12 +165,16 @@ class MenuBarController: NSObject, NSWindowDelegate {
             ))
             .toggleStyle(.switch)
             .labelsHidden())
-        toggleView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(toggleView)
 
+        for view in [iconView, titleLabel, subtitle, toggleView] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(view)
+        }
+
+        let padding: CGFloat = 14
         NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalToConstant: width),
-            container.heightAnchor.constraint(equalToConstant: height),
+            container.widthAnchor.constraint(equalToConstant: 250),
+            container.heightAnchor.constraint(equalToConstant: 44),
             iconView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: padding),
             iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 32),
@@ -199,12 +193,11 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private func updateMenu() {
         guard let menu = statusItem.menu else { return }
 
-        // Update subtitle text in-place (don't recreate view — preserves toggle animation)
+        // Update subtitle in-place (preserves toggle animation)
         if let headerView = menu.item(withTag: 1)?.view,
            let subtitle = headerView.viewWithTag(100) as? NSTextField
         {
-            let statusText = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
-            subtitle.stringValue = "\(statusText) · \(appState.toggleShortcut.displayParts.joined())"
+            subtitle.stringValue = statusSubtitle
         }
 
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
