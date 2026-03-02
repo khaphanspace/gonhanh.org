@@ -907,6 +907,10 @@ impl Engine {
                         // Restore raw_input from buffer (for ESC restore to work)
                         self.restore_raw_input_from_buffer(&restored_buf);
                         self.buf = restored_buf;
+                        // Re-detect pending_u_horn_pos for "uơ" pattern at end of buffer
+                        // This state is lost on clear() but needed for correct horn placement
+                        // Example: "duơ" restored → type "c" → should become "dươc"
+                        self.re_detect_pending_u_horn();
                         // Mark that buffer was restored - if user types new letter,
                         // clear buffer first (they want fresh word, not append)
                         self.restored_pending_clear = true;
@@ -1032,7 +1036,7 @@ impl Engine {
                 // Vietnamese: clear only on consonant that's not a modifier
                 keys::is_consonant(key) && !is_modifier
             };
-            if should_clear {
+            if should_clear && self.pending_u_horn_pos.is_none() {
                 self.clear();
             }
             // Reset flags regardless - user is now actively typing
@@ -4359,6 +4363,26 @@ impl Engine {
         self.restored_pending_clear = false;
         self.restored_is_ascii = false;
         self.shortcut_prefix.clear();
+    }
+
+    /// Re-detect pending_u_horn_pos by scanning buffer for "u(no tone) + o(horn)" pattern
+    /// Used after restoring buffer from word history where this state was lost on clear()
+    fn re_detect_pending_u_horn(&mut self) {
+        self.pending_u_horn_pos = None;
+        let len = self.buf.len();
+        if len < 2 {
+            return;
+        }
+        // Check last two chars for u + ơ pattern (no final consonant after)
+        if let (Some(c1), Some(c2)) = (self.buf.get(len - 2), self.buf.get(len - 1)) {
+            if c1.key == keys::U
+                && c1.tone == tone::NONE
+                && c2.key == keys::O
+                && c2.tone == tone::HORN
+            {
+                self.pending_u_horn_pos = Some(len - 2);
+            }
+        }
     }
 
     /// Clear everything including word history

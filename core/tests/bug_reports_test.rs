@@ -1957,3 +1957,21 @@ fn bug_dataad_false_stroke_after_circumflex_revert() {
         ("dduotoj", "đuột"), // legitimate stroke still works
     ]);
 }
+
+// =============================================================================
+// BUG: "duow" + space + backspace + "c" → "duơc", expected "dươc"
+// After committing "duơ" with space and restoring via backspace,
+// pending_u_horn_pos is lost. Typing final consonant should apply horn to 'u'.
+// =============================================================================
+
+#[test]
+fn bug_duow_restore_horn() {
+    // "duow " commits "duơ ", backspace restores "duơ", then "c" should produce "dươc"
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duow <c");
+    println!("'duow <c' -> '{}' (expected: 'dươc')", result);
+    assert_eq!(
+        result, "dươc",
+        "'duow' + space + backspace + 'c' should produce 'dươc'"
+    );
+}
