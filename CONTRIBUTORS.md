@@ -191,15 +191,15 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
   </tr>
   <tr>
     <td align="center">
-      <a href="https://github.com/ngthminhdev">
-        <img src="https://avatars.githubusercontent.com/u/95201788?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>ngthminhdev</b>
-      </a>
-    </td>
-    <td align="center">
       <a href="https://github.com/bs90">
         <img src="https://avatars.githubusercontent.com/u/2457657?v=4" width="50" style="border-radius:50%"/><br/>
         <b>bs90</b>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/ngthminhdev">
+        <img src="https://avatars.githubusercontent.com/u/95201788?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>ngthminhdev</b>
       </a>
     </td>
     <td align="center">
