@@ -89,6 +89,18 @@ Sau đó: **System Settings → Privacy & Security → Accessibility → Bật G
 
 </details>
 
+<details>
+<summary><strong>⚠️ Bị nuốt chữ khi dùng Claude Code trong IDE (VS Code, Cursor, Windsurf...)?</strong></summary>
+
+1. **Menu bar** → icon Gõ Nhanh → **Cài đặt** → tab **Nâng cao**
+2. Phần "Tuỳ chỉnh theo ứng dụng" → nhấn **+** → chọn IDE đang dùng
+3. Kéo thanh **Delay** sang phải → **"Rất cao"** (tím)
+4. Tự động lưu, xong.
+
+> Mỗi máy, mỗi IDE có độ trễ phản hồi khác nhau, hãy tuỳ chỉnh mức delay cho phù hợp.
+
+</details>
+
 ## ✨ Tính năng
 
 ### 🔥 Highlight
