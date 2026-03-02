@@ -182,8 +182,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
             iconView.heightAnchor.constraint(equalToConstant: 32),
             titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8),
             titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 5),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: toggleView.leadingAnchor, constant: -8),
             subtitle.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitle.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
+            subtitle.trailingAnchor.constraint(lessThanOrEqualTo: toggleView.leadingAnchor, constant: -8),
             toggleView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -padding),
             toggleView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
