@@ -9,7 +9,7 @@ struct LogToggleButton: View {
     var body: some View {
         Toggle("", isOn: $isEnabled)
             .toggleStyle(.switch)
-            .controlSize(.small)
+            .labelsHidden()
             .onChange(of: isEnabled) { newValue in
                 if newValue {
                     FileManager.default.createFile(atPath: "/tmp/gonhanh_debug.log", contents: nil)
