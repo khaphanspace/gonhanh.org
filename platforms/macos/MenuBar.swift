@@ -149,7 +149,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         iconView.imageScaling = .scaleProportionallyUpOrDown
 
         let titleLabel = NSTextField(labelWithString: AppMetadata.name)
-        titleLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
 
         let subtitle = NSTextField(labelWithString: statusSubtitle)
         subtitle.font = .systemFont(ofSize: 11)
