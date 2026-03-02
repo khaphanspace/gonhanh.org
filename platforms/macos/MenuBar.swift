@@ -142,7 +142,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     /// Header: icon + bold title + subtitle on left, toggle switch on right
     private func createHeaderView() -> NSView {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 44))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 44))
+        container.autoresizingMask = [.width] // Stretch to menu width
 
         let iconView = NSImageView(image: AppMetadata.logo)
         iconView.imageScaling = .scaleProportionallyUpOrDown
@@ -173,7 +174,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         let padding: CGFloat = 14
         NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalToConstant: 250),
+            container.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
             container.heightAnchor.constraint(equalToConstant: 44),
             iconView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: padding),
             iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
