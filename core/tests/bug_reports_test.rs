@@ -1975,3 +1975,73 @@ fn bug_duow_restore_horn() {
         "'duow' + space + backspace + 'c' should produce 'dươc'"
     );
 }
+
+// =============================================================================
+// BUG: "ddu." + backspace + "f" → "đuf", expected "đù"
+// After committing "đu" with period and deleting period via backspace,
+// the buffer should be restored so "f" applies huyền to "u".
+// =============================================================================
+
+#[test]
+fn bug_ddu_break_backspace_tone() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "ddu.<f");
+    println!("'ddu.<f' -> '{}' (expected: 'đù')", result);
+    assert_eq!(
+        result, "đù",
+        "'ddu' + '.' + backspace + 'f' should produce 'đù'"
+    );
+}
+
+// =============================================================================
+// BUG: "dduow." + backspace + "c" → "đuơc", expected "đươc"
+// After committing "đươ" with period and deleting period via backspace,
+// the buffer should be restored with pending_u_horn_pos so "c" completes "đươc".
+// =============================================================================
+
+#[test]
+fn bug_dduow_break_backspace_final() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "dduow.<c");
+    println!("'dduow.<c' -> '{}' (expected: 'đươc')", result);
+    assert_eq!(
+        result, "đươc",
+        "'dduow' + '.' + backspace + 'c' should produce 'đươc'"
+    );
+}
+
+// =============================================================================
+// BUG: "duow;;" + backspace×2 + "c" → "dưc", expected "dươc"
+// When multiple break chars follow a word, each should count as one "space"
+// for backspace-after-break restore. Without this, the second backspace
+// deletes from the restored buffer instead of undoing the second break char.
+// =============================================================================
+
+#[test]
+fn bug_duow_double_break_backspace_horn() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duow;;<<c");
+    println!("'duow;;<<c' -> '{}' (expected: 'dươc')", result);
+    assert_eq!(
+        result, "dươc",
+        "'duow' + ';;' + backspace×2 + 'c' should produce 'dươc'"
+    );
+}
+
+// =============================================================================
+// BUG: "dduowc" + space + ";" + backspace×2 + "j" → "đươcj", expected "được"
+// After committing "đươc" with space, break key ";" counts as another
+// separator. Both backspaces undo separators, restoring "đươc", then "j"
+// applies nặng mark → "được".
+// =============================================================================
+
+#[test]
+fn bug_dduowc_restore_backspace_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "dduowc ;<<j");
+    println!("'dduowc ;<<j' -> '{}' (expected: 'được')", result);
+    assert_eq!(
+        result, "được",
+        "'dduowc' + space + ';' + backspace×2 + 'j' should produce 'được'"
+    );
+}

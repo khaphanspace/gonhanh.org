@@ -1706,19 +1706,21 @@ fn backspace_after_space_second_is_normal() {
     assert_eq!(result, "d", "Second backspace should delete normally");
 }
 
-/// Break key clears history (punctuation)
+/// Break key (punctuation) after space preserves history
+/// Punctuation like comma/semicolon after space acts as additional separator.
+/// Both space and punctuation must be undone via backspace before word is restored.
 #[test]
 fn backspace_after_space_break_clears_history() {
     let mut e = Engine::new();
     // Type "du", space, comma (break key), then backspace
-    // Comma clears history, so backspace should just delete comma
+    // Comma increments sac to 2 - first backspace undoes comma, second restores
     type_word(&mut e, "du ");
-    e.on_key(keys::COMMA, false, false); // Break key clears history
+    e.on_key(keys::COMMA, false, false); // Punctuation break preserves history
     let r = e.on_key(keys::DELETE, false, false);
     assert_eq!(
         r.action,
-        Action::None as u8,
-        "After break key, backspace is normal"
+        Action::Send as u8,
+        "After punctuation break, backspace undoes separator (sac 2→1)"
     );
 }
 
@@ -1905,14 +1907,18 @@ fn backspace_after_space_esc_clears() {
     assert_eq!(r.action, Action::None as u8, "ESC should clear history");
 }
 
-/// Dot punctuation clears history
+/// Dot punctuation after space preserves history (like comma/semicolon)
 #[test]
 fn backspace_after_space_dot_clears() {
     let mut e = Engine::new();
     type_word(&mut e, "du ");
     e.on_key(keys::DOT, false, false);
     let r = e.on_key(keys::DELETE, false, false);
-    assert_eq!(r.action, Action::None as u8, "DOT should clear history");
+    assert_eq!(
+        r.action,
+        Action::Send as u8,
+        "DOT after space preserves history (sac 2→1)"
+    );
 }
 
 /// Typing new word after space, backspace restores new word only

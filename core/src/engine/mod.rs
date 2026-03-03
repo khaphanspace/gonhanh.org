@@ -807,6 +807,16 @@ impl Engine {
             let continuing_prefix = self.buf.is_empty() && !self.shortcut_prefix.is_empty();
 
             if at_true_start || continuing_prefix {
+                // Track additional break chars for backspace-after-break restore
+                // When user types multiple break chars after a word (e.g., "duow;;"),
+                // each break char should count as one "space" for restore purposes.
+                // Without this, only the first break increments sac, so "duow;;" + <<
+                // only needs 1 backspace to restore, and the 2nd backspace deletes
+                // from the restored buffer instead of undoing the 2nd break char.
+                if continuing_prefix && self.spaces_after_commit > 0 {
+                    self.spaces_after_commit = self.spaces_after_commit.saturating_add(1);
+                }
+
                 // Reset has_non_letter_prefix when starting a new shortcut at true start
                 // This ensures shortcuts like "->" work after DELETE cleared the buffer
                 if at_true_start {
@@ -882,9 +892,33 @@ impl Engine {
             }
 
             let restore_result = self.try_auto_restore_on_break();
+
+            // Push buffer to history before clearing (like SPACE handler)
+            // This enables backspace-after-break to restore the word
+            // Example: "ddu." → backspace → "đu" restored → "f" → "đù"
+            if !self.buf.is_empty() {
+                // If auto-restore happened, repopulate buffer with plain chars first
+                if restore_result.action != 0 {
+                    self.buf.clear();
+                    for &(key, caps, _) in &self.raw_input {
+                        self.buf.push(Char::new(key, caps));
+                    }
+                }
+                self.word_history.push(self.buf.clone());
+                self.spaces_after_commit = 1; // Break char counts as 1 space for restore
+            } else if self.spaces_after_commit > 0 && break_key_to_char(key, shift).is_some() {
+                // Buffer is empty but we recently committed a word (via space or break),
+                // AND this break key produces a visible character (punctuation like ; , .).
+                // Increment counter so backspace can undo all separators before restoring.
+                // Navigation keys (TAB, RETURN, arrows) still clear history since they
+                // indicate the user has moved away from the word.
+                self.spaces_after_commit = self.spaces_after_commit.saturating_add(1);
+            } else {
+                self.word_history.clear();
+                self.spaces_after_commit = 0;
+            }
+
             self.clear();
-            self.word_history.clear();
-            self.spaces_after_commit = 0;
 
             // Issue #130: After clearing buffer, store break char as potential shortcut prefix
             // This allows shortcuts like "->" to work after "abc->" (where "-" clears "abc")
