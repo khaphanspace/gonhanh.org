@@ -2045,3 +2045,20 @@ fn bug_dduowc_restore_backspace_mark() {
         "'dduowc' + space + ';' + backspace×2 + 'j' should produce 'được'"
     );
 }
+
+// =============================================================================
+// BUG: "dươc vẫn " + backspace×5 + "j" → "dươcj", expected "dược"
+// Multi-word chained restore: after restoring "vẫn" and deleting it fully,
+// the next backspace should restore the previous word "dươc" from history.
+// =============================================================================
+
+#[test]
+fn bug_multiword_chained_restore_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duowc vaaxn <<<<<j");
+    println!("'duowc vaaxn <<<<<j' -> '{}' (expected: 'dược')", result);
+    assert_eq!(
+        result, "dược",
+        "'duowc' + space + 'vaaxn' + space + bs×5 + 'j' should produce 'dược'"
+    );
+}

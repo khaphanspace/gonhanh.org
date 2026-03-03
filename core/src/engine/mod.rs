@@ -1038,6 +1038,16 @@ impl Engine {
             // If buffer still has chars, user might think they cleared everything
             // but actually didn't - let them start fresh on next letter input
             if self.buf.is_empty() {
+                // Chain-restore: when a restored buffer is fully deleted via continuous
+                // backspaces and word_history has more entries, enable restoring the
+                // previous word on the next backspace. The `restored_pending_clear` flag
+                // ensures this only happens in continuous backspace sequences — if the
+                // user typed any letter (which clears the flag), the chain breaks.
+                // Example: "dươc vẫn " → bs restores "vẫn" → bs×3 deletes it →
+                //          bs restores "dươc" → "j" applies mark → "được"
+                if self.restored_pending_clear && self.word_history.len > 0 {
+                    self.spaces_after_commit = 1;
+                }
                 self.restored_pending_clear = false;
                 // Restore pending_capitalize if user deleted the auto-capitalized letter
                 // This allows: ". B" → delete B → ". " → type again → auto-capitalizes
