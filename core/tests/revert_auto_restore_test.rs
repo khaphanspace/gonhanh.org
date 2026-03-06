@@ -276,6 +276,17 @@ fn stroke_english_words_restore() {
 }
 
 #[test]
+fn double_revert_collapses_to_english_word() {
+    // When mark is reverted TWICE in the same word, telex_double_raw captures
+    // the raw_input which already contains the first revert's doubled letter.
+    // Dictionary-based consonant collapse should fix this.
+    telex_auto_restore(&[
+        // b-u-s-s-i-n-e-s-s → "bussiness" raw → collapse to "business"
+        ("bussiness ", "business "),
+    ]);
+}
+
+#[test]
 fn common_vietnamese_words_with_tone() {
     // Common Vietnamese words with tone marks should stay Vietnamese
     // These should NOT be in telex_doubles whitelist

@@ -5956,6 +5956,37 @@ impl Engine {
                 }
             }
 
+            // 5. Dictionary-based double consonant collapse (ss, ff, rr, etc.)
+            // Handles mark revert artifacts from multiple reverts in the same word.
+            // Example: "bussiness" (from b-u-s-s-i-n-e-s-s) → "business"
+            // The first ss revert bakes "ss" into raw_input, then the second ss revert
+            // captures it again in telex_double_raw, producing a doubled consonant.
+            // Only collapse when:
+            //   - Current form is NOT in dictionary, AND
+            //   - Collapsed form IS in dictionary
+            //   - Double consonant is NOT at the very end (preserve "bass", "staff", "class")
+            if chars.len() >= 3 {
+                let current_str: String = chars.iter().collect::<String>().trim().to_lowercase();
+                if !english_dict::is_english_word(&current_str) {
+                    let mut i = 0;
+                    while i + 2 < chars.len() {
+                        let c = chars[i].to_ascii_lowercase();
+                        let next = chars[i + 1].to_ascii_lowercase();
+                        if matches!(c, 's' | 'f' | 'r' | 'x' | 'j') && c == next {
+                            let mut collapsed = chars.clone();
+                            collapsed.remove(i);
+                            let collapsed_str: String =
+                                collapsed.iter().collect::<String>().trim().to_lowercase();
+                            if english_dict::is_english_word(&collapsed_str) {
+                                chars = collapsed;
+                                continue;
+                            }
+                        }
+                        i += 1;
+                    }
+                }
+            }
+
             // Partial restore: Telex tone modifier + doubled/tripled vowel patterns.
             // Applies the tone mark to the correct vowel and collapses extra vowels.
             // Works with any consonant cluster length (ch, tr, ng, ngh, etc.)
