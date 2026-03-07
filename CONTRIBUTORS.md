@@ -209,19 +209,25 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/lamngockhuong">
+        <img src="https://avatars.githubusercontent.com/u/16838267?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>lamngockhuong</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/ntuvu">
         <img src="https://avatars.githubusercontent.com/u/107499074?v=4" width="50" style="border-radius:50%"/><br/>
         <b>ntuvu</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/vincent-south">
         <img src="https://avatars.githubusercontent.com/u/250263007?v=4" width="50" style="border-radius:50%"/><br/>
         <b>vincent-south</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/jackblk">
         <img src="https://avatars.githubusercontent.com/u/12843654?v=4" width="50" style="border-radius:50%"/><br/>
@@ -232,12 +238,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/hoangtrung99">
         <img src="https://avatars.githubusercontent.com/u/29956745?v=4" width="50" style="border-radius:50%"/><br/>
         <b>hoangtrung99</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/lamngockhuong">
-        <img src="https://avatars.githubusercontent.com/u/16838267?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>lamngockhuong</b>
       </a>
     </td>
     <td align="center">
