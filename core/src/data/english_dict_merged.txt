@@ -2153,7 +2153,6 @@ budding
 buddy
 budget
 budgets
-buf
 buff
 buffa
 buffalo
@@ -9152,7 +9151,6 @@ leo
 leon
 leonard
 leone
-les
 lesbian
 lesbians
 leslie
@@ -9738,7 +9736,6 @@ martin
 marvel
 mary
 maryland
-mas
 mask
 mason
 masood
@@ -11541,7 +11538,6 @@ partnerships
 partook
 parts
 party
-pas
 paso
 pass
 pass'd
@@ -13822,7 +13818,6 @@ sarah
 sargasso
 sarnoff
 sarris
-sas
 saskatchewan
 saskatoon
 sass
