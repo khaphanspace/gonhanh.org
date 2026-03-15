@@ -1509,8 +1509,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.duckduckgo.macos.browser", // DuckDuckGo
         "com.openai.atlas", // ChatGPT Atlas
     ]
-    let addressBarRoles: Set<String> = ["AXTextField", "AXTextArea", "AXWindow"]
-    if browsers.contains(bundleId), let role, addressBarRoles.contains(role) { return cached(.emptyCharPrefix, (0, 0, 0), "emptyChar:browser") }
+    // All browser contexts use emptyCharPrefix to break autocomplete/suggestion highlights
+    if browsers.contains(bundleId) { return cached(.emptyCharPrefix, (0, 0, 0), "emptyChar:browser") }
     if role == "AXTextField", bundleId.hasPrefix("com.jetbrains") { return cached(.selection, (0, 0, 0), "sel:jb") }
 
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
