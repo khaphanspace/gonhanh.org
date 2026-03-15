@@ -152,6 +152,12 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
     return false
 }
 
+/// Check if layout-aware character is a break key (punctuation/space)
+private func isBreakChar(_ char: Character?) -> Bool {
+    guard let char else { return false }
+    return " .,:;!?()[]{}\\/\"'`~".contains(char)
+}
+
 // MARK: - Injection Method
 
 private enum InjectionMethod {
@@ -577,9 +583,9 @@ class RustBridge {
     ///   - caps: true if CapsLock/Shift is active
     ///   - ctrl: true if Cmd/Ctrl is pressed (bypasses IME)
     ///   - shift: true if Shift is pressed
-    ///   - char: Optional actual Unicode character (Issue #275). When provided,
-    ///           uses this for shortcut matching instead of deriving from keycode.
-    ///           Used for Option-modified keys (e.g., Option+V → √).
+    ///   - char: Optional actual Unicode character. When provided, the engine
+    ///           uses this layout-aware character for processing (Colemak, Dvorak, etc.)
+    ///           and shortcut matching (e.g., Option+V → √).
     static func processKey(keyCode: UInt16, caps: Bool, ctrl: Bool, shift: Bool = false, char: Character? = nil) -> (Int, [Character], Bool)? {
         guard isInitialized else { return nil }
 
@@ -897,6 +903,52 @@ private extension CGEvent {
     }
 }
 
+private enum KeyboardLayoutTranslator {
+    private static var deadKeyState: UInt32 = 0
+
+    static func translate(keyCode: UInt16, flags: CGEventFlags) -> Character? {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let layoutDataPtr = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+        else {
+            return nil
+        }
+
+        let layoutData = Unmanaged<CFData>.fromOpaque(layoutDataPtr).takeUnretainedValue()
+        guard let dataPtr = CFDataGetBytePtr(layoutData) else { return nil }
+        let layoutPtr = dataPtr.withMemoryRebound(to: UCKeyboardLayout.self, capacity: 1) { $0 }
+
+        var modifierKeyState = translateModifiers(flags)
+        var length = 0
+        var chars = [UniChar](repeating: 0, count: 8)
+
+        let result = UCKeyTranslate(
+            layoutPtr,
+            UInt16(keyCode),
+            UInt16(kUCKeyActionDown),
+            modifierKeyState,
+            UInt32(LMGetKbdType()),
+            UInt32(kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState,
+            chars.count,
+            &length,
+            &chars
+        )
+
+        guard result == noErr, length > 0 else { return nil }
+        return String(utf16CodeUnits: chars, count: length).first
+    }
+
+    private static func translateModifiers(_ flags: CGEventFlags) -> UInt32 {
+        var modifiers: UInt32 = 0
+        if flags.contains(.maskShift) { modifiers |= UInt32(shiftKey) }
+        if flags.contains(.maskControl) { modifiers |= UInt32(controlKey) }
+        if flags.contains(.maskAlternate) { modifiers |= UInt32(optionKey) }
+        if flags.contains(.maskCommand) { modifiers |= UInt32(cmdKey) }
+        if flags.contains(.maskAlphaShift) { modifiers |= UInt32(alphaLock) }
+        return modifiers >> 8
+    }
+}
+
 private extension CGEventFlags {
     var modifierCount: Int {
         [contains(.maskSecondaryFn), contains(.maskControl), contains(.maskAlternate), contains(.maskShift), contains(.maskCommand)].filter { $0 }.count
@@ -1106,9 +1158,11 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
+    let layoutChar = KeyboardLayoutTranslator.translate(keyCode: keyCode, flags: flags) ?? event.keyboardCharacter()
+
     // Log all keystrokes (only when debug enabled - no overhead otherwise)
     if Log.isEnabled {
-        if let char = event.keyboardCharacter() {
+        if let char = layoutChar {
             Log.info("keyDown: code=\(keyCode) char='\(char)'")
         } else {
             Log.info("keyDown: code=\(keyCode)")
@@ -1267,7 +1321,7 @@ private func keyboardCallback(
     // When Option is pressed (without Cmd/Ctrl), the key produces a special character
     // (e.g., Option+V → √). Pass this character to engine for shortcut matching.
     if hasOption, !bypassIME {
-        if let char = event.keyboardCharacter() {
+        if let char = layoutChar {
             // Process the actual character for shortcut matching
             if let (bs, chars, keyConsumed) = RustBridge.processKey(
                 keyCode: keyCode, caps: caps, ctrl: false, shift: shift, char: char
@@ -1281,12 +1335,14 @@ private func keyboardCallback(
         }
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift, char: layoutChar) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
         // Break keys (punctuation, not space): pass through or post synthetically
-        let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
+        let isBreak = (layoutChar.map { isBreakChar($0) } ?? isBreakKey(keyCode, shift: shift))
+            && keyCode != KeyCode.space
+            && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
             if bs > 0, !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
