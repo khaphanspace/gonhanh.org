@@ -67,14 +67,16 @@ impl Result {
     }
 
     pub fn send(backspace: u8, chars: &[char]) -> Self {
+        // Cap at u8::MAX (255) to prevent count overflow — MAX is 256 but count is u8
+        let n = chars.len().min(u8::MAX as usize);
         let mut result = Self {
             chars: [0; MAX],
             action: Action::Send as u8,
             backspace,
-            count: chars.len().min(MAX) as u8,
+            count: n as u8,
             flags: 0,
         };
-        for (i, &c) in chars.iter().take(MAX).enumerate() {
+        for (i, &c) in chars.iter().take(n).enumerate() {
             result.chars[i] = c as u32;
         }
         result

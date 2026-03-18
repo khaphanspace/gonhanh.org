@@ -447,9 +447,36 @@ private class TextInjector {
 
     /// Post text in chunks (CGEvent has 20-char limit)
     /// Set chunkSize=1 for character-by-character mode (slower but more reliable for some apps)
+    /// Handles newline characters by sending Return key events (Issue #343)
     /// Returns number of chunks posted
     @discardableResult
     private func postText(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil, chunkSize: Int = 20) -> Int {
+        // Fast path: no newlines (99%+ of calls) — skip split allocation
+        guard text.contains("\n") else {
+            return postTextSegment(text, source: source, delay: delay, proxy: proxy, chunkSize: chunkSize)
+        }
+        // Split text on newlines, send Return key between segments (Issue #343)
+        let segments = text.split(separator: "\n", omittingEmptySubsequences: false)
+        var totalChunks = 0
+
+        for (i, segment) in segments.enumerated() {
+            // Send text segment
+            if !segment.isEmpty {
+                totalChunks += postTextSegment(String(segment), source: source, delay: delay, proxy: proxy, chunkSize: chunkSize)
+            }
+            // Send Return key between segments (not after the last one)
+            if i < segments.count - 1 {
+                postKey(KeyCode.returnKey, source: source, proxy: proxy)
+                if delay > 0 { usleep(delay) }
+                totalChunks += 1
+            }
+        }
+        return totalChunks
+    }
+
+    /// Post a text segment (no newlines) in chunks
+    @discardableResult
+    private func postTextSegment(_ text: String, source: CGEventSource, delay: UInt32 = 0, proxy: CGEventTapProxy? = nil, chunkSize: Int = 20) -> Int {
         let utf16 = Array(text.utf16)
         var offset = 0
         var chunkNum = 0

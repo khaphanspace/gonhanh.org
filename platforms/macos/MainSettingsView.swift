@@ -471,7 +471,11 @@ class AppState: ObservableObject {
     func exportShortcuts() -> String {
         var lines = [";Gõ Nhanh - Bảng gõ tắt"]
         for shortcut in shortcuts where !shortcut.key.isEmpty {
-            lines.append("\(shortcut.key):\(shortcut.value)")
+            // Issue #343: Escape newlines in export so format stays one-entry-per-line
+            let escapedValue = shortcut.value.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+            lines.append("\(shortcut.key):\(escapedValue)")
         }
         return lines.joined(separator: "\n")
     }
@@ -484,8 +488,10 @@ class AppState: ObservableObject {
             guard !trimmed.isEmpty, !trimmed.hasPrefix(";"),
                   let colonIndex = trimmed.firstIndex(of: ":") else { continue }
             let trigger = String(trimmed[..<colonIndex]).trimmingCharacters(in: .whitespaces)
-            let replacement = String(trimmed[trimmed.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
+            let rawValue = String(trimmed[trimmed.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
             guard !trigger.isEmpty else { continue }
+            // Issue #343: Unescape \\n → newline, \\\\ → backslash
+            let replacement = Self.unescapeShortcutValue(rawValue)
             if let idx = shortcuts.firstIndex(where: { $0.key == trigger }) {
                 shortcuts[idx].value = replacement
                 shortcuts[idx].isEnabled = true
@@ -495,6 +501,29 @@ class AppState: ObservableObject {
             imported += 1
         }
         return imported
+    }
+
+    /// Unescape shortcut value: \\n → newline, \\\\ → backslash
+    private static func unescapeShortcutValue(_ value: String) -> String {
+        var result = ""
+        var chars = value.makeIterator()
+        while let ch = chars.next() {
+            if ch == "\\" {
+                if let next = chars.next() {
+                    switch next {
+                    case "n": result.append("\n")
+                    case "r": result.append("\r")
+                    case "\\": result.append("\\")
+                    default: result.append("\\"); result.append(next)
+                    }
+                } else {
+                    result.append("\\")
+                }
+            } else {
+                result.append(ch)
+            }
+        }
+        return result
     }
 }
 
@@ -1017,7 +1046,7 @@ struct ShortcutsSheet: View {
 
     private var formSection: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Viết tắt").font(.system(size: 11)).foregroundColor(.secondary)
                     TextField("vd: tphcm", text: $formKey)
@@ -1025,9 +1054,28 @@ struct ShortcutsSheet: View {
                         .frame(width: 120)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Nội dung").font(.system(size: 11)).foregroundColor(.secondary)
-                    TextField("vd: Thành phố Hồ Chí Minh", text: $formValue)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 4) {
+                        Text("Nội dung").font(.system(size: 11)).foregroundColor(.secondary)
+                        Text("(⌥↩ xuống dòng)").font(.system(size: 10)).foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    }
+                    // Issue #343: TextEditor for multiline replacement (supports newlines)
+                    TextEditor(text: $formValue)
+                        .font(.system(size: 13))
+                        .frame(height: 44)
+                        .scrollContentBackground(.hidden)
+                        .padding(4)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color(NSColor.textBackgroundColor)))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(NSColor.separatorColor).opacity(0.5), lineWidth: 0.5))
+                        .overlay(alignment: .topLeading) {
+                            if formValue.isEmpty {
+                                Text("vd: Thành phố Hồ Chí Minh")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color(NSColor.placeholderTextColor))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 6)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                 }
             }
             HStack(spacing: 8) {
@@ -1080,7 +1128,8 @@ struct ShortcutsSheet: View {
                 .width(min: 80, ideal: 100, max: 140)
 
                 TableColumn("Nội dung") { item in
-                    Text(item.value)
+                    // Issue #343: Show multiline indicator, display first line in table
+                    Text(item.value.contains("\n") ? item.value.replacingOccurrences(of: "\n", with: " ↵ ") : item.value)
                         .font(.system(size: 12))
                         .foregroundColor(item.isEnabled ? .primary : .secondary)
                         .lineLimit(1)
