@@ -112,46 +112,54 @@ $DIFF_STAT
 CODE DIFF (truncated):
 $DIFF_CONTENT"
 
+# Try Claude Code first, fallback to commit-based generation
 info "🤖 Calling Claude Code..."
-
-# Call Claude Code - run from /tmp to avoid project hooks interfering with output
-AI_OUTPUT=$(cd /tmp && claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || error "Claude Code failed to execute"
+AI_OUTPUT=$(cd /tmp && claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || true
 
 # Strip leading/trailing blank lines
 AI_OUTPUT=$(echo "$AI_OUTPUT" | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
 
-# Validate output quality - STRICT validation
+# Validate Claude output
 validate_release_notes() {
     local text="$1"
-
-    # Must not be empty
-    [ -z "$text" ] && { echo "FAIL: empty" >&2; return 1; }
-
-    # Must be at least 100 chars (meaningful content)
-    [ ${#text} -lt 100 ] && { echo "FAIL: too short (<100 chars)" >&2; return 1; }
-
-    # Must start with "## What's Changed" exactly
-    echo "$text" | head -1 | grep -qE '^## What'"'"'s Changed' || { echo "FAIL: missing '## What's Changed' header" >&2; return 1; }
-
-    # Must contain at least one section with emoji header
-    echo "$text" | grep -qE '^### (✨|🐛|⚡)' || { echo "FAIL: missing section headers (### ✨/🐛/⚡)" >&2; return 1; }
-
-    # Must contain changelog link
-    echo "$text" | grep -q "Full Changelog" || { echo "FAIL: missing Full Changelog link" >&2; return 1; }
-
-    # Must not contain AI preamble/thinking
-    echo "$text" | head -3 | grep -qiE '(here|let me|i will|certainly|sure|of course)' && { echo "FAIL: contains AI preamble" >&2; return 1; }
-
+    [ -z "$text" ] && return 1
+    [ ${#text} -lt 100 ] && return 1
+    echo "$text" | head -1 | grep -qE '^## What'"'"'s Changed' || return 1
+    echo "$text" | grep -qE '^### (✨|🐛|⚡)' || return 1
+    echo "$text" | grep -q "Full Changelog" || return 1
+    echo "$text" | head -3 | grep -qiE '(here|let me|i will|certainly|sure|of course)' && return 1
     return 0
 }
 
 if validate_release_notes "$AI_OUTPUT"; then
-    success "✅ Release notes generated successfully"
+    success "✅ Release notes generated (AI)"
     echo "$AI_OUTPUT"
 else
-    error "Generated release notes failed validation. Output was:
----
-$AI_OUTPUT
----
-Please check Claude Code configuration or generate manually."
+    # Fallback: generate from commit data directly
+    info "⚠️  Claude output empty/invalid, generating from commits..."
+
+    FEATURES=""
+    IMPROVEMENTS=""
+    FIXES=""
+
+    while IFS= read -r line; do
+        msg=$(echo "$line" | cut -d'|' -f1)
+        # Strip conventional commit prefix
+        display=$(echo "$msg" | sed -E 's/^(feat|fix|refactor|perf|docs|chore|style|test|ci|build)(\([^)]*\))?!?:[[:space:]]*//')
+        case "$msg" in
+            feat:*|feat\(*) FEATURES="${FEATURES}- ${display}\n" ;;
+            fix:*|fix\(*)   FIXES="${FIXES}- ${display}\n" ;;
+            *)              IMPROVEMENTS="${IMPROVEMENTS}- ${display}\n" ;;
+        esac
+    done <<< "$COMMITS"
+
+    OUTPUT="## What's Changed\n"
+    [ -n "$FEATURES" ] && OUTPUT="${OUTPUT}\n### ✨ New Features\n${FEATURES}"
+    [ -n "$IMPROVEMENTS" ] && OUTPUT="${OUTPUT}\n### ⚡ Improvements\n${IMPROVEMENTS}"
+    [ -n "$FIXES" ] && OUTPUT="${OUTPUT}\n### 🐛 Bug Fixes\n${FIXES}"
+    OUTPUT="${OUTPUT}\n**Full Changelog**: https://github.com/$REPO/compare/$FROM_REF...$VERSION"
+
+    RESULT=$(printf "$OUTPUT")
+    success "✅ Release notes generated (fallback)"
+    echo "$RESULT"
 fi
