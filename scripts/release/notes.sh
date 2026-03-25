@@ -114,8 +114,8 @@ $DIFF_CONTENT"
 
 info "🤖 Calling Claude Code..."
 
-# Call Claude Code with strict settings
-AI_OUTPUT=$(claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || error "Claude Code failed to execute"
+# Call Claude Code - run from /tmp to avoid project hooks interfering with output
+AI_OUTPUT=$(cd /tmp && claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || error "Claude Code failed to execute"
 
 # Strip leading/trailing blank lines
 AI_OUTPUT=$(echo "$AI_OUTPUT" | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
