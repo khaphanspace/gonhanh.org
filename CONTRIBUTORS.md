@@ -45,6 +45,12 @@ Những người đã tin tưởng và ủng hộ dự án.
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/kientux">
+        <img src="https://avatars.githubusercontent.com/u/4200743?u=4e4c760b1f38afdd87a07335bf72eb0cd5191bf5&v=4" width="80" style="border-radius:50%"/><br/>
+        <b>kientux</b> 🥈
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/nguyenphusi">
         <img src="https://avatars.githubusercontent.com/u/8143167?u=848b8f718b731d5bb73a7b9895f8d8273f99b463&v=4" width="80" style="border-radius:50%"/><br/>
         <b>nguyenphusi</b> 🥈
@@ -1013,6 +1019,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 24/03/2026*
+*Được cập nhật tự động · Lần cuối: 25/03/2026*
 
 </div>
