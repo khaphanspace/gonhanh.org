@@ -350,28 +350,35 @@ void DrawHeartIcon(HDC hdc, int x, int y, int size, COLORREF color) {
     g.FillPath(&brush, &path);
 }
 
-// Bug icon (for "Báo lỗi" / Report bug)
+// Warning triangle icon (for "Báo lỗi" / Report bug)
 void DrawBugIcon(HDC hdc, int x, int y, int size, COLORREF color) {
     Gdiplus::Graphics g(hdc);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+    float s = (float)size;
+    float cx = x + s / 2.0f;
+    float pad = s * 0.08f;
+
+    // Triangle outline
     Gdiplus::Pen pen(Gdiplus::Color(GetRValue(color), GetGValue(color), GetBValue(color)), 1.5f);
-    pen.SetLineCap(Gdiplus::LineCapRound, Gdiplus::LineCapRound, Gdiplus::DashCapRound);
+    pen.SetLineJoin(Gdiplus::LineJoinRound);
 
-    float cx = x + size / 2.0f;
-    float cy = y + size / 2.0f;
-    float r = size * 0.3f;
+    Gdiplus::PointF tri[4];
+    tri[0] = Gdiplus::PointF(cx, (float)y + pad);                    // Top
+    tri[1] = Gdiplus::PointF((float)x + s - pad, (float)y + s - pad); // Bottom right
+    tri[2] = Gdiplus::PointF((float)x + pad, (float)y + s - pad);     // Bottom left
+    tri[3] = tri[0];                                                    // Close
+    g.DrawLines(&pen, tri, 4);
 
-    // Body (oval)
-    g.DrawEllipse(&pen, cx - r, cy - r * 0.6f, r * 2, r * 2.2f);
-    // Head
-    g.DrawEllipse(&pen, cx - r * 0.6f, cy - r * 1.3f, r * 1.2f, r * 0.9f);
-    // Legs (3 pairs)
-    float legLen = r * 0.7f;
-    for (int i = 0; i < 3; i++) {
-        float ly = cy - r * 0.2f + i * r * 0.7f;
-        g.DrawLine(&pen, cx - r, ly, cx - r - legLen, ly - legLen * 0.3f);
-        g.DrawLine(&pen, cx + r, ly, cx + r + legLen, ly - legLen * 0.3f);
-    }
+    // Exclamation mark: line + dot
+    float exH = s * 0.22f;
+    float exY = (float)y + s * 0.38f;
+    g.DrawLine(&pen, cx, exY, cx, exY + exH);
+
+    // Dot
+    float dotR = s * 0.04f;
+    Gdiplus::SolidBrush brush(Gdiplus::Color(GetRValue(color), GetGValue(color), GetBValue(color)));
+    g.FillEllipse(&brush, cx - dotR, exY + exH + s * 0.08f, dotR * 2, dotR * 2);
 }
 
 // Code bracket icon (for GitHub: </>)
