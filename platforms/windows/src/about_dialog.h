@@ -17,10 +17,13 @@ private:
     AboutDialog& operator=(const AboutDialog&) = delete;
 
     void Create();
+    void DestroyFonts();
     static INT_PTR CALLBACK DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     HWND hwnd_ = nullptr;
     bool visible_ = false;
+    HFONT titleFont_ = nullptr;
+    HFONT linkFont_ = nullptr;
 };
 
 } // namespace gonhanh

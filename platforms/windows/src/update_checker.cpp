@@ -31,18 +31,30 @@ UpdateChecker& UpdateChecker::Instance() {
     return instance;
 }
 
+UpdateChecker::~UpdateChecker() {
+    // Wait for background thread to finish before destroying
+    if (workerThread_.joinable()) {
+        workerThread_.join();
+    }
+}
+
 void UpdateChecker::CheckAsync() {
     // Already checking
     if (status_.load() == UpdateStatus::Checking) {
         return;
     }
 
+    // Join previous thread if still lingering
+    if (workerThread_.joinable()) {
+        workerThread_.join();
+    }
+
     status_.store(UpdateStatus::Checking);
 
-    // Run in background thread
-    std::thread([this]() {
+    // Run in background thread (joinable, cleaned up in destructor)
+    workerThread_ = std::thread([this]() {
         QueryGitHubReleases();
-    }).detach();
+    });
 }
 
 UpdateStatus UpdateChecker::GetStatus() const {

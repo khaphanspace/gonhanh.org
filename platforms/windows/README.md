@@ -173,6 +173,6 @@ GPL-3.0 - See [LICENSE](../../LICENSE) for details.
 
 ## Support
 
-- **Issues**: https://github.com/gonhanh/gonhanh/issues
-- **Discussions**: https://github.com/gonhanh/gonhanh/discussions
-- **Documentation**: https://github.com/gonhanh/gonhanh/tree/main/docs
+- **Issues**: https://github.com/khaphanspace/gonhanh.org/issues
+- **Discussions**: https://github.com/khaphanspace/gonhanh.org/discussions
+- **Documentation**: https://github.com/khaphanspace/gonhanh.org/tree/main/docs

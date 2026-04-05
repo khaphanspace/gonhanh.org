@@ -506,8 +506,8 @@ void SettingsWindow::PaintContent(HDC hdc) {
     int chevronY = rowY + Scale(12, dpi);
     DrawChevronRight(hdc, chevronX, chevronY, chevronSize, theme.textTertiary);
 
-    // Store rect for click detection (cast away const for mutable member)
-    const_cast<SettingsWindow*>(this)->shortcutsRowRect_ = {
+    // Store rect for click detection
+    shortcutsRowRect_ = {
         labelX, rowY,
         contentX + contentWidth - sectionPadding,
         rowY + rowHeight
@@ -546,8 +546,14 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             const Theme& theme = GetTheme();
             SetTextColor(hdcStatic, theme.textPrimary);
             SetBkColor(hdcStatic, theme.windowBg);
+            // Recreate brush when theme changes (dark/light toggle)
             static HBRUSH bgBrush = nullptr;
-            if (!bgBrush) bgBrush = CreateSolidBrush(theme.windowBg);
+            static COLORREF cachedBgColor = 0;
+            if (!bgBrush || cachedBgColor != theme.windowBg) {
+                if (bgBrush) DeleteObject(bgBrush);
+                bgBrush = CreateSolidBrush(theme.windowBg);
+                cachedBgColor = theme.windowBg;
+            }
             return (LRESULT)bgBrush;
         }
 
@@ -651,10 +657,6 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
     }
 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
-}
-
-INT_PTR CALLBACK SettingsWindow::DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    return FALSE;
 }
 
 } // namespace gonhanh

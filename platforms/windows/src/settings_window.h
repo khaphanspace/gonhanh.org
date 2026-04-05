@@ -27,7 +27,6 @@ private:
     void PaintSidebar(HDC hdc);
     void PaintContent(HDC hdc);
 
-    static INT_PTR CALLBACK DialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     HWND hwnd_ = nullptr;

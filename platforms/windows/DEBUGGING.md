@@ -339,7 +339,7 @@ Nếu vẫn không fix được, gửi bug report với:
    System tray → Right-click → About
    ```
 
-**GitHub Issues**: https://github.com/gonhanh/gonhanh/issues
+**GitHub Issues**: https://github.com/khaphanspace/gonhanh.org/issues
 
 ---
 

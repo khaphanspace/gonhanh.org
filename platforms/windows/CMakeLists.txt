@@ -28,46 +28,33 @@ corrosion_import_crate(
     CRATE_TYPES staticlib
 )
 
+# Source files (shared between debug and release)
+set(GONHANH_SOURCES
+    src/main.cpp
+    src/keyboard_hook.cpp
+    src/rust_bridge.cpp
+    src/settings.cpp
+    src/system_tray.cpp
+    src/settings_window.cpp
+    src/shortcuts_dialog.cpp
+    src/about_dialog.cpp
+    src/app_compat.cpp
+    src/per_app.cpp
+    src/utils.cpp
+    src/debug_console.cpp
+    src/modern_ui.cpp
+    src/update_checker.cpp
+    resources/resources.rc
+)
+
 # Main executable
 if(ENABLE_DEBUG_CONSOLE)
     # Debug build with console window
-    add_executable(gonhanh
-        src/main.cpp
-        src/keyboard_hook.cpp
-        src/rust_bridge.cpp
-        src/settings.cpp
-        src/system_tray.cpp
-        src/settings_window.cpp
-        src/shortcuts_dialog.cpp
-        src/about_dialog.cpp
-        src/app_compat.cpp
-        src/per_app.cpp
-        src/utils.cpp
-        src/debug_console.cpp
-        src/modern_ui.cpp
-        src/update_checker.cpp
-        resources/resources.rc
-    )
+    add_executable(gonhanh ${GONHANH_SOURCES})
     target_compile_definitions(gonhanh PRIVATE GONHANH_DEBUG_CONSOLE)
 else()
     # Release build without console (WIN32)
-    add_executable(gonhanh WIN32
-        src/main.cpp
-        src/keyboard_hook.cpp
-        src/rust_bridge.cpp
-        src/settings.cpp
-        src/system_tray.cpp
-        src/settings_window.cpp
-        src/shortcuts_dialog.cpp
-        src/about_dialog.cpp
-        src/app_compat.cpp
-        src/per_app.cpp
-        src/utils.cpp
-        src/debug_console.cpp
-        src/modern_ui.cpp
-        src/update_checker.cpp
-        resources/resources.rc
-    )
+    add_executable(gonhanh WIN32 ${GONHANH_SOURCES})
 endif()
 
 # Link Rust static lib + system libs

@@ -1,11 +1,10 @@
 #include "shortcuts_dialog.h"
 #include "resource.h"
 #include "settings.h"
+#include "rust_bridge.h"
 #include <commdlg.h>
 #include <fstream>
 #include <sstream>
-#include <codecvt>
-#include <locale>
 
 namespace gonhanh {
 
@@ -210,19 +209,36 @@ void ShortcutsDialog::ImportShortcuts() {
         return;
     }
 
-    std::wifstream file(filename);
-    file.imbue(std::locale(file.getloc(), new std::codecvt_utf8_utf16<wchar_t>));
+    // Read file as UTF-8 bytes, then convert to UTF-16
+    std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         MessageBoxW(hwnd_, L"Không thể mở file", L"Lỗi", MB_ICONERROR);
         return;
+    }
+    std::string utf8Content((std::istreambuf_iterator<char>(file)),
+                             std::istreambuf_iterator<char>());
+    file.close();
+
+    // Convert UTF-8 to UTF-16 using Win32 API
+    std::wstring content;
+    if (!utf8Content.empty()) {
+        int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8Content.c_str(),
+                                           static_cast<int>(utf8Content.size()), nullptr, 0);
+        if (wideLen > 0) {
+            content.resize(wideLen);
+            MultiByteToWideChar(CP_UTF8, 0, utf8Content.c_str(),
+                                static_cast<int>(utf8Content.size()), &content[0], wideLen);
+        }
     }
 
     ListView_DeleteAllItems(listView_);
     auto& settings = Settings::Instance();
     settings.shortcuts.clear();
 
+    // Parse line by line
+    std::wistringstream stream(content);
     std::wstring line;
-    while (std::getline(file, line)) {
+    while (std::getline(stream, line)) {
         size_t pos = line.find(L'\t');
         if (pos == std::wstring::npos) {
             pos = line.find(L'=');
@@ -247,7 +263,6 @@ void ShortcutsDialog::ImportShortcuts() {
         }
     }
 
-    file.close();
     LoadShortcuts();
     SaveShortcuts();
 
@@ -270,17 +285,31 @@ void ShortcutsDialog::ExportShortcuts() {
         return;
     }
 
-    std::wofstream file(filename);
+    // Build UTF-16 content, then convert to UTF-8 for file output
+    std::wstring content;
+    auto& settings = Settings::Instance();
+    for (const auto& shortcut : settings.shortcuts) {
+        content += shortcut.trigger + L"\t" + shortcut.replacement + L"\n";
+    }
+
+    // Convert UTF-16 to UTF-8 using Win32 API
+    std::string utf8Content;
+    if (!content.empty()) {
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, content.c_str(),
+                                           static_cast<int>(content.size()), nullptr, 0, nullptr, nullptr);
+        if (utf8Len > 0) {
+            utf8Content.resize(utf8Len);
+            WideCharToMultiByte(CP_UTF8, 0, content.c_str(),
+                                static_cast<int>(content.size()), &utf8Content[0], utf8Len, nullptr, nullptr);
+        }
+    }
+
+    std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         MessageBoxW(hwnd_, L"Không thể tạo file", L"Lỗi", MB_ICONERROR);
         return;
     }
-
-    auto& settings = Settings::Instance();
-    for (const auto& shortcut : settings.shortcuts) {
-        file << shortcut.trigger << L"\t" << shortcut.replacement << L"\n";
-    }
-
+    file.write(utf8Content.data(), utf8Content.size());
     file.close();
     MessageBoxW(hwnd_, L"Xuất thành công!", L"Thông báo", MB_ICONINFORMATION);
 }

@@ -35,7 +35,7 @@ public:
 
 private:
     UpdateChecker() = default;
-    ~UpdateChecker() = default;
+    ~UpdateChecker();
     UpdateChecker(const UpdateChecker&) = delete;
     UpdateChecker& operator=(const UpdateChecker&) = delete;
 
@@ -45,6 +45,7 @@ private:
     std::atomic<UpdateStatus> status_{UpdateStatus::Idle};
     std::wstring latestVersion_;
     mutable std::mutex mutex_;
+    std::thread workerThread_;
 };
 
 } // namespace gonhanh

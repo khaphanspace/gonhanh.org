@@ -10,9 +10,15 @@ AboutDialog& AboutDialog::Instance() {
 }
 
 AboutDialog::~AboutDialog() {
+    DestroyFonts();
     if (hwnd_) {
         DestroyWindow(hwnd_);
     }
+}
+
+void AboutDialog::DestroyFonts() {
+    if (titleFont_) { DeleteObject(titleFont_); titleFont_ = nullptr; }
+    if (linkFont_) { DeleteObject(linkFont_); linkFont_ = nullptr; }
 }
 
 void AboutDialog::Show() {
@@ -61,14 +67,15 @@ void AboutDialog::Create() {
         20, 180, 360, 40,
         hwnd_, NULL, GetModuleHandle(NULL), NULL
     );
-    HFONT hTitleFont = CreateFontW(
+    DestroyFonts();  // Clean up previous fonts if re-creating
+    titleFont_ = CreateFontW(
         28, 0, 0, 0, FW_BOLD,
         FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
         L"Segoe UI"
     );
-    SendMessage(hAppName, WM_SETFONT, (WPARAM)hTitleFont, TRUE);
+    SendMessage(hAppName, WM_SETFONT, (WPARAM)titleFont_, TRUE);
 
     // Version (20, 230, 360, 24)
     CreateWindowExW(
@@ -88,7 +95,7 @@ void AboutDialog::Create() {
 
     // Copyright (20, 310, 360, 24)
     CreateWindowExW(
-        0, L"STATIC", L"© 2026 Gõ Nhanh. MIT License.",
+        0, L"STATIC", L"© 2026 Gõ Nhanh. GPL-3.0 License.",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
         20, 310, 360, 24,
         hwnd_, NULL, GetModuleHandle(NULL), NULL
@@ -101,14 +108,14 @@ void AboutDialog::Create() {
         20, 345, 360, 24,
         hwnd_, (HMENU)1001, GetModuleHandle(NULL), NULL
     );
-    HFONT hLinkFont = CreateFontW(
+    linkFont_ = CreateFontW(
         16, 0, 0, 0, FW_NORMAL,
         FALSE, TRUE, FALSE,  // Underline
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
         L"Segoe UI"
     );
-    SendMessage(hLink, WM_SETFONT, (WPARAM)hLinkFont, TRUE);
+    SendMessage(hLink, WM_SETFONT, (WPARAM)linkFont_, TRUE);
 
     // Close button (150, 385, 100, 32)
     CreateWindowExW(

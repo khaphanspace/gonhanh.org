@@ -46,7 +46,7 @@ BEGIN
             VALUE "FileVersion", "1.0.0"
             VALUE "ProductVersion", "1.0.0"
             VALUE "CompanyName", "GoNhanh"
-            VALUE "LegalCopyright", "MIT License"
+            VALUE "LegalCopyright", "GPL-3.0-or-later"
             VALUE "OriginalFilename", "GoNhanh.exe"
             VALUE "InternalName", "GoNhanh"
         END

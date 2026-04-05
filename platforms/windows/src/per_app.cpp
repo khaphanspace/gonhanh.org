@@ -24,8 +24,8 @@ void PerAppMode::Load() {
         return;  // No saved states yet
     }
 
-    // Enumerate all values
-    wchar_t valueName[16384];  // Maximum Registry value name length
+    // Enumerate all values (256 chars is practical max for app names)
+    wchar_t valueName[256];
     DWORD valueNameSize;
     DWORD index = 0;
 
@@ -86,17 +86,17 @@ void PerAppMode::Save() {
 }
 
 bool PerAppMode::GetAppState(const std::wstring& appName) {
+    EnterCriticalSection(&lock_);
     auto it = appStates_.find(appName);
-    if (it != appStates_.end()) {
-        return it->second;
-    }
-
-    // Default: use global enabled state
-    return Settings::Instance().enabled;
+    bool result = (it != appStates_.end()) ? it->second : Settings::Instance().enabled;
+    LeaveCriticalSection(&lock_);
+    return result;
 }
 
 void PerAppMode::SetAppState(const std::wstring& appName, bool enabled) {
+    EnterCriticalSection(&lock_);
     appStates_[appName] = enabled;
+    LeaveCriticalSection(&lock_);
     Save();
 }
 
