@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "settings.h"
 #include "shortcuts_dialog.h"
+#include "about_dialog.h"
 #include "modern_ui.h"
 #include "update_checker.h"
 #include <windowsx.h>
@@ -413,7 +414,7 @@ void SettingsWindow::PaintSidebar(HDC hdc) {
     int iconPadding = Scale(8, dpi);
 
     // "Cài đặt" tab (Settings) with gear icon
-    RECT tabSettingsRect = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
+    tabSettingsRect_ = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
     COLORREF tabColor = (currentTab == TAB_SETTINGS) ? theme.textPrimary : theme.textSecondary;
 
     if (currentTab == TAB_SETTINGS) {
@@ -434,7 +435,7 @@ void SettingsWindow::PaintSidebar(HDC hdc) {
 
     // "Giới thiệu" tab (About) with bolt icon
     tabY += tabHeight + Scale(4, dpi);
-    RECT tabAboutRect = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
+    tabAboutRect_ = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
     tabColor = (currentTab == TAB_ABOUT) ? theme.textPrimary : theme.textSecondary;
 
     if (currentTab == TAB_ABOUT) {
@@ -584,10 +585,29 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
         case WM_LBUTTONDOWN: {
             if (window) {
                 POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-                // Check if clicked on shortcuts row
+
+                // Sidebar tab clicks
+                if (PtInRect(&window->tabSettingsRect_, pt)) {
+                    if (currentTab != TAB_SETTINGS) {
+                        currentTab = TAB_SETTINGS;
+                        InvalidateRect(hwnd, NULL, TRUE);
+                    }
+                    return 0;
+                }
+                if (PtInRect(&window->tabAboutRect_, pt)) {
+                    if (currentTab != TAB_ABOUT) {
+                        currentTab = TAB_ABOUT;
+                        // Show about dialog and switch back to settings tab visually
+                        gonhanh::AboutDialog::Instance().Show();
+                        currentTab = TAB_SETTINGS;
+                        InvalidateRect(hwnd, NULL, TRUE);
+                    }
+                    return 0;
+                }
+
+                // Content area: shortcuts row click
                 if (PtInRect(&window->shortcutsRowRect_, pt)) {
                     ShortcutsDialog::Instance().Show();
-                    // Refresh count display after shortcuts dialog closes
                     InvalidateRect(hwnd, NULL, FALSE);
                 }
             }
@@ -599,12 +619,14 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
                 POINT pt;
                 GetCursorPos(&pt);
                 ScreenToClient(hwnd, &pt);
-                if (PtInRect(&window->shortcutsRowRect_, pt)) {
+                if (PtInRect(&window->shortcutsRowRect_, pt) ||
+                    PtInRect(&window->tabSettingsRect_, pt) ||
+                    PtInRect(&window->tabAboutRect_, pt)) {
                     SetCursor(LoadCursor(NULL, IDC_HAND));
                     return TRUE;
                 }
             }
-            break;  // Let DefWindowProc handle other cases
+            break;
         }
 
         case WM_COMMAND: {

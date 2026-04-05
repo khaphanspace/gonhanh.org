@@ -41,6 +41,10 @@ private:
     int dividerY2_ = 0;  // After section 2 (after shortcuts)
     int dividerY3_ = 0;  // After section 3 (before advanced)
 
+    // Sidebar tab hit rects
+    RECT tabSettingsRect_ = {};
+    RECT tabAboutRect_ = {};
+
     // Scrolling (content area only)
     int scrollPos_ = 0;
     int contentHeight_ = 0;
