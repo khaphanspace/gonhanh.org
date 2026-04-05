@@ -33,9 +33,13 @@ private:
     HWND cmbMethod_ = nullptr;
     bool visible_ = false;
 
-    // Custom painted section 2 position and click area
+    // Custom painted section positions
     int section2Y_ = 0;
     RECT shortcutsRowRect_ = {};
+    // Section divider Y positions (painted as thin lines)
+    int dividerY1_ = 0;  // After section 1 (before shortcuts)
+    int dividerY2_ = 0;  // After section 2 (after shortcuts)
+    int dividerY3_ = 0;  // After section 3 (before advanced)
 
     // Scrolling (content area only)
     int scrollPos_ = 0;

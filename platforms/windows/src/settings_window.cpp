@@ -199,21 +199,29 @@ void SettingsWindow::CreateControls() {
     toggleWShortcut = createToggleRow(L"G\x00F5 W th\x00E0nh \x01AF", IDC_CHK_W_SHORTCUT, contentX, contentWidth);
     toggleBracket = createToggleRow(L"G\x00F5 ] th\x00E0nh \x01AF, [ th\x00E0nh \x01A0", IDC_CHK_BRACKET, contentX, contentWidth);
     toggleAutoRestore = createToggleRow(L"T\x1EF1 kh\x00F4i ph\x1EE5" L"c ti\x1EBFng Anh", IDC_CHK_AUTORESTORE, contentX, contentWidth);
-    int sectionGap = Scale(10, dpi);  // Visual separation between groups
-    y += sectionGap;
+
+    // Divider after section 1
+    dividerY1_ = y;
+    y += Scale(2, dpi);  // Thin divider space
 
     // === Section 2: Shortcuts (2 rows with subtitle - taller than toggle rows) ===
-    int subtitleRowHeight = Scale(44, dpi);  // Taller for title + subtitle
+    int subtitleRowHeight = Scale(44, dpi);
     section2Y_ = y;
     y += subtitleRowHeight * 2;
-    y += sectionGap;
 
-    // === Section 3: Typing Rules (2 rows - match macOS) ===
+    // Divider after section 2 (painted by PaintContent)
+    dividerY2_ = y;
+    y += Scale(2, dpi);
+
+    // === Section 3: Typing Rules (2 rows) ===
     toggleModern = createToggleRow(L"\x0110\x1EB7t d\x1EA5u ki\x1EC3u m\x1EDBi", IDC_CHK_MODERN, contentX, contentWidth);
     toggleForeignConsonants = createToggleRow(L"Cho ph\x00E9p ph\x1EE5 \x00E2m ngo\x1EA1i", IDC_CHK_FOREIGN, contentX, contentWidth);
-    y += sectionGap;
 
-    // === Section 4: Advanced (4 rows - match macOS) ===
+    // Divider after section 3
+    dividerY3_ = y;
+    y += Scale(2, dpi);
+
+    // === Section 4: Advanced (4 rows) ===
     toggleCapitalize = createToggleRow(L"T\x1EF1 vi\x1EBFt hoa \x0111\x1EA7u c\x00E2u", IDC_CHK_CAPITALIZE, contentX, contentWidth);
     togglePerApp = createToggleRow(L"Nh\x1EDB tr\x1EA1ng th\x00E1i theo app", IDC_CHK_PERAPP, contentX, contentWidth);
     toggleSound = createToggleRow(L"\x00C2m thanh khi b\x1EADt/t\x1EAFt", IDC_CHK_SOUND, contentX, contentWidth);
@@ -270,8 +278,11 @@ void SettingsWindow::ScrollContent(int newPos) {
                      SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
-    // Update custom painted section position
+    // Update custom painted positions
     section2Y_ += delta;
+    dividerY1_ += delta;
+    dividerY2_ += delta;
+    dividerY3_ += delta;
 
     // Update scrollbar
     SCROLLINFO si = { sizeof(si) };
@@ -454,6 +465,11 @@ void SettingsWindow::PaintContent(HDC hdc) {
     int contentRight = Scale(BASE_WINDOW_WIDTH, dpi) - contentPadding - Scale(16, dpi);
     int contentWidth = contentRight - contentX;
     int labelX = contentX + sectionPadding;
+    int dividerWidth = contentWidth - sectionPadding * 2;
+
+    // Draw section dividers (thin lines at section boundaries)
+    DrawDivider(hdc, labelX, dividerY1_, dividerWidth, theme.textSecondary);
+    DrawDivider(hdc, labelX, dividerY3_, dividerWidth, theme.textSecondary);
 
     // Use stored section2 Y position
     int y = section2Y_;
