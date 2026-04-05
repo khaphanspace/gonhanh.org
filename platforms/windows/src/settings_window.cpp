@@ -3,6 +3,7 @@
 #include "settings.h"
 #include "shortcuts_dialog.h"
 #include "about_dialog.h"
+#include <shellapi.h>
 #include "modern_ui.h"
 #include "update_checker.h"
 #include <windowsx.h>
@@ -557,41 +558,83 @@ void SettingsWindow::PaintAbout(HDC hdc) {
     RECT clientRect;
     GetClientRect(hwnd_, &clientRect);
 
-    int contentCenterX = sidebarWidth + (clientRect.right - sidebarWidth) / 2;
-    int y = Scale(40, dpi);
+    int contentLeft = sidebarWidth;
+    int contentRight = clientRect.right;
+    int contentCenterX = contentLeft + (contentRight - contentLeft) / 2;
 
-    // Logo
+    // Vertically center content in available space
+    int totalContentHeight = Scale(320, dpi);
+    int y = max(Scale(30, dpi), (clientRect.bottom - totalContentHeight) / 2);
+
+    // Logo (80x80, centered)
     int logoSize = Scale(80, dpi);
     DrawPngFromResource(hdc, IDR_LOGO_PNG,
         contentCenterX - logoSize / 2, y, logoSize, logoSize);
     y += logoSize + Scale(16, dpi);
 
-    // App name
-    RECT nameRect = { sidebarWidth, y, clientRect.right, y + Scale(32, dpi) };
+    // App name - "Gõ Nhanh" bold 20pt
+    RECT nameRect = { contentLeft, y, contentRight, y + Scale(28, dpi) };
     DrawText(hdc, L"G\x00F5 Nhanh", nameRect, theme.textPrimary, 20, true, DT_CENTER | DT_VCENTER);
-    y += Scale(36, dpi);
+    y += Scale(32, dpi);
 
-    // Version
-    std::wstring verStr = L"Phi\x00EAn b\x1EA3n ";
+    // Tagline - "Bộ gõ tiếng Việt nhanh và nhẹ" secondary 13pt
+    RECT tagRect = { contentLeft, y, contentRight, y + Scale(20, dpi) };
+    DrawText(hdc, L"B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t nhanh v\x00E0 nh\x1EB9",
+             tagRect, theme.textSecondary, 13, false, DT_CENTER | DT_VCENTER);
+    y += Scale(24, dpi);
+
+    // Version - "Phiên bản v1.0.112" tertiary 12pt
+    std::wstring verStr = L"Phi\x00EAn b\x1EA3n v";
     verStr += GetAppVersion();
-    RECT verRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
-    DrawText(hdc, verStr.c_str(), verRect, theme.textSecondary, 11, false, DT_CENTER | DT_VCENTER);
-    y += Scale(28, dpi);
+    RECT verRect = { contentLeft, y, contentRight, y + Scale(18, dpi) };
+    DrawText(hdc, verStr.c_str(), verRect, theme.textTertiary, 12, false, DT_CENTER | DT_VCENTER);
+    y += Scale(32, dpi);
 
-    // Description
-    RECT descRect = { sidebarWidth + Scale(40, dpi), y, clientRect.right - Scale(40, dpi), y + Scale(40, dpi) };
-    DrawText(hdc, L"B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t cho Windows\nNhanh, nh\x1EB9, kh\x00F4ng theo d\x00F5i ng\x01B0\x1EDDi d\x00F9ng",
-             descRect, theme.textSecondary, 11, false, DT_CENTER | DT_VCENTER);
-    y += Scale(48, dpi);
+    // 3 link buttons: Ủng hộ, Báo lỗi, GitHub (rounded rect cards)
+    int btnWidth = Scale(80, dpi);
+    int btnHeight = Scale(56, dpi);
+    int btnGap = Scale(12, dpi);
+    int totalBtnWidth = btnWidth * 3 + btnGap * 2;
+    int btnStartX = contentCenterX - totalBtnWidth / 2;
 
-    // License
-    RECT licRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
-    DrawText(hdc, L"\x00A9 2026 G\x00F5 Nhanh. GPL-3.0 License.", licRect, theme.textTertiary, 10, false, DT_CENTER | DT_VCENTER);
-    y += Scale(28, dpi);
+    struct LinkBtn { const wchar_t* label; COLORREF iconColor; };
+    LinkBtn buttons[] = {
+        { L"\x2764 \x1EE6ng h\x1ED9", RGB(236, 72, 153) },    // ❤ Ủng hộ (pink)
+        { L"\x1F41C B\x00E1o l\x1ED7i", theme.textSecondary },  // 🐜 Báo lỗi
+        { L"</> GitHub", theme.textSecondary },
+    };
 
-    // GitHub link
-    RECT linkRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
-    DrawText(hdc, L"github.com/khaphanspace/gonhanh.org", linkRect, RGB(0, 102, 204), 10, false, DT_CENTER | DT_VCENTER);
+    COLORREF cardBg = IsDarkMode() ? RGB(50, 50, 50) : RGB(240, 240, 240);
+    COLORREF cardBorder = IsDarkMode() ? RGB(70, 70, 70) : RGB(220, 220, 220);
+
+    for (int i = 0; i < 3; i++) {
+        int bx = btnStartX + i * (btnWidth + btnGap);
+        RECT btnRect = { bx, y, bx + btnWidth, y + btnHeight };
+        DrawRoundedRect(hdc, btnRect, Scale(8, dpi), cardBg, cardBorder);
+
+        RECT labelRect = { bx, y + Scale(8, dpi), bx + btnWidth, y + btnHeight - Scale(4, dpi) };
+        DrawText(hdc, buttons[i].label, labelRect, theme.textPrimary, 10, false, DT_CENTER | DT_VCENTER);
+    }
+
+    // Store button rects for click handling
+    aboutBtnRects_[0] = { btnStartX, y, btnStartX + btnWidth, y + btnHeight };
+    aboutBtnRects_[1] = { btnStartX + btnWidth + btnGap, y,
+                           btnStartX + btnWidth * 2 + btnGap, y + btnHeight };
+    aboutBtnRects_[2] = { btnStartX + btnWidth * 2 + btnGap * 2, y,
+                           btnStartX + btnWidth * 3 + btnGap * 2, y + btnHeight };
+
+    y += btnHeight + Scale(40, dpi);
+
+    // Footer: "Phát triển bởi Kha Phan và Cộng đồng"
+    RECT footerRect = { contentLeft, y, contentRight, y + Scale(18, dpi) };
+    DrawText(hdc, L"Ph\x00E1t tri\x1EC3n b\x1EDFi Kha Phan v\x00E0 C\x1ED9ng \x0111\x1ED3ng",
+             footerRect, theme.textTertiary, 11, false, DT_CENTER | DT_VCENTER);
+    y += Scale(20, dpi);
+
+    // Copyright
+    RECT copyrightRect = { contentLeft, y, contentRight, y + Scale(16, dpi) };
+    DrawText(hdc, L"\x00A9 2026 G\x00F5 Nhanh. GPL-3.0 License.",
+             copyrightRect, theme.textTertiary, 10, false, DT_CENTER | DT_VCENTER);
 }
 
 LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -665,6 +708,21 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
                     return 0;
                 }
 
+                // About tab: link button clicks
+                if (currentTab == TAB_ABOUT) {
+                    static const wchar_t* aboutUrls[] = {
+                        L"https://github.com/sponsors/khaphanspace",
+                        L"https://github.com/khaphanspace/gonhanh.org/issues",
+                        L"https://github.com/khaphanspace/gonhanh.org",
+                    };
+                    for (int i = 0; i < 3; i++) {
+                        if (PtInRect(&window->aboutBtnRects_[i], pt)) {
+                            ShellExecuteW(NULL, L"open", aboutUrls[i], NULL, NULL, SW_SHOW);
+                            return 0;
+                        }
+                    }
+                }
+
                 // Content area: shortcuts row click (settings tab only)
                 if (currentTab == TAB_SETTINGS && PtInRect(&window->shortcutsRowRect_, pt)) {
                     ShortcutsDialog::Instance().Show();
@@ -679,9 +737,19 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
                 POINT pt;
                 GetCursorPos(&pt);
                 ScreenToClient(hwnd, &pt);
-                if (PtInRect(&window->shortcutsRowRect_, pt) ||
+                bool isClickable = PtInRect(&window->shortcutsRowRect_, pt) ||
                     PtInRect(&window->tabSettingsRect_, pt) ||
-                    PtInRect(&window->tabAboutRect_, pt)) {
+                    PtInRect(&window->tabAboutRect_, pt);
+                // About tab buttons
+                if (currentTab == TAB_ABOUT) {
+                    for (int i = 0; i < 3; i++) {
+                        if (PtInRect(&window->aboutBtnRects_[i], pt)) {
+                            isClickable = true;
+                            break;
+                        }
+                    }
+                }
+                if (isClickable) {
                     SetCursor(LoadCursor(NULL, IDC_HAND));
                     return TRUE;
                 }
