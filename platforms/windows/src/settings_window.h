@@ -26,6 +26,8 @@ private:
     // Painting
     void PaintSidebar(HDC hdc);
     void PaintContent(HDC hdc);
+    void PaintAbout(HDC hdc);
+    void SwitchTab(int tab);
 
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

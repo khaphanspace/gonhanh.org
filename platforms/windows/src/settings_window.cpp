@@ -533,6 +533,67 @@ void SettingsWindow::PaintContent(HDC hdc) {
     DrawDivider(hdc, labelX, y - Scale(2, dpi), contentWidth - sectionPadding * 2, theme.textSecondary);
 }
 
+void SettingsWindow::SwitchTab(int tab) {
+    currentTab = tab;
+
+    // Show/hide settings controls based on tab
+    bool showSettings = (tab == TAB_SETTINGS);
+    for (HWND child : contentControls_) {
+        ShowWindow(child, showSettings ? SW_SHOW : SW_HIDE);
+    }
+
+    // Also show/hide scrollbar
+    ShowScrollBar(hwnd_, SB_VERT, showSettings && contentHeight_ > 0);
+
+    InvalidateRect(hwnd_, NULL, TRUE);
+}
+
+void SettingsWindow::PaintAbout(HDC hdc) {
+    const Theme& theme = GetTheme();
+    float dpi = GetDpiScale(hwnd_);
+
+    int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
+
+    RECT clientRect;
+    GetClientRect(hwnd_, &clientRect);
+
+    int contentCenterX = sidebarWidth + (clientRect.right - sidebarWidth) / 2;
+    int y = Scale(40, dpi);
+
+    // Logo
+    int logoSize = Scale(80, dpi);
+    DrawPngFromResource(hdc, IDR_LOGO_PNG,
+        contentCenterX - logoSize / 2, y, logoSize, logoSize);
+    y += logoSize + Scale(16, dpi);
+
+    // App name
+    RECT nameRect = { sidebarWidth, y, clientRect.right, y + Scale(32, dpi) };
+    DrawText(hdc, L"G\x00F5 Nhanh", nameRect, theme.textPrimary, 20, true, DT_CENTER | DT_VCENTER);
+    y += Scale(36, dpi);
+
+    // Version
+    std::wstring verStr = L"Phi\x00EAn b\x1EA3n ";
+    verStr += GetAppVersion();
+    RECT verRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
+    DrawText(hdc, verStr.c_str(), verRect, theme.textSecondary, 11, false, DT_CENTER | DT_VCENTER);
+    y += Scale(28, dpi);
+
+    // Description
+    RECT descRect = { sidebarWidth + Scale(40, dpi), y, clientRect.right - Scale(40, dpi), y + Scale(40, dpi) };
+    DrawText(hdc, L"B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t cho Windows\nNhanh, nh\x1EB9, kh\x00F4ng theo d\x00F5i ng\x01B0\x1EDDi d\x00F9ng",
+             descRect, theme.textSecondary, 11, false, DT_CENTER | DT_VCENTER);
+    y += Scale(48, dpi);
+
+    // License
+    RECT licRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
+    DrawText(hdc, L"\x00A9 2026 G\x00F5 Nhanh. GPL-3.0 License.", licRect, theme.textTertiary, 10, false, DT_CENTER | DT_VCENTER);
+    y += Scale(28, dpi);
+
+    // GitHub link
+    RECT linkRect = { sidebarWidth, y, clientRect.right, y + Scale(20, dpi) };
+    DrawText(hdc, L"github.com/khaphanspace/gonhanh.org", linkRect, RGB(0, 102, 204), 10, false, DT_CENTER | DT_VCENTER);
+}
+
 LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     SettingsWindow* window = nullptr;
 
@@ -550,7 +611,11 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             HDC hdc = BeginPaint(hwnd, &ps);
             if (window) {
                 window->PaintSidebar(hdc);
-                window->PaintContent(hdc);
+                if (currentTab == TAB_SETTINGS) {
+                    window->PaintContent(hdc);
+                } else {
+                    window->PaintAbout(hdc);
+                }
             }
             EndPaint(hwnd, &ps);
             return 0;
@@ -589,24 +654,19 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
                 // Sidebar tab clicks
                 if (PtInRect(&window->tabSettingsRect_, pt)) {
                     if (currentTab != TAB_SETTINGS) {
-                        currentTab = TAB_SETTINGS;
-                        InvalidateRect(hwnd, NULL, TRUE);
+                        window->SwitchTab(TAB_SETTINGS);
                     }
                     return 0;
                 }
                 if (PtInRect(&window->tabAboutRect_, pt)) {
                     if (currentTab != TAB_ABOUT) {
-                        currentTab = TAB_ABOUT;
-                        // Show about dialog and switch back to settings tab visually
-                        gonhanh::AboutDialog::Instance().Show();
-                        currentTab = TAB_SETTINGS;
-                        InvalidateRect(hwnd, NULL, TRUE);
+                        window->SwitchTab(TAB_ABOUT);
                     }
                     return 0;
                 }
 
-                // Content area: shortcuts row click
-                if (PtInRect(&window->shortcutsRowRect_, pt)) {
+                // Content area: shortcuts row click (settings tab only)
+                if (currentTab == TAB_SETTINGS && PtInRect(&window->shortcutsRowRect_, pt)) {
                     ShortcutsDialog::Instance().Show();
                     InvalidateRect(hwnd, NULL, FALSE);
                 }
