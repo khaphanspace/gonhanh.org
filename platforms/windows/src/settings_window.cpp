@@ -142,7 +142,7 @@ void SettingsWindow::CreateControls() {
 
     int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
     int contentPadding = Scale(20, dpi);
-    int rowHeight = Scale(40, dpi);
+    int rowHeight = Scale(36, dpi);       // Compact rows for toggle items
     int sectionPadding = Scale(16, dpi);
 
     // Content area dimensions
@@ -199,15 +199,13 @@ void SettingsWindow::CreateControls() {
     toggleWShortcut = createToggleRow(L"G\x00F5 W th\x00E0nh \x01AF", IDC_CHK_W_SHORTCUT, contentX, contentWidth);
     toggleBracket = createToggleRow(L"G\x00F5 ] th\x00E0nh \x01AF, [ th\x00E0nh \x01A0", IDC_CHK_BRACKET, contentX, contentWidth);
     toggleAutoRestore = createToggleRow(L"T\x1EF1 kh\x00F4i ph\x1EE5" L"c ti\x1EBFng Anh", IDC_CHK_AUTORESTORE, contentX, contentWidth);
-    int sectionGap = Scale(6, dpi);
+    int sectionGap = Scale(14, dpi);  // Clear visual separation between groups
     y += sectionGap;
 
-    // === Section 2: Shortcuts (2 rows - custom painted in PaintContent) ===
-    int section2Y = y;
-    // Store Y position for PaintContent to use
+    // === Section 2: Shortcuts (2 rows with subtitle - taller than toggle rows) ===
+    int subtitleRowHeight = Scale(44, dpi);  // Taller for title + subtitle
     section2Y_ = y;
-    // Reserve space for 2 custom rows (same height as toggle rows)
-    y += rowHeight * 2;
+    y += subtitleRowHeight * 2;
     y += sectionGap;
 
     // === Section 3: Typing Rules (2 rows - match macOS) ===
@@ -449,7 +447,7 @@ void SettingsWindow::PaintContent(HDC hdc) {
 
     int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
     int contentPadding = Scale(20, dpi);
-    int rowHeight = Scale(40, dpi);
+    int rowHeight = Scale(44, dpi);  // Subtitle rows are taller
     int sectionPadding = Scale(16, dpi);
 
     int contentX = sidebarWidth + contentPadding;
@@ -463,16 +461,16 @@ void SettingsWindow::PaintContent(HDC hdc) {
     // === Row 1: Phím tắt bật/tắt ===
     int rowY = y;
 
-    // Title (same font as other rows)
-    RECT titleRect = { labelX, rowY + Scale(4, dpi), labelX + Scale(200, dpi), rowY + Scale(22, dpi) };
+    // Title
+    RECT titleRect = { labelX, rowY + Scale(6, dpi), labelX + Scale(200, dpi), rowY + Scale(24, dpi) };
     DrawText(hdc, L"Ph\x00EDm t\x1EAFt b\x1EADt/t\x1EAFt", titleRect, theme.textPrimary, 12, false, DT_LEFT | DT_VCENTER);
 
     // Subtitle
-    RECT subtitleRect = { labelX, rowY + Scale(22, dpi), labelX + Scale(200, dpi), rowY + Scale(38, dpi) };
+    RECT subtitleRect = { labelX, rowY + Scale(24, dpi), labelX + Scale(200, dpi), rowY + Scale(40, dpi) };
     DrawText(hdc, L"Nh\x1EA5n \x0111\x1EC3 thay \x0111\x1ED5i", subtitleRect, theme.textTertiary, 10, false, DT_LEFT | DT_VCENTER);
 
     // Keycaps on right: "^" + "Space"
-    int keycapY = rowY + Scale(10, dpi);
+    int keycapY = rowY + Scale(12, dpi);
     int keycapX = contentX + contentWidth - sectionPadding - Scale(90, dpi);
     DrawKeycap(hdc, keycapX, keycapY, L"^", 10, dpi);
     DrawKeycap(hdc, keycapX + Scale(32, dpi), keycapY, L"Space", 10, dpi);
@@ -486,8 +484,8 @@ void SettingsWindow::PaintContent(HDC hdc) {
     // === Row 2: Bảng gõ tắt ===
     rowY = y;
 
-    // Title (same font as other rows)
-    titleRect = { labelX, rowY + Scale(4, dpi), labelX + Scale(200, dpi), rowY + Scale(22, dpi) };
+    // Title
+    titleRect = { labelX, rowY + Scale(6, dpi), labelX + Scale(200, dpi), rowY + Scale(24, dpi) };
     DrawText(hdc, L"B\x1EA3ng g\x00F5 t\x1EAFt", titleRect, theme.textPrimary, 12, false, DT_LEFT | DT_VCENTER);
 
     // Subtitle: "X/Y đang bật"
@@ -497,13 +495,13 @@ void SettingsWindow::PaintContent(HDC hdc) {
     ss << enabled << L"/" << total << L" \x0111" L"ang b\x1EADt";
     std::wstring countStr = ss.str();
 
-    subtitleRect = { labelX, rowY + Scale(22, dpi), labelX + Scale(200, dpi), rowY + Scale(38, dpi) };
+    subtitleRect = { labelX, rowY + Scale(24, dpi), labelX + Scale(200, dpi), rowY + Scale(40, dpi) };
     DrawText(hdc, countStr.c_str(), subtitleRect, theme.textTertiary, 10, false, DT_LEFT | DT_VCENTER);
 
     // Chevron on right
     int chevronSize = Scale(14, dpi);
     int chevronX = contentX + contentWidth - sectionPadding - chevronSize;
-    int chevronY = rowY + Scale(12, dpi);
+    int chevronY = rowY + Scale(14, dpi);
     DrawChevronRight(hdc, chevronX, chevronY, chevronSize, theme.textTertiary);
 
     // Store rect for click detection
