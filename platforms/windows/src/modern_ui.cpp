@@ -11,10 +11,19 @@ static ULONG_PTR gdiplusToken = 0;
 static bool isDarkModeCache = false;
 static bool themeCacheValid = false;
 
-// Toggle switch state
+// Animation constants
+static const UINT_PTR TOGGLE_ANIM_TIMER_ID = 42;
+static const int ANIM_INTERVAL_MS = 16;       // ~60fps
+static const float ANIM_DURATION_MS = 150.0f;  // 150ms total slide
+static const float ANIM_STEP = ANIM_INTERVAL_MS / ANIM_DURATION_MS;
+
+// Toggle switch state with animation
 struct ToggleData {
     bool isOn;
     bool isHovered;
+    bool isPressed;
+    float progress;    // 0.0 = off position, 1.0 = on position
+    bool animating;
 };
 
 bool IsDarkMode() {
@@ -110,26 +119,39 @@ void DrawText(HDC hdc, const wchar_t* text, const RECT& rect, COLORREF color, in
     DeleteObject(hFont);
 }
 
-// Windows 11 style toggle switch
-void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, bool isOn, bool isHovered) {
+// Ease-out cubic: decelerates toward end (matches Windows 11 feel)
+static float EaseOutCubic(float t) {
+    float f = 1.0f - t;
+    return 1.0f - f * f * f;
+}
+
+// Lerp between two COLORREFs by t (0.0→1.0)
+static COLORREF LerpColor(COLORREF a, COLORREF b, float t) {
+    return RGB(
+        (int)(GetRValue(a) + (GetRValue(b) - GetRValue(a)) * t),
+        (int)(GetGValue(a) + (GetGValue(b) - GetGValue(a)) * t),
+        (int)(GetBValue(a) + (GetBValue(b) - GetBValue(a)) * t)
+    );
+}
+
+// Windows 11 style toggle switch with animation support
+// progress: 0.0 = fully off, 1.0 = fully on (animated between states)
+void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, float progress, bool isHovered, bool isPressed) {
     const Theme& theme = GetTheme();
 
     Gdiplus::Graphics g(hdc);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
-    int trackRadius = height / 2;
-
-    // Track color - Windows 11 blue when on, gray when off
-    COLORREF trackColor = isOn ? theme.toggleOn : theme.toggleOff;
-
-    // Hover effect
-    if (isHovered && !isOn) {
-        trackColor = RGB(
-            min(255, GetRValue(trackColor) + 30),
-            min(255, GetGValue(trackColor) + 30),
-            min(255, GetBValue(trackColor) + 30)
+    // Track color blends between off→on based on progress
+    COLORREF offColor = theme.toggleOff;
+    if (isHovered && progress < 0.5f) {
+        offColor = RGB(
+            min(255, GetRValue(offColor) + 30),
+            min(255, GetGValue(offColor) + 30),
+            min(255, GetBValue(offColor) + 30)
         );
     }
+    COLORREF trackColor = LerpColor(offColor, theme.toggleOn, progress);
 
     // Draw track (pill shape)
     Gdiplus::GraphicsPath trackPath;
@@ -141,11 +163,17 @@ void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, bool isOn, b
         GetRValue(trackColor), GetGValue(trackColor), GetBValue(trackColor)));
     g.FillPath(&trackBrush, &trackPath);
 
-    // Knob position
+    // Knob sizing: slightly smaller when pressed (Windows 11 squish effect)
     int knobPadding = 3;
-    int knobSize = height - knobPadding * 2;
-    int knobX = isOn ? (x + width - knobSize - knobPadding) : (x + knobPadding);
-    int knobY = y + knobPadding;
+    int baseKnobSize = height - knobPadding * 2;
+    int knobSize = isPressed ? (int)(baseKnobSize * 0.85f) : baseKnobSize;
+    int knobYOffset = isPressed ? (baseKnobSize - knobSize) / 2 : 0;
+
+    // Knob position: interpolate between off (left) and on (right)
+    int offX = x + knobPadding;
+    int onX = x + width - baseKnobSize - knobPadding;
+    int knobX = offX + (int)((onX - offX) * progress);
+    int knobY = y + knobPadding + knobYOffset;
 
     // Draw knob shadow
     Gdiplus::SolidBrush shadowBrush(Gdiplus::Color(40, 0, 0, 0));
@@ -332,18 +360,19 @@ void DrawKeycap(HDC hdc, int x, int y, const wchar_t* text, int fontSize, float 
     DrawText(hdc, text, textRect, theme.textPrimary, fontSize, true, DT_CENTER | DT_VCENTER);
 }
 
-// Toggle switch window procedure
+// Toggle switch window procedure with animation
 static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     ToggleData* data = (ToggleData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
     switch (msg) {
         case WM_CREATE: {
-            data = new ToggleData{ false, false };
+            data = new ToggleData{ false, false, false, 0.0f, false };
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)data);
             return 0;
         }
 
         case WM_DESTROY: {
+            KillTimer(hwnd, TOGGLE_ANIM_TIMER_ID);
             if (data) delete data;
             SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
             return 0;
@@ -367,10 +396,12 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             if (!bgBrush) bgBrush = (HBRUSH)GetStockObject(WHITE_BRUSH);
             FillRect(memDC, &rect, bgBrush);
 
-            // Draw toggle
+            // Draw toggle with animated progress
+            float displayProgress = data ? EaseOutCubic(data->progress) : 0.0f;
             DrawToggleSwitch(memDC, 0, 0, rect.right, rect.bottom,
-                data ? data->isOn : false,
-                data ? data->isHovered : false);
+                displayProgress,
+                data ? data->isHovered : false,
+                data ? data->isPressed : false);
 
             BitBlt(hdc, 0, 0, rect.right, rect.bottom, memDC, 0, 0, SRCCOPY);
 
@@ -382,9 +413,48 @@ static LRESULT CALLBACK ToggleSwitchProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             return 0;
         }
 
+        case WM_TIMER: {
+            if (wParam == TOGGLE_ANIM_TIMER_ID && data && data->animating) {
+                float target = data->isOn ? 1.0f : 0.0f;
+                float diff = target - data->progress;
+
+                if (fabsf(diff) < 0.01f) {
+                    // Animation complete — snap to target
+                    data->progress = target;
+                    data->animating = false;
+                    KillTimer(hwnd, TOGGLE_ANIM_TIMER_ID);
+                } else {
+                    // Step toward target
+                    data->progress += (diff > 0 ? ANIM_STEP : -ANIM_STEP);
+                    // Clamp
+                    if (data->progress < 0.0f) data->progress = 0.0f;
+                    if (data->progress > 1.0f) data->progress = 1.0f;
+                }
+
+                InvalidateRect(hwnd, NULL, FALSE);
+            }
+            return 0;
+        }
+
+        case WM_LBUTTONDOWN: {
+            if (data) {
+                data->isPressed = true;
+                SetCapture(hwnd);
+                InvalidateRect(hwnd, NULL, FALSE);
+            }
+            return 0;
+        }
+
         case WM_LBUTTONUP: {
             if (data) {
+                data->isPressed = false;
+                ReleaseCapture();
+
+                // Toggle state and start animation
                 data->isOn = !data->isOn;
+                data->animating = true;
+                SetTimer(hwnd, TOGGLE_ANIM_TIMER_ID, ANIM_INTERVAL_MS, NULL);
+
                 InvalidateRect(hwnd, NULL, FALSE);
 
                 // Notify parent
@@ -462,6 +532,9 @@ void SetToggleState(HWND hwnd, bool state) {
     ToggleData* data = (ToggleData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     if (data) {
         data->isOn = state;
+        data->progress = state ? 1.0f : 0.0f;  // Snap to target (no animation on load)
+        data->animating = false;
+        KillTimer(hwnd, TOGGLE_ANIM_TIMER_ID);
         InvalidateRect(hwnd, NULL, FALSE);
     }
 }

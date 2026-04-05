@@ -60,7 +60,7 @@ void ShutdownGdiPlus();
 // Drawing helpers
 void DrawRoundedRect(HDC hdc, const RECT& rect, int radius, COLORREF fill, COLORREF border);
 void DrawText(HDC hdc, const wchar_t* text, const RECT& rect, COLORREF color, int fontSize, bool bold = false, UINT align = DT_LEFT | DT_VCENTER);
-void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, bool isOn, bool isHovered);
+void DrawToggleSwitch(HDC hdc, int x, int y, int width, int height, float progress, bool isHovered, bool isPressed);
 void DrawPngFromResource(HDC hdc, int resourceId, int x, int y, int width, int height);
 void DrawDivider(HDC hdc, int x, int y, int width, COLORREF color);
 
