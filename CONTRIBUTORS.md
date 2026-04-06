@@ -227,6 +227,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/hongmd">
+        <img src="https://avatars.githubusercontent.com/u/32331121?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>hongmd</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/Sunsilkk">
         <img src="https://avatars.githubusercontent.com/u/94736191?v=4" width="50" style="border-radius:50%"/><br/>
         <b>Sunsilkk</b>
@@ -236,12 +242,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/trongthanh">
         <img src="https://avatars.githubusercontent.com/u/234226?v=4" width="50" style="border-radius:50%"/><br/>
         <b>trongthanh</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/hongmd">
-        <img src="https://avatars.githubusercontent.com/u/32331121?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>hongmd</b>
       </a>
     </td>
     <td align="center">
