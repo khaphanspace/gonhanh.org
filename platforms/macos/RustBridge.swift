@@ -586,6 +586,18 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 /// Word Restore FFI
 @_silgen_name("ime_restore_word") private func ime_restore_word(_ word: UnsafePointer<CChar>?)
 
+/// Clean Paste FFI
+@_silgen_name("ime_clean_text") private func ime_clean_text(
+    _ input: UnsafePointer<CChar>?,
+    _ custom_from: UnsafePointer<UInt32>?,
+    _ custom_to: UnsafePointer<UnsafePointer<CChar>?>?,
+    _ custom_count: Int32,
+    _ apply_format: Bool,
+    _ platform: UInt8,
+    _ out: UnsafeMutablePointer<UInt32>?,
+    _ out_max: Int32
+) -> Int32
+
 // MARK: - RustBridge (Public API)
 
 class RustBridge {
@@ -727,6 +739,57 @@ class RustBridge {
             addShortcut(trigger: shortcut.key, replacement: shortcut.value)
         }
     }
+
+    /// Clean text using Rust core engine with custom character mappings and platform-aware markdown.
+    static func cleanText(_ input: String, mappings: [CleanPasteMapping], applyFormat: Bool, platform: UInt8 = 0) -> String? {
+        guard !input.isEmpty else { return nil }
+
+        // Build custom mapping arrays for FFI
+        let enabledMappings = mappings.filter { $0.isEnabled && !$0.from.isEmpty }
+        var fromCodes: [UInt32] = []
+        var toStrings: [String] = []
+
+        for mapping in enabledMappings {
+            guard let firstChar = mapping.from.first,
+                  let scalar = firstChar.unicodeScalars.first else { continue }
+            fromCodes.append(scalar.value)
+            toStrings.append(mapping.to)
+        }
+
+        // Allocate output buffer (3x expansion headroom, capped at 1MB)
+        let maxOutput: Int32 = min(max(Int32(input.utf8.count * 3), 4096), 1_048_576)
+        var outBuffer = [UInt32](repeating: 0, count: Int(maxOutput))
+
+        // Heap-allocate C strings so pointers remain stable through the FFI call
+        let toCStrings: [UnsafeMutablePointer<CChar>] = toStrings.map { strdup($0)! }
+        defer { toCStrings.forEach { free($0) } }
+
+        let count = input.withCString { inputPtr -> Int32 in
+            fromCodes.withUnsafeBufferPointer { fromPtr -> Int32 in
+                var toPtrs: [UnsafePointer<CChar>?] = toCStrings.map { UnsafePointer($0) }
+                return toPtrs.withUnsafeMutableBufferPointer { toPtr -> Int32 in
+                    outBuffer.withUnsafeMutableBufferPointer { outPtr -> Int32 in
+                        ime_clean_text(
+                            inputPtr,
+                            fromPtr.baseAddress,
+                            toPtr.baseAddress,
+                            Int32(enabledMappings.count),
+                            applyFormat,
+                            platform,
+                            outPtr.baseAddress,
+                            maxOutput
+                        )
+                    }
+                }
+            }
+        }
+
+        guard count > 0 else { return nil }
+
+        // Convert UTF-32 back to String
+        let chars = outBuffer.prefix(Int(count)).compactMap { Unicode.Scalar($0).map(Character.init) }
+        return String(chars)
+    }
 }
 
 // MARK: - Keyboard Hook Manager
@@ -826,11 +889,14 @@ private var wasModifierShortcutPressed = false
 private var wasRestoreModifierPressed = false // Track modifier-only restore shortcut
 private var currentShortcut = KeyboardShortcut.load()
 private var currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
+private var currentCleanPasteShortcut = KeyboardShortcut.loadCleanPasteShortcut()
+
 private var isRecordingShortcut = false
 private var recordingModifiers: CGEventFlags = [] // Current modifiers being held
 private var peakRecordingModifiers: CGEventFlags = [] // Peak modifiers during recording
 private var shortcutObserver: NSObjectProtocol?
 private var restoreShortcutObserver: NSObjectProtocol?
+private var cleanPasteShortcutObserver: NSObjectProtocol?
 /// Skip word restore after mouse click (user may be selecting/deleting text)
 /// Reset to false after first keystroke
 private var skipWordRestoreAfterClick = false
@@ -973,10 +1039,75 @@ func setupShortcutObserver() {
     restoreShortcutObserver = NotificationCenter.default.addObserver(forName: .restoreShortcutChanged, object: nil, queue: .main) { _ in
         currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
     }
+    cleanPasteShortcutObserver = NotificationCenter.default.addObserver(forName: .cleanPasteShortcutChanged, object: nil, queue: .main) { _ in
+        currentCleanPasteShortcut = KeyboardShortcut.loadCleanPasteShortcut()
+    }
 }
 
 private func matchesToggleShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
     currentShortcut.matches(keyCode: keyCode, flags: flags)
+}
+
+/// Read clipboard → clean via Rust → write back → simulate Cmd+V
+private func performCleanPaste() {
+    // Read clipboard text
+    guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else { return }
+
+    let state = AppState.shared
+    let platform = detectCleanPastePlatform()
+    guard let cleaned = RustBridge.cleanText(text, mappings: state.cleanPasteMappings, applyFormat: true, platform: platform) else { return }
+
+    // Write cleaned text to clipboard
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(cleaned, forType: .string)
+
+    // Small delay to ensure clipboard is updated, then simulate Cmd+V
+    usleep(10000) // 10ms
+
+    let source = CGEventSource(stateID: .combinedSessionState)
+    let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V key
+    let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
+    vDown?.flags = .maskCommand
+    vUp?.flags = .maskCommand
+    // Mark as synthetic to avoid re-intercepting
+    vDown?.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+    vUp?.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
+    vDown?.post(tap: .cghidEventTap)
+    vUp?.post(tap: .cghidEventTap)
+}
+
+/// Detect target platform from current focused app's bundle ID.
+/// Returns: 0=none, 1=discord, 2=slack, 3=plain(zalo/fb/messenger/imessage), 4=telegram
+private func detectCleanPastePlatform() -> UInt8 {
+    guard let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier?.lowercased() else {
+        return 0
+    }
+
+    // Discord
+    if bundleId.contains("discord") { return 1 }
+
+    // Slack
+    if bundleId.contains("slack") { return 2 }
+
+    // Plain text apps (no markdown support)
+    if bundleId.contains("zalo")
+        || bundleId.contains("facebook")
+        || bundleId.contains("messenger")
+        || bundleId == "com.apple.mobilesms" // iMessage
+        || bundleId == "com.apple.mobilephone"
+        || bundleId.contains("viber")
+        || bundleId.contains("skype")
+        || bundleId.contains("line.") // LINE
+        || bundleId.contains("whatsapp")
+    {
+        return 3
+    }
+
+    // Telegram
+    if bundleId.contains("telegram") { return 4 }
+
+    // Default: keep markdown as-is (editors, browsers, etc.)
+    return 0
 }
 
 private func matchesRestoreShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
@@ -1145,6 +1276,14 @@ private func keyboardCallback(
     // Custom shortcut to toggle Vietnamese (default: Ctrl+Space)
     if matchesToggleShortcut(keyCode: keyCode, flags: flags) {
         DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+        return nil
+    }
+
+    // Clean Paste shortcut (default: Cmd+Shift+V)
+    if AppState.shared.cleanPasteEnabled,
+       currentCleanPasteShortcut.matches(keyCode: keyCode, flags: flags)
+    {
+        DispatchQueue.main.async { performCleanPaste() }
         return nil
     }
 
@@ -1887,4 +2026,5 @@ extension Notification.Name {
     static let restoreShortcutChanged = Notification.Name("restoreShortcutChanged")
     static let shortcutRecorded = Notification.Name("shortcutRecorded")
     static let shortcutRecordingCancelled = Notification.Name("shortcutRecordingCancelled")
+    static let cleanPasteShortcutChanged = Notification.Name("cleanPasteShortcutChanged")
 }
