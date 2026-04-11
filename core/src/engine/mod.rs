@@ -11,6 +11,7 @@
 //! 4. **Longest-Match-First**: For diacritic placement
 
 pub mod buffer;
+pub mod morse;
 pub mod shortcut;
 pub mod syllable;
 pub mod transform;
@@ -359,6 +360,9 @@ pub struct Engine {
     /// Allow foreign consonants (z, w, j, f) as valid initial consonants
     /// When true, these letters are accepted as Vietnamese consonants for loanwords
     allow_foreign_consonants: bool,
+    /// Morse code output mode
+    /// When true, Vietnamese text is converted to Morse code on space
+    morse_mode: bool,
 }
 
 impl Default for Engine {
@@ -405,6 +409,7 @@ impl Engine {
             auto_capitalize_used: false,
             saw_sentence_ending: false,
             allow_foreign_consonants: false, // Default: OFF
+            morse_mode: false,               // Default: OFF
         }
     }
 
@@ -463,6 +468,12 @@ impl Engine {
     /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
     pub fn set_allow_foreign_consonants(&mut self, enabled: bool) {
         self.allow_foreign_consonants = enabled;
+    }
+
+    /// Set whether to enable Morse code output mode
+    /// When enabled, Vietnamese text is converted to Morse code on space
+    pub fn set_morse_mode(&mut self, enabled: bool) {
+        self.morse_mode = enabled;
     }
 
     /// Get whether foreign consonants are allowed
@@ -731,8 +742,38 @@ impl Engine {
             // First check for shortcut
             let shortcut_result = self.try_word_boundary_shortcut();
             if shortcut_result.action != 0 {
+                if self.morse_mode {
+                    // Convert shortcut output to Morse
+                    let shortcut_text: String = (0..shortcut_result.count as usize)
+                        .filter_map(|i| char::from_u32(shortcut_result.chars[i]))
+                        .collect();
+                    let text = shortcut_text.trim_end();
+                    let mut morse_chars = morse::encode(text);
+                    morse_chars.push(' ');
+                    if morse_chars.len() <= MAX {
+                        self.clear();
+                        return Result::send(shortcut_result.backspace, &morse_chars);
+                    }
+                    // Output too long, fall through to normal shortcut result
+                }
                 self.clear();
                 return shortcut_result;
+            }
+
+            // Morse mode: convert buffer to Morse code on space
+            // Falls back to normal if output exceeds buffer capacity (MAX=256 chars)
+            if self.morse_mode && !self.buf.is_empty() {
+                let word = self.buf.to_full_string();
+                let mut morse_chars = morse::encode(&word);
+                morse_chars.push(' ');
+                if morse_chars.len() <= MAX {
+                    let backspace = self.buf.len() as u8;
+                    self.word_history.push(self.buf.clone());
+                    self.spaces_after_commit = 1;
+                    self.clear();
+                    return Result::send(backspace, &morse_chars);
+                }
+                // Output too long, fall through to normal space handling
             }
 
             // Auto-restore: if buffer has transforms but is invalid Vietnamese,

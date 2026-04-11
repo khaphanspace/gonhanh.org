@@ -574,6 +574,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_english_auto_restore") private func ime_english_auto_restore(_ enabled: Bool)
 @_silgen_name("ime_auto_capitalize") private func ime_auto_capitalize(_ enabled: Bool)
 @_silgen_name("ime_allow_foreign_consonants") private func ime_allow_foreign_consonants(_ enabled: Bool)
+@_silgen_name("ime_morse_mode") private func ime_morse_mode(_ enabled: Bool)
 @_silgen_name("ime_clear") private func ime_clear()
 @_silgen_name("ime_clear_all") private func ime_clear_all()
 @_silgen_name("ime_free") private func ime_free(_ result: UnsafeMutablePointer<ImeResult>?)
@@ -685,6 +686,12 @@ class RustBridge {
     static func setAllowForeignConsonants(_ enabled: Bool) {
         ime_allow_foreign_consonants(enabled)
         Log.info("Allow foreign consonants: \(enabled)")
+    }
+
+    /// Set whether to enable Morse code output mode
+    /// When enabled, Vietnamese text is converted to Morse code on space
+    static func setMorseMode(_ enabled: Bool) {
+        ime_morse_mode(enabled)
     }
 
     static func clearBuffer() {
