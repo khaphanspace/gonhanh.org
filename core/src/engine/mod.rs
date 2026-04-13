@@ -571,12 +571,16 @@ impl Engine {
             return self.on_key_ext(key, caps, ctrl, shift);
         };
 
-        // Ctrl/Cmd bypasses everything
+        // Issue #363: When ctrl=true but ch is provided (Option+key on macOS),
+        // skip Vietnamese transforms but still accumulate for shortcut matching.
+        // Platform passes ctrl=true to bypass Telex/VNI, but shortcuts like √√→✅
+        // need the character to be accumulated in shortcut_prefix.
         if ctrl {
-            self.clear();
+            self.buf.clear();
+            self.raw_input.clear();
             self.word_history.clear();
             self.spaces_after_commit = 0;
-            return Result::none();
+            // Fall through to shortcut accumulation below
         }
 
         // Accumulate character for suffix matching
