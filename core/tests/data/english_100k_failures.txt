@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 393
+# Total failures: 396
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -160,6 +160,7 @@ ioo	ioo	ioo	iô	iô
 tycoon	tycooon	tycoon	tycooon	tycôon
 tees	tees	tees	tế	tês
 leer	leer	leer	lể	lêr
+bataan	bataan	bataan	batan	batân
 baa	baa	baa	bâ	bâ
 saa	saa	saa	sâ	sâ
 dawns	dawns	dawns	dắn	dăns
@@ -211,6 +212,7 @@ lycee	lyceee	lycee	lyceee	lycêe
 dda	dda	dda	đa	đa
 aar	aar	aar	ẩ	âr
 coons	coons	coons	cốn	côns
+tepee	tepee	tepee	tepe	tepê
 taa	taa	taa	tâ	tâ
 aap	aap	aap	âp	âp
 chaffee	chaffee	chaffee	chafee	chaffê
@@ -355,6 +357,7 @@ geert	geeert	geert	geeert	gêert
 aab	aab	aab	âb	âb
 tyree	tyreee	tyree	tyẻe	tyrêe
 owa	owa	owa	ơa	ơa
+tepees	tepees	tepees	tepes	tepês
 gawk	gawk	gawk	găk	găk
 kaaba	kaaaba	kaaba	kaaaba	kâaba
 ool	ool	ool	ôl	ôl

@@ -768,14 +768,14 @@ fn delayed_circumflex_auto_restore_space() {
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),   // tôt (no mark) is NOT real VI → restore to English
-        ("data ", "data "),   // dât (no mark) is NOT real VI → restore to English
-        ("dataa ", "data "),  // Revert: dataa → data (circumflex reverted)
-        ("dataas", "datas"),  // Revert then mark: dataa → data, then 's' stays as letter
-        ("noto ", "noto "),   // nôt (no mark) is NOT real VI → restore to English
-        ("hete ", "hete "),   // hêt (no mark) is NOT real VI → restore to English
-        ("tetee ", "tetee "), // Neither tetee nor tete in dict → keep double form
-        ("cocoo ", "coco "),  // cocoo not in EN dict → auto-restore keeps buffer "coco"
+        ("toto ", "toto "),  // tôt (no mark) is NOT real VI → restore to English
+        ("data ", "data "),  // dât (no mark) is NOT real VI → restore to English
+        ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
+        ("dataas", "datas"), // Revert then mark: dataa → data, then 's' stays as letter
+        ("noto ", "noto "),  // nôt (no mark) is NOT real VI → restore to English
+        ("hete ", "hete "),  // hêt (no mark) is NOT real VI → restore to English
+        ("tetee ", "tete "), // Issue #367: circumflex reverted → keep buffer "tete"
+        ("cocoo ", "coco "), // cocoo not in EN dict → auto-restore keeps buffer "coco"
     ];
 
     for (input, expected) in cases {

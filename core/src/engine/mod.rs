@@ -4874,6 +4874,16 @@ impl Engine {
             }
         }
 
+        // Issue #367: Keep buffer when circumflex was reverted and no marks remain.
+        // When user types "totoo" (t-o-t-o-o), circumflex fires on 4th 'o' (tôt),
+        // then 5th 'o' reverts it → buffer="toto" (clean, no marks). The user explicitly
+        // typed double vowel to revert, so keep buffer content.
+        // Without this, auto-restore would output raw "totoo" (extra vowel from revert).
+        // Applies to: TOTO, MAMA, TETE, SATA, PAPA, etc.
+        if self.had_circumflex_revert && !has_marks_or_tones && !has_stroke {
+            return None;
+        }
+
         // UNIFIED LOGIC: Restore ONLY when BOTH conditions are met:
         // 1. buffer != valid Vietnamese (is_buffer_invalid_vietnamese)
         // 2. raw_input == valid English (is_raw_input_valid_english)
