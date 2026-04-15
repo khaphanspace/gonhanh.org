@@ -423,6 +423,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/kingkong991">
+        <img src="https://avatars.githubusercontent.com/u/11542463?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>kingkong991</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/leantan2025">
         <img src="https://avatars.githubusercontent.com/u/199637993?v=4" width="50" style="border-radius:50%"/><br/>
         <b>leantan2025</b>
@@ -434,14 +440,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>thehotbotcannotdiefromlove</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/rivercode35">
         <img src="https://avatars.githubusercontent.com/u/109026166?v=4" width="50" style="border-radius:50%"/><br/>
         <b>rivercode35</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/thememuse">
         <img src="https://avatars.githubusercontent.com/u/258035397?v=4" width="50" style="border-radius:50%"/><br/>
@@ -472,14 +478,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>baokhanhnguyen</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/reishou">
         <img src="https://avatars.githubusercontent.com/u/4869137?v=4" width="50" style="border-radius:50%"/><br/>
         <b>reishou</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/hoang-rio">
         <img src="https://avatars.githubusercontent.com/u/11514638?v=4" width="50" style="border-radius:50%"/><br/>
@@ -510,14 +516,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>zeldrisho</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/pdong15dth">
         <img src="https://avatars.githubusercontent.com/u/39237364?v=4" width="50" style="border-radius:50%"/><br/>
         <b>pdong15dth</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/trunghieupham59">
         <img src="https://avatars.githubusercontent.com/u/85470247?v=4" width="50" style="border-radius:50%"/><br/>
@@ -548,14 +554,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>phong010198</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/dnd21052002">
         <img src="https://avatars.githubusercontent.com/u/90169748?v=4" width="50" style="border-radius:50%"/><br/>
         <b>dnd21052002</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/boykioyb">
         <img src="https://avatars.githubusercontent.com/u/19341086?v=4" width="50" style="border-radius:50%"/><br/>
@@ -586,14 +592,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>ninhhaidang</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/24611210">
         <img src="https://avatars.githubusercontent.com/u/187024979?v=4" width="50" style="border-radius:50%"/><br/>
         <b>24611210</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/6d696e76">
         <img src="https://avatars.githubusercontent.com/u/94686079?v=4" width="50" style="border-radius:50%"/><br/>
@@ -624,18 +630,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>npkhang99</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/vincentng18">
         <img src="https://avatars.githubusercontent.com/u/82100303?v=4" width="50" style="border-radius:50%"/><br/>
         <b>vincentng18</b>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/kingkong991">
-        <img src="https://avatars.githubusercontent.com/u/11542463?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>kingkong991</b>
       </a>
     </td>
     <td align="center">
