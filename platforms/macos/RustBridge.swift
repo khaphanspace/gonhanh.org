@@ -1228,20 +1228,10 @@ private func keyboardCallback(
 
     // Pass through all Cmd+key shortcuts (Cmd+A, Cmd+C, Cmd+V, Cmd+X, Cmd+Z, etc.)
     if flags.contains(.maskCommand), !flags.contains(.maskControl), !flags.contains(.maskAlternate) {
-        // Shortcuts that modify text content
-        let textModifyingKeys: Set<UInt16> = [
-            0x00, // Cmd+A (select all)
-            0x09, // Cmd+V (paste)
-            0x07, // Cmd+X (cut)
-            0x06, // Cmd+Z (undo)
-            0x33, // Cmd+Backspace (delete to beginning of line)
-            0x75, // Cmd+Delete (delete to end of line)
-        ]
-
-        if textModifyingKeys.contains(keyCode) {
-            RustBridge.clearBufferAll()
-        }
-        // Pass through all Cmd shortcuts
+        // Any Cmd+key shortcut invalidates the current composition context:
+        // Cmd+T/N/W switches tab/window, Cmd+A/V/X/Z modifies text, Cmd+1-9 switches tabs, etc.
+        // Issue #365: without this, buffer leaks across tab switches (Cmd+T) in browsers.
+        RustBridge.clearBufferAll()
         return Unmanaged.passUnretained(event)
     }
 
