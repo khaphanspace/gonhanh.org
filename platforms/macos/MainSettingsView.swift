@@ -198,6 +198,29 @@ class AppState: ObservableObject {
     @Published var isLaunchAtLoginEnabled: Bool = false
     @Published var requiresManualLaunchAtLogin: Bool = false
 
+    // MARK: - Clean Paste
+
+    @Published var cleanPasteEnabled: Bool = false {
+        didSet { UserDefaults.standard.set(cleanPasteEnabled, forKey: SettingsKey.cleanPasteEnabled) }
+    }
+
+    @Published var cleanPasteShortcut: KeyboardShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(cleanPasteShortcut) {
+                UserDefaults.standard.set(data, forKey: SettingsKey.cleanPasteShortcut)
+            }
+            NotificationCenter.default.post(name: .cleanPasteShortcutChanged, object: cleanPasteShortcut)
+        }
+    }
+
+    @Published var cleanPasteMappings: [CleanPasteMapping] = [] {
+        didSet {
+            if let data = try? JSONEncoder().encode(cleanPasteMappings) {
+                UserDefaults.standard.set(data, forKey: SettingsKey.cleanPasteMappings)
+            }
+        }
+    }
+
     // MARK: - Init
 
     init() {
@@ -229,6 +252,17 @@ class AppState: ObservableObject {
            let profiles = try? JSONDecoder().decode([String: PerAppConfig].self, from: data)
         {
             perAppProfiles = profiles
+        }
+
+        // Clean Paste settings
+        cleanPasteEnabled = defaults.bool(forKey: SettingsKey.cleanPasteEnabled)
+        cleanPasteShortcut = KeyboardShortcut.loadCleanPasteShortcut()
+        if let data = defaults.data(forKey: SettingsKey.cleanPasteMappings),
+           let mappings = try? JSONDecoder().decode([CleanPasteMapping].self, from: data)
+        {
+            cleanPasteMappings = mappings
+        } else {
+            cleanPasteMappings = CleanPasteMapping.defaults
         }
 
         // Sync settings to Rust engine
@@ -538,6 +572,32 @@ struct ShortcutItem: Identifiable, Codable {
     var key: String
     var value: String
     var isEnabled: Bool = true
+}
+
+/// Character mapping for Clean Paste feature (from → to).
+struct CleanPasteMapping: Identifiable, Codable, Equatable {
+    var id = UUID()
+    var from: String // Source character(s)
+    var to: String // Replacement string
+    var label: String // Human-readable description
+    var isEnabled: Bool = true
+}
+
+extension CleanPasteMapping {
+    /// Default mappings for AI/Unicode normalization.
+    static let defaults: [CleanPasteMapping] = [
+        .init(from: "\u{201C}", to: "\"", label: "Smart quote mở"),
+        .init(from: "\u{201D}", to: "\"", label: "Smart quote đóng"),
+        .init(from: "\u{2018}", to: "'", label: "Smart quote đơn mở"),
+        .init(from: "\u{2019}", to: "'", label: "Smart quote đơn đóng"),
+        .init(from: "\u{2014}", to: "-", label: "Em dash"),
+        .init(from: "\u{2013}", to: "-", label: "En dash"),
+        .init(from: "\u{2026}", to: "...", label: "Ellipsis"),
+        .init(from: "\u{2022}", to: "-", label: "Bullet"),
+        .init(from: "\u{2192}", to: "->", label: "Mũi tên phải"),
+        .init(from: "\u{2190}", to: "<-", label: "Mũi tên trái"),
+        .init(from: "\u{00D7}", to: "x", label: "Dấu nhân"),
+    ]
 }
 
 // MARK: - View Modifiers

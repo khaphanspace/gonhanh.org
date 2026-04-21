@@ -20,6 +20,7 @@
 //! ime_clear();
 //! ```
 
+pub mod clean_text;
 pub mod data;
 pub mod engine;
 pub mod input;
@@ -438,6 +439,74 @@ pub extern "C" fn ime_clear_shortcuts() {
     if let Some(ref mut e) = *guard {
         e.shortcuts_mut().clear();
     }
+}
+
+// ============================================================
+// Clean Paste FFI
+// ============================================================
+
+/// Clean and normalize clipboard text with platform-aware markdown.
+///
+/// Applies formatting rules, character replacements, and converts markdown
+/// for the target platform (Discord, Slack, Telegram, plain text).
+///
+/// # Arguments
+/// * `input` - C string with raw clipboard text
+/// * `custom_from` - Pointer to array of UTF-32 codepoints to replace (source chars)
+/// * `custom_to` - Pointer to array of C strings (replacement strings, one per from char)
+/// * `custom_count` - Number of custom mappings
+/// * `apply_format` - Whether to apply formatting rules (true) or only char replacement (false)
+/// * `platform` - Target platform: 0=none, 1=discord, 2=slack, 3=plain, 4=telegram
+/// * `out` - Output buffer for UTF-32 codepoints
+/// * `out_max` - Max codepoints to write
+///
+/// # Returns
+/// Number of codepoints written to `out`. 0 if input is null/empty.
+///
+/// # Safety
+/// All pointers must be valid. `out` must have space for `out_max` u32 values.
+#[no_mangle]
+pub unsafe extern "C" fn ime_clean_text(
+    input: *const std::os::raw::c_char,
+    custom_from: *const u32,
+    custom_to: *const *const std::os::raw::c_char,
+    custom_count: i32,
+    apply_format: bool,
+    platform: u8,
+    out: *mut u32,
+    out_max: i32,
+) -> i32 {
+    if input.is_null() || out.is_null() || out_max <= 0 {
+        return 0;
+    }
+
+    let input_str = match std::ffi::CStr::from_ptr(input).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    // Build custom mappings from FFI arrays
+    let mut custom: Vec<(char, &str)> = Vec::new();
+    if !custom_from.is_null() && !custom_to.is_null() && custom_count > 0 {
+        for i in 0..custom_count as isize {
+            let from_cp = *custom_from.offset(i);
+            let to_ptr = *custom_to.offset(i);
+            if let (Some(from_char), false) = (char::from_u32(from_cp), to_ptr.is_null()) {
+                if let Ok(to_str) = std::ffi::CStr::from_ptr(to_ptr).to_str() {
+                    custom.push((from_char, to_str));
+                }
+            }
+        }
+    }
+
+    let plat = clean_text::Platform::from_u8(platform);
+    let result = clean_text::clean_text(input_str, &custom, apply_format, plat);
+
+    // Write output as UTF-32
+    let utf32: Vec<u32> = result.chars().map(|c| c as u32).collect();
+    let len = utf32.len().min(out_max as usize);
+    std::ptr::copy_nonoverlapping(utf32.as_ptr(), out, len);
+    len as i32
 }
 
 // ============================================================
