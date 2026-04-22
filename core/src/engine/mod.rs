@@ -5743,6 +5743,10 @@ impl Engine {
                 } else {
                     self.telex_double_raw_len
                 };
+                // Clamp to raw_input length to avoid out-of-bounds slice when
+                // raw_input has been shortened further (e.g. backspace) after
+                // telex_double_raw was stored.
+                let subsequent_start = subsequent_start.min(self.raw_input.len());
                 for &(key, caps, shift) in &self.raw_input[subsequent_start..] {
                     if let Some(ch) = utils::key_to_char_ext(key, caps, shift) {
                         result.push(ch);
