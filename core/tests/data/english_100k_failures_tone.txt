@@ -1,7 +1,7 @@
 # English 100k Failures - Tone Markers
 # Cause: words ending with s/f/r/x/j trigger tone marks
 # Format: WORD \t ACTUAL \t BUFFER
-# Total: 1269 (+ 96 both)
+# Total: 1301 (+ 97 both)
 #
 # WORD: English word typed
 # ACTUAL: engine output after space
@@ -516,10 +516,12 @@ urns	ún	ún
 eff	ef	ef
 choses	choes	choes
 huns	hún	hún
+voss	vos	vos
 moans	moán	moán
 tamar	tẩm	tẩm
 cher	chẻ	chẻ
 rojas	roá	roá
+corr	cor	cor
 congr	cỏng	cỏng
 irr	ir	ir
 gusts	guts	guts
@@ -574,6 +576,8 @@ mesons	meons	meons
 roars	roá	roá
 roms	róm	róm
 bakr	bảk	bảk
+goff	gof	gof
+liss	lis	lis
 tits	tít	tít
 nics	níc	níc
 sofas	soá	soá
@@ -618,6 +622,7 @@ mois	mói	mói
 surer	suer	suer
 mems	mém	mém
 ris	rí	rí
+goss	gos	gos
 hoar	hoả	hoả
 ves	vé	vé
 uar	ủa	ủa
@@ -626,6 +631,7 @@ duns	dún	dún
 ors	ó	ó
 arr	ar	ar
 sips	síp	síp
+thess	thes	thes
 ler	lẻ	lẻ
 hoes	hoé	hoé
 monogr	mổng	mổng
@@ -634,6 +640,7 @@ sirs	sí	sí
 tos	tó	tó
 ats	át	át
 thos	thó	thó
+neff	nef	nef
 tof	tò	tò
 rosas	roas	roas
 marais	mấi	mấi
@@ -645,6 +652,7 @@ tyr	tỷ	tỷ
 cams	cám	cám
 pasts	pats	pats
 mof	mò	mò
+mauss	maus	maus
 amr	ảm	ảm
 ries	rié	rié
 bij	bị	bị
@@ -672,6 +680,7 @@ eof	èo	èo
 basses	bases	bases
 ajr	ả	ả
 secs	séc	séc
+tass	tas	tas
 sais	sái	sái
 isps	ips	ips
 lors	ló	ló
@@ -708,6 +717,7 @@ saps	sáp	sáp
 neuer	nểu	nểu
 saf	sà	sà
 anas	ấn	ấn
+kress	kres	kres
 macs	mác	mác
 mur	mủ	mủ
 icr	ỉc	ỉc
@@ -722,6 +732,7 @@ bax	bã	bã
 parris	paris	paris
 isms	ims	ims
 cosas	coas	coas
+dorr	dor	dor
 heures	hếu	hếu
 thongs	thóng	thóng
 nomos	nốm	nốm
@@ -745,6 +756,7 @@ ecf	èc	èc
 neusner	nểun	nểun
 dorms	dóm	dóm
 vex	vẽ	vẽ
+raff	raf	raf
 tir	tỉ	tỉ
 urs	ú	ú
 ters	té	té
@@ -791,6 +803,7 @@ memes	mếm	mếm
 hass	has	has
 orf	ò	ò
 raps	ráp	ráp
+warr	uar	uar
 naf	nà	nà
 saks	sák	sák
 borers	boers	boers
@@ -802,6 +815,7 @@ trims	trím	trím
 parsis	pái	pái
 kharif	khài	khài
 buf	bù	bù
+gurr	gur	gur
 icf	ìc	ìc
 dof	dò	dò
 busses	buses	buses
@@ -814,7 +828,9 @@ saris	sái	sái
 taux	tãu	tãu
 tanf	tàn	tàn
 yj	ỵ	ỵ
+reuss	reus	reus
 acf	àc	àc
+terr	ter	ter
 aur	ảu	ảu
 mesmer	mểm	mểm
 mops	móp	móp
@@ -843,6 +859,7 @@ chums	chúm	chúm
 rois	rói	rói
 sways	sưáy	sưáy
 biens	bién	bién
+leff	lef	lef
 noirs	nói	nói
 coser	coẻ	coẻ
 chasms	chams	chams
@@ -884,6 +901,7 @@ penser	pển	pển
 lox	lõ	lõ
 cursors	cuó	cuó
 muons	muón	muón
+huss	hus	hus
 bons	bón	bón
 hangars	hấng	hấng
 rais	rái	rái
@@ -962,6 +980,7 @@ mics	míc	míc
 cws	cứ	cứ
 bestsellers	betsellers	betsellers
 thir	thỉ	thỉ
+nass	nas	nas
 darf	dà	dà
 ois	ói	ói
 maus	máu	máu
@@ -984,11 +1003,13 @@ dienes	diến	diến
 lotos	lốt	lốt
 goer	goẻ	goẻ
 ustr	ủt	ủt
+narr	nar	nar
 casos	cáo	cáo
 myr	mỷ	mỷ
 tej	tẹ	tẹ
 esops	eops	eops
 asis	ái	ái
+maff	maf	maf
 gaur	gảu	gảu
 ansar	ẩn	ẩn
 misr	mỉ	mỉ
@@ -1044,6 +1065,7 @@ dorf	dò	dò
 nof	nò	nò
 qasr	qả	qả
 bursar	bủa	bủa
+coeff	coef	coef
 apf	àp	àp
 varnas	vấn	vấn
 nuys	nuý	nuý
@@ -1084,12 +1106,14 @@ loris	lói	lói
 rans	rán	rán
 dims	dím	dím
 sachar	sẩch	sẩch
+suess	sues	sues
 lochs	lóch	lóch
 thur	thủ	thủ
 lir	lỉ	lỉ
 trias	tría	tría
 daraus	dấu	dấu
 usus	úu	úu
+durr	dur	dur
 etf	èt	èt
 sauf	sàu	sàu
 swets	sưét	sưét
@@ -1129,6 +1153,7 @@ ifrs	í	í
 itf	ìt	ìt
 gaor	gảo	gảo
 ofs	ó	ó
+taff	taf	taf
 wcs	ức	ức
 berns	bén	bén
 vif	vì	vì
@@ -1142,6 +1167,7 @@ miers	mié	mié
 esos	éo	éo
 saif	sài	sài
 siraj	sịa	sịa
+rieff	rief	rief
 nws	nứ	nứ
 menezes	mến	mến
 dacs	dác	dác
@@ -1165,6 +1191,7 @@ transf	tràn	tràn
 yx	ỹ	ỹ
 musts	muts	muts
 ress	res	res
+riss	ris	ris
 nars	ná	ná
 conj	cọn	cọn
 sofer	soẻ	soẻ
@@ -1192,6 +1219,7 @@ canr	cản	cản
 thier	thiẻ	thiẻ
 benj	bẹn	bẹn
 aras	ấ	ấ
+noss	nos	nos
 marsyas	mấy	mấy
 sems	sém	sém
 cofer	coẻ	coẻ
@@ -1201,6 +1229,7 @@ thys	thý	thý
 tuns	tún	tún
 bienes	biến	biến
 mef	mè	mè
+doerr	doer	doer
 laf	là	là
 guis	gúi	gúi
 sechs	séch	séch
@@ -1215,6 +1244,7 @@ nier	niẻ	niẻ
 naif	nài	nài
 atas	ất	ất
 minx	mĩn	mĩn
+roff	rof	rof
 oer	oẻ	oẻ
 enfer	ển	ển
 dox	dõ	dõ
@@ -1266,6 +1296,7 @@ denr	dẻn	dẻn
 hif	hì	hì
 bex	bẽ	bẽ
 heuer	hểu	hểu
+tiss	tis	tis
 gyr	gỷ	gỷ
 usf	ù	ù
 thair	thải	thải
@@ -1275,6 +1306,7 @@ gwr	gử	gử
 hamar	hẩm	hẩm
 anr	ản	ản
 utf	ùt	ùt
+rexx	rex	rex
 xanax	xẫn	xẫn
 laws	lắ	lắ
 towns	tớn	tớn
@@ -1363,6 +1395,7 @@ oor	ổ	ổ
 eer	ể	ể
 awacs	ấc	ấc
 cowpox	cỗp	cỗp
+maass	mas	mas
 thaws	thắ	thắ
 mees	mế	mế
 tepees	tepes	tepes

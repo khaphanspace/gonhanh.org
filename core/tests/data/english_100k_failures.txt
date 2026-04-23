@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 396
+# Total failures: 397
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -343,6 +343,7 @@ booz	booz	booz	bo	bôz
 raa	raa	raa	râ	râ
 awn	awn	awn	ăn	ăn
 kootenay	koootenay	kootenay	koootenay	kôotenay
+maass	maass	maass	mas	mâss
 oaa	oaa	oaa	oâ	oâ
 kaw	kaww	kaw	kaww	kăw
 doodling	dooodling	doodling	dooling	dôodling
