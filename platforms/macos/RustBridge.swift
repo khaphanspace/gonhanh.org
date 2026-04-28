@@ -198,9 +198,7 @@ private class TextInjector {
             injectViaBackspace(bs: bs, text: text, delays: delays, emptyCharPrefix: true)
         case .charByChar:
             injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
-        case .slow:
-            injectViaProxy(bs: bs, text: text, delays: delays, proxy: proxy)
-        case .fast:
+        case .slow, .fast:
             injectViaBackspace(bs: bs, text: text, delays: delays)
         case .syncProxy:
             injectViaProxy(bs: bs, text: text, proxy: proxy)
@@ -259,18 +257,16 @@ private class TextInjector {
         }
     }
 
-    /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for ordered delivery.
+    /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for zero-delay delivery
     /// Events are injected directly into the event tap pipeline, guaranteeing correct ordering
-    private func injectViaProxy(bs: Int, text: String, delays: (UInt32, UInt32, UInt32) = (0, 0, 0), proxy: CGEventTapProxy) {
+    private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
 
         for _ in 0 ..< bs {
             postKey(KeyCode.backspace, source: src, proxy: proxy)
-            if delays.0 > 0 { usleep(delays.0) }
         }
-        if bs > 0, delays.1 > 0 { usleep(delays.1) }
 
-        postText(text, source: src, delay: delays.2, proxy: proxy)
+        postText(text, source: src, proxy: proxy)
     }
 
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
