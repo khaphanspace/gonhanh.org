@@ -211,6 +211,16 @@ private class TextInjector {
         usleep(method == .slow ? 20000 : 5000)
     }
 
+    /// Slow app injection without requiring an event tap proxy.
+    /// Used by the queued terminal path, where injection runs after the original callback returns.
+    func injectSlowSync(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
+        semaphore.wait()
+        defer { semaphore.signal() }
+
+        injectViaBackspace(bs: bs, text: text, delays: delays)
+        usleep(20000)
+    }
+
     // MARK: - Injection Methods
 
     /// Standard backspace injection: delete N chars, then type replacement
@@ -508,6 +518,61 @@ private class TextInjector {
             offset = end
         }
         return chunkNum
+    }
+}
+
+// MARK: - Slow Injection Queue
+
+/// Holds real keyDown events while slow synthetic replacement is still being delivered.
+/// Replayed events are intentionally unmarked so they pass through this tap and the IME again.
+private final class SlowInjectionQueue {
+    static let shared = SlowInjectionQueue()
+
+    private let lock = NSLock()
+    private var injecting = false
+    private var queuedEvents: [CGEvent] = []
+    private let maxQueuedEvents = 128
+
+    private init() {}
+
+    var isInjecting: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return injecting
+    }
+
+    func enqueue(_ event: CGEvent) {
+        guard let copy = event.copy() else { return }
+
+        lock.lock()
+        if queuedEvents.count >= maxQueuedEvents {
+            queuedEvents.removeAll(keepingCapacity: true)
+        } else {
+            queuedEvents.append(copy)
+        }
+        lock.unlock()
+    }
+
+    func inject(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), completion: (() -> Void)?) {
+        lock.lock()
+        injecting = true
+        lock.unlock()
+
+        DispatchQueue.global(qos: .userInteractive).async {
+            TextInjector.shared.injectSlowSync(bs: bs, text: text, delays: delays)
+            completion?()
+
+            let events: [CGEvent]
+            self.lock.lock()
+            events = self.queuedEvents
+            self.queuedEvents.removeAll(keepingCapacity: true)
+            self.injecting = false
+            self.lock.unlock()
+
+            for event in events {
+                event.post(tap: .cgSessionEventTap)
+            }
+        }
     }
 }
 
@@ -1133,6 +1198,11 @@ private func keyboardCallback(
 
     let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
+    if SlowInjectionQueue.shared.isInjecting {
+        SlowInjectionQueue.shared.enqueue(event)
+        return nil
+    }
+
     // Log all keystrokes (only when debug enabled - no overhead otherwise)
     if Log.isEnabled {
         if let char = event.keyboardCharacter() {
@@ -1166,11 +1236,14 @@ private func keyboardCallback(
 
         if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
             Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
-            sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
             if bs > 0 || !chars.isEmpty {
                 // Shortcut: consumed, don't post. Auto-restore: post Enter after replacement
-                if !keyConsumed { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
+                sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy) {
+                    if !keyConsumed {
+                        TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                    }
+                }
                 return nil
             }
         }
@@ -1299,14 +1372,17 @@ private func keyboardCallback(
 
     if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
-        sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+        let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
+        sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy) {
+            if isBreak, bs > 0, !chars.isEmpty {
+                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+            }
+        }
 
         // Break keys (punctuation, not space): pass through or post synthetically
-        let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
-            if bs > 0, !chars.isEmpty { TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift) }
-            else { return Unmanaged.passUnretained(event) }
+            if !(bs > 0 && !chars.isEmpty) { return Unmanaged.passUnretained(event) }
         }
         return nil
     }
@@ -1571,12 +1647,24 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     return cached(.fast, (1000, 3000, 1500), "default")
 }
 
-private func sendReplacement(backspace bs: Int, chars: [Character], method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
+private func sendReplacement(
+    backspace bs: Int,
+    chars: [Character],
+    method: InjectionMethod,
+    delays: (UInt32, UInt32, UInt32),
+    proxy: CGEventTapProxy,
+    completion: (() -> Void)? = nil
+) {
     let str = String(chars)
     Log.info("inject: bs=\(bs) text='\(str)' method=\(method) delays=\(delays)")
 
-    // Use TextInjector for synchronized text injection
+    if method == .slow, bs > 0 || !str.isEmpty {
+        SlowInjectionQueue.shared.inject(bs: bs, text: str, delays: delays, completion: completion)
+        return
+    }
+
     TextInjector.shared.injectSync(bs: bs, text: str, method: method, delays: delays, proxy: proxy)
+    completion?()
 }
 
 // MARK: - Focus Change Observer (AXObserver-based)
