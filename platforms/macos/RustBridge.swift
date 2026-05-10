@@ -1469,6 +1469,20 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.passthrough, (0, 0, 0), "pass:iphone")
     }
 
+    // Remote desktop clients - pass through all keys
+    // These apps forward physical keystrokes to the remote machine over the network.
+    // GoNhanh's synthetic injections (backspace + Vietnamese char) are NOT forwarded,
+    // causing garbled input on the remote. Passthrough lets raw keys reach the remote
+    // intact; Vietnamese composition must happen on the remote machine itself.
+    let remoteDesktopApps: Set<String> = [
+        "com.carriez.rustdesk",       // RustDesk
+        "com.philandro.anydesk",      // AnyDesk
+        "com.teamviewer.TeamViewer",  // TeamViewer
+    ]
+    if remoteDesktopApps.contains(bundleId) {
+        return cached(.passthrough, (0, 0, 0), "pass:remote")
+    }
+
     // Selection method for autocomplete UI elements
     if role == "AXComboBox" { return cached(.selection, (0, 0, 0), "sel:combo") }
     if role == "AXSearchField" { return cached(.selection, (0, 0, 0), "sel:search") }
