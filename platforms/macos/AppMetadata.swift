@@ -91,6 +91,7 @@ enum SettingsKey {
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"
     static let restartOnClose = "gonhanh.restartOnClose"
+    static let sessionTapMode = "gonhanh.sessionTapMode"
 }
 
 // MARK: - Keyboard Shortcut Model

@@ -755,12 +755,23 @@ class KeyboardHookManager {
         // Listen for keyboard events only (mouse handled by NSEvent monitor)
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.flagsChanged.rawValue)
-        let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
+
+        // Session tap mode: intercept at cgSessionEventTap level so that synthetic events
+        // injected by remote desktop software (RustDesk, AnyDesk, TeamViewer) are visible.
+        // Default (HID tap): highest priority, physical keystrokes only, best for most cases.
+        let tap: CFMachPort?
+        if AppState.shared.sessionTapMode {
+            tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
                                     options: .defaultTap, eventsOfInterest: mask,
                                     callback: keyboardCallback, userInfo: nil)
-            ?? CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
-                                 options: .defaultTap, eventsOfInterest: mask,
-                                 callback: keyboardCallback, userInfo: nil)
+        } else {
+            tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
+                                    options: .defaultTap, eventsOfInterest: mask,
+                                    callback: keyboardCallback, userInfo: nil)
+                ?? CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                     options: .defaultTap, eventsOfInterest: mask,
+                                     callback: keyboardCallback, userInfo: nil)
+        }
 
         guard let tap else {
             showAccessibilityAlert()
@@ -801,6 +812,13 @@ class KeyboardHookManager {
 
     func getTap() -> CFMachPort? {
         eventTap
+    }
+
+    /// Restart the keyboard hook with the current tap mode setting.
+    /// Called when sessionTapMode is toggled in settings.
+    func restart() {
+        stop()
+        start()
     }
 
     private func showAccessibilityAlert() {

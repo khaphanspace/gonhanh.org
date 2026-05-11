@@ -12,6 +12,7 @@ struct AdvancedSettingsView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 performanceSection
+                compatibilitySection
                 logSection
                 perAppSection
                 Spacer()
@@ -33,6 +34,19 @@ struct AdvancedSettingsView: View {
                 "Khởi động lại khi đóng cài đặt",
                 subtitle: "Tự động giải phóng RAM của cài đặt khi đóng",
                 isOn: $appState.restartOnClose
+            )
+        }
+        .cardBackground()
+    }
+
+    // MARK: - Compatibility
+
+    private var compatibilitySection: some View {
+        VStack(spacing: 0) {
+            SettingsToggleRow(
+                "Chế độ remote desktop",
+                subtitle: "Dùng khi gõ qua RustDesk, AnyDesk, TeamViewer. Bắt synthetic events ở session level thay vì HID level.",
+                isOn: $appState.sessionTapMode
             )
         }
         .cardBackground()
