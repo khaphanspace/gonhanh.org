@@ -190,6 +190,11 @@ class AppState: ObservableObject {
     @Published var sessionTapMode: Bool = false {
         didSet {
             UserDefaults.standard.set(sessionTapMode, forKey: SettingsKey.sessionTapMode)
+            // Skip restart during init: AppState.shared is still being constructed
+            // (dispatch_once in progress), so accessing it from restart() → start()
+            // would cause recursive lock crash. User-triggered toggles always run
+            // after init completes, when isSilentUpdate is false.
+            guard !isSilentUpdate else { return }
             KeyboardHookManager.shared.restart()
         }
     }
@@ -235,7 +240,11 @@ class AppState: ObservableObject {
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
+        // Silent load: prevent didSet from calling KeyboardHookManager.restart()
+        // during init, which would recursively access AppState.shared and crash.
+        isSilentUpdate = true
         sessionTapMode = defaults.bool(forKey: SettingsKey.sessionTapMode)
+        isSilentUpdate = false
         if let data = defaults.data(forKey: SettingsKey.perAppProfiles),
            let profiles = try? JSONDecoder().decode([String: PerAppConfig].self, from: data)
         {
