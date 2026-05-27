@@ -64,7 +64,7 @@ Những người đã tin tưởng và ủng hộ dự án.
     </td>
     <td align="center">
       <a href="https://github.com/trinhquocviet">
-        <img src="https://avatars.githubusercontent.com/u/9828732?u=c195635111d2e5ad1f65447882db16d487773225&v=4" width="80" style="border-radius:50%"/><br/>
+        <img src="https://avatars.githubusercontent.com/u/9828732?u=9edcf61af5c991ee27cb6ec964726c1c8528f76e&v=4" width="80" style="border-radius:50%"/><br/>
         <b>trinhquocviet</b> 🥈
       </a>
     </td>
@@ -1141,6 +1141,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 26/05/2026*
+*Được cập nhật tự động · Lần cuối: 27/05/2026*
 
 </div>
