@@ -2,6 +2,25 @@ import AppKit
 import Carbon
 import Foundation
 
+// MARK: - Accessibility helpers
+
+/// Create a system-wide AX element with a bounded messaging timeout.
+///
+/// AX attribute queries are synchronous IPC to the *focused* (foreign) app.
+/// Without a bound, a slow or busy app — common with Electron apps, or any app
+/// queried on the first keystroke right after an app switch — blocks the
+/// event-tap callback. If the callback stalls past the OS limit (~1s), macOS
+/// disables the tap entirely, killing input in every app until the process is
+/// relaunched. Setting the timeout on the system-wide element sets the default
+/// for all elements obtained through it. 0.1s is far above normal AX latency
+/// (~1-5ms) yet well under the tap timeout, so detection degrades to a fast
+/// fallback instead of hanging.
+func axSystemWideBounded() -> AXUIElement {
+    let element = AXUIElementCreateSystemWide()
+    AXUIElementSetMessagingTimeout(element, 0.1)
+    return element
+}
+
 // MARK: - Debug Logging
 
 /// Debug logging - only active when /tmp/gonhanh_debug.log exists
@@ -326,7 +345,7 @@ private class TextInjector {
     /// Returns true if successful, false if caller should fallback to synthetic events
     func injectViaAX(bs: Int, text: String) -> Bool {
         // Get focused element
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = axSystemWideBounded()
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
               let ref = focusedRef
@@ -737,6 +756,7 @@ class KeyboardHookManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var mouseMonitor: Any? // NSEvent monitor for mouse clicks
+    private var watchdogTimer: Timer? // periodically re-enables a silently-disabled tap
     private var isRunning = false
 
     private init() {}
@@ -785,7 +805,29 @@ class KeyboardHookManager {
             isRunning = true
             setupShortcutObserver()
             startMouseMonitor()
+            startWatchdog()
         }
+    }
+
+    /// Periodically verify the event tap is still alive and re-enable it if not.
+    ///
+    /// macOS silently disables an event tap after a callback overruns the system
+    /// timeout. The callback receives a `.tapDisabledByTimeout` event, but if the
+    /// run loop is wedged or the disable arrives mid-injection that recovery path
+    /// does not always fire — leaving the IME dead in every app until the app is
+    /// relaunched. This timer recovers it within a couple seconds, unattended.
+    private func startWatchdog() {
+        watchdogTimer?.invalidate()
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self, let tap = self.eventTap else { return }
+            if !CGEvent.tapIsEnabled(tap: tap) {
+                CGEvent.tapEnable(tap: tap, enable: true)
+                Log.info("watchdog: event tap was disabled, re-enabled")
+            }
+        }
+        // .common so it keeps firing during menu/modal run-loop tracking too.
+        RunLoop.main.add(timer, forMode: .common)
+        watchdogTimer = timer
     }
 
     /// Start NSEvent global monitor for mouse events
@@ -800,6 +842,8 @@ class KeyboardHookManager {
 
     func stop() {
         guard isRunning else { return }
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
         if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let src = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetCurrent(), src, .commonModes) }
         if let monitor = mouseMonitor { NSEvent.removeMonitor(monitor) }
@@ -863,7 +907,7 @@ private var wasControlPressed = false
 /// Returns the word only if cursor is right after a space/punctuation that follows a word
 /// This ensures we only restore when actually entering a word, not when deleting within a word
 private func getWordToRestoreOnBackspace() -> String? {
-    let systemWide = AXUIElementCreateSystemWide()
+    let systemWide = axSystemWideBounded()
     var focused: CFTypeRef?
 
     guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
@@ -1030,6 +1074,7 @@ private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon _: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        Log.info("tap disabled (type=\(type.rawValue)) → re-enabling")
         if let tap = KeyboardHookManager.shared.getTap() { CGEvent.tapEnable(tap: tap, enable: true) }
         return Unmanaged.passUnretained(event)
     }
@@ -1423,11 +1468,15 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     if let cached = DetectionCache.get() { return cached }
 
     // Slow path: query AX for focused element
-    let systemWide = AXUIElementCreateSystemWide()
+    let systemWide = axSystemWideBounded()
     var focused: CFTypeRef?
     var role: String?
     var bundleId: String?
 
+    // Time the AX IPC: if a focused app is slow to answer, this is what stalls
+    // the event-tap callback. The bounded messaging timeout caps each call, so a
+    // slow app shows up here as ~0.1s rather than a multi-second hang.
+    let axStart = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
     if AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
        let el = focused
     {
@@ -1445,6 +1494,10 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
                 bundleId = app.bundleIdentifier
             }
         }
+    }
+    if Log.isEnabled {
+        let axMs = (CFAbsoluteTimeGetCurrent() - axStart) * 1000
+        if axMs > 30 { Log.info("AX detect slow: \(Int(axMs))ms app=\(bundleId ?? "nil")") }
     }
 
     // Fallback to frontmost app if we couldn't get bundle from focused element
@@ -1576,7 +1629,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
     let codeApps = [
         // VSCode-based IDEs
-        "com.microsoft.VSCode", "com.google.antigravity", "com.todesktop.cursor",
+        "com.microsoft.VSCode", "com.google.antigravity-ide", "com.todesktop.cursor",
         "com.visualstudio.code.oss", "com.vscodium",
         // Terminals
         "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
@@ -1833,7 +1886,7 @@ class PerAppModeManager {
         spotlightChecked = true
 
         // Quick check: is Spotlight the focused element?
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = axSystemWideBounded()
         var focusedElement: CFTypeRef?
 
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,

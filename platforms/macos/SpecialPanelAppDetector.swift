@@ -61,7 +61,7 @@ class SpecialPanelAppDetector {
     /// Fast path: check focused element only (cheapest AX query)
     /// Returns bundle ID if focused element belongs to a special panel app
     private static func getFocusedSpecialPanelApp() -> String? {
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = axSystemWideBounded()
         var focusedElement: CFTypeRef?
 
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
