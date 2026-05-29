@@ -683,6 +683,26 @@ impl Engine {
             // Break keys (punctuation): check for immediate shortcuts like "->"
             if keys::is_break_ext(key, shift) {
                 if let Some(ch) = break_key_to_char(key, shift) {
+                    // Word shortcuts must also fire on punctuation, not only on
+                    // Space/Enter. Match the accumulated prefix BEFORE the break
+                    // char is appended (e.g. "#hcm" then ","). key_char=None so the
+                    // break char is not appended — the platform types it after the
+                    // replacement. Mirrors the enabled-mode word-boundary behavior.
+                    if !self.shortcut_prefix.is_empty() {
+                        let input_method = self.current_input_method();
+                        if let Some(m) = self.shortcuts.try_match_for_method(
+                            &self.shortcut_prefix,
+                            None,
+                            true, // word boundary
+                            input_method,
+                        ) {
+                            let output: Vec<char> = m.output.chars().collect();
+                            let backspace_count = m.backspace_count as u8;
+                            self.shortcut_prefix.clear();
+                            return Result::send(backspace_count, &output);
+                        }
+                    }
+
                     self.shortcut_prefix.push(ch);
 
                     let input_method = self.current_input_method();

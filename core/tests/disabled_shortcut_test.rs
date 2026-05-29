@@ -134,6 +134,63 @@ fn test_shortcut_with_number_a1() {
     assert_eq!(output, "alpha one ", "Should output 'alpha one '");
 }
 
+// Issue #383: word shortcuts must also trigger on punctuation (. , etc.) when the
+// IME is disabled — previously only Space/Enter triggered them.
+
+#[test]
+fn test_word_shortcut_punctuation_when_disabled_comma() {
+    let mut e = Engine::new();
+    e.set_enabled(false);
+    e.shortcuts_mut()
+        .add(Shortcut::new("#hcm", "Thành phố Hồ Chí Minh"));
+
+    // Type "#hcm" ( # = Shift+3 )
+    e.on_key_ext(keys::N3, false, false, true);
+    e.on_key(keys::H, false, false);
+    e.on_key(keys::C, false, false);
+    e.on_key(keys::M, false, false);
+
+    // Comma should trigger the word shortcut
+    let r = e.on_key(keys::COMMA, false, false);
+
+    assert_eq!(
+        r.action, 1,
+        "Comma should trigger word shortcut when disabled"
+    );
+    assert_eq!(r.backspace, 4, "Should backspace 4 chars (#hcm)");
+
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    // Output is the replacement only; the comma is typed by the platform afterwards
+    assert_eq!(output, "Thành phố Hồ Chí Minh");
+}
+
+#[test]
+fn test_word_shortcut_punctuation_when_disabled_dot() {
+    let mut e = Engine::new();
+    e.set_enabled(false);
+    e.shortcuts_mut().add(Shortcut::new("btw", "by the way"));
+
+    e.on_key(keys::B, false, false);
+    e.on_key(keys::T, false, false);
+    e.on_key(keys::W, false, false);
+
+    // Period should trigger the word shortcut
+    let r = e.on_key(keys::DOT, false, false);
+
+    assert_eq!(
+        r.action, 1,
+        "Period should trigger word shortcut when disabled"
+    );
+    assert_eq!(r.backspace, 3, "Should backspace 3 chars (btw)");
+
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    assert_eq!(output, "by the way");
+}
+
 #[test]
 fn test_shortcut_with_number_disabled_mode() {
     let mut e = Engine::new();
