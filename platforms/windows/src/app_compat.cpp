@@ -142,7 +142,8 @@ DetectionResult AppCompat::DetectInjectionMethod(const std::wstring& appName) {
     if (lower == L"teams.exe" ||
         lower == L"slack.exe" ||
         lower == L"discord.exe" ||
-        lower == L"telegram.exe") {
+        lower == L"telegram.exe" ||
+        lower == L"zalo.exe") {
         return DetectionResult(InjectionMethod::Slow, 3000, 8000, 3000);
     }
 
