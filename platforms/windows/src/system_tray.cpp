@@ -57,6 +57,7 @@ bool SystemTray::Create(HWND hwnd) {
 void SystemTray::Destroy() {
     if (created_) {
         Shell_NotifyIconW(NIM_DELETE, &nid_);
+        if (nid_.hIcon) { DestroyIcon(nid_.hIcon); nid_.hIcon = nullptr; }
         created_ = false;
     }
 }
