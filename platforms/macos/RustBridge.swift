@@ -1641,7 +1641,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     // GoNhanh's synthetic injections (backspace + Vietnamese char) are NOT forwarded,
     // causing garbled input on the remote. Passthrough lets raw keys reach the remote
     // intact; Vietnamese composition must happen on the remote machine itself.
-    let remoteDesktopApps: Set<String> = [
+    let remoteDesktopApps: Set = [
         "com.carriez.rustdesk", // RustDesk
         "com.philandro.anydesk", // AnyDesk
         "com.teamviewer.TeamViewer", // TeamViewer
