@@ -185,8 +185,10 @@ class AppState: ObservableObject {
     }
 
     /// Use cgSessionEventTap instead of cghidEventTap.
-    /// Enables Vietnamese input via remote desktop software (RustDesk, AnyDesk, TeamViewer)
-    /// by intercepting synthetic events injected at session level. Applied immediately via restart().
+    /// Enables Vietnamese input for keystrokes injected at session level (invisible to the
+    /// default HID tap): the macOS Accessibility Keyboard / on-screen keyboards (issue #395)
+    /// and remote desktop software (RustDesk, AnyDesk, TeamViewer).
+    /// Applied immediately via restart().
     @Published var sessionTapMode: Bool = false {
         didSet {
             UserDefaults.standard.set(sessionTapMode, forKey: SettingsKey.sessionTapMode)
