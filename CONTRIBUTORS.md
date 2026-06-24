@@ -589,9 +589,9 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/hugodsw">
+      <a href="https://github.com/hugodswe">
         <img src="https://avatars.githubusercontent.com/u/31150748?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>hugodsw</b>
+        <b>hugodswe</b>
       </a>
     </td>
     <td align="center">
@@ -1211,6 +1211,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 23/06/2026*
+*Được cập nhật tự động · Lần cuối: 24/06/2026*
 
 </div>
