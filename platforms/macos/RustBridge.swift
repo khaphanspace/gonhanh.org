@@ -1547,7 +1547,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     // GoNhanh's synthetic injections (backspace + Vietnamese char) are NOT forwarded,
     // causing garbled input on the remote. Passthrough lets raw keys reach the remote
     // intact; Vietnamese composition must happen on the remote machine itself.
-    let remoteDesktopApps: Set<String> = [
+    let remoteDesktopApps: Set = [
         "com.carriez.rustdesk", // RustDesk
         "com.philandro.anydesk", // AnyDesk
         "com.teamviewer.TeamViewer", // TeamViewer
@@ -1620,6 +1620,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
     if bundleId == "com.microsoft.Excel" { return cached(.slow, (3000, 8000, 3000), "slow:excel") }
     if bundleId == "com.microsoft.Word" { return cached(.slow, (3000, 8000, 3000), "slow:word") }
+    if bundleId == "com.microsoft.Outlook" { return cached(.slow, (8000, 15000, 8000), "slow:outlook") }
 
     // Electron apps - higher delays for Monaco editor
     if bundleId == "com.todesktop.230313mzl4w4u92" { return cached(.slow, (8000, 15000, 8000), "slow:claude") }
