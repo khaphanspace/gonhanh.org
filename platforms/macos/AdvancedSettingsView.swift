@@ -45,7 +45,7 @@ struct AdvancedSettingsView: View {
         VStack(spacing: 0) {
             SettingsToggleRow(
                 "Chế độ remote desktop",
-                subtitle: "Dùng khi gõ qua RustDesk, AnyDesk, TeamViewer. Bắt synthetic events ở session level thay vì HID level.",
+                subtitle: "Bật khi gõ qua RustDesk, AnyDesk, TeamViewer. Bắt synthetic events ở session level thay vì HID level. (Bàn phím trợ năng / Accessibility Keyboard đã tự động được hỗ trợ.)",
                 isOn: $appState.sessionTapMode
             )
         }
