@@ -297,3 +297,91 @@ final class KeyboardShortcutTests: XCTestCase {
         XCTAssertFalse(restoreShortcut.matches(keyCode: 0x00, flags: typingAWithShift))
     }
 }
+
+// MARK: - Modifier Chord Tracker Tests
+
+final class ModifierChordTrackerTests: XCTestCase {
+    private let ctrl = CGEventFlags.maskControl
+    private let shift = CGEventFlags.maskShift
+    private let ctrlShift = CGEventFlags([.maskControl, .maskShift])
+    private let ctrlShiftCmd = CGEventFlags([.maskControl, .maskShift, .maskCommand])
+
+    /// Whether a modifier-only Ctrl+Shift toggle would fire given a flag sequence.
+    /// Mirrors the callback: feed each flagsChanged, then check the returned peak
+    /// against the shortcut.
+    private func toggleFires(_ sequence: [CGEventFlags], keyPressedAt: Int? = nil) -> Bool {
+        let shortcut = KeyboardShortcut(keyCode: 0xFFFF, modifiers: ctrlShift.rawValue)
+        var tracker = ModifierChordTracker()
+        for (i, flags) in sequence.enumerated() {
+            if keyPressedAt == i { tracker.keyPressed(modifiersHeld: flags) }
+            if let peak = tracker.modifiersChanged(to: flags) {
+                return shortcut.matchesModifierOnly(flags: peak)
+            }
+        }
+        return false
+    }
+
+    /// Happy path: clean press-and-release of the exact combo toggles.
+    func testCleanCtrlShiftPressReleaseFires() {
+        XCTAssertTrue(toggleFires([ctrl, ctrlShift, ctrl, []]))
+    }
+
+    func testCleanCtrlShiftReleaseInOtherOrderFires() {
+        XCTAssertTrue(toggleFires([shift, ctrlShift, shift, []]))
+    }
+
+    /// Issue #399: adding a modifier mid-chord must NOT fire on release.
+    func testIssue399_AddingCmdAfterCtrlShiftDoesNotFire() {
+        // Ctrl, +Shift, +Cmd, then release everything.
+        XCTAssertFalse(toggleFires([ctrl, ctrlShift, ctrlShiftCmd, ctrlShift, ctrl, []]))
+    }
+
+    /// Issue #399 title scenario: hold Ctrl+Shift then press Cmd (no letter), release.
+    func testIssue399_HoldCtrlShiftThenCmdDoesNotFire() {
+        XCTAssertFalse(toggleFires([ctrlShift, ctrlShiftCmd, []]))
+    }
+
+    /// Issue #399 full hotkey: Cmd+Shift+Ctrl+A must not fire on modifier release.
+    func testIssue399_FullHotkeyWithLetterDoesNotFire() {
+        // Build up the chord, press the letter while all three held, then release.
+        XCTAssertFalse(toggleFires(
+            [ctrl, ctrlShift, ctrlShiftCmd, ctrlShift, ctrl, []],
+            keyPressedAt: 2
+        ))
+    }
+
+    /// A non-modifier key pressed mid-chord invalidates the toggle.
+    func testKeyPressDuringChordInvalidates() {
+        XCTAssertFalse(toggleFires([ctrl, ctrlShift, []], keyPressedAt: 1))
+    }
+
+    /// Partial release before full release should not fire early, then fires on full release.
+    func testPartialReleaseThenFullReleaseFires() {
+        XCTAssertTrue(toggleFires([ctrlShift, ctrl, []]))
+    }
+
+    /// A chord with too few modifiers (single Ctrl) does not match the Ctrl+Shift toggle.
+    func testSingleModifierDoesNotMatchTwoModifierShortcut() {
+        XCTAssertFalse(toggleFires([ctrl, []]))
+    }
+
+    /// Tracker resets between chords: a completed chord doesn't leak into the next.
+    func testTrackerResetsBetweenChords() {
+        var tracker = ModifierChordTracker()
+        _ = tracker.modifiersChanged(to: ctrlShiftCmd) // first chord builds up
+        _ = tracker.modifiersChanged(to: []) // first chord released (peak too big)
+        // Second clean Ctrl+Shift chord must report the correct peak.
+        XCTAssertNil(tracker.modifiersChanged(to: ctrl))
+        XCTAssertNil(tracker.modifiersChanged(to: ctrlShift))
+        XCTAssertEqual(tracker.modifiersChanged(to: []), ctrlShift)
+    }
+
+    /// keyPressed with no modifiers held (plain typing) must not invalidate a later chord.
+    func testTypingWithoutModifiersDoesNotBlockNextChord() {
+        var tracker = ModifierChordTracker()
+        tracker.keyPressed(modifiersHeld: []) // plain "a" with no modifiers
+        XCTAssertNil(tracker.modifiersChanged(to: ctrl))
+        XCTAssertNil(tracker.modifiersChanged(to: ctrlShift))
+        XCTAssertEqual(tracker.modifiersChanged(to: []), ctrlShift)
+    }
+}

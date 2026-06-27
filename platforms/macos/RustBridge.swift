@@ -976,12 +976,49 @@ class KeyboardHookManager {
     }
 }
 
+// MARK: - Modifier Chord Tracker
+
+/// Detects clean press-and-release of a modifier-only shortcut (e.g. Ctrl+Shift).
+///
+/// macOS `flagsChanged` events report the full bitmask of currently-held modifiers,
+/// not which key changed — so comparing the current flags to the shortcut can't tell
+/// a modifier *release* apart from a modifier *addition*. Pressing Cmd on top of
+/// Ctrl+Shift looks identical to releasing the combo (issue #399).
+///
+/// This tracks the high-water mark of modifiers held during a chord and reports the
+/// peak only on full release, and only if no non-modifier key was pressed mid-chord.
+struct ModifierChordTracker {
+    private var peak: CGEventFlags = []
+    private var invalidated = false
+
+    /// Feed a modifier-flag change (already masked to modifier bits).
+    /// Returns the peak modifiers iff the chord just completed cleanly
+    /// (all modifiers released, no key pressed during the chord); else nil.
+    mutating func modifiersChanged(to mods: CGEventFlags) -> CGEventFlags? {
+        guard !mods.isEmpty else {
+            let result = invalidated ? nil : peak
+            peak = []
+            invalidated = false
+            return result
+        }
+        // `mods` is already masked to modifier bits, so popcount == modifier count
+        // (allocation-free, unlike CGEventFlags.modifierCount).
+        if mods.rawValue.nonzeroBitCount > peak.rawValue.nonzeroBitCount { peak = mods }
+        return nil
+    }
+
+    /// Note a non-modifier key press; invalidates the chord if modifiers are held.
+    mutating func keyPressed(modifiersHeld mods: CGEventFlags) {
+        if !mods.isEmpty { invalidated = true }
+    }
+}
+
 // MARK: - Keyboard Callback
 
 private let kEventMarker: Int64 = 0x474E_4820 // "GNH "
 private let kModifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .maskAlternate, .maskShift, .maskCommand]
-private var wasModifierShortcutPressed = false
-private var wasRestoreModifierPressed = false // Track modifier-only restore shortcut
+// Modifier-only shortcut detection state (see ModifierChordTracker).
+private var modifierChord = ModifierChordTracker()
 private var currentShortcut = KeyboardShortcut.load()
 private var currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
 private var isRecordingShortcut = false
@@ -1260,31 +1297,27 @@ private func keyboardCallback(
         }
         wasControlPressed = isControlNowPressed
 
-        // Handle modifier-only restore shortcut (e.g., Ctrl alone, Shift alone)
-        if AppState.shared.restoreShortcutEnabled, currentRestoreShortcut.isModifierOnly {
-            if currentRestoreShortcut.matchesModifierOnly(flags: flags) {
-                wasRestoreModifierPressed = true
-            } else if wasRestoreModifierPressed {
-                wasRestoreModifierPressed = false
+        // Fire toggle/restore only on a clean press-and-release of the exact combo
+        // (see ModifierChordTracker).
+        if let peak = modifierChord.modifiersChanged(to: flags.intersection(kModifierMask)) {
+            // Chord completed cleanly - evaluate against the peak modifiers held.
+            if AppState.shared.restoreShortcutEnabled,
+               currentRestoreShortcut.isModifierOnly,
+               currentRestoreShortcut.matchesModifierOnly(flags: peak)
+            {
                 triggerRestoreShortcut(flags: flags, proxy: proxy)
             }
-        }
-
-        if matchesModifierOnlyShortcut(flags: flags) {
-            wasModifierShortcutPressed = true
-        } else if wasModifierShortcutPressed {
-            // Modifier combo was pressed and now released - toggle
-            wasModifierShortcutPressed = false
-            DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+            if matchesModifierOnlyShortcut(flags: peak) {
+                DispatchQueue.main.async { NotificationCenter.default.post(name: .toggleVietnamese, object: nil) }
+            }
         }
         return Unmanaged.passUnretained(event)
     }
 
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
 
-    // Reset modifier state if any key is pressed while modifiers are held
-    wasModifierShortcutPressed = false
-    wasRestoreModifierPressed = false
+    // A key press while modifiers are held invalidates the chord (see ModifierChordTracker).
+    modifierChord.keyPressed(modifiersHeld: flags.intersection(kModifierMask))
 
     if event.getIntegerValueField(.eventSourceUserData) == kEventMarker {
         return Unmanaged.passUnretained(event)
