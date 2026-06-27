@@ -4488,14 +4488,16 @@ impl Engine {
         use crate::data::chars::{mark, tone};
 
         self.last_transform = None;
-        let Some(&c) = self.buf.last() else { return };
         let is_vni = self.method == 1;
 
         // These arms are the inverse of the forward key maps in input/telex.rs and
         // input/vni.rs — keep them in sync if a method's bindings ever change.
-        // A tone mark (sắc/huyền/hỏi/ngã/nặng) is the outermost diacritic; when
-        // present it is what a repeated mark key toggles off.
-        if c.mark != mark::NONE {
+        //
+        // A tone mark (sắc/huyền/hỏi/ngã/nặng) is always the last diacritic applied
+        // to a syllable and may sit on a non-final vowel ("bía" marks 'í', not the
+        // trailing 'a'), so scan the whole buffer for it. A repeated mark key then
+        // reverts it after restore, re-arming whitelist auto-restore ("biass"→"bias").
+        if let Some(&c) = self.buf.iter().rev().find(|c| c.mark != mark::NONE) {
             let key = if is_vni {
                 match c.mark {
                     mark::HUYEN => keys::N2,
@@ -4517,7 +4519,11 @@ impl Engine {
             return;
         }
 
-        // Otherwise a vowel tone (circumflex / horn / breve) is the last transform.
+        // A vowel tone (circumflex/horn/breve) only counts as the last transform when
+        // it is on the FINAL character. A trailing consonant means a later keystroke
+        // (the consonant) was the actual last action, so leave last_transform cleared —
+        // matching continuous typing where "tuân" + 'a' appends instead of reverting.
+        let Some(&c) = self.buf.last() else { return };
         if c.tone != tone::NONE {
             let key = if is_vni {
                 match c.tone {

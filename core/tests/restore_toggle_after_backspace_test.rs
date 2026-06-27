@@ -150,3 +150,41 @@ fn telex_continue_typing_after_restore_still_works() {
     // "sow" -> "sơ", commit, restore, then type "n" -> "sơn"
     assert_eq!(telex("sow <n"), "sơn");
 }
+
+// ============================================================
+// Mark on a NON-FINAL vowel after restore.
+//
+// "bias" -> "bía" carries the sắc on 'í', not the trailing 'a'. Reconstructing
+// the last transform only from the final buffer char missed it, so the second
+// mark key after a Space/Backspace round-trip did not revert (and re-arm the
+// English-whitelist auto-restore) the way continuous typing does. Each restore
+// case must equal its no-restore baseline.
+// ============================================================
+
+#[test]
+fn telex_mark_revert_after_restore_mid_word_bias() {
+    // Baseline: "biass" double-s reverts sắc and restores English "bias".
+    assert_eq!(telex("biass"), "bias");
+    // After Space/Backspace restore of "bía", the second "s" must do the same.
+    assert_eq!(telex("bias <s"), "bias");
+}
+
+#[test]
+fn telex_mark_revert_after_restore_mid_word_hoas() {
+    assert_eq!(telex("hoass"), "hoas");
+    assert_eq!(telex("hoas <s"), "hoas");
+}
+
+// Guard: a vowel tone (circumflex/horn/breve) on a NON-final char must NOT be
+// treated as the last transform after restore. A trailing consonant means the
+// consonant was the last keystroke, so a following vowel appends (matching
+// continuous typing) instead of falsely reverting the tone.
+#[test]
+fn telex_closed_syllable_vowel_tone_not_reverted_after_restore() {
+    // "tuân" + 'a': continuous appends -> "tuâna"; restore must match (not "tuana").
+    assert_eq!(telex("tuaana"), "tuâna");
+    assert_eq!(telex("tuaan <a"), "tuâna");
+    // "tiêng" + 'e' likewise.
+    assert_eq!(telex("tieenge"), "tiênge");
+    assert_eq!(telex("tieeng <e"), "tiênge");
+}
