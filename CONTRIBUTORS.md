@@ -367,6 +367,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/linhdo04">
+        <img src="https://avatars.githubusercontent.com/u/258099841?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>linhdo04</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/haphamdev">
         <img src="https://avatars.githubusercontent.com/u/6322508?v=4" width="50" style="border-radius:50%"/><br/>
         <b>haphamdev</b>
@@ -378,14 +384,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>J2TeamNNL</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/tunhse">
         <img src="https://avatars.githubusercontent.com/u/11846084?v=4" width="50" style="border-radius:50%"/><br/>
         <b>tunhse</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/leantan2025">
         <img src="https://avatars.githubusercontent.com/u/199637993?v=4" width="50" style="border-radius:50%"/><br/>
@@ -416,14 +422,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>PhamNho</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/tinyc0der">
         <img src="https://avatars.githubusercontent.com/u/19898639?v=4" width="50" style="border-radius:50%"/><br/>
         <b>tinyc0der</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/vananh2801">
         <img src="https://avatars.githubusercontent.com/u/124384272?v=4" width="50" style="border-radius:50%"/><br/>
@@ -454,14 +460,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>hieudtr8</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/dotuan199">
         <img src="https://avatars.githubusercontent.com/u/166003177?v=4" width="50" style="border-radius:50%"/><br/>
         <b>dotuan199</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/no-vici">
         <img src="https://avatars.githubusercontent.com/u/113570767?v=4" width="50" style="border-radius:50%"/><br/>
@@ -478,12 +484,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/apps/copilot-pull-request-reviewer">
         <img src="https://avatars.githubusercontent.com/in/946600?v=4" width="50" style="border-radius:50%"/><br/>
         <b>Copilot</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/linhdo04">
-        <img src="https://avatars.githubusercontent.com/u/258099841?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>linhdo04</b>
       </a>
     </td>
     <td align="center">
