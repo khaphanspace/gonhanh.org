@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 397
+# Total failures: 396
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -143,7 +143,6 @@ iaa	iaa	iaa	iâ	iâ
 kuwaiti	kuwwaiti	kuwaiti	kuwwaiti	kưwaiti
 ooze	ooze	ooze	oe	ôze
 sawn	sawn	sawn	săn	săn
-dodds	dodds	dodds	đó	dođs
 pawns	pawns	pawns	pắn	păns
 cee	ceee	cee	ceee	cêe
 kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki

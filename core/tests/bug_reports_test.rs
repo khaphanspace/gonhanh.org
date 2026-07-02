@@ -2176,3 +2176,25 @@ fn issue363_ctrl_true_immediate_shortcut() {
         .collect();
     assert_eq!(output, "✅");
 }
+
+// =============================================================================
+// BUG: "dayddr" -> "đảy", expected "daydr"
+// After a stroke revert (dayd → đay → dayd via ddd-style revert), the user has
+// explicitly rejected đ. A subsequent tone-mark key must NOT resurrect the
+// stroke via the delayed-stroke pattern (dods → đó) in try_mark.
+// =============================================================================
+
+#[test]
+fn bug_dayddr_expect_daydr() {
+    telex(&[
+        // All tone-mark keys after stroke revert must stay literal
+        ("dayddr", "daydr"),
+        ("daydds", "dayds"),
+        ("dayddf", "daydf"),
+        ("dayddx", "daydx"),
+        ("dayddj", "daydj"),
+        // Delayed stroke without revert still works
+        ("dods", "đó"),
+        ("dodf", "đò"),
+    ]);
+}

@@ -2761,7 +2761,10 @@ impl Engine {
         // Telex: Check for delayed stroke pattern (d + vowels + d)
         // When buffer is "dod" and mark key is typed, apply stroke to initial 'd'
         // This enables "dods" → "đó" while preventing "de" + "d" → "đe"
+        // Skip if stroke was reverted (ddd → dd): user explicitly rejected đ,
+        // so a mark key must not resurrect the stroke (e.g., "dayddr" stays "daydr")
         let had_delayed_stroke = self.method == 0
+            && !self.stroke_reverted
             && self.buf.len() >= 2
             && self
                 .buf
