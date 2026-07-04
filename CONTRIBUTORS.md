@@ -1241,6 +1241,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 03/07/2026*
+*Được cập nhật tự động · Lần cuối: 04/07/2026*
 
 </div>
