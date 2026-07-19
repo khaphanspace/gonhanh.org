@@ -753,9 +753,9 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/phamvannhuannn-creator">
-        <img src="https://avatars.githubusercontent.com/u/244978297?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>phamvannhuannn-creator</b>
+      <a href="https://github.com/ghost">
+        <img src="https://avatars.githubusercontent.com/u/10137?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>ghost</b>
       </a>
     </td>
     <td align="center">
@@ -1261,6 +1261,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 18/07/2026*
+*Được cập nhật tự động · Lần cuối: 19/07/2026*
 
 </div>
