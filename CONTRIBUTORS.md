@@ -1209,6 +1209,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/sieumeo">
+        <img src="https://avatars.githubusercontent.com/u/1964488?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>sieumeo</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/apps/chatgpt-codex-connector">
         <img src="https://avatars.githubusercontent.com/in/1144995?v=4" width="50" style="border-radius:50%"/><br/>
         <b>chatgpt-codex-connector[bot]</b>
@@ -1220,14 +1226,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>MinhAmazing</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/tuandev-nv">
         <img src="https://avatars.githubusercontent.com/u/6220969?u=48487fe420e765906abfdfe681c12c0793594dd9&v=4" width="50" style="border-radius:50%"/><br/>
         <b>tuandev-nv</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/duyxyz">
         <img src="https://avatars.githubusercontent.com/u/217141310?u=ec603279636f8b21573a7f27bb3709ef3846ba8c&v=4" width="50" style="border-radius:50%"/><br/>
