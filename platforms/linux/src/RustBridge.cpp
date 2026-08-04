@@ -30,8 +30,8 @@ std::pair<int, std::string> RustBridge::processKey(
     if (result->action == static_cast<uint8_t>(ImeAction::Send)) {
         output.first = result->backspace;
 
-        // Convert UTF-32 chars to UTF-8 string
-        for (uint8_t i = 0; i < result->count && i < 32; ++i) {
+        // Convert UTF-32 chars to UTF-8 string (count ≤ 255, chars[] holds 256)
+        for (int i = 0; i < result->count; ++i) {
             if (result->chars[i] > 0) {
                 output.second += codePointToUtf8(result->chars[i]);
             }
