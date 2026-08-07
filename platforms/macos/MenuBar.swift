@@ -112,6 +112,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         menu.addItem(vni)
         menu.addItem(.separator())
 
+        // Morse code mode
+        let morse = NSMenuItem(title: "Chế độ Morse", action: #selector(toggleMorse), keyEquivalent: "")
+        morse.target = self
+        morse.tag = 12
+        menu.addItem(morse)
+        menu.addItem(.separator())
+
         // Settings
         let settings = NSMenuItem(title: "Cài đặt...", action: #selector(showSettings), keyEquivalent: "")
         settings.target = self
@@ -197,6 +204,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
+        menu.item(withTag: 12)?.state = appState.morseMode ? .on : .off
     }
 
     @objc private func selectTelex() {
@@ -205,6 +213,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     @objc private func selectVNI() {
         appState.setMethod(.vni)
+    }
+
+    @objc private func toggleMorse() {
+        appState.morseMode.toggle()
     }
 
     @objc private func handleUpdateAction() {
