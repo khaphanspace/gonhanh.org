@@ -54,8 +54,8 @@ final class InputSourceObserver {
             .deliverImmediately
         )
 
-        // Initial check - only update display state, don't change enabled
-        // (PerAppModeManager already set the correct enabled state)
+        // Resolve the source before MenuBarController starts the engine. RustBridge.setEnabled
+        // reads this state and applies the initial input-source gate.
         handleChangeInitial()
     }
 
@@ -71,7 +71,7 @@ final class InputSourceObserver {
         lastInputSourceId = currentId
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
         isAllowedInputSource = isInputSourceAllowed(source: source, id: currentId)
-        // Don't call setEnabled - let PerAppModeManager handle initial state
+        // Don't call setEnabled: the engine has not started yet.
     }
 
     func stop() {

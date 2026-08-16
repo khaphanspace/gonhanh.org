@@ -54,8 +54,11 @@ Tài liệu này tổng hợp chi tiết các lỗi phổ biến khi sử dụng
 
 - **Bị chặn bởi Secure Input**
   - **Hiện tượng**: Khi gõ password xong ở một app, chuyển sang app khác gõ tiếng Việt bị mất dấu hoàn toàn.
+  - **Trên Gõ Nhanh**: Khi bộ gõ đang bật, biểu tượng menu bar chuyển thành `!` nếu macOS Secure Input đang chặn bộ gõ. Gõ Nhanh sẽ tự làm mới và hoạt động lại khi macOS nhả trạng thái này; không cần khởi động lại app.
+    - Chuyển app, click rời ô mật khẩu, wake hoặc unlock sẽ kiểm tra ngay. Nếu ứng dụng nền nhả Secure Input mà không phát sinh sự kiện, watchdog dùng chung của bộ gõ thường sẽ phát hiện trong vòng khoảng 2–2,5 giây (có thể lâu hơn nếu hệ thống đang bận).
   - **Cách khắc phục**:
-    - Tìm xem ứng dụng nào đang bật ô nhập mật khẩu và đóng nó lại.
+    - Rời ô nhập mật khẩu, chuyển tab/app, hoặc hoàn tất đăng nhập. Gõ Nhanh kiểm tra lại ngay khi bạn click hoặc chuyển ứng dụng.
+    - Nếu dấu `!` vẫn còn, tìm ứng dụng quản lý mật khẩu hoặc ô mật khẩu đang giữ Secure Input và đóng nó lại.
     - Hoặc Logout và Login lại tài khoản macOS để reset trạng thái Secure Input.
 
 ---

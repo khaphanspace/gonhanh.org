@@ -76,6 +76,25 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published private(set) var isSecureInputBlocked = false
+
+    var shouldShowSecureInputWarning: Bool {
+        SecureInputPresentation.shouldShow(
+            engineEnabled: isEnabled,
+            inputSourceAllowed: InputSourceObserver.shared.isAllowedInputSource,
+            secureInputBlocked: isSecureInputBlocked
+        )
+    }
+
+    func setSecureInputBlocked(_ blocked: Bool) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.setSecureInputBlocked(blocked) }
+            return
+        }
+        guard isSecureInputBlocked != blocked else { return }
+        isSecureInputBlocked = blocked
+    }
+
     @Published var currentMethod: InputMode {
         didSet {
             RustBridge.setMethod(currentMethod.rawValue)
@@ -364,6 +383,11 @@ class AppState: ObservableObject {
     // MARK: - Observers
 
     private func setupObservers() {
+        NotificationCenter.default.publisher(for: .inputSourceChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         $shortcuts
             .dropFirst()
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
@@ -939,6 +963,30 @@ struct SettingsPageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if appState.shouldShowSecureInputWarning {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(.orange)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Bộ gõ đang tạm dừng")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("macOS Secure Input đang chặn bộ gõ. Rời ô mật khẩu hoặc ứng dụng đang giữ Secure Input; Gõ Nhanh sẽ tự hoạt động lại.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.orange.opacity(0.10))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.orange.opacity(0.30), lineWidth: 1)
+                )
+            }
+
             // Bộ gõ
             VStack(spacing: 0) {
                 SettingsToggleRow("Bộ gõ tiếng Việt", isOn: $appState.isEnabled)

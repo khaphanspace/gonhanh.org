@@ -84,6 +84,14 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 self?.updateMenu()
             }
             .store(in: &cancellables)
+
+        appState.$isSecureInputBlocked
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateStatusButton()
+                self?.updateMenu()
+            }
+            .store(in: &cancellables)
     }
 
     @objc private func handleShowSettingsPage() {
@@ -137,6 +145,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
     }
 
     private var statusSubtitle: String {
+        if appState.shouldShowSecureInputWarning {
+            return "Tạm dừng · Secure Input"
+        }
         let mode = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
         return "\(mode) · \(appState.toggleShortcut.displayParts.joined())"
     }
@@ -273,7 +284,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
             button.title = ""
 
             let observer = InputSourceObserver.shared
-            let text: String = if observer.isAllowedInputSource {
+            let text: String = if appState.shouldShowSecureInputWarning {
+                "!"
+            } else if observer.isAllowedInputSource {
                 // ABC keyboard: show V (enabled) or E (disabled)
                 appState.isEnabled ? "V" : "E"
             } else {
@@ -281,6 +294,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 observer.currentDisplayChar
             }
             button.image = createStatusIcon(text: text)
+            button.toolTip = appState.shouldShowSecureInputWarning
+                ? "Gõ Nhanh đang tạm dừng vì macOS Secure Input"
+                : nil
         }
     }
 

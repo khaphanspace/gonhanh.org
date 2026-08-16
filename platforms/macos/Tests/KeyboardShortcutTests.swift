@@ -385,3 +385,64 @@ final class ModifierChordTrackerTests: XCTestCase {
         XCTAssertEqual(tracker.modifiersChanged(to: []), ctrlShift)
     }
 }
+
+// MARK: - Secure Input Recovery Tests
+
+final class SecureInputRecoveryTests: XCTestCase {
+    func testRefreshPolicyReusesLowFrequencyWatchdog() {
+        XCTAssertEqual(SecureInputRefreshPolicy.watchdogInterval, 2.0)
+        XCTAssertEqual(SecureInputRefreshPolicy.watchdogTolerance, 0.5)
+    }
+
+    func testOnlyMouseUpRequestsSecureInputRefresh() {
+        XCTAssertFalse(SecureInputRefreshPolicy.shouldRefreshAfterMouseEvent(.leftMouseDown))
+        XCTAssertTrue(SecureInputRefreshPolicy.shouldRefreshAfterMouseEvent(.leftMouseUp))
+        XCTAssertEqual(SecureInputRefreshPolicy.mouseSettleDelay, 0.05)
+    }
+
+    func testWakeAndSessionActivationAreEventDrivenRefreshTriggers() {
+        XCTAssertEqual(SecureInputRefreshPolicy.workspaceNotifications, [
+            NSWorkspace.didWakeNotification,
+            NSWorkspace.sessionDidBecomeActiveNotification,
+        ])
+    }
+
+    func testInitialAvailableSampleDoesNothing() {
+        var tracker = SecureInputStateTracker()
+
+        XCTAssertEqual(tracker.update(isBlocked: false), .unchanged)
+        XCTAssertFalse(tracker.isBlocked)
+    }
+
+    func testBlockedTransitionOnlyFiresOnce() {
+        var tracker = SecureInputStateTracker()
+
+        XCTAssertEqual(tracker.update(isBlocked: true), .becameBlocked)
+        XCTAssertEqual(tracker.update(isBlocked: true), .unchanged)
+        XCTAssertTrue(tracker.isBlocked)
+    }
+
+    func testAvailableTransitionOnlyFiresAfterBlocking() {
+        var tracker = SecureInputStateTracker()
+        _ = tracker.update(isBlocked: true)
+
+        XCTAssertEqual(tracker.update(isBlocked: false), .becameAvailable)
+        XCTAssertEqual(tracker.update(isBlocked: false), .unchanged)
+        XCTAssertFalse(tracker.isBlocked)
+    }
+
+    func testWarningRequiresEnabledEngineAndSecureInput() {
+        XCTAssertTrue(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: true, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: false, inputSourceAllowed: true, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: false, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: true, secureInputBlocked: false
+        ))
+    }
+}
