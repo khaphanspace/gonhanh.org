@@ -21,6 +21,16 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private let appState = AppState.shared
     private var cancellables = Set<AnyCancellable>()
     private var pendingRestart: DispatchWorkItem?
+    private lazy var secureInputIcon: NSImage = {
+        let symbol = NSImage(
+            systemSymbolName: "lock.fill",
+            accessibilityDescription: "Secure Input"
+        )
+        let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        let image = symbol?.withSymbolConfiguration(configuration) ?? NSImage(size: NSSize(width: 16, height: 16))
+        image.isTemplate = true
+        return image
+    }()
 
     override init() {
         super.init()
@@ -283,18 +293,21 @@ class MenuBarController: NSObject, NSWindowDelegate {
             guard let self, let button = statusItem.button else { return }
             button.title = ""
 
-            let observer = InputSourceObserver.shared
-            let text: String = if appState.shouldShowSecureInputWarning {
-                "!"
-            } else if observer.isAllowedInputSource {
-                // ABC keyboard: show V (enabled) or E (disabled)
-                appState.isEnabled ? "V" : "E"
+            let isSecureInputBlocked = appState.shouldShowSecureInputWarning
+            if isSecureInputBlocked {
+                button.image = secureInputIcon
             } else {
-                // Non-ABC keyboard: show input source character
-                observer.currentDisplayChar
+                let observer = InputSourceObserver.shared
+                let text: String = if observer.isAllowedInputSource {
+                    // ABC keyboard: show V (enabled) or E (disabled)
+                    appState.isEnabled ? "V" : "E"
+                } else {
+                    // Non-ABC keyboard: show input source character
+                    observer.currentDisplayChar
+                }
+                button.image = createStatusIcon(text: text)
             }
-            button.image = createStatusIcon(text: text)
-            button.toolTip = appState.shouldShowSecureInputWarning
+            button.toolTip = isSecureInputBlocked
                 ? "Gõ Nhanh đang tạm dừng vì macOS Secure Input"
                 : nil
         }
