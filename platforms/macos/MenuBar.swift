@@ -21,16 +21,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private let appState = AppState.shared
     private var cancellables = Set<AnyCancellable>()
     private var pendingRestart: DispatchWorkItem?
-    private lazy var secureInputIcon: NSImage = {
-        let symbol = NSImage(
-            systemSymbolName: "lock.fill",
-            accessibilityDescription: "Secure Input"
-        )
-        let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        let image = symbol?.withSymbolConfiguration(configuration) ?? NSImage(size: NSSize(width: 16, height: 16))
-        image.isTemplate = true
-        return image
-    }()
+    private lazy var secureInputIcon = createSecureInputIcon()
 
     override init() {
         super.init()
@@ -311,6 +302,42 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 ? "Gõ Nhanh đang tạm dừng vì macOS Secure Input"
                 : nil
         }
+    }
+
+    private func createSecureInputIcon() -> NSImage {
+        let width: CGFloat = 22
+        let height: CGFloat = 16
+        let image = NSImage(size: NSSize(width: width, height: height))
+
+        image.lockFocus()
+
+        let rect = NSRect(x: 0, y: 0, width: width, height: height)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        NSColor.black.setFill()
+        path.fill()
+
+        if let symbol = NSImage(
+            systemSymbolName: "lock.fill",
+            accessibilityDescription: "Secure Input"
+        )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)) {
+            let symbolSize = symbol.size
+            let symbolRect = NSRect(
+                x: (width - symbolSize.width) / 2,
+                y: (height - symbolSize.height) / 2,
+                width: symbolSize.width,
+                height: symbolSize.height
+            )
+            symbol.draw(
+                in: symbolRect,
+                from: .zero,
+                operation: .destinationOut,
+                fraction: 1
+            )
+        }
+
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
     }
 
     private func createStatusIcon(text: String) -> NSImage {
