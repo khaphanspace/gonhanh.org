@@ -1323,6 +1323,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 22/08/2026*
+*Được cập nhật tự động · Lần cuối: 23/08/2026*
 
 </div>
