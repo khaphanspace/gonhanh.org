@@ -184,6 +184,20 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var secondaryToggleShortcut: KeyboardShortcut {
+        didSet {
+            secondaryToggleShortcut.saveAsSecondaryToggle()
+            NotificationCenter.default.post(name: .secondaryShortcutChanged, object: nil)
+        }
+    }
+
+    @Published var secondaryToggleShortcutEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(secondaryToggleShortcutEnabled, forKey: SettingsKey.secondaryToggleShortcutEnabled)
+            NotificationCenter.default.post(name: .secondaryShortcutChanged, object: nil)
+        }
+    }
+
     @Published var advancedMode: Bool = false {
         didSet {
             UserDefaults.standard.set(advancedMode, forKey: SettingsKey.advancedMode)
@@ -246,6 +260,8 @@ class AppState: ObservableObject {
         currentMethod = InputMode(rawValue: defaults.integer(forKey: SettingsKey.method)) ?? .telex
         toggleShortcut = KeyboardShortcut.load()
         restoreShortcut = KeyboardShortcut.loadRestoreShortcut()
+        secondaryToggleShortcut = KeyboardShortcut.loadSecondaryToggle()
+        secondaryToggleShortcutEnabled = defaults.bool(forKey: SettingsKey.secondaryToggleShortcutEnabled)
         perAppModeEnabled = defaults.bool(forKey: SettingsKey.perAppMode)
         autoWShortcut = defaults.bool(forKey: SettingsKey.autoWShortcut)
         bracketShortcut = defaults.bool(forKey: SettingsKey.bracketShortcut)
@@ -672,6 +688,8 @@ struct KeyCap: View {
         Text(displayText)
             .font(.system(size: 11, weight: .medium))
             .foregroundColor(Color(NSColor.secondaryLabelColor))
+            .lineLimit(1)
+            .fixedSize() // Keep "⌃ control" on one line even when the row is width-constrained
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(RoundedRectangle(cornerRadius: 4).fill(Color(NSColor.controlBackgroundColor).opacity(0.8)))
@@ -958,6 +976,7 @@ struct NavButton: View {
 struct SettingsPageView: View {
     @ObservedObject var appState: AppState
     @State private var isRecordingShortcut = false
+    @State private var isRecordingSecondaryShortcut = false
     @State private var isRecordingRestoreShortcut = false
     @State private var showShortcutsSheet = false
 
@@ -1007,6 +1026,13 @@ struct SettingsPageView: View {
             VStack(spacing: 0) {
                 ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
                                     isRecording: $isRecordingShortcut)
+                Divider().padding(.leading, 12)
+                ShortcutRecorderRow(shortcut: $appState.secondaryToggleShortcut,
+                                    isRecording: $isRecordingSecondaryShortcut,
+                                    title: "Phím tắt bật/tắt thứ hai",
+                                    subtitle: "Khi bàn phím rời không có fn",
+                                    isEnabled: $appState.secondaryToggleShortcutEnabled,
+                                    duplicateOf: appState.toggleShortcut)
                 Divider().padding(.leading, 12)
                 RestoreShortcutRecorderRow(
                     shortcut: $appState.restoreShortcut,
@@ -1424,33 +1450,56 @@ private let systemShortcuts: Set<String> = [
 struct ShortcutRecorderRow: View {
     @Binding var shortcut: KeyboardShortcut
     @Binding var isRecording: Bool
+    var title = "Bật/tắt bộ gõ"
+    var subtitle = "Nhấn để thay đổi"
+    /// When provided, shows an on/off switch and blocks recording while off.
+    var isEnabled: Binding<Bool>?
+    /// Another shortcut this one must not equal (e.g. the primary toggle for the secondary row).
+    var duplicateOf: KeyboardShortcut?
     @State private var hovered = false
     @State private var recordedObserver: NSObjectProtocol?
     @State private var cancelledObserver: NSObjectProtocol?
     @State private var windowObserver: NSObjectProtocol?
 
-    private var hasConflict: Bool {
-        systemShortcuts.contains(shortcut.displayParts.joined())
+    private var enabled: Bool { isEnabled?.wrappedValue ?? true }
+
+    private var conflictMessage: String? {
+        if let other = duplicateOf, other == shortcut { return "Trùng với phím tắt bật/tắt chính" }
+        if systemShortcuts.contains(shortcut.displayParts.joined()) { return "Phím tắt này có thể xung đột với hệ thống" }
+        return nil
     }
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Bật/tắt bộ gõ").font(.system(size: 13))
-                Text("Nhấn để thay đổi")
+                Text(title).font(.system(size: 13))
+                Text(subtitle)
                     .font(.system(size: 11))
                     .foregroundColor(Color(NSColor.secondaryLabelColor))
             }
             Spacer()
-            shortcutDisplay
+            HStack(spacing: 8) {
+                shortcutDisplay
+                if let isEnabled {
+                    Toggle("", isOn: isEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background((hovered || isRecording) ? Color(NSColor.controlBackgroundColor).opacity(0.3) : .clear)
         .contentShape(Rectangle())
-        .onHover { hovered = $0 }
-        .onTapGesture { isRecording ? stopRecording() : startRecording() }
+        .onHover { hovered = enabled && $0 }
+        .onTapGesture {
+            guard enabled else { return }
+            isRecording ? stopRecording() : startRecording()
+        }
         .onDisappear { stopRecording() }
+        .onChange(of: enabled) { _ in
+            if isRecording { stopRecording() }
+        }
     }
 
     private var shortcutDisplay: some View {
@@ -1464,14 +1513,15 @@ struct ShortcutRecorderRow: View {
                     .background(RoundedRectangle(cornerRadius: 4).stroke(Color.accentColor, lineWidth: 1))
             } else {
                 ForEach(shortcut.displayParts, id: \.self) { KeyCap(text: $0) }
-                if hasConflict {
+                if let conflictMessage {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 12))
                         .foregroundColor(.orange)
-                        .help("Phím tắt này có thể xung đột với hệ thống")
+                        .help(conflictMessage)
                 }
             }
         }
+        .opacity(enabled ? 1.0 : 0.5)
     }
 
     private func startRecording() {

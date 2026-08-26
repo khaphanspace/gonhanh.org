@@ -1045,6 +1045,7 @@ class KeyboardHookManager {
         // Remove notification observers to prevent leak across restart() cycles
         if let obs = shortcutObserver { NotificationCenter.default.removeObserver(obs); shortcutObserver = nil }
         if let obs = restoreShortcutObserver { NotificationCenter.default.removeObserver(obs); restoreShortcutObserver = nil }
+        if let obs = secondaryShortcutObserver { NotificationCenter.default.removeObserver(obs); secondaryShortcutObserver = nil }
         eventTap = nil
         runLoopSource = nil
         mouseMonitor = nil
@@ -1122,11 +1123,13 @@ private let kModifierMask: CGEventFlags = [.maskSecondaryFn, .maskControl, .mask
 private var modifierChord = ModifierChordTracker()
 private var currentShortcut = KeyboardShortcut.load()
 private var currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
+private var currentSecondaryShortcut = KeyboardShortcut.activeSecondaryToggle() // nil when disabled
 private var isRecordingShortcut = false
 private var recordingModifiers: CGEventFlags = [] // Current modifiers being held
 private var peakRecordingModifiers: CGEventFlags = [] // Peak modifiers during recording
 private var shortcutObserver: NSObjectProtocol?
 private var restoreShortcutObserver: NSObjectProtocol?
+private var secondaryShortcutObserver: NSObjectProtocol?
 /// Skip word restore after mouse click (user may be selecting/deleting text)
 /// Reset to false after first keystroke
 private var skipWordRestoreAfterClick = false
@@ -1269,10 +1272,15 @@ func setupShortcutObserver() {
     restoreShortcutObserver = NotificationCenter.default.addObserver(forName: .restoreShortcutChanged, object: nil, queue: .main) { _ in
         currentRestoreShortcut = KeyboardShortcut.loadRestoreShortcut()
     }
+    secondaryShortcutObserver = NotificationCenter.default.addObserver(forName: .secondaryShortcutChanged, object: nil, queue: .main) { _ in
+        currentSecondaryShortcut = KeyboardShortcut.activeSecondaryToggle()
+    }
 }
 
+/// Either the primary or the (optional) secondary toggle shortcut fires the toggle.
 private func matchesToggleShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
     currentShortcut.matches(keyCode: keyCode, flags: flags)
+        || currentSecondaryShortcut?.matches(keyCode: keyCode, flags: flags) == true
 }
 
 private func matchesRestoreShortcut(keyCode: UInt16, flags: CGEventFlags) -> Bool {
@@ -1286,6 +1294,7 @@ private func matchesRestoreShortcut(keyCode: UInt16, flags: CGEventFlags) -> Boo
 
 private func matchesModifierOnlyShortcut(flags: CGEventFlags) -> Bool {
     currentShortcut.matchesModifierOnly(flags: flags)
+        || currentSecondaryShortcut?.matchesModifierOnly(flags: flags) == true
 }
 
 /// Trigger restore shortcut - restore raw ASCII and clear buffer
@@ -2235,6 +2244,7 @@ extension Notification.Name {
     static let toggleVietnamese = Notification.Name("toggleVietnamese")
     static let shortcutChanged = Notification.Name("shortcutChanged")
     static let restoreShortcutChanged = Notification.Name("restoreShortcutChanged")
+    static let secondaryShortcutChanged = Notification.Name("secondaryShortcutChanged")
     static let shortcutRecorded = Notification.Name("shortcutRecorded")
     static let shortcutRecordingCancelled = Notification.Name("shortcutRecordingCancelled")
 }
