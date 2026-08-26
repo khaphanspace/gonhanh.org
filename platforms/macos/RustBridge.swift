@@ -1916,6 +1916,10 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     // Foxit PDF Reader - char-by-char for reliable Vietnamese input in form fields
     if bundleId == "com.foxit-software.Foxit.PDF.Reader" { return cached(.charByChar, (0, 0, 0), "char:foxit") }
 
+    // Adobe apps (Illustrator, InDesign, Photoshop, ...) use a custom text engine that only
+    // reads the first character of a multi-character key event, so chunked text is truncated.
+    if bundleId.hasPrefix("com.adobe.") { return cached(.charByChar, (3000, 8000, 3000), "char:adobe") }
+
     // Games - synchronous proxy injection (Issue #264: Vietnamese typing in LOL)
     if bundleId.hasPrefix("com.riotgames") { return cached(.syncProxy, (0, 0, 0), "sync:game") }
 
