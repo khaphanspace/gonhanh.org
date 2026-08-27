@@ -414,6 +414,12 @@ NotificationCenter.default.post(name: .toggleVietnamese, object: nil)
 return nil
 ```
 
+The toggle hotkey is user-configurable (`KeyboardShortcut` in `AppMetadata.swift`). An optional
+**secondary toggle shortcut** (default Ctrl+Shift+Space, off by default) can be enabled in Settings so
+an external keyboard without an `fn` key can still toggle the engine when the primary shortcut is
+`fn`-only. Both are matched in the keyboard callback (`matchesToggleShortcut` /
+`matchesModifierOnlyShortcut` in `RustBridge.swift`); the secondary is `nil` while disabled.
+
 ## Component Interactions
 
 ### Initialization Sequence

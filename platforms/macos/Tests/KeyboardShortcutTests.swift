@@ -6,7 +6,32 @@ import XCTest
 final class KeyboardShortcutTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: SettingsKey.toggleShortcut)
+        UserDefaults.standard.removeObject(forKey: SettingsKey.secondaryToggleShortcut)
+        UserDefaults.standard.removeObject(forKey: SettingsKey.secondaryToggleShortcutEnabled)
         super.tearDown()
+    }
+
+    // MARK: - Secondary Toggle Shortcut
+
+    func testSecondaryToggleDefaultDiffersFromPrimary() {
+        XCTAssertNotEqual(KeyboardShortcut.defaultSecondaryToggle, KeyboardShortcut.default)
+        XCTAssertEqual(KeyboardShortcut.loadSecondaryToggle(), .defaultSecondaryToggle)
+    }
+
+    func testSecondaryToggleSaveAndLoadIsIndependentOfPrimary() {
+        let secondary = KeyboardShortcut(keyCode: 0x00, modifiers: CGEventFlags([.maskCommand, .maskAlternate]).rawValue)
+        secondary.saveAsSecondaryToggle()
+
+        XCTAssertEqual(KeyboardShortcut.loadSecondaryToggle(), secondary)
+        XCTAssertEqual(KeyboardShortcut.load(), .default)
+    }
+
+    func testActiveSecondaryToggleIsNilUntilEnabled() {
+        KeyboardShortcut.defaultSecondaryToggle.saveAsSecondaryToggle()
+        XCTAssertNil(KeyboardShortcut.activeSecondaryToggle())
+
+        UserDefaults.standard.set(true, forKey: SettingsKey.secondaryToggleShortcutEnabled)
+        XCTAssertEqual(KeyboardShortcut.activeSecondaryToggle(), .defaultSecondaryToggle)
     }
 
     // MARK: - Default Shortcut
