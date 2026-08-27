@@ -1860,6 +1860,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.vivaldi.Vivaldi", // Vivaldi
         "com.vivaldi.Vivaldi.snapshot", // Vivaldi Snapshot
         "ru.yandex.desktop.yandex-browser", // Yandex Browser
+        "net.imput.helium", // Helium
         // Opera
         "com.opera.Opera", // Opera
         "com.operasoftware.Opera", // Opera (alt)
