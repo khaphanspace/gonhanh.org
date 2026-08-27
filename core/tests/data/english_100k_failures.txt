@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 395
+# Total failures: 371
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -51,7 +51,6 @@ boost	boost	boost	bốt	bôst
 oo	oo	oo	ô	ô
 teen	teen	teen	tên	tên
 eec	eec	eec	êc	êc
-kuwait	kuwwait	kuwait	kuwwait	kưwait
 downs	downs	downs	dớn	dơns
 ee	ee	ee	ê	ê
 dow	dow	dow	dơ	dơ
@@ -140,12 +139,10 @@ moo	moo	moo	mô	mô
 ghee	ghee	ghee	ghê	ghê
 caa	caa	caa	câ	câ
 iaa	iaa	iaa	iâ	iâ
-kuwaiti	kuwwaiti	kuwaiti	kuwwaiti	kưwaiti
 ooze	ooze	ooze	oe	ôze
 sawn	sawn	sawn	săn	săn
 pawns	pawns	pawns	pắn	păns
 cee	ceee	cee	ceee	cêe
-kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki
 chee	chee	chee	chê	chê
 yee	yee	yee	yê	yê
 naa	naa	naa	nâ	nâ
@@ -166,11 +163,9 @@ dawns	dawns	dawns	dắn	dăns
 cocoons	cocoons	cocoons	cocons	cocôns
 dowd	dowd	dowd	đơ	dơd
 roo	roo	roo	rô	rô
-koo	kooo	koo	kooo	kôo
+koo	koo	koo	kô	kô
 aad	aad	aad	âd	âd
 dde	dde	dde	đe	đe
-kowloon	kowwloon	kowloon	kowwloon	kơwlôn
-kowalski	kowwalski	kowalski	kowwalski	kơwalski
 swoon	swoon	swoon	suôn	swôn
 maa	maa	maa	mâ	mâ
 paa	paa	paa	pâ	pâ
@@ -199,7 +194,6 @@ dds	dds	dds	đs	đs
 ees	ees	ees	ế	ês
 monsoons	monsoons	monsoons	mónons	monsôns
 ook	ook	ook	ôk	ôk
-kooning	koooning	kooning	koooning	kôoning
 veneers	veneers	veneers	veners	venêrs
 oop	oop	oop	ôp	ôp
 oooo	oooooo	oooo	ooooo	ôôô
@@ -218,7 +212,6 @@ chaffee	chaffee	chaffee	chafee	chaffê
 eeo	eeo	eeo	êo	êo
 ddd	ddd	ddd	dd	đd
 cyclooxygenase	cycloooxygenase	cyclooxygenase	cycloooxygenase	cyclôoxygenase
-kawai	kawwai	kawai	kawwai	kăwai
 haa	haa	haa	hâ	hâ
 ddl	ddl	ddl	đl	đl
 typhoons	typhooons	typhoons	typhooons	typhôons
@@ -226,7 +219,6 @@ mown	mown	mown	mơn	mơn
 uwe	uwe	uwe	ưe	ưe
 veen	veen	veen	vên	vên
 dowson	dowson	dowson	dốn	dơson
-kool	koool	kool	koool	kôol
 boor	boor	boor	bổ	bôr
 eee	eee	eee	ee	êe
 nawaz	nawaz	nawaz	na	năaz
@@ -234,7 +226,6 @@ bylaw	bylaww	bylaw	bylaww	bylăw
 ooooo	ooooooo	ooooo	oooooo	ôôôo
 ooooo	ooooo	ooooo	oooo	ôôo
 noo	noo	noo	nô	nô
-kook	koook	kook	koook	kôok
 goon	goon	goon	gôn	gôn
 aat	aat	aat	ât	ât
 aaas	aaas	aaas	aas	âas
@@ -271,17 +262,13 @@ pensees	pensees	pensees	pénes	pensês
 loons	loons	loons	lốn	lôns
 hows	hows	hows	hớ	hơs
 coops	coops	coops	cốp	côps
-koopmans	kooopmans	koopmans	kooopmans	kôopmans
 refereed	refereed	refereed	rểeed	referêd
 toon	toon	toon	tôn	tôn
 neer	neer	neer	nể	nêr
 tows	tows	tows	tớ	tơs
-koop	kooop	koop	kooop	kôop
 gowan	gowan	gowan	gơan	gơan
-kawamura	kawwamura	kawamura	kawwamura	kăwamura
 longwood	longwood	longwood	longod	longwôd
 ddp	ddp	ddp	đp	đp
-kawakami	kawwakami	kawakami	kawwakami	kăwakami
 aau	aau	aau	âu	âu
 aam	aam	aam	âm	âm
 owi	owi	owi	ơi	ơi
@@ -291,7 +278,6 @@ vdd	vdd	vdd	vđ	vđ
 lowi	lowi	lowi	lơi	lơi
 geen	geeen	geen	geeen	gêen
 nonfood	nonfood	nonfood	nònod	nonfôd
-koopman	kooopman	koopman	kooopman	kôopman
 goof	gooof	goof	goò	gôof
 goof	goof	goof	gồ	gôf
 beekeepers	beeekeeepers	beekeepers	beekeeepers	bêekêepers
@@ -299,12 +285,11 @@ meow	meow	meow	meơ	meơ
 beeps	beeps	beeps	bếp	bêps
 boons	boons	boons	bốn	bôns
 macaw	macaw	macaw	măc	macă
-koontz	kooontz	koontz	kooontz	kôontz
 oom	oom	oom	ôm	ôm
 aai	aaai	aai	aaai	âai
 aai	aai	aai	âi	âi
 goodlooking	gooodloooking	goodlooking	goodloooking	gôodlôoking
-kow	koww	kow	koww	kơw
+kow	kow	kow	kơ	kơ
 oor	oor	oor	ổ	ôr
 geeta	geeeta	geeta	geeeta	gêeta
 teem	teem	teem	têm	têm
@@ -327,27 +312,21 @@ oost	ooost	oost	oót	ôost
 oost	oost	oost	ốt	ôst
 deedee	deeedeee	deedee	deedeee	dêedêe
 deedee	deedee	deedee	đêee	dêdê
-kawaguchi	kawwaguchi	kawaguchi	kawwaguchi	kăwaguchi
 aav	aav	aav	âv	âv
 mdd	mdd	mdd	mđ	mđ
 beekeeper	beeekeeeper	beekeeper	beekeeeper	bêekêeper
 geez	geeez	geez	geeez	gêez
 towson	towson	towson	tốn	tơson
 aag	aag	aag	âg	âg
-kawabata	kawwabata	kawabata	kawwabata	kăwabata
 hoon	hoon	hoon	hôn	hôn
 ddi	ddi	ddi	đi	đi
 booz	booz	booz	bo	bôz
 raa	raa	raa	râ	râ
 awn	awn	awn	ăn	ăn
-kootenay	koootenay	kootenay	koootenay	kôotenay
 maass	maass	maass	mas	mâss
 oaa	oaa	oaa	oâ	oâ
-kaw	kaww	kaw	kaww	kăw
 doodling	dooodling	doodling	dooling	dôodling
 thaws	thaws	thaws	thắ	thăs
-kawashima	kawwashima	kawashima	kawwashima	kăwashima
-kuwaitis	kuwwaitis	kuwaitis	kuwwaitis	kưwaitis
 geeks	geeeks	geeks	geeeks	gêeks
 mees	mees	mees	mế	mês
 beseeched	beseeched	beseeched	beéched	besêched
@@ -358,7 +337,6 @@ tyree	tyreee	tyree	tyẻe	tyrêe
 owa	owa	owa	ơa	ơa
 tepees	tepees	tepees	tepes	tepês
 gawk	gawk	gawk	găk	găk
-kaaba	kaaaba	kaaba	kaaaba	kâaba
 ool	ool	ool	ôl	ôl
 oroonoko	oroonoko	oroonoko	oỏnoko	orônoko
 hoodoo	hooodooo	hoodoo	hoodooo	hôodôo
@@ -371,7 +349,6 @@ khoo	khoo	khoo	khô	khô
 eek	eek	eek	êk	êk
 howson	howson	howson	hốn	hơson
 bowra	bowra	bowra	bởa	bơra
-koon	kooon	koon	kooon	kôon
 eed	eed	eed	êd	êd
 oooooooo	oooooooooooo	oooooooo	ooooooooooo	ôôôôôô
 oooooooo	oooooooo	oooooooo	ooooooo	ôôôô
@@ -383,8 +360,7 @@ macaws	macaws	macaws	mắc	macăs
 wallflower	wallflower	wallflower	ửàlllowe	wallflơer
 powis	powis	powis	pới	pơis
 lydda	lyddda	lydda	lyddda	lyđda
-kaa	kaaa	kaa	kaaa	kâa
-koos	kooos	koos	kooos	kôos
+kaa	kaa	kaa	kâ	kâ
 aways	aways	aways	ấy	ăays
 lowbrow	lowwbroww	lowbrow	lowbroww	lơwbrơw
 coots	coots	coots	cốt	côts

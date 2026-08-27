@@ -105,6 +105,20 @@ fn foreign_with_full_syllables() {
 // ============================================================
 
 #[test]
+fn k_before_back_vowels_always_allowed() {
+    // k before a/o/u is accepted regardless of the option (Bắc Kạn, Hồng Kông)
+    let cases = &[
+        ("koong", "kông"),
+        ("kanj", "kạn"),
+        ("kawng", "kăng"),
+        ("kuwng", "kưng"),
+        ("kaf", "kà"),
+    ];
+    telex_foreign(cases);
+    telex_no_foreign(cases);
+}
+
+#[test]
 fn no_foreign_z_passthrough() {
     // When disabled, z should not get diacritics (invalid initial)
     telex_no_foreign(&[
