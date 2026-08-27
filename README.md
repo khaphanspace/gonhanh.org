@@ -189,7 +189,7 @@ Nếu các bạn thấy phần mềm hữu ích có thể [ủng hộ tôi tại
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)](https://www.star-history.com/#khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)
+[![Star History Chart](https://star-history.dera.page/svg?repos=khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)](https://star-history.dera.page/#khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)
 
 ---
 
