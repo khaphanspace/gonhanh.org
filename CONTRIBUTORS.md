@@ -159,18 +159,24 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
       <a href="https://github.com/khaphanspace">
         <img src="https://avatars.githubusercontent.com/u/16458012?v=4" width="80" style="border-radius:50%"/><br/>
         <b>khaphanspace</b>
-      </a><br/><sub>1125 commits</sub>
+      </a><br/><sub>1126 commits</sub>
     </td>
     <td align="center">
       <a href="https://github.com/tuananhht94">
         <img src="https://avatars.githubusercontent.com/u/4498336?v=4" width="80" style="border-radius:50%"/><br/>
         <b>tuananhht94</b>
-      </a><br/><sub>75 commits</sub>
+      </a><br/><sub>76 commits</sub>
     </td>
     <td align="center">
       <a href="https://github.com/brotherbui">
         <img src="https://avatars.githubusercontent.com/u/80878082?v=4" width="80" style="border-radius:50%"/><br/>
         <b>brotherbui</b>
+      </a><br/><sub>1 commits</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/OctoBored">
+        <img src="https://avatars.githubusercontent.com/u/212877535?v=4" width="80" style="border-radius:50%"/><br/>
+        <b>OctoBored</b>
       </a><br/><sub>1 commits</sub>
     </td>
     <td align="center">
@@ -191,6 +197,8 @@ Những người đã đóng góp code, biến ý tưởng thành hiện thực.
         <b>blueberry6401</b>
       </a><br/><sub>1 commits</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/oornasp">
         <img src="https://avatars.githubusercontent.com/u/16114639?v=4" width="80" style="border-radius:50%"/><br/>
@@ -1331,6 +1339,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 27/08/2026*
+*Được cập nhật tự động · Lần cuối: 28/08/2026*
 
 </div>
