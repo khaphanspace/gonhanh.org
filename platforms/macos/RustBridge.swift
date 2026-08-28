@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import Foundation
+import IOKit
 
 // MARK: - Accessibility helpers
 
@@ -838,6 +839,64 @@ enum SecureInputPresentation {
     static func shouldShow(engineEnabled: Bool, inputSourceAllowed: Bool, secureInputBlocked: Bool) -> Bool {
         engineEnabled && inputSourceAllowed && secureInputBlocked
     }
+
+    /// Sentence shown while blocked. Names the holder when macOS reports one so the
+    /// user knows which app to leave or quit; falls back to generic guidance otherwise.
+    static func warningMessage(holderName: String?) -> String {
+        if let name = holderName {
+            return "\(name) đang giữ macOS Secure Input. Rời ô mật khẩu hoặc thoát ứng dụng đó; Gõ Nhanh sẽ tự hoạt động lại."
+        }
+        return "macOS Secure Input đang chặn bộ gõ. Rời ô mật khẩu hoặc ứng dụng đang giữ Secure Input; Gõ Nhanh sẽ tự hoạt động lại."
+    }
+
+    static func tooltip(holderName: String?) -> String {
+        if let name = holderName {
+            return "Gõ Nhanh đang tạm dừng vì \(name) giữ macOS Secure Input"
+        }
+        return "Gõ Nhanh đang tạm dừng vì macOS Secure Input"
+    }
+}
+
+/// Identifies which process holds macOS Secure Input.
+///
+/// WindowServer publishes the holder as `kCGSSessionSecureInputPID` inside the
+/// `IOConsoleUsers` property of the IORegistry root (the same value `ioreg` shows).
+/// macOS attributes the PID to the *responsible* process, so a browser launched from a
+/// terminal (e.g. Playwright E2E) is reported as the terminal or IDE that spawned it.
+enum SecureInputHolder {
+    static let sessionPIDKey = "kCGSSessionSecureInputPID"
+
+    static func holderPID(consoleUsers: [[String: Any]]) -> pid_t? {
+        for session in consoleUsers {
+            if let pid = session[sessionPIDKey] as? Int, pid > 0 {
+                return pid_t(pid)
+            }
+        }
+        return nil
+    }
+
+    static func currentPID() -> pid_t? {
+        let root = IORegistryGetRootEntry(kIOMainPortDefault)
+        defer { IOObjectRelease(root) }
+        guard let users = IORegistryEntryCreateCFProperty(root, "IOConsoleUsers" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? [[String: Any]]
+        else { return nil }
+        return holderPID(consoleUsers: users)
+    }
+
+    /// Human-readable app name for the current holder, or nil when macOS reports none.
+    static func currentName() -> String? {
+        guard let pid = currentPID() else { return nil }
+        if let app = NSRunningApplication(processIdentifier: pid), let name = app.localizedName {
+            return name
+        }
+        // Not an NSRunningApplication (daemon, CLI): fall back to the executable name.
+        // PROC_PIDPATHINFO_MAXSIZE (4 * MAXPATHLEN) is a C macro not visible to Swift.
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
+        let path = String(cString: buffer)
+        return (path as NSString).lastPathComponent
+    }
 }
 
 enum SecureInputRefreshPolicy {
@@ -979,8 +1038,9 @@ class KeyboardHookManager {
             return
         case .becameBlocked:
             RustBridge.clearBufferAll()
-            AppState.shared.setSecureInputBlocked(true)
-            Log.info("secure input: blocked")
+            let holder = SecureInputHolder.currentName()
+            AppState.shared.setSecureInputBlocked(true, holderName: holder)
+            Log.info("secure input: blocked by \(holder ?? "unknown process")")
         case .becameAvailable:
             RustBridge.clearBufferAll()
             if let tap = eventTap {

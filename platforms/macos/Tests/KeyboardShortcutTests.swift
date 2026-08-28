@@ -470,4 +470,24 @@ final class SecureInputRecoveryTests: XCTestCase {
             engineEnabled: true, inputSourceAllowed: true, secureInputBlocked: false
         ))
     }
+
+    func testHolderPIDReadsFirstPositiveSessionPID() {
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: []))
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: [["kCGSSessionUserNameKey": "a"]]))
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: [[SecureInputHolder.sessionPIDKey: 0]]))
+        XCTAssertEqual(
+            SecureInputHolder.holderPID(consoleUsers: [
+                ["kCGSSessionUserNameKey": "a"],
+                [SecureInputHolder.sessionPIDKey: 2463],
+            ]),
+            2463
+        )
+    }
+
+    func testWarningTextNamesHolderWhenKnown() {
+        XCTAssertTrue(SecureInputPresentation.warningMessage(holderName: "Chromium").hasPrefix("Chromium đang giữ"))
+        XCTAssertTrue(SecureInputPresentation.warningMessage(holderName: nil).hasPrefix("macOS Secure Input"))
+        XCTAssertTrue(SecureInputPresentation.tooltip(holderName: "Chromium").contains("Chromium"))
+        XCTAssertFalse(SecureInputPresentation.tooltip(holderName: nil).contains("("))
+    }
 }
