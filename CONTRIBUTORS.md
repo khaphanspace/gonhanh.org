@@ -1300,7 +1300,7 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
     </td>
     <td align="center">
       <a href="https://github.com/3ky4r0">
-        <img src="https://avatars.githubusercontent.com/u/217141310?u=d4228fae167ef49b81166ce6fb3fc8cc3b9c6c81&v=4" width="50" style="border-radius:50%"/><br/>
+        <img src="https://avatars.githubusercontent.com/u/217141310?v=4" width="50" style="border-radius:50%"/><br/>
         <b>3ky4r0</b>
       </a>
     </td>
@@ -1339,6 +1339,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 30/08/2026*
+*Được cập nhật tự động · Lần cuối: 31/08/2026*
 
 </div>
