@@ -550,7 +550,7 @@ mod tests {
     const INVALID_INITIAL: &[&str] = &["clau", "john", "bla", "string", "chrome"];
 
     /// Invalid: spelling violations
-    const INVALID_SPELLING: &[&str] = &["ci", "ce", "cy", "ka", "ko", "ku", "ngi", "nge", "ge"];
+    const INVALID_SPELLING: &[&str] = &["ci", "ce", "cy", "ngi", "nge", "ge"];
 
     /// Invalid: foreign words
     const INVALID_FOREIGN: &[&str] = &["exp", "expect", "test", "claudeco", "claus", "gues"];

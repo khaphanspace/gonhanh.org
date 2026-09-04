@@ -243,12 +243,13 @@ fn telex_w_as_vowel_after_valid_consonant() {
 }
 
 #[test]
-fn telex_w_passthrough_after_invalid_consonant() {
-    // "kw" → "kw" (invalid: k cannot precede ư)
+fn telex_w_after_k_becomes_u_horn() {
+    // "kw" → "kư" (k before a/o/u allowed for proper nouns like Bắc Kạn)
     let mut e = Engine::new();
     e.on_key(keys::K, false, false);
     let result = e.on_key(keys::W, false, false);
-    assert_eq!(result.action, 0); // passthrough
+    assert_eq!(result.action, 1);
+    assert_eq!(result.chars[0], 'ư' as u32);
 }
 
 #[test]

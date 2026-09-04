@@ -1,7 +1,7 @@
 # English 100k Failures - Tone Markers
 # Cause: words ending with s/f/r/x/j trigger tone marks
 # Format: WORD \t ACTUAL \t BUFFER
-# Total: 1251 (+ 95 both)
+# Total: 1267 (+ 95 both)
 #
 # WORD: English word typed
 # ACTUAL: engine output after space
@@ -541,6 +541,7 @@ trojans	troán	troán
 lias	lía	lía
 tur	tủ	tủ
 ner	nẻ	nẻ
+kar	kả	kả
 bores	boé	boé
 afr	ả	ả
 borer	boer	boer
@@ -718,6 +719,7 @@ parris	paris	paris
 isms	ims	ims
 cosas	coas	coas
 dorr	dor	dor
+kor	kỏ	kỏ
 heures	hếu	hếu
 thongs	thóng	thóng
 nomos	nốm	nốm
@@ -739,11 +741,13 @@ tures	tué	tué
 armas	ấm	ấm
 neusner	nểun	nểun
 dorms	dóm	dóm
+kans	kán	kán
 vex	vẽ	vẽ
 raff	raf	raf
 tir	tỉ	tỉ
 urs	ú	ú
 ters	té	té
+kaur	kảu	kảu
 soir	sỏi	sỏi
 lacs	lác	lác
 asf	à	à
@@ -771,6 +775,7 @@ gongs	góng	góng
 tans	tán	tán
 haj	hạ	hạ
 mips	míp	míp
+kass	kas	kas
 gos	gó	gó
 manx	mãn	mãn
 hurons	huón	huón
@@ -779,6 +784,7 @@ yf	ỳ	ỳ
 cus	cú	cú
 sof	sò	sò
 ror	rỏ	rỏ
+kos	kó	kó
 darauf	dầu	dầu
 memes	mếm	mếm
 hass	has	has
@@ -909,6 +915,7 @@ syr	sỷ	sỷ
 ressources	resources	resources
 doss	dos	dos
 anf	àn	àn
+karr	kar	kar
 asuras	ấu	ấu
 lajos	láo	láo
 quips	quíp	quíp
@@ -928,10 +935,12 @@ suf	sù	sù
 swf	sừ	sừ
 nif	nì	nì
 pemex	pễm	pễm
+koss	kos	kos
 neces	nếc	nếc
 gor	gỏ	gỏ
 buts	bút	bút
 vars	vá	vá
+kas	ká	ká
 kir	kỉ	kỉ
 kis	kí	kí
 pwr	pử	pử
@@ -942,6 +951,7 @@ oes	oé	oé
 auras	ấu	ấu
 dus	dú	dú
 trots	trót	trót
+karmas	kấm	kấm
 tots	tót	tót
 ursus	úu	úu
 kronos	krốn	krốn
@@ -989,6 +999,7 @@ hirer	hier	hier
 sops	sóp	sóp
 amax	ẫm	ẫm
 gyms	gým	gým
+kafir	kải	kải
 dess	des	des
 ruses	rues	rues
 gaf	gà	gà
@@ -1052,11 +1063,13 @@ amj	ạm	ạm
 usps	ups	ups
 chur	chủ	chủ
 bots	bót	bót
+kars	ká	ká
 larus	láu	láu
 posix	põi	põi
 nias	nía	nía
 meses	mes	mes
 puer	puẻ	puẻ
+kur	kủ	kủ
 eor	ẻo	ẻo
 duos	duó	duó
 tux	tũ	tũ
@@ -1153,6 +1166,7 @@ ress	res	res
 riss	ris	ris
 nars	ná	ná
 conj	cọn	cọn
+kaj	kạ	kạ
 sofer	soẻ	soẻ
 suraj	sụa	sụa
 ganj	gạn	gạn
@@ -1188,6 +1202,7 @@ tuns	tún	tún
 bienes	biến	biến
 mef	mè	mè
 doerr	doer	doer
+kafirs	kái	kái
 laf	là	là
 guis	gúi	gúi
 sechs	séch	séch
@@ -1206,10 +1221,10 @@ oer	oẻ	oẻ
 enfer	ển	ển
 dox	dõ	dõ
 kier	kiẻ	kiẻ
-kamaraj	kkamaraj	kamaraj
 unf	ùn	ùn
 demers	dếm	dếm
 maur	mảu	mảu
+kanwar	kẩn	kẩn
 rauf	ràu	ràu
 mys	mý	mý
 coms	cóm	cóm
@@ -1228,6 +1243,7 @@ teos	téo	téo
 locos	lốc	lốc
 ays	áy	áy
 isf	ì	ì
+kangas	kấng	kấng
 bwr	bử	bử
 laus	láu	láu
 basor	bảo	bảo
