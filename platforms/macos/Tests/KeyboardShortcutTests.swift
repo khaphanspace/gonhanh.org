@@ -338,7 +338,9 @@ final class ModifierChordTrackerTests: XCTestCase {
         let shortcut = KeyboardShortcut(keyCode: 0xFFFF, modifiers: ctrlShift.rawValue)
         var tracker = ModifierChordTracker()
         for (i, flags) in sequence.enumerated() {
-            if keyPressedAt == i { tracker.keyPressed(modifiersHeld: flags) }
+            if keyPressedAt == i {
+                tracker.keyPressed(modifiersHeld: flags)
+            }
             if let peak = tracker.modifiersChanged(to: flags) {
                 return shortcut.matchesModifierOnly(flags: peak)
             }

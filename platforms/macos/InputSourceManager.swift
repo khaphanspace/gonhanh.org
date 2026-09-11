@@ -117,7 +117,9 @@ final class InputSourceObserver {
 
     private func isInputSourceAllowed(source: TISInputSource, id: String) -> Bool {
         // Block special input sources by ID (e.g., Unicode Hex Input)
-        if blockedInputSourceIds.contains(id) { return false }
+        if blockedInputSourceIds.contains(id) {
+            return false
+        }
 
         // Get primary language of the input source
         guard let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages),
@@ -136,7 +138,9 @@ final class InputSourceObserver {
 
     private func getDisplayChar(from source: TISInputSource, id: String) -> String {
         // Blocked input sources show "E" (disabled)
-        if blockedInputSourceIds.contains(id) { return "E" }
+        if blockedInputSourceIds.contains(id) {
+            return "E"
+        }
 
         // Get language code
         if let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages),

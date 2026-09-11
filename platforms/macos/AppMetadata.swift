@@ -114,13 +114,25 @@ struct KeyboardShortcut: Codable, Equatable {
     var displayParts: [String] {
         var parts: [String] = []
         let flags = CGEventFlags(rawValue: modifiers)
-        if flags.contains(.maskSecondaryFn) { parts.append("fn") }
-        if flags.contains(.maskControl) { parts.append("⌃") }
-        if flags.contains(.maskAlternate) { parts.append("⌥") }
-        if flags.contains(.maskShift) { parts.append("⇧") }
-        if flags.contains(.maskCommand) { parts.append("⌘") }
+        if flags.contains(.maskSecondaryFn) {
+            parts.append("fn")
+        }
+        if flags.contains(.maskControl) {
+            parts.append("⌃")
+        }
+        if flags.contains(.maskAlternate) {
+            parts.append("⌥")
+        }
+        if flags.contains(.maskShift) {
+            parts.append("⇧")
+        }
+        if flags.contains(.maskCommand) {
+            parts.append("⌘")
+        }
         let keyStr = keyCodeToString(keyCode)
-        if !keyStr.isEmpty { parts.append(keyStr) } // Skip for modifier-only shortcuts
+        if !keyStr.isEmpty {
+            parts.append(keyStr)
+        } // Skip for modifier-only shortcuts
         return parts
     }
 

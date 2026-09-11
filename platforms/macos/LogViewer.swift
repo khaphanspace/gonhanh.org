@@ -113,10 +113,18 @@ struct LogViewerSection: View {
     }
 
     private func logColor(for line: String) -> Color {
-        if line.contains("] K:") { return Color(NSColor.systemBlue) }
-        if line.contains("] M:") { return Color(NSColor.systemOrange) }
-        if line.contains("] Q:") { return Color(NSColor.systemPurple) }
-        if line.contains("] P:") { return Color(NSColor.systemGreen) }
+        if line.contains("] K:") {
+            return Color(NSColor.systemBlue)
+        }
+        if line.contains("] M:") {
+            return Color(NSColor.systemOrange)
+        }
+        if line.contains("] Q:") {
+            return Color(NSColor.systemPurple)
+        }
+        if line.contains("] P:") {
+            return Color(NSColor.systemGreen)
+        }
         return Color(NSColor.secondaryLabelColor)
     }
 
@@ -150,12 +158,16 @@ struct LogViewerSection: View {
 
         // File cleared or deleted
         if size == 0 {
-            if !logLines.isEmpty { logLines = []; lastFileSize = 0 }
+            if !logLines.isEmpty {
+                logLines = []; lastFileSize = 0
+            }
             return
         }
 
         // File truncated (e.g., user cleared log) — reset and re-read
-        if size < lastFileSize { lastFileSize = 0 }
+        if size < lastFileSize {
+            lastFileSize = 0
+        }
 
         guard size != lastFileSize else { return }
 
@@ -170,6 +182,8 @@ struct LogViewerSection: View {
         let newLines = newContent.components(separatedBy: "\n").filter { !$0.isEmpty }
         let combined = logLines + newLines
         let tail = Array(combined.suffix(80))
-        if tail != logLines { logLines = tail }
+        if tail != logLines {
+            logLines = tail
+        }
     }
 }

@@ -86,7 +86,9 @@ class SpecialPanelAppDetector {
     /// Uses caching and fast-path to avoid expensive operations on every call
     static func getActiveSpecialPanelApp() -> String? {
         // Check cache first
-        if let cached = Cache.get() { return cached }
+        if let cached = Cache.get() {
+            return cached
+        }
 
         // Fast path: check focused element (single AX query)
         if let focusedApp = getFocusedSpecialPanelApp() {

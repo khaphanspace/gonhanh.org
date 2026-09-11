@@ -361,7 +361,9 @@ class AppState: ObservableObject {
 
         // "Tắt" — disable Vietnamese for this app
         if profile.enabledState == -1 {
-            if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
+            if profileSavedEnabled == nil {
+                profileSavedEnabled = isEnabled
+            }
             RustBridge.setEnabled(false)
             setEnabledSilently(false)
             return
@@ -369,7 +371,9 @@ class AppState: ObservableObject {
 
         // "Bật" — force enable Vietnamese for this app
         if profile.enabledState == 1 {
-            if profileSavedEnabled == nil { profileSavedEnabled = isEnabled }
+            if profileSavedEnabled == nil {
+                profileSavedEnabled = isEnabled
+            }
             RustBridge.setEnabled(true)
             setEnabledSilently(true)
         }
@@ -454,9 +458,13 @@ class AppState: ObservableObject {
 
     func refreshLaunchAtLoginStatus() {
         let newStatus = LaunchAtLoginManager.shared.isEnabled
-        if newStatus != isLaunchAtLoginEnabled { isLaunchAtLoginEnabled = newStatus }
+        if newStatus != isLaunchAtLoginEnabled {
+            isLaunchAtLoginEnabled = newStatus
+        }
         // Clear manual requirement flag if now enabled
-        if isLaunchAtLoginEnabled { requiresManualLaunchAtLogin = false }
+        if isLaunchAtLoginEnabled {
+            requiresManualLaunchAtLogin = false
+        }
     }
 
     func enableLaunchAtLogin() {
@@ -738,7 +746,9 @@ struct SheetToolbar<Actions: View>: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let actions { actions }
+            if let actions {
+                actions
+            }
             Spacer()
             Button("Xong") { dismiss() }
                 .keyboardShortcut(.escape, modifiers: [])
@@ -764,7 +774,9 @@ struct ClickableTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context _: Context) {
-        if nsView.stringValue != text { nsView.stringValue = text }
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -845,10 +857,14 @@ struct MainSettingsView: View {
         .ignoresSafeArea()
         .frame(width: 700, height: 480)
         .onReceive(NotificationCenter.default.publisher(for: .showSettingsPage)) { notification in
-            if let page = notification.object as? NavigationPage { selectedPage = page }
+            if let page = notification.object as? NavigationPage {
+                selectedPage = page
+            }
         }
         .onChange(of: appState.advancedMode) { newValue in
-            if !newValue, selectedPage == .advanced { selectedPage = .settings }
+            if !newValue, selectedPage == .advanced {
+                selectedPage = .settings
+            }
         }
     }
 
@@ -930,7 +946,11 @@ struct UpdateBadgeView: View {
         .background(Capsule().fill(hovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color.clear))
         .onHover { h in
             hovered = h
-            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            if h {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
         }
         .onTapGesture {
             if updateManager.isReadyToInstall {
@@ -1291,7 +1311,9 @@ struct ShortcutsSheet: View {
 
     private func deleteItem(_ id: UUID) {
         appState.shortcuts.removeAll { $0.id == id }
-        if editingId == id { clearForm() }
+        if editingId == id {
+            clearForm()
+        }
         selectedIds.remove(id)
     }
 
@@ -1467,8 +1489,12 @@ struct ShortcutRecorderRow: View {
     private var enabled: Bool { isEnabled?.wrappedValue ?? true }
 
     private var conflictMessage: String? {
-        if let other = duplicateOf, other == shortcut { return "Trùng với phím tắt bật/tắt chính" }
-        if systemShortcuts.contains(shortcut.displayParts.joined()) { return "Phím tắt này có thể xung đột với hệ thống" }
+        if let other = duplicateOf, other == shortcut {
+            return "Trùng với phím tắt bật/tắt chính"
+        }
+        if systemShortcuts.contains(shortcut.displayParts.joined()) {
+            return "Phím tắt này có thể xung đột với hệ thống"
+        }
         return nil
     }
 
@@ -1501,7 +1527,9 @@ struct ShortcutRecorderRow: View {
         }
         .onDisappear { stopRecording() }
         .onChange(of: enabled) { _ in
-            if isRecording { stopRecording() }
+            if isRecording {
+                stopRecording()
+            }
         }
     }
 
@@ -1530,7 +1558,9 @@ struct ShortcutRecorderRow: View {
     private func startRecording() {
         isRecording = true
         recordedObserver = NotificationCenter.default.addObserver(forName: .shortcutRecorded, object: nil, queue: .main) { notification in
-            if let captured = notification.object as? KeyboardShortcut { shortcut = captured }
+            if let captured = notification.object as? KeyboardShortcut {
+                shortcut = captured
+            }
             stopRecording()
         }
         cancelledObserver = NotificationCenter.default.addObserver(forName: .shortcutRecordingCancelled, object: nil, queue: .main) { _ in stopRecording() }
@@ -1586,7 +1616,9 @@ struct RestoreShortcutRecorderRow: View {
         }
         .onDisappear { stopRecording() }
         .onChange(of: isEnabled) { _ in
-            if isRecording { stopRecording() }
+            if isRecording {
+                stopRecording()
+            }
         }
     }
 
@@ -1609,7 +1641,9 @@ struct RestoreShortcutRecorderRow: View {
     private func startRecording() {
         isRecording = true
         recordedObserver = NotificationCenter.default.addObserver(forName: .shortcutRecorded, object: nil, queue: .main) { notification in
-            if let captured = notification.object as? KeyboardShortcut { shortcut = captured }
+            if let captured = notification.object as? KeyboardShortcut {
+                shortcut = captured
+            }
             stopRecording()
         }
         cancelledObserver = NotificationCenter.default.addObserver(forName: .shortcutRecordingCancelled, object: nil, queue: .main) { _ in stopRecording() }
@@ -1772,7 +1806,9 @@ struct AutoCapitalizeExcludedAppsSheet: View {
         allApps = apps.sorted { a, b in
             let aExcluded = excluded.contains(a.bundleId)
             let bExcluded = excluded.contains(b.bundleId)
-            if aExcluded != bExcluded { return aExcluded }
+            if aExcluded != bExcluded {
+                return aExcluded
+            }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
     }
