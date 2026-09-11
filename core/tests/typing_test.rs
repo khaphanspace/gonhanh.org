@@ -1250,8 +1250,7 @@ const TELEX_INVALID_BREVE_OPEN: &[(&str, &str)] = &[
     ("phaw", "phă"),
     ("traw", "tră"),
     ("ngaw", "ngă"),
-    // Invalid Vietnamese spelling - breve blocked by validation
-    ("kaw", "kaw"), // k before a is invalid
+    ("kaw", "kă"), // k before a allowed for proper nouns (Bắc Kạn)
     // Standalone aw
     ("aw", "ă"),
 ];

@@ -162,8 +162,8 @@ pub const V2_CIRCUMFLEX_REQUIRED: &[[u16; 2]] = &[
 pub const SPELLING_RULES: &[(&[u16], &[u16], &str)] = &[
     // c before e, i, y → invalid (should use k)
     (&[keys::C], &[keys::E, keys::I, keys::Y], "c before e/i/y"),
-    // k before a, o, u → invalid (should use c)
-    (&[keys::K], &[keys::A, keys::O, keys::U], "k before a/o/u"),
+    // k before a/o/u is intentionally NOT rejected: proper nouns and loanwords
+    // (Bắc Kạn, Hồng Kông, kăng) need diacritics even though standard spelling uses c.
     // g before e → invalid (should use gh)
     (&[keys::G], &[keys::E], "g before e"),
     // ng before e, i → invalid (should use ngh)
