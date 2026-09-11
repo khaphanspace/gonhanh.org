@@ -26,8 +26,9 @@ use crate::utils;
 use buffer::{Buffer, Char, MAX};
 use shortcut::{InputMethod, ShortcutTable};
 use validation::{
-    is_foreign_word_pattern, is_valid, is_valid_for_transform_with_foreign, is_valid_with_foreign,
-    is_valid_with_tones, is_valid_with_tones_and_foreign,
+    is_foreign_word_pattern, is_valid, is_valid_for_transform_with_foreign,
+    is_valid_for_transform_with_options, is_valid_with_foreign, is_valid_with_tones,
+    is_valid_with_tones_and_foreign, is_valid_with_tones_and_options,
 };
 
 /// Engine action result
@@ -1242,6 +1243,18 @@ impl Engine {
     fn process(&mut self, key: u16, caps: bool, shift: bool) -> Result {
         let m = input::get(self.method);
 
+        // `kanj`/`kajn` and `koong`/`kongo` are narrowly supported nonstandard
+        // spellings. If another letter follows the completed word, restore the
+        // raw sequence so English continuations such as "kanji" and "kongos"
+        // are not left partially transformed.
+        let is_telex_cancel = self.method == 0
+            && (key == keys::Z
+                || matches!(self.last_transform, Some(Transform::Mark(trigger, _)) if trigger == key)
+                || matches!(self.last_transform, Some(Transform::Tone(trigger, _)) if trigger == key));
+        if keys::is_letter(key) && self.is_supported_nonstandard_k_word() && !is_telex_cancel {
+            return self.restore_nonstandard_k_word_with_extension();
+        }
+
         // Handle pending mark revert pop: if previous key was a mark revert,
         // reset the flag. When telex_double_raw is set, we use it directly for
         // restore, so no need to modify raw_input here.
@@ -1927,7 +1940,11 @@ impl Engine {
         let buffer_keys: Vec<u16> = self.buf.iter().map(|c| c.key).collect();
 
         if !self.free_tone_enabled
-            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+            && !is_valid_for_transform_with_options(
+                &buffer_keys,
+                self.allow_foreign_consonants,
+                self.allows_kong_circumflex(tone_type),
+            )
         {
             return None;
         }
@@ -3100,7 +3117,11 @@ impl Engine {
         if !self.free_tone_enabled
             && !has_horn_transforms
             && !has_stroke_transforms
-            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+            && !is_valid_for_transform_with_options(
+                &buffer_keys,
+                self.allow_foreign_consonants,
+                self.allows_kan_nang(mark_val),
+            )
         {
             return None;
         }
@@ -4064,6 +4085,13 @@ impl Engine {
         if keys::is_letter(key) || keys::is_number(key) {
             // Add the letter/number to buffer
             self.buf.push(Char::new(key, caps));
+
+            // Complete interleaved Kạn/Kông orders only after their final
+            // consonant arrives. Deferring `ka+j` and `ko+o` avoids corrupting
+            // unrelated prefixes such as "kajal", "kook", and "kooky".
+            if let Some(result) = self.try_complete_nonstandard_k_word() {
+                return result;
+            }
 
             // Issue #44 (part 2): Apply deferred breve when valid final consonant is typed
             // "trawm" → after "traw" (pending breve on 'a'), typing 'm' applies breve → "trăm"
@@ -5637,6 +5665,105 @@ impl Engine {
             .collect()
     }
 
+    fn has_k_prefix(&self) -> bool {
+        self.buf.get(0).is_some_and(|c| c.key == keys::K)
+    }
+
+    fn buffer_keys_equal(&self, expected: &[u16]) -> bool {
+        self.buf.len() == expected.len()
+            && self
+                .buf
+                .iter()
+                .zip(expected)
+                .all(|(actual, expected)| actual.key == *expected)
+    }
+
+    fn allows_kan_nang(&self, mark_val: u8) -> bool {
+        self.has_k_prefix()
+            && mark_val == mark::NANG
+            && self.buffer_keys_equal(&[keys::K, keys::A, keys::N])
+    }
+
+    fn allows_kong_circumflex(&self, tone_type: ToneType) -> bool {
+        self.has_k_prefix()
+            && tone_type == ToneType::Circumflex
+            && self.buffer_keys_equal(&[keys::K, keys::O, keys::N, keys::G])
+    }
+
+    fn try_complete_nonstandard_k_word(&mut self) -> Option<Result> {
+        let mark_modifier = if self.method == 0 { keys::J } else { keys::N5 };
+        if self.buffer_keys_equal(&[keys::K, keys::A, mark_modifier, keys::N]) {
+            let a_caps = self.buf.get(1)?.caps;
+            let n_caps = self.buf.get(3)?.caps;
+            self.buf.remove(2);
+            self.buf.get_mut(1)?.mark = mark::NANG;
+            self.last_transform = Some(Transform::Mark(mark_modifier, mark::NANG));
+            self.had_any_transform = true;
+            self.had_telex_transform = self.method == 0;
+
+            let a = chars::to_char(keys::A, a_caps, tone::NONE, mark::NANG)?;
+            let n = utils::key_to_char(keys::N, n_caps)?;
+            return Some(Result::send(2, &[a, n]));
+        }
+
+        let tone_modifier = if self.method == 0 { keys::O } else { keys::N6 };
+        if self.buffer_keys_equal(&[keys::K, keys::O, tone_modifier, keys::N, keys::G]) {
+            let o_caps = self.buf.get(1)?.caps;
+            let n_caps = self.buf.get(3)?.caps;
+            let g_caps = self.buf.get(4)?.caps;
+            self.buf.remove(2);
+            self.buf.get_mut(1)?.tone = tone::CIRCUMFLEX;
+            self.last_transform = Some(Transform::Tone(tone_modifier, tone::CIRCUMFLEX));
+            self.had_any_transform = true;
+            self.had_telex_transform = self.method == 0;
+
+            let o = chars::to_char(keys::O, o_caps, tone::CIRCUMFLEX, mark::NONE)?;
+            let n = utils::key_to_char(keys::N, n_caps)?;
+            let g = utils::key_to_char(keys::G, g_caps)?;
+            return Some(Result::send(3, &[o, n, g]));
+        }
+
+        None
+    }
+
+    fn is_supported_nonstandard_k_word(&self) -> bool {
+        if !self.has_k_prefix() {
+            return false;
+        }
+        matches!(
+            self.buf.to_full_string().to_lowercase().as_str(),
+            "kạn" | "kông"
+        )
+    }
+
+    fn restore_nonstandard_k_word_with_extension(&mut self) -> Result {
+        let backspace = self.buf.len() as u8;
+        let raw_input = self.raw_input.clone();
+        let raw_chars: Vec<char> = raw_input
+            .iter()
+            .filter_map(|&(key, caps, shift)| utils::key_to_char_ext(key, caps, shift))
+            .collect();
+
+        self.buf.clear();
+        for &(key, caps, _) in &raw_input {
+            self.buf.push(Char::new(key, caps));
+        }
+        self.last_transform = None;
+        self.pending_breve_pos = None;
+        self.pending_u_horn_pos = None;
+        self.had_mark_revert = false;
+        self.pending_mark_revert_pop = false;
+        self.had_any_transform = false;
+        self.had_vowel_triggered_circumflex = false;
+        self.had_circumflex_revert = false;
+        self.reverted_circumflex_key = None;
+        self.had_telex_transform = false;
+        self.telex_double_raw = None;
+        self.telex_double_raw_len = 0;
+
+        Result::send(backspace, &raw_chars)
+    }
+
     /// Check if buffer is NOT valid Vietnamese (for unified auto-restore logic)
     ///
     /// Uses full validation including tone requirements (circumflex for êu, etc.)
@@ -5702,10 +5829,11 @@ impl Engine {
         let buffer_marks: Vec<u8> = self.buf.iter().map(|c| c.mark).collect();
 
         // Check 1: Basic structural validation (with foreign consonants support)
-        if !is_valid_with_tones_and_foreign(
+        if !is_valid_with_tones_and_options(
             &buffer_keys,
             &buffer_tones,
             self.allow_foreign_consonants,
+            self.is_supported_nonstandard_k_word(),
         ) {
             return true;
         }

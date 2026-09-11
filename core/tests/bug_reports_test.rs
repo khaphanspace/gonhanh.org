@@ -8,6 +8,101 @@ use gonhanh_core::engine::shortcut::Shortcut;
 use gonhanh_core::engine::{Action, Engine};
 use gonhanh_core::utils::type_word;
 
+#[test]
+fn bug_bac_kan_hong_kong_telex_orders() {
+    let cases = [
+        ("Bacsw Kanj", "Bắc Kạn"),
+        ("Bacws Kajn", "Bắc Kạn"),
+        ("Bawcs Kanj", "Bắc Kạn"),
+        ("Bawsc Kajn", "Bắc Kạn"),
+        ("Hofong Koong", "Hồng Kông"),
+        ("Hongfo Kongo", "Hồng Kông"),
+        ("Hongof Koong", "Hồng Kông"),
+        ("Hoofng Kongo", "Hồng Kông"),
+        ("Hoongf Koong", "Hồng Kông"),
+        ("BACSW KANJ", "BẮC KẠN"),
+        ("HOONGF KOONG", "HỒNG KÔNG"),
+        ("bacsw kanj", "bắc kạn"),
+        ("hoongf koong", "hồng kông"),
+        ("kanj", "kạn"),
+        ("kajn", "kạn"),
+        ("koong", "kông"),
+        ("kongo", "kông"),
+        // Keep the standard spelling guard for unrelated K-initial input.
+        ("Hong Kong", "Hong Kong"),
+        ("Kara", "Kara"),
+        ("Kans", "Kans"),
+        ("kara", "kara"),
+        ("kans", "kans"),
+        ("kanji", "kanji"),
+        ("kanjis", "kanjis"),
+        ("kajal", "kajal"),
+        ("kajol", "kajol"),
+        ("koo", "koo"),
+        ("kook", "kook"),
+        ("kooky", "kooky"),
+        ("kooks", "kooks"),
+        ("kookaburra", "kookaburra"),
+        ("kool", "kool"),
+        ("koontz", "koontz"),
+        ("koos", "koos"),
+        ("kongos", "kongos"),
+    ];
+    let mut failures = Vec::new();
+    for (input, expected) in cases {
+        for auto_restore in [false, true] {
+            let committed_input = format!("{input} ");
+            let committed_expected = format!("{expected} ");
+            let (input, expected) = if auto_restore {
+                (committed_input.as_str(), committed_expected.as_str())
+            } else {
+                (input, expected)
+            };
+
+            let mut engine = Engine::new();
+            engine.set_english_auto_restore(auto_restore);
+            let actual = type_word(&mut engine, input);
+            if actual != expected {
+                failures.push(format!(
+                    "auto_restore={auto_restore}: '{input}' → '{actual}', expected '{expected}'"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Bắc Kạn / Hồng Kông Telex regressions:\n{}",
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_telex_cancel_keys() {
+    telex(&[
+        ("kanjj", "kanj"),
+        ("kanjz", "kan"),
+        ("kongoo", "kongo"),
+        ("kongoz", "kong"),
+        ("koongo", "kongo"),
+        ("koongz", "kong"),
+    ]);
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_vni_orders() {
+    vni(&[
+        ("Ba81c Ka5n", "Bắc Kạn"),
+        ("Ba8c1 Kan5", "Bắc Kạn"),
+        ("Ho62ng Ko6ng", "Hồng Kông"),
+        ("Ho6ng2 Kong6", "Hồng Kông"),
+        ("ba81c ka5n", "bắc kạn"),
+        ("ba8c1 kan5", "bắc kạn"),
+        ("ho62ng ko6ng", "hồng kông"),
+        ("ho6ng2 kong6", "hồng kông"),
+    ]);
+}
+
 fn type_physical_events(engine: &mut Engine, input: &[(u16, char, bool, bool)]) -> String {
     let mut screen = String::new();
 
