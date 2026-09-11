@@ -77,6 +77,8 @@ class AppState: ObservableObject {
     }
 
     @Published private(set) var isSecureInputBlocked = false
+    /// App reported by macOS as holding Secure Input; nil when unknown or not blocked.
+    @Published private(set) var secureInputHolderName: String?
 
     var shouldShowSecureInputWarning: Bool {
         SecureInputPresentation.shouldShow(
@@ -86,11 +88,12 @@ class AppState: ObservableObject {
         )
     }
 
-    func setSecureInputBlocked(_ blocked: Bool) {
+    func setSecureInputBlocked(_ blocked: Bool, holderName: String? = nil) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in self?.setSecureInputBlocked(blocked) }
+            DispatchQueue.main.async { [weak self] in self?.setSecureInputBlocked(blocked, holderName: holderName) }
             return
         }
+        secureInputHolderName = blocked ? holderName : nil
         guard isSecureInputBlocked != blocked else { return }
         isSecureInputBlocked = blocked
     }
@@ -989,7 +992,7 @@ struct SettingsPageView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Bộ gõ đang tạm dừng")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("macOS Secure Input đang chặn bộ gõ. Rời ô mật khẩu hoặc ứng dụng đang giữ Secure Input; Gõ Nhanh sẽ tự hoạt động lại.")
+                        Text(SecureInputPresentation.warningMessage(holderName: appState.secureInputHolderName))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
