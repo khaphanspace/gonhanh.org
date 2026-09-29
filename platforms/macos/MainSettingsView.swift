@@ -173,6 +173,13 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var morseMode: Bool = false {
+        didSet {
+            UserDefaults.standard.set(morseMode, forKey: SettingsKey.morseMode)
+            RustBridge.setMorseMode(morseMode)
+        }
+    }
+
     @Published var toggleShortcut: KeyboardShortcut {
         didSet {
             toggleShortcut.save()
@@ -277,6 +284,7 @@ class AppState: ObservableObject {
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
+        morseMode = defaults.bool(forKey: SettingsKey.morseMode)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
@@ -312,6 +320,7 @@ class AppState: ObservableObject {
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
         updateAutoCapitalizeEngine()
         RustBridge.setAllowForeignConsonants(allowForeignConsonants)
+        RustBridge.setMorseMode(morseMode)
     }
 
     /// Update auto-capitalize engine state based on global setting and current app exclusion
