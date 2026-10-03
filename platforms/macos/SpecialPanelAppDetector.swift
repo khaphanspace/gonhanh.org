@@ -16,9 +16,15 @@ import Cocoa
 class SpecialPanelAppDetector {
     // MARK: - Properties
 
-    /// List of special panel app bundle identifiers
-    static let specialPanelApps: [String] = [
+    /// Bundle identifiers that host the Spotlight search field.
+    /// macOS 27 moved the Spotlight panel into Siri AI.app (com.apple.campo).
+    static let spotlightBundleIds: [String] = [
         "com.apple.Spotlight",
+        "com.apple.campo",
+    ]
+
+    /// List of special panel app bundle identifiers
+    static let specialPanelApps: [String] = spotlightBundleIds + [
         "com.raycast.macos",
         "com.runningwithcrayons.Alfred", // Alfred launcher
         "com.apple.inputmethod.EmojiFunctionRowItem",
@@ -56,6 +62,11 @@ class SpecialPanelAppDetector {
     static func isSpecialPanelApp(_ bundleId: String?) -> Bool {
         guard let bundleId else { return false }
         return specialPanelApps.contains { bundleId.hasPrefix($0) || bundleId == $0 }
+    }
+
+    /// Check if a bundle ID hosts the Spotlight search field
+    static func isSpotlight(_ bundleId: String) -> Bool {
+        spotlightBundleIds.contains { bundleId.hasPrefix($0) }
     }
 
     /// Fast path: check focused element only (cheapest AX query)

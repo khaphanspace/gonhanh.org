@@ -1951,7 +1951,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     }
 
     // Spotlight - use AX API direct manipulation (macOS 13+)
-    if bundleId == "com.apple.Spotlight" || bundleId == "com.apple.systemuiserver" {
+    if SpecialPanelAppDetector.isSpotlight(bundleId) || bundleId == "com.apple.systemuiserver" {
         return cached(.axDirect, (0, 0, 0), "ax:spotlight")
     }
 
@@ -2302,7 +2302,6 @@ class PerAppModeManager {
     /// Spotlight doesn't fire AX notifications, so we need this fallback.
     /// Uses flag to only check once per session (until next app switch).
     private var spotlightChecked = false
-    private static let spotlightBundleId = "com.apple.Spotlight"
 
     func checkSpotlightOnce() {
         // Skip if panel detection is disabled (advanced setting)
@@ -2323,7 +2322,7 @@ class PerAppModeManager {
         guard AXUIElementGetPid(element as! AXUIElement, &pid) == .success, pid > 0,
               let app = NSRunningApplication(processIdentifier: pid),
               let bundleId = app.bundleIdentifier,
-              bundleId.hasPrefix(Self.spotlightBundleId) else { return }
+              SpecialPanelAppDetector.isSpotlight(bundleId) else { return }
 
         // Spotlight is active - handle app switch
         Log.info("AX: spotlight sync")
