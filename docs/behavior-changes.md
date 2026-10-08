@@ -1,7 +1,7 @@
 # Behavior changes V1 → V2
 
 Chạy bộ test V1 (866 test) trên engine V2: `cargo test --profile gate --features engine_v2 --test suite -- --skip golden_digest`.
-Kết quả: **848 pass, 18 test fail = 14 khác biệt có chủ đích** (bảng dưới; `aumf` và `sax` mỗi cái làm hỏng 2 test). Mọi test còn lại — gõ Telex/VNI, dấu, gõ tắt, auto-capitalize, ESC, backspace/lịch sử từ, phím ngắt, `[ ]`, auto-restore, từ điển 22k, 100k EN — giống V1.
+Kết quả: cổng `make gate-v2` (`scripts/test/v2.sh`) chạy toàn bộ test V1 trên V2; **chỉ 20 test được phép fail**, liệt kê ở `core/tests/v2-known-differences.txt` (bảng dưới; `aumf` và `sax` mỗi cái làm hỏng 2 test). Test mới ngoài danh sách fail, hoặc test trong danh sách bỗng qua, đều làm cổng đỏ. Mọi test còn lại — gõ Telex/VNI, dấu, gõ tắt, auto-capitalize, ESC, backspace/lịch sử từ, phím ngắt, `[ ]`, auto-restore, từ điển 22k, 100k EN — giống V1.
 
 Mỗi dòng: V1 làm gì, V2 làm gì, vì sao V2 đúng hơn hoặc không thể giữ. Khi cutover (P5) các test mã hoá hành vi V1 ở cột "Test" được sửa kỳ vọng theo cột V2.
 
@@ -16,6 +16,8 @@ Mỗi dòng: V1 làm gì, V2 làm gì, vì sao V2 đúng hơn hoặc không th�
 | `aumf` | `àum` | `aumf` | `aum` không hợp lệ nên không đặt dấu (V1 chỉ kiểm cấu trúc) | `integration_test` ×2 |
 | `kanjz` | `kan` | `kanjz` | `kạn` chỉ là tên riêng; dấu chỉ được giữ khi cả tên khớp | `bug_reports_test` |
 | `cusor ` (AR) | `cuỏ` | `cusor` | `cuo` chờ ô/ơ + coda; kết thúc từ ở đó không thể là âm tiết VN. `mire`, `lire`, `ire`… cùng dạng và V1 restore | `revert_auto_restore_test` |
+| `lisa ` (AR) | `lía` | `lisa` | `lisa` là từ tiếng Anh/tên có trong từ điển, `lía` không có trong vi.dic (cùng nhóm `bore`, `pair`) | `engine::tests::test_interleaved_diphthong_auto_restore` |
+| `booos ` | `boó` | `bóo` | dấu là hàm của chữ cuối: sau khi hoàn tác `ooo`→`oo`, cặp `oo` mở đặt dấu ở chữ đầu | `engine::tests::test_literal_after_circumflex_revert` |
 | `muafaa ` (AR) | `muàa` | `mùaa` | V1: `muafaa`→`muàa` nhưng `mufaaa`→`mùaa` (phụ thuộc thứ tự gõ). V2: dấu là hàm của chữ cuối (I7) | `english_auto_restore_test` |
 
 ## Khác biệt do V1 vá theo từng từ (CLAUDE.md cấm), V2 dùng từ điển + dấu hiệu chung

@@ -44,9 +44,26 @@ Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (
 | #211 chữ kéo dài `áaaa`, `nhéee` | V2 giữ chữ kéo dài khi từ VN hợp lệ sau khi thu gọn; ca `a`+`s`+`aaa` chưa có test, V1 cũng không đạt |
 | #359 gõ tự do không theo chính tả (`khphá`, `qcáo`, `wé`) | **đã có** (`free_tone`): ngữ pháp thắng trước, tự do chỉ là dự phòng nên `wes`→`wé` khi bật phụ âm ngoại và từ VN đúng không đổi; test `issue_regressions`. App macOS chưa có nút bật (chỉ có cầu FFI `ime_free_tone`). Còn thiếu phím tạm tắt bằng Ctrl/Cmd (#360) |
 | #393 `kông`, `kưng`, `kăng`, `zạ` | `kông` có (names.dic); `Kơ/Kư/Kă` chưa đưa vào vì chưa xác minh; `z j f w` bằng tuỳ chọn phụ âm ngoại |
-| #180 #316 Simple Telex | chưa làm (V1 cũng chưa) |
+| #180 #316 Simple Telex | **đã có**: tắt "Gõ W thành Ư" (`skip_w_shortcut`); V2 chạy cùng test |
 | #232 `zị` | có với tuỳ chọn phụ âm ngoại |
 | Từ Anh = âm tiết VN hợp lệ (`this`, `rest`, `giro`) | cần từ điển EN lớn hơn, xem `docs/behavior-changes.md` |
+
+
+## Gõ tự do: các bộ gõ lâu đời làm gì, Gõ Nhanh làm gì
+
+Đọc mã nguồn UniKey (ukengine, qua ibus-unikey) và OpenKey; ba khái niệm khác nhau thường bị gộp thành "gõ tự do":
+
+| Khái niệm | UniKey / OpenKey | Gõ Nhanh |
+|---|---|---|
+| **Bỏ dấu tự do** (free marking): phím dấu/mũ/`đ` được gõ sau khi đã gõ thêm chữ, không cần ngay sau nguyên âm | tuỳ chọn; tắt thì dấu chỉ ăn khi nó là phím liền trước | **luôn bật** (`toanf`, `ddojc`, `dojc` đều ra chữ đúng, issue #32) |
+| **Kiểm tra chính tả**: chữ không đúng ngữ pháp thì không áp dấu; tắt thì từ nào hết là tiếng Việt, chữ kế tiếp được coi là *bắt đầu một từ mới* và gõ tiếp bình thường (`khphas` → `kh` + `phá`) | tuỳ chọn, bật mặc định; OpenKey có phím tạm tắt (Control) | bật mặc định; tắt = "gõ tự do": ngữ pháp vẫn thắng trước, chỗ nào không có cách đọc đúng thì áp dấu đã gõ (`khphá`, `qcáo`, `wé`) |
+| **Ngắt nhịp**: dừng áp dấu giữa từ mà không cần dấu cách (`kh` ⌃ `phá`; `q` ⌃ `c` không bung gõ tắt `qc`) | OpenKey: Control tạm tắt kiểm tra chính tả | **đã có từ #150**: chạm Control xoá bộ đệm từ; lõi V2 có test (`control_tap_breaks_the_word_and_the_shortcut`) |
+| **Phụ âm ngoại** `z w j f` | OpenKey có (chỉ nới bộ kiểm tra; phím `w` vẫn ra `ư` đầu từ); UniKey không | gộp vào **Gõ tự do** (không còn công tắc riêng): `zij`→`zị`, `wes`→`wé`, nhưng `wa`→`ưa`, `wm`→`ưm` (có cách đọc đúng thì thắng); ai đã bật tuỳ chọn cũ được chuyển sang Gõ tự do |
+| **Khôi phục từ sai** khi hết từ | UniKey/OpenKey: nếu từ không hợp lệ thì trả phím thô | có, dùng từ điển tiếng Anh (chính xác hơn: không trả những từ chưa chắc là tiếng Anh) |
+
+Khác biệt chính với UniKey khi tắt kiểm tra chính tả: UniKey *cắt từ* tại chỗ hết hợp lệ rồi áp luật Việt cho từng đoạn; Gõ Nhanh giữ một từ nhưng đặt dấu trên nguyên âm của đoạn có nguyên âm (`khphas` → `khphá`, cùng kết quả cho các ca trong issue). Cùng thứ tự gõ, hai cách ra cùng chữ vì dấu luôn đặt trên cụm nguyên âm.
+
+Cài đặt trên macOS gọi công tắc này là **Gõ tự do** (tắt mặc định), cách người dùng thường gọi; lưu trong khoá `gonhanh.freeTone`. Tên "Kiểm tra chính tả" của UniKey/OpenKey bị bỏ vì khó hiểu với người dùng mới.
 
 ## Issue mở (11): #349, #359, #360, #374, #375, #381, #384, #400, #406, #417, #426
 
