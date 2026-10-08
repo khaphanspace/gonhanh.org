@@ -1,0 +1,21 @@
+{
+  "cold_first_key_us": 30324.125,
+  "vi_auto_off_median_ns": 1292.000,
+  "vi_auto_off_p90_ns": 4375.000,
+  "vi_auto_off_allocs_per_key": 6.989,
+  "vi_auto_off_bytes_per_key": 94.082,
+  "vi_auto_on_median_ns": 2750.000,
+  "vi_auto_on_p90_ns": 6625.000,
+  "vi_auto_on_allocs_per_key": 10.512,
+  "vi_auto_on_bytes_per_key": 113.360,
+  "en_auto_off_median_ns": 1750.000,
+  "en_auto_off_p90_ns": 4000.000,
+  "en_auto_off_allocs_per_key": 6.097,
+  "en_auto_off_bytes_per_key": 82.720,
+  "en_auto_on_median_ns": 2834.000,
+  "en_auto_on_p90_ns": 5959.000,
+  "en_auto_on_allocs_per_key": 9.818,
+  "en_auto_on_bytes_per_key": 106.671,
+  "en_flicker_pct": 46.767,
+  "en_backspaces_per_word": 1.963
+}

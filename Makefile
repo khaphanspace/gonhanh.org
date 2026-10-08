@@ -58,6 +58,28 @@ test:
 	@cd core && cargo test
 	@./scripts/test/dict.sh
 
+# ============================================================================
+# Fast loop (core v2 refactor): batch your edits, run `make gate` once or twice per batch
+# ============================================================================
+
+.PHONY: t gate bench bench-save update-golden
+
+t: ## Inner loop (~seconds): pure unit tests only
+	@cd core && cargo test --lib -q
+
+gate: ## Full gate: unit + suite + dictionary thresholds, optimized test profile, each test runs once
+	@cd core && cargo test --profile gate --lib --test suite -q -- --skip vietnamese_dict_test:: --skip english_100k_test::english_100k_failures
+	@GN_PROFILE=gate ./scripts/test/dict.sh
+
+bench: ## Latency / allocations / cold start / typing-UX KPI vs bench/baseline.json
+	@cd core && cargo bench --bench engine_bench
+
+bench-save: ## Overwrite bench/baseline.json
+	@cd core && cargo bench --bench engine_bench -- --save
+
+update-golden: ## Regenerate tracked corpus/failure files (never done by default)
+	@cd core && UPDATE_GOLDEN=1 cargo test --profile gate --test suite -q
+
 format:
 	@cd core && cargo fmt
 	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --quiet || echo "⚠️  swiftformat not found. Run: brew install swiftformat"
@@ -99,8 +121,8 @@ test-22k: ## Run heavy 22k tests + generate typing orders
 	@cd core && cargo test -- --ignored --nocapture
 
 test-100k: ## Run English 100k tests
-	@cd core && cargo test --test english_100k_test -- --nocapture
-	@cd core && cargo test --test english_telex_patterns_test -- --nocapture
+	@cd core && cargo test --test suite english_100k_test:: -- --nocapture
+	@cd core && cargo test --test suite english_telex_patterns_test:: -- --nocapture
 
 test-dict: ## Run dictionary tests (VN: 100%, EN: 97%)
 	@./scripts/test/dict.sh

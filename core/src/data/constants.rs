@@ -187,13 +187,6 @@ pub const SPELLING_RULES: &[(&[u16], &[u16], &str)] = &[
 // These patterns are used by auto-restore to detect invalid Vietnamese
 // =============================================================================
 
-/// Invalid rhyme patterns: -ing + tone mark is NOT valid Vietnamese
-/// Vietnamese uses -inh (tính, kính), not -ing with tone marks
-/// The rhyme "-ing" exists only in loanwords without tone marks
-pub const INVALID_RHYME_ING: &[[u16; 2]] = &[
-    [keys::N, keys::G], // -ng final after 'i' with tone = invalid
-];
-
 /// Open diphthongs (vần mở) - CANNOT take consonant finals (C/K/M/N/P/T/CH/NG/NH)
 /// These diphthongs end with semi-vowel I/O/U/Y that completes the rhyme.
 /// Examples:
@@ -213,48 +206,6 @@ pub const OPEN_DIPHTHONGS: &[[u16; 2]] = &[
     [keys::O, keys::I], // oi/ôi/ơi - ends with semi-vowel I
     [keys::U, keys::I], // ui/ưi - ends with semi-vowel I
     [keys::U, keys::U], // ưu - ends with semi-vowel U
-];
-
-/// Common Vietnamese single-vowel interjections (should NOT be restored)
-/// These standalone vowels with tone marks are valid Vietnamese words
-/// Example: à (ah), ồ (oh!), ừ (yeah)
-/// Note: We also include ò, ì to skip "of"/"if" restore - keep current behavior
-pub const COMMON_SINGLE_VOWEL_WORDS: &[(u16, u8)] = &[
-    // Using mark values: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
-    (keys::A, 1), // á - very common interjection "huh?", "what?"
-    (keys::A, 2), // à - common interjection "ah, I see"
-    (keys::A, 4), // ã - interjection
-    (keys::U, 2), // ù - exists (ù ù = buzzing sound)
-    (keys::U, 4), // ũ - exists
-    (keys::O, 2), // ò - skip "of" restore (keep current behavior)
-    (keys::I, 2), // ì - skip "if" restore (keep current behavior)
-    (keys::Y, 1), // ý - common word meaning "idea/opinion/intention"
-];
-
-/// Common Vietnamese single-vowel with CIRCUMFLEX + mark combinations
-/// These are typed as VCV pattern (vowel + consonant + vowel) producing one char
-/// Example: ofo → ồ (oh!), afa → ầ (hmm)
-/// Format: (key, tone, mark) where tone=1 is circumflex
-pub const COMMON_CIRCUMFLEX_VOWEL_WITH_MARK: &[(u16, u8, u8)] = &[
-    (keys::O, 1, 2), // ồ - common exclamation "oh!" (o + circumflex + huyền)
-    (keys::A, 1, 2), // ầ - exists (a + circumflex + huyền)
-    (keys::E, 1, 2), // ề - exists (e + circumflex + huyền)
-    // Also add sắc variants for completeness
-    (keys::O, 1, 1), // ố - exists (o + circumflex + sắc)
-    (keys::A, 1, 1), // ấ - exists (a + circumflex + sắc)
-    (keys::E, 1, 1), // ế - exists (e + circumflex + sắc)
-];
-
-/// Common Vietnamese words: C + circumflex vowel (from double vowel) + no final
-/// These should NOT be restored to English
-/// Example: bê (calf), mê (obsessed), lê (pear), đê (dike)
-pub const COMMON_CIRCUMFLEX_NO_FINAL: &[u16] = &[
-    keys::B, // bê - calf
-    keys::M, // mê - obsessed
-    keys::L, // lê - pear
-    keys::D, // đê - dike (with stroke)
-    keys::K, // kê - to list/declare
-             // Note: sê, tê, pê, gê removed - keep as Vietnamese (Vietnamese-first principle)
 ];
 
 /// Initials that are UNCOMMON with circumflex vowel + no final

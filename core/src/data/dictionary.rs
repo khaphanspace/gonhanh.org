@@ -1,26 +1,8 @@
 //! Vietnamese Spell Checking Module
 //!
-//! Uses HashSet-based word lookup for efficient Vietnamese word validation.
-//! Memory-efficient: ~0.5MB vs ~5.5MB with full Hunspell implementation.
+//! Static sorted word lists (see lexicon.rs): no startup cost, no heap.
 
-use std::collections::HashSet;
-use std::sync::LazyLock;
-
-// Embed dictionary files into binary
-const DIC_VI: &str = include_str!("dictionaries/vi.dic");
-const DIC_KEEP: &str = include_str!("dictionaries/keep.dic");
-
-/// Parse .dic file into HashSet (skip first line which is word count)
-fn parse_dic_to_hashset(dic_content: &'static str) -> HashSet<&'static str> {
-    dic_content.lines().skip(1).collect()
-}
-
-/// Lazy-loaded Vietnamese dictionary - ~0.5MB memory
-static DICT_VI: LazyLock<HashSet<&'static str>> = LazyLock::new(|| parse_dic_to_hashset(DIC_VI));
-
-/// Lazy-loaded keep list - words that should not be auto-restored
-static DICT_KEEP: LazyLock<HashSet<&'static str>> =
-    LazyLock::new(|| parse_dic_to_hashset(DIC_KEEP));
+use super::lexicon::{KEEP, VI};
 
 /// Check if word starts with foreign consonant (z, w, j, f)
 fn starts_with_foreign_consonant(word: &str) -> bool {
@@ -44,9 +26,8 @@ pub fn is_vietnamese(word: &str, allow_foreign: bool) -> bool {
         return false;
     }
 
-    // Case-insensitive lookup (dictionary stores lowercase)
-    let word_lower = word.to_lowercase();
-    DICT_VI.contains(word_lower.as_str())
+    // Case-insensitive lookup, no allocation
+    VI.contains_lower(word)
 }
 
 /// Check if a word is in the keep list (should not be auto-restored)
@@ -54,8 +35,7 @@ pub fn should_keep(word: &str) -> bool {
     if word.is_empty() {
         return false;
     }
-    let word_lower = word.to_lowercase();
-    DICT_KEEP.contains(word_lower.as_str())
+    KEEP.contains_lower(word)
 }
 
 #[cfg(test)]

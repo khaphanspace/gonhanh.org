@@ -13,7 +13,6 @@
 pub mod buffer;
 pub mod shortcut;
 pub mod syllable;
-pub mod transform;
 pub mod validation;
 
 use crate::data::{
@@ -250,8 +249,14 @@ fn break_key_to_char(key: u16, shift: bool) -> Option<char> {
     }
 }
 
-/// Main Vietnamese IME engine
-pub struct Engine {
+/// The engine the platforms and tests use: v1 by default, the v2 session with `--features engine_v2`.
+#[cfg(not(feature = "engine_v2"))]
+pub type Engine = EngineV1;
+#[cfg(feature = "engine_v2")]
+pub use crate::session::Session as Engine;
+
+/// Main Vietnamese IME engine (v1)
+pub struct EngineV1 {
     buf: Buffer,
     method: u8,
     enabled: bool,
@@ -287,10 +292,6 @@ pub struct Engine {
     /// Number of spaces typed after committing a word (for backspace tracking)
     /// When this reaches 0 on backspace, we restore the committed word
     spaces_after_commit: u8,
-    /// Pending breve position: position of 'a' that has deferred breve
-    /// Breve on 'a' in open syllables (like "raw") is invalid Vietnamese
-    /// We defer applying breve until a valid final consonant is typed
-    pending_breve_pos: Option<usize>,
     /// Issue #133: Pending horn position on 'u' in "uơ" pattern
     /// When "uo" + 'w' is typed at end of syllable, only 'o' gets horn initially.
     /// If a final consonant/vowel is added, also apply horn to 'u'.
@@ -303,10 +304,6 @@ pub struct Engine {
     /// Tracks if a mark was reverted in current word
     /// Used by auto-restore to detect words like "issue", "bass" that need restoration
     had_mark_revert: bool,
-    /// Pending pop from raw_input after mark revert
-    /// When true, the NEXT consonant key will trigger a pop to remove the consumed modifier
-    /// This differentiates: "tesst" → "test" (consonant after) vs "issue" → "issue" (vowel after)
-    pending_mark_revert_pop: bool,
     /// Tracks if ANY Vietnamese transform was ever applied during this word
     /// (marks, tones, or stroke). Used to prevent false auto-restore for words
     /// with numbers/symbols that never had Vietnamese transforms applied.
@@ -362,13 +359,13 @@ pub struct Engine {
     allow_foreign_consonants: bool,
 }
 
-impl Default for Engine {
+impl Default for EngineV1 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Engine {
+impl EngineV1 {
     pub fn new() -> Self {
         Self {
             buf: Buffer::new(),
@@ -386,11 +383,9 @@ impl Engine {
             english_auto_restore: false, // Default: OFF (experimental feature)
             word_history: WordHistory::new(),
             spaces_after_commit: 0,
-            pending_breve_pos: None,
             pending_u_horn_pos: None,
             stroke_reverted: false,
             had_mark_revert: false,
-            pending_mark_revert_pop: false,
             had_any_transform: false,
             had_vowel_triggered_circumflex: false,
             had_circumflex_revert: false,
@@ -749,20 +744,6 @@ impl Engine {
         // Check for word boundary shortcuts ONLY on SPACE
         // Also auto-restore invalid Vietnamese to raw English
         if key == keys::SPACE {
-            // Handle pending mark revert pop on space (end of word)
-            // When telex_double_raw is set, we use it directly for restore, no pop needed.
-            // The telex_double_raw contains the exact original input before any modification.
-            // Examples:
-            //   "nurses" → telex_double_raw="nurses", use directly for restore
-            //   "simss" → telex_double_raw="simss", use directly for restore (ss→sims via whitelist)
-            //   "taxxi" → telex_double_raw="taxx", buffer "taxi" kept (clean, no marks)
-            if self.pending_mark_revert_pop {
-                self.pending_mark_revert_pop = false;
-                // telex_double_raw is always set when pending_mark_revert_pop is true
-                // (both set in revert_mark). Don't modify raw_input here - use
-                // telex_double_raw for restore which has the correct original chars.
-            }
-
             // First check for shortcut
             let shortcut_result = self.try_word_boundary_shortcut();
             if shortcut_result.action != 0 {
@@ -1206,11 +1187,9 @@ impl Engine {
                 self.buf.push(Char::new(key, effective_caps));
             }
             self.last_transform = None;
-            self.pending_breve_pos = None;
             self.pending_u_horn_pos = None;
             self.stroke_reverted = false;
             self.had_mark_revert = false;
-            self.pending_mark_revert_pop = false;
             self.had_any_transform = false;
             self.had_vowel_triggered_circumflex = false;
             self.had_circumflex_revert = false;
@@ -1253,17 +1232,6 @@ impl Engine {
                 || matches!(self.last_transform, Some(Transform::Tone(trigger, _)) if trigger == key));
         if keys::is_letter(key) && self.is_supported_nonstandard_k_word() && !is_telex_cancel {
             return self.restore_nonstandard_k_word_with_extension();
-        }
-
-        // Handle pending mark revert pop: if previous key was a mark revert,
-        // reset the flag. When telex_double_raw is set, we use it directly for
-        // restore, so no need to modify raw_input here.
-        // For vowel (issue) vs consonant (test) patterns, the whitelist and
-        // restore logic will handle them correctly using telex_double_raw.
-        if self.pending_mark_revert_pop && keys::is_letter(key) {
-            self.pending_mark_revert_pop = false;
-            // telex_double_raw is always set when pending_mark_revert_pop is true
-            // (both set in revert_mark). Don't modify raw_input here.
         }
 
         // Revert short-pattern stroke when new letter creates invalid Vietnamese
@@ -1551,13 +1519,6 @@ impl Engine {
     /// - "ww" → revert to "w" (shortcut skipped)
     /// - "www" → "ww" (subsequent w just adds normally)
     fn try_w_as_vowel(&mut self, caps: bool) -> Option<Result> {
-        // Issue #44: If breve is pending (deferred due to open syllable),
-        // don't convert w→ư. Let w be added as regular letter.
-        // Example: "aw" → breve deferred → should stay "aw", not become "aư"
-        if self.pending_breve_pos.is_some() {
-            return None;
-        }
-
         // If user disabled w→ư shortcut, skip w→ư conversion entirely
         // Horn modifier (try_tone) still works: "ow" → "ơ", "uw" → "ư"
         if self.skip_w_shortcut {
@@ -1910,18 +1871,6 @@ impl Engine {
             return None;
         }
 
-        // Issue #44: Cancel pending breve if same modifier pressed again ("aww" → "aw")
-        // When breve was deferred and user presses 'w' again, cancel without adding another 'w'
-        if self.pending_breve_pos.is_some()
-            && (tone_type == ToneType::Horn || tone_type == ToneType::Breve)
-        {
-            // Cancel the pending breve - user doesn't want Vietnamese
-            self.pending_breve_pos = None;
-            // Return "consumed but no change" to prevent 'w' from being typed
-            // action=Send with 0 backspace and 0 chars effectively consumes the key
-            return Some(Result::send(0, &[]));
-        }
-
         // Check revert first (same key pressed twice)
         if let Some(Transform::Tone(last_key, _)) = self.last_transform {
             if last_key == key {
@@ -2094,15 +2043,17 @@ impl Engine {
                         && self.buf.get(1).is_some_and(|c| c.key == keys::I);
 
                     // Exclude I from vowel types if it's part of gi-initial
-                    let unique_vowel_types: std::collections::HashSet<u16> = if is_gi_initial_here {
-                        vowel_chars
-                            .iter()
-                            .filter(|c| c.key != keys::I)
-                            .map(|c| c.key)
-                            .collect()
-                    } else {
-                        vowel_chars.iter().map(|c| c.key).collect()
-                    };
+                    // Deduplicated in order of first appearance. A HashSet here made
+                    // `other_vowel` below depend on the per-process hash seed, so the same
+                    // word (e.g. "rosario") typed differently across app launches.
+                    let mut unique_vowel_types: Vec<u16> = Vec::with_capacity(4);
+                    for c in &vowel_chars {
+                        if (!is_gi_initial_here || c.key != keys::I)
+                            && !unique_vowel_types.contains(&c.key)
+                        {
+                            unique_vowel_types.push(c.key);
+                        }
+                    }
                     let has_multiple_vowel_types = unique_vowel_types.len() > 1;
 
                     if has_any_mark && has_multiple_vowel_types {
@@ -2801,29 +2752,6 @@ impl Engine {
                 }
                 return None;
             }
-
-            // Issue #44 (part 2): Always apply breve for "aw" pattern immediately
-            // "aw" → "ă", "taw" → "tă", "raw" → "ră"
-            // The breve is always applied - English auto-restore handles English words separately
-            let has_breve_open_syllable = false;
-
-            if has_breve_open_syllable {
-                // Revert: clear applied tones, defer breve until final consonant
-                for &pos in &target_positions {
-                    if let Some(c) = self.buf.get_mut(pos) {
-                        if c.key == keys::A {
-                            c.tone = tone::NONE;
-                            // Store position for deferred breve
-                            self.pending_breve_pos = Some(pos);
-                        }
-                    }
-                }
-                // Return None to let 'w' fall through:
-                // - try_w_as_vowel will fail (invalid vowel pattern)
-                // - handle_normal_letter will add 'w' as regular letter
-                // - When final consonant is typed, breve is applied
-                return None;
-            }
         }
 
         // Normalize ưo → ươ compound if horn was applied to 'u'
@@ -2891,33 +2819,6 @@ impl Engine {
                     }
                 }
             };
-
-        // Issue #44: Apply pending breve before adding mark
-        // When user types "aws" (Telex) or "a81" (VNI), they want "ắ" (breve + sắc)
-        // Breve was deferred due to open syllable, but adding mark confirms Vietnamese input
-        let mut had_pending_breve = false;
-        if let Some(breve_pos) = self.pending_breve_pos {
-            had_pending_breve = true;
-            // Try to find and remove the breve modifier from buffer
-            // Both Telex 'w' and VNI '8' are stored in buffer (handle_normal_letter adds them)
-            let modifier_pos = breve_pos + 1;
-            if modifier_pos < self.buf.len() {
-                if let Some(c) = self.buf.get(modifier_pos) {
-                    // Remove 'w' (Telex) or '8' (VNI) breve modifier from buffer
-                    if c.key == keys::W || c.key == keys::N8 {
-                        self.buf.remove(modifier_pos);
-                    }
-                }
-            }
-            // Apply breve to 'a'
-            if let Some(c) = self.buf.get_mut(breve_pos) {
-                if c.key == keys::A {
-                    c.tone = tone::HORN; // HORN on A = breve (ă)
-                    self.had_any_transform = true;
-                }
-            }
-            self.pending_breve_pos = None;
-        }
 
         // Telex: Check for delayed circumflex pattern (V + C + V where both V are same)
         // When buffer is "toto" (t-o-t-o) and mark key is typed, apply circumflex + remove trigger
@@ -3275,20 +3176,6 @@ impl Engine {
                 return Some(Result::send(result.backspace + 1, &chars));
             }
 
-            // If there was pending breve, we need extra backspace
-            // Screen has 'w' (Telex) or '8' (VNI) that needs to be deleted
-            // Note: Telex 'w' was in buffer and removed, VNI '8' was never in buffer
-            if had_pending_breve {
-                let result = self.rebuild_from(rebuild_pos);
-                // Convert u32 chars to char vec
-                let chars: Vec<char> = result.chars[..result.count as usize]
-                    .iter()
-                    .filter_map(|&c| char::from_u32(c))
-                    .collect();
-                // Add 1 to backspace to account for modifier on screen
-                return Some(Result::send(result.backspace + 1, &chars));
-            }
-
             // If delayed circumflex was applied, rebuild from earliest vowel position
             // and add extra backspace for the trigger vowel that was on screen but removed
             if had_delayed_circumflex {
@@ -3463,6 +3350,17 @@ impl Engine {
             .collect()
     }
 
+    /// Whether the raw keystrokes of this word spell a known English word.
+    fn raw_input_is_english_word(&self) -> bool {
+        let raw_str: String = self
+            .raw_input
+            .iter()
+            .filter_map(|&(k, caps, _)| utils::key_to_char(k, caps))
+            .collect::<String>()
+            .to_lowercase();
+        english_dict::is_english_word(&raw_str)
+    }
+
     /// Reposition tone (sắc/huyền/hỏi/ngã/nặng) after vowel pattern changes
     ///
     /// When user types out-of-order (e.g., "osa" instead of "oas"), the tone may be
@@ -3471,15 +3369,6 @@ impl Engine {
     ///
     /// Returns Some((old_pos, new_pos)) if tone was moved, None otherwise.
     fn reposition_tone_if_needed(&mut self) -> Option<(usize, usize)> {
-        // Check if raw_input is an English word (used later with diphthong check)
-        let raw_str: String = self
-            .raw_input
-            .iter()
-            .filter_map(|&(k, caps, _)| utils::key_to_char(k, caps))
-            .collect::<String>()
-            .to_lowercase();
-        let is_english_word = english_dict::is_english_word(&raw_str);
-
         // Find vowel with tone mark (sắc/huyền/hỏi/ngã/nặng)
         let tone_info: Option<(usize, u8)> = self
             .buf
@@ -3498,7 +3387,10 @@ impl Engine {
             // a valid Vietnamese diphthong pattern.
             // This prevents "costa" → "cotá" (O→A tone move with consonants between)
             // while allowing "usee" → "uế" (valid UE diphthong pattern).
-            if is_english_word && !self.vowels_form_valid_diphthong(&vowels) {
+            // Evaluated only here: this function runs on every letter, and most words carry
+            // no tone mark yet, so the dictionary lookup (and its allocations) must not be
+            // paid up front.
+            if !self.vowels_form_valid_diphthong(&vowels) && self.raw_input_is_english_word() {
                 return None;
             }
 
@@ -3884,13 +3776,6 @@ impl Engine {
                 if c.mark > mark::NONE {
                     c.mark = mark::NONE;
 
-                    // Set flag to defer raw_input pop until next key
-                    // If next key is CONSONANT: pop the mark key (user intended revert)
-                    //   Example: "tesst" → next is 't' (consonant) → pop → "test"
-                    // If next key is VOWEL: don't pop (user typing English word like "issue")
-                    //   Example: "issue" → next is 'u' (vowel) → keep → "issue"
-                    self.pending_mark_revert_pop = true;
-
                     // Add only the reverting key (current key being pressed)
                     // The original mark key was consumed as a modifier and doesn't produce output
                     self.buf.push(Char::new(key, caps));
@@ -4091,54 +3976,6 @@ impl Engine {
             // unrelated prefixes such as "kajal", "kook", and "kooky".
             if let Some(result) = self.try_complete_nonstandard_k_word() {
                 return result;
-            }
-
-            // Issue #44 (part 2): Apply deferred breve when valid final consonant is typed
-            // "trawm" → after "traw" (pending breve on 'a'), typing 'm' applies breve → "trăm"
-            if let Some(breve_pos) = self.pending_breve_pos {
-                // Valid final consonants that make breve valid: c, k, m, n, p, t
-                // Note: k is included for ethnic minority words (Đắk Lắk)
-                if matches!(
-                    key,
-                    keys::C | keys::K | keys::M | keys::N | keys::P | keys::T
-                ) {
-                    // Find and remove the breve modifier from buffer
-                    // Telex uses 'w', VNI uses '8' - it should be right after 'a' at breve_pos
-                    let modifier_pos = breve_pos + 1;
-                    if modifier_pos < self.buf.len() {
-                        if let Some(c) = self.buf.get(modifier_pos) {
-                            // Remove 'w' (Telex) or '8' (VNI)
-                            if c.key == keys::W || c.key == keys::N8 {
-                                self.buf.remove(modifier_pos);
-                            }
-                        }
-                    }
-
-                    // Apply breve to the 'a' at pending position
-                    let a_caps = self.buf.get(breve_pos).map(|c| c.caps).unwrap_or(false);
-                    if let Some(c) = self.buf.get_mut(breve_pos) {
-                        if c.key == keys::A {
-                            c.tone = tone::HORN; // HORN on A = breve (ă)
-                            self.had_any_transform = true;
-                        }
-                    }
-                    self.pending_breve_pos = None;
-
-                    // Rebuild from breve position: delete "aw" (or "awX"), output "ăX"
-                    // Buffer now has: ...ă (at breve_pos) + consonant (just added)
-                    // Screen has: ...aw (need to delete "aw", output "ă" + consonant)
-                    let vowel_char = chars::to_char(keys::A, a_caps, tone::HORN, 0).unwrap_or('ă');
-                    let cons_char = crate::utils::key_to_char(key, caps).unwrap_or('?');
-                    return Result::send(2, &[vowel_char, cons_char]); // backspace 2 ("aw"), output "ăm"
-                } else if key == keys::W {
-                    // 'w' is the breve modifier - don't clear pending_breve_pos
-                    // It will be added as a regular letter and removed later
-                } else if keys::is_vowel(key) {
-                    // Vowel after "aw" pattern - breve not valid, clear pending
-                    self.pending_breve_pos = None;
-                }
-                // For other consonants (not finals, not W), keep pending_breve_pos
-                // They might be followed by more letters that complete the syllable
             }
 
             // Issue #133: Apply deferred horn to 'u' when final consonant/vowel is typed
@@ -4568,11 +4405,9 @@ impl Engine {
         self.raw_input.clear();
         self.last_transform = None;
         self.has_non_letter_prefix = false;
-        self.pending_breve_pos = None;
         self.pending_u_horn_pos = None;
         self.stroke_reverted = false;
         self.had_mark_revert = false;
-        self.pending_mark_revert_pop = false;
         self.had_any_transform = false;
         self.had_vowel_triggered_circumflex = false;
         self.had_circumflex_revert = false;
@@ -5749,10 +5584,8 @@ impl Engine {
             self.buf.push(Char::new(key, caps));
         }
         self.last_transform = None;
-        self.pending_breve_pos = None;
         self.pending_u_horn_pos = None;
         self.had_mark_revert = false;
-        self.pending_mark_revert_pop = false;
         self.had_any_transform = false;
         self.had_vowel_triggered_circumflex = false;
         self.had_circumflex_revert = false;

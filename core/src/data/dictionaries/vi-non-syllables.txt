@@ -1,0 +1,36 @@
+# Entries of vi.dic that are NOT Vietnamese syllables (abbreviations, tech terms, multi-syllable
+# loans, typos). They stay in vi.dic so engine v1 behaves identically; the v2 grammar tables are
+# generated without them and v2 moves them to keep.dic (never transformed, never restored).
+# Verified against the grammar parser: scripts/gen/phonology_tables.py --list-non-syllables
+abc
+ascii
+basoi
+email
+gif
+gram
+hcm
+hk
+html
+hđnd
+internet
+intranet
+jpeg
+lhq
+palăng
+pdf
+png
+tcvn
+telex
+tivi
+tp
+tv
+tw
+ubnd
+unicode
+url
+v
+viqr
+viscii
+vn
+vni
+web

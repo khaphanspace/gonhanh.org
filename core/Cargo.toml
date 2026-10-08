@@ -14,6 +14,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests
 [dependencies]
 # No external dependencies - using std::collections::HashSet for dictionary lookup
 
+[features]
+# Run the whole stack (FFI, tests) on the v2 session instead of engine v1.
+engine_v2 = []
+
 [dev-dependencies]
 rstest = "0.18"
 serial_test = "3.0"
@@ -24,3 +28,14 @@ lto = true               # Link-time optimization
 codegen-units = 1        # Better optimization
 strip = true             # Strip symbols
 panic = "abort"          # Smaller binary
+
+# Fast test/bench profile: ~3.6x less CPU than dev on the corpus tests (measured), no debuginfo
+# (cuts link time). Used by `make gate`; plain `cargo test` keeps the debuggable dev profile.
+[profile.gate]
+inherits = "dev"
+opt-level = 1
+debug = 0
+
+[[bench]]
+name = "engine_bench"
+harness = false
