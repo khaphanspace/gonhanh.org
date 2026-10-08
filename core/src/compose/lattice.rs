@@ -335,6 +335,8 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 Validity::Complete => 2,
                 Validity::Prefix => 1,
                 Validity::NamePrefix => -1,
+                // free typing: only when no grammatical reading exists
+                Validity::Loose => 0,
                 // A cancelled modifier makes the word literal on purpose (aaa → aa, ass → as):
                 // never Vietnamese, still kept, ranked below every Vietnamese reading.
                 Validity::Invalid
@@ -385,7 +387,7 @@ fn step_keep(
             let broke = *prev_ok.get_or_insert_with(|| {
                 !matches!(
                     validate(prev.units(), prev.tone, pho),
-                    Validity::Complete | Validity::Prefix
+                    Validity::Complete | Validity::Prefix | Validity::Loose
                 )
             });
             if broke {
@@ -394,7 +396,7 @@ fn step_keep(
         }
         let rank = match validate(child.units(), child.tone, pho) {
             Validity::Complete => 3,
-            Validity::Prefix => 2,
+            Validity::Prefix | Validity::Loose => 2,
             Validity::Invalid | Validity::NamePrefix => match child.roles[i] {
                 Role::Revert | Role::Remove | Role::Bracket => 1,
                 Role::Horn | Role::Breve if child.units().last().is_some_and(|u| !u.is_vowel()) => {

@@ -18,6 +18,9 @@ pub enum Validity {
     Invalid,
     /// Only the beginning of a proper name (kô of kông): kept alive, never shown by itself.
     NamePrefix,
+    /// Free typing only: not a Vietnamese syllable, but the letters are in a plausible order
+    /// (consonants, vowels, consonants), so the marks the user typed are applied anyway.
+    Loose,
     Prefix,
     Complete,
 }
@@ -53,11 +56,41 @@ impl Default for Opts {
 const MAX_UNITS: usize = 10;
 
 pub fn validate(units: &[Unit], tone: Tone, o: &Opts) -> Validity {
-    let r = regular(units, tone, o);
-    if r == Validity::Invalid && o.names {
-        return name_match(units, tone);
+    // Free typing is a fallback: a reading the grammar accepts (wé with w allowed as an initial)
+    // always beats one that is only free (ứe).
+    let strict = Opts { free: false, ..*o };
+    let r = regular(units, tone, &strict);
+    if r != Validity::Invalid {
+        return r;
     }
-    r
+    if o.names {
+        let n = name_match(units, tone);
+        if n != Validity::Invalid {
+            return n;
+        }
+    }
+    if o.free && free_structure(units) {
+        return Validity::Loose;
+    }
+    Validity::Invalid
+}
+
+/// Letters in a plausible order for free typing: consonants, vowels, consonants (khphá, qcáo, xyzá).
+fn free_structure(units: &[Unit]) -> bool {
+    const FREE_MAX: usize = 12;
+    if units.len() > FREE_MAX || units.iter().any(|u| u.stroke && u.ch != b'd') {
+        return false;
+    }
+    let Some(first) = units.iter().position(|u| u.is_vowel()) else {
+        return true; // still typing the initial
+    };
+    let end = units[first..]
+        .iter()
+        .position(|u| !u.is_vowel())
+        .map_or(units.len(), |k| first + k);
+    units[end..]
+        .iter()
+        .all(|u| !u.is_vowel() && u.md == Mod::None && !u.stroke)
 }
 
 /// Letters of the initial as bytes (`D` for a stroked d), at most 3.
@@ -153,10 +186,6 @@ fn regular(units: &[Unit], tone: Tone, o: &Opts) -> Validity {
     }
     if initial_status(ini_chars, o) != Validity::Complete {
         return Validity::Invalid;
-    }
-
-    if o.free {
-        return Validity::Complete;
     }
 
     // --- spelling: c/k, g/gh, ng/ngh (I2) ---------------------------------------------------
@@ -511,7 +540,8 @@ mod tests {
                     ..Opts::default()
                 }
             ),
-            Validity::Complete
+            // hỏi on a stop coda is not Vietnamese: only free typing lets it through
+            Validity::Loose
         );
     }
 }

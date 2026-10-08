@@ -42,7 +42,7 @@ Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (
 |---|---|
 | #356 `mos`+space | V2 ra `mó` (đúng VN). Báo cáo là `moss` do hoàn tác sai, đã hết |
 | #211 chữ kéo dài `áaaa`, `nhéee` | V2 giữ chữ kéo dài khi từ VN hợp lệ sau khi thu gọn; ca `a`+`s`+`aaa` chưa có test, V1 cũng không đạt |
-| #359 gõ tự do không theo chính tả (`khphá`) | có `free_tone` (bỏ kiểm tra), chưa có phím thoát bằng Ctrl/Cmd (#360) |
+| #359 gõ tự do không theo chính tả (`khphá`, `qcáo`, `wé`) | **đã có** (`free_tone`): ngữ pháp thắng trước, tự do chỉ là dự phòng nên `wes`→`wé` khi bật phụ âm ngoại và từ VN đúng không đổi; test `issue_regressions`. App macOS chưa có nút bật (chỉ có cầu FFI `ime_free_tone`). Còn thiếu phím tạm tắt bằng Ctrl/Cmd (#360) |
 | #393 `kông`, `kưng`, `kăng`, `zạ` | `kông` có (names.dic); `Kơ/Kư/Kă` chưa đưa vào vì chưa xác minh; `z j f w` bằng tuỳ chọn phụ âm ngoại |
 | #180 #316 Simple Telex | chưa làm (V1 cũng chưa) |
 | #232 `zị` | có với tuỳ chọn phụ âm ngoại |

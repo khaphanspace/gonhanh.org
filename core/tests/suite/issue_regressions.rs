@@ -17,6 +17,10 @@ enum Mode {
     TelexBracket,
     /// Telex, f z j w allowed as initials, auto-restore on
     TelexForeign,
+    /// Telex, free typing (tone marks on any syllable)
+    TelexFree,
+    /// Telex, free typing and f z j w allowed as initials
+    TelexFreeForeign,
     Vni,
 }
 use Mode::*;
@@ -33,6 +37,11 @@ fn engine(mode: Mode) -> Engine {
         TelexBracket => e.set_bracket_shortcut(true),
         TelexForeign => {
             e.set_english_auto_restore(true);
+            e.set_allow_foreign_consonants(true);
+        }
+        TelexFree => e.set_free_tone(true),
+        TelexFreeForeign => {
+            e.set_free_tone(true);
             e.set_allow_foreign_consonants(true);
         }
         Vni => e.set_method(1),
@@ -150,6 +159,17 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (162, Vni,     "o2o ",          "òo "),
     (232, TelexForeign, "zij ",     "zị "),
     (359, Telex,   "khphas ",       "khphas "),
+    // --- free typing: marks on any syllable, grammar still wins when it can ----------------------
+    (359, TelexFree, "khphas ",     "khphá "),
+    (359, TelexFree, "qcaos ",      "qcáo "),
+    (56,  TelexFree, "Zias ",       "Zía "),
+    (56,  TelexFreeForeign, "Zias ", "Zía "),
+    (232, TelexFreeForeign, "zij ", "zị "),
+    (0,   TelexFreeForeign, "wes ", "wé "),
+    (0,   TelexFreeForeign, "Wes ", "Wé "),
+    (0,   TelexFree, "hoas ",       "hoá "),
+    (0,   TelexFree, "toanf ",      "toàn "),
+    (0,   TelexFree, "tieengs ",    "tiếng "),
 ];
 
 #[test]

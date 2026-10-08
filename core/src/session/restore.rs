@@ -142,7 +142,12 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     // row 4: stretched letters ("ơiiiii", "vàooooo") are casual Vietnamese when the word is a
     // Vietnamese syllable once every stretch is squeezed to one letter
     let (squeezed, sn) = collapse_runs(units, 3);
-    if sn < units.len() && valid_end(&squeezed[..sn]) == Validity::Complete {
+    if sn < units.len()
+        && matches!(
+            valid_end(&squeezed[..sn]),
+            Validity::Complete | Validity::Loose
+        )
+    {
         return Decision::Keep;
     }
     let has_stroke = units.iter().any(|u| u.stroke);
@@ -152,7 +157,7 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
 
     // row 6: a finished Vietnamese reading wins when the dictionary knows it; an English word whose
     // Vietnamese reading is unattested (bore → boẻ, sims → sím, wi → ưi) goes back to raw
-    if validity == Validity::Complete && !p.reverted {
+    if matches!(validity, Validity::Complete | Validity::Loose) && !p.reverted {
         // short words (er, aus, wn, wo) are far more often Vietnamese interjections than English
         let english_shape =
             raw.len() >= 3 && !raw.starts_with('w') && !is_vowel_byte(raw.as_bytes()[0]);
@@ -227,7 +232,10 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
         && units[n - 1] == units[n - 2]
         && !units[n - 1].is_vowel()
         && p.strong_intent(raw.len())
-        && valid_end(&units[..n - 1]) == Validity::Complete
+        && matches!(
+            valid_end(&units[..n - 1]),
+            Validity::Complete | Validity::Loose
+        )
     {
         return Decision::Keep;
     }
