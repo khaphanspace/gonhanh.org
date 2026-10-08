@@ -92,7 +92,7 @@ enum SettingsKey {
     static let advancedMode = "gonhanh.advancedMode"
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"
-    static let restartOnClose = "gonhanh.restartOnClose"
+    static let restartOnClose = "gonhanh.restartOnCloseDefaultOn" // new key: the old one was always persisted as false
     static let sessionTapMode = "gonhanh.sessionTapMode"
 }
 

@@ -172,7 +172,12 @@ class MenuBarController: NSObject, NSWindowDelegate {
         subtitle.textColor = .secondaryLabelColor
         subtitle.tag = 100 // For in-place updates
 
-        let toggleView = NSHostingView(rootView: MenuBarToggle())
+        // Native switch: keeps SwiftUI out of the always-running process (it costs tens of MB).
+        let toggleView = NSSwitch()
+        toggleView.state = appState.isEnabled ? .on : .off
+        toggleView.target = self
+        toggleView.action = #selector(headerToggleChanged(_:))
+        toggleView.tag = 101
 
         for view in [iconView, titleLabel, subtitle, toggleView] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
@@ -211,8 +216,18 @@ class MenuBarController: NSObject, NSWindowDelegate {
             headerView.frame.size.width = headerView.fittingSize.width
         }
 
+        if let toggle = menu.item(withTag: 1)?.view?.viewWithTag(101) as? NSSwitch {
+            toggle.state = appState.isEnabled ? .on : .off
+        }
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
+    }
+
+    /// Direct click on the menu switch (not the keyboard shortcut or a per-app restore): also plays the sound.
+    @objc private func headerToggleChanged(_ sender: NSSwitch) {
+        let enabled = sender.state == .on
+        appState.isEnabled = enabled
+        SoundManager.shared.playToggleSound(enabled: enabled)
     }
 
     @objc private func selectTelex() {
@@ -557,8 +572,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
         // Restart app to reclaim memory if enabled
         // Use deferred restart: if app is quitting, applicationWillTerminate
         // will cancel this before it runs
-        guard AppState.shared.advancedMode,
-              AppState.shared.restartOnClose else { return }
+        // (On by default: SwiftUI's allocations stay resident after the window is gone; only a
+        // fresh process gives them back, 17 MB instead of 40+ MB.)
+        guard AppState.shared.restartOnClose else { return }
         let path = Bundle.main.bundleURL.path
         let work = DispatchWorkItem { [weak self] in
             guard self?.pendingRestart?.isCancelled == false else { return }
@@ -570,25 +586,5 @@ class MenuBarController: NSObject, NSWindowDelegate {
         }
         pendingRestart = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
-    }
-}
-
-// MARK: - Menu Bar Toggle (SwiftUI)
-
-/// Observes AppState so the toggle reflects the actual enabled state.
-/// Uses explicit Binding so sound only plays on direct toggle clicks (not keyboard shortcut or per-app restore).
-struct MenuBarToggle: View {
-    @ObservedObject private var appState = AppState.shared
-
-    var body: some View {
-        Toggle("", isOn: Binding(
-            get: { appState.isEnabled },
-            set: { newValue in
-                appState.isEnabled = newValue
-                SoundManager.shared.playToggleSound(enabled: newValue)
-            }
-        ))
-        .toggleStyle(.switch)
-        .labelsHidden()
     }
 }

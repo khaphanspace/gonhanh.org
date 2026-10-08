@@ -1,13 +1,14 @@
-import SwiftUI
+import AppKit
 
+/// Plain AppKit entry point: the always-running input method must not load the SwiftUI app
+/// lifecycle (it costs tens of MB). SwiftUI is only touched when a settings/about window opens.
 @main
-struct GoNhanhApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    var body: some Scene {
-        Settings {
-            EmptyView()
-        }
+enum GoNhanhMain {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.run()
     }
 }
 
@@ -45,6 +46,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.soundEnabled: false,
             SettingsKey.allowForeignConsonants: false,
             SettingsKey.advancedMode: false,
+            SettingsKey.restartOnClose: true,
             SettingsKey.sessionTapMode: false,
         ])
     }
