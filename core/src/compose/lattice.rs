@@ -45,6 +45,8 @@ pub struct Compose {
     keeps: RefCell<[Parse; MAXK + 1]>,
     /// `keeps[..=keep_upto]` are valid for the keys typed so far
     keep_upto: Cell<usize>,
+    /// after a Backspace over a word shown as typed: keep showing the letters as typed
+    pin_literal: Cell<bool>,
 }
 
 impl Compose {
@@ -57,6 +59,7 @@ impl Compose {
             kids: RefCell::new(Box::new(Children::new())),
             keeps: RefCell::new([Parse::empty(); MAXK + 1]),
             keep_upto: Cell::new(0),
+            pin_literal: Cell::new(false),
         }
     }
 
@@ -79,6 +82,7 @@ impl Compose {
     pub fn clear(&mut self) {
         self.len = 0;
         self.keep_upto.set(0);
+        self.pin_literal.set(false);
     }
 
     pub fn len(&self) -> usize {
@@ -104,6 +108,7 @@ impl Compose {
         if self.len == MAXK {
             return false;
         }
+        self.pin_literal.set(false);
         if literal_only {
             // a replayed word has no other reading: its keep chain is the letters themselves
             self.ensure_keep();
@@ -174,6 +179,13 @@ impl Compose {
     /// earlier state matches (the word can no longer be edited).
     pub fn backspace_char(&mut self) -> bool {
         let shown = self.display();
+        // The word is on screen exactly as typed (English guard): one key is one letter, and it
+        // stays as typed until the next key (serv⌫ shows ser, not the sẻ hiding behind it).
+        if self.len > 0 && shown == render(&self.literal_parse(self.len), self.raw(), &self.opts) {
+            self.len -= 1;
+            self.pin_literal.set(true);
+            return true;
+        }
         let want = &shown.as_slice()[..shown.as_slice().len().saturating_sub(1)];
         self.ensure_keep();
         let keeps = *self.keeps.get_mut();
@@ -242,6 +254,9 @@ impl Compose {
 
     /// The reading Vietnamese typing leads to: the best live one, else what was kept.
     pub fn kept(&self) -> Parse {
+        if self.pin_literal.get() {
+            return self.literal_parse(self.len);
+        }
         let b = &self.beams[self.len];
         if b.n == 0 || b.weak {
             self.ensure_keep();
@@ -254,6 +269,9 @@ impl Compose {
     /// The reading on screen. With English auto-restore on, a word with no Vietnamese reading
     /// stays as typed unless it carries a stroke or horn.
     pub fn best(&self) -> Parse {
+        if self.pin_literal.get() {
+            return self.literal_parse(self.len);
+        }
         let b = &self.beams[self.len];
         if b.n == 0 || b.weak {
             let kept = self.kept();
@@ -378,7 +396,7 @@ fn step_keep(
             Validity::Complete => 3,
             Validity::Prefix => 2,
             Validity::Invalid | Validity::NamePrefix => match child.roles[i] {
-                Role::Revert | Role::Remove => 1,
+                Role::Revert | Role::Remove | Role::Bracket => 1,
                 Role::Horn | Role::Breve if child.units().last().is_some_and(|u| !u.is_vowel()) => {
                     1
                 }

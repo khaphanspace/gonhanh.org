@@ -176,6 +176,15 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     // cancelled form stays when it is a word (dissconnect → disconnect) or is what the user
     // meant (taxxi → taxi). r / x / j typed twice mean the letter itself (varr → var, hajj → haj).
     if p.reverted {
+        // a single cancel drops one letter; more went missing because tone / circumflex keys
+        // were eaten too (useEffect → uefect): that is an English word typed in Telex
+        if validity == Validity::Invalid
+            && raw.len() >= shown.chars().count() + 2
+            && !KEEP.contains_lower(shown)
+            && !EN.contains_lower(shown)
+        {
+            return Decision::Raw;
+        }
         let letter_key = p.roles[..raw.len()]
             .iter()
             .position(|r| *r == Role::Revert)

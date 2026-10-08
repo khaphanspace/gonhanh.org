@@ -21,6 +21,8 @@ mod foreign_consonants_test;
 mod golden_digest;
 mod integration_test;
 mod issue_387_backspace_correction_test;
+#[cfg(feature = "engine_v2")]
+mod issue_regressions;
 mod issue_uo_horn_test;
 mod issue_w_path_test;
 mod paragraph_test;

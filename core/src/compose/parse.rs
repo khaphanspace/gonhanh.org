@@ -84,7 +84,8 @@ impl Parse {
     /// A stroke, breve or horn on a typed vowel: Vietnamese on purpose (a lone `w` is not).
     pub fn strong_intent(&self, keys: usize) -> bool {
         let r = &self.roles[..keys];
-        r.iter().any(|x| matches!(x, Role::Stroke | Role::Breve))
+        r.iter()
+            .any(|x| matches!(x, Role::Stroke | Role::Breve | Role::Bracket))
             || (r.contains(&Role::Horn) && !r.contains(&Role::BaseHorn))
     }
 
