@@ -92,6 +92,12 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (243, Telex,   "quoiws ",       "quới "),
     (247, Telex,   "Dd ",           "Đ "),
     (252, Telex,   "ww ",           "w "),
+    // the report: with w as a consonant allowed (free typing / foreign initials) ww must still give w
+    (252, TelexFree, "ww ",         "w "),
+    (252, TelexFree, "Ww ",         "W "),
+    (252, TelexFree, "WW ",         "W "),
+    (252, TelexForeign, "ww ",      "w "),
+    (252, TelexFreeForeign, "ww ",  "w "),
     (253, Telex,   "hangf nganf ",  "hàng ngàn "),
     (259, Telex,   "xuatas ",       "xuất "),
     (262, Telex,   "banwfg ",       "bằng "),

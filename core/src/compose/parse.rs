@@ -447,7 +447,10 @@ fn w_key(p: &Parse, i: usize, key: RawKey, o: &Options, out: &mut Children) {
         c.score += 5;
         out.push(c);
     }
-    if o.w_as_vowel {
+    // A lone w that is already a consonant (w allowed as an initial) never becomes ư after itself:
+    // ww cancels the ư, it does not spell "wư".
+    let after_w = p.units().last().is_some_and(|u| u.ch == b'w');
+    if o.w_as_vowel && !after_w {
         let mut c = *p;
         c.roles[i] = Role::BaseHorn;
         c.score += MODIFIER_SCORE - 1;
