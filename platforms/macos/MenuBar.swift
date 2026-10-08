@@ -281,7 +281,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setRestoreShortcutEnabled(appState.restoreShortcutEnabled)
         RustBridge.setEnglishAutoRestore(appState.englishAutoRestore)
         RustBridge.setAutoCapitalize(appState.autoCapitalize)
-        RustBridge.setAllowForeignConsonants(appState.allowForeignConsonants)
+        RustBridge.setFreeTone(appState.freeTone)
+        RustBridge.setAllowForeignConsonants(appState.freeTone)
 
         // Sync shortcuts and start per-app mode manager
         appState.syncShortcutsToEngine()

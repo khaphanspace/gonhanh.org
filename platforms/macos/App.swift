@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.autoCapitalize: false,
             SettingsKey.soundEnabled: false,
             SettingsKey.allowForeignConsonants: false,
+            SettingsKey.freeTone: false,
             SettingsKey.advancedMode: false,
             SettingsKey.restartOnClose: true,
             SettingsKey.sessionTapMode: false,
