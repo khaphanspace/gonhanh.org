@@ -113,6 +113,45 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (384, Telex,   "NHUWNG ",       "NHƯNG "),
     (384, Telex,   "Nhuw ",         "Như "),
     (199, Telex,   "nhuw ",         "như "),
+    // --- #26 (auto-restore feedback thread): what users typed and what they meant ---------------
+    (26,  TelexAr, "tieeps ",       "tiếp "),
+    (26,  TelexAr, "xeeps ",        "xếp "),
+    (26,  TelexAr, "ddaay ",        "đây "),
+    (26,  TelexAr, "ddaya ",        "đây "),
+    (26,  TelexAr, "ura ",          "ủa "),
+    (26,  TelexAr, "chiuj ",        "chịu "),
+    (26,  TelexAr, "chiju ",        "chịu "),
+    (26,  TelexAr, "thuyr ",        "thuỷ "),
+    (26,  TelexOld, "thury ",       "thủy "),
+    (26,  TelexAr, "aro ",          "ảo "),
+    (26,  TelexAr, "arro ",         "aro "),
+    (26,  TelexAr, "users ",        "users "),
+    (26,  TelexAr, "things ",       "things "),
+    // "see" is both English and a (rare) Vietnamese syllable: Vietnamese wins, ESC restores
+    (26,  TelexAr, "see ",          "sê "),
+    (26,  TelexAr, "offline ",      "offline "),
+    (26,  TelexAr, "offensive ",    "offensive "),
+    // "off" vs "of": the cancelled form is a word too, and a double key is how Telex cancels
+    (26,  TelexAr, "off ",          "of "),
+    (26,  TelexAr, "param ",        "param "),
+    (26,  TelexAr, "goes ",         "goes "),
+    (26,  TelexAr, "guess ",        "guess "),
+    (26,  TelexAr, "mason ",        "mason "),
+    (26,  TelexAr, "massive ",      "massive "),
+    (26,  TelexAr, "reff ",         "ref "),
+    (26,  TelexAr, "taxxi ",        "taxi "),
+    (26,  TelexAr, "too ",          "tô "),
+    (26,  TelexAr, "moef ",         "moè "),
+    (26,  TelexAr, "tuji ",         "tụi "),
+    (26,  TelexAr, "tuij ",         "tụi "),
+    (26,  TelexAr, "vajan ",        "vận "),
+    (26,  TelexAr, "thajat ",       "thật "),
+    (26,  TelexAr, "cowork ",       "cowork "),
+    (146, TelexAr, "toms ",         "tóm "),
+    (319, Telex,   "dataad ",       "datad "),
+    (337, TelexAr, "buss ",         "bus "),
+    // "moss" is a word: the typed spelling wins over the cancelled "mos"
+    (356, TelexAr, "moss ",         "moss "),
     // --- tone placement option (òa úy vs oà uý) ------------------------------------------------
     (64,  TelexOld, "xosa ",        "xóa "),
     (64,  TelexOld, "tufy ",        "tùy "),
@@ -165,6 +204,12 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (56,  TelexFree, "Zias ",       "Zía "),
     (56,  TelexFreeForeign, "Zias ", "Zía "),
     (232, TelexFreeForeign, "zij ", "zị "),
+    (0,   TelexFree, "wes ",        "wé "),
+    (232, TelexFree, "zij ",        "zị "),
+    (0,   TelexFree, "wes ",        "wé "),
+    (0,   TelexFree, "zij ",        "zị "),
+    (0,   TelexFree, "wa ",         "ưa "),
+    (0,   TelexFree, "wl ",         "wl "),
     (0,   TelexFreeForeign, "wes ", "wé "),
     (0,   TelexFreeForeign, "Wes ", "Wé "),
     (0,   TelexFree, "hoas ",       "hoá "),
@@ -187,5 +232,87 @@ fn every_issue_case_types_as_reported_fixed() {
         failures.len(),
         CASES.len(),
         failures.join("\n")
+    );
+}
+
+// --- shortcuts (gõ tắt): what users expect after typing, correcting and punctuation -----------------
+
+use gonhanh_core::engine::shortcut::Shortcut;
+
+fn with_shortcuts(mode: Mode, list: &[(&str, &str)]) -> Engine {
+    let mut e = engine(mode);
+    for (trigger, text) in list {
+        e.shortcuts_mut().add(Shortcut::new(trigger, text));
+    }
+    e
+}
+
+// (issue, mode, shortcuts, typed, expected)
+#[rustfmt::skip]
+type Shortcuts = &'static [(&'static str, &'static str)];
+
+const SHORTCUT_CASES: &[(u32, Mode, Shortcuts, &str, &str)] = &[
+    (23,  Telex,   &[("zz", "hello")],            "zz ",        "hello "),
+    (25,  Telex,   &[("qc", "quảng cáo")],        "qc ",        "quảng cáo "),
+    (212, Telex,   &[("qc", "quảng cáo")],        "qx<c ",      "quảng cáo "),
+    (382, Telex,   &[("qc", "quảng cáo")],        "qa<c ",      "quảng cáo "),
+    (383, TelexAr, &[("qc", "quảng cáo")],        "qc. ",       "quảng cáo. "),
+    (383, TelexAr, &[("qc", "quảng cáo")],        "qc, ",       "quảng cáo, "),
+    (275, Telex,   &[("dc", "được")],             "dc! ",       "được! "),
+    (129, Telex,   &[("hn", "Hà Nội")],           "hn ",        "Hà Nội "),
+    (130, Telex,   &[("hn", "Hà Nội")],           "hn hn hn ",  "Hà Nội Hà Nội Hà Nội "),
+    (86,  Telex,   &[("vn", "Việt Nam")],         "vn ",        "Việt Nam "),
+    // an expansion longer than 63 characters must arrive whole (#178)
+    (178, Telex,   &[("ml", "một hai ba bốn năm sáu bảy tám chín mười một hai ba bốn năm sáu bảy tám chín mười mười một")], "ml ", "một hai ba bốn năm sáu bảy tám chín mười một hai ba bốn năm sáu bảy tám chín mười mười một "),
+];
+
+#[test]
+fn every_shortcut_issue_case_expands_as_expected() {
+    let mut failures = Vec::new();
+    for &(issue, mode, list, typed, want) in SHORTCUT_CASES {
+        let got = type_word(&mut with_shortcuts(mode, list), typed);
+        if got != want {
+            failures.push(format!("#{issue}: {typed:?} → {got:?}, expected {want:?}"));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {} shortcut cases fail:\n{}",
+        failures.len(),
+        SHORTCUT_CASES.len(),
+        failures.join("\n")
+    );
+}
+
+// --- breaking the rhythm with Control (#150, #359, #360): the app calls `clear()` on a Control tap,
+// the next letters start a fresh word and no shortcut sees the letters before the break --------------
+
+/// Type `parts` with a Control tap (`clear`) between them.
+fn typed_with_breaks(mode: Mode, shortcuts: &[(&str, &str)], parts: &[&str]) -> String {
+    let mut e = with_shortcuts(mode, shortcuts);
+    let mut screen = String::new();
+    for part in parts {
+        let mut shown = type_word(&mut e, part);
+        // type_word restarts the screen each call: only the new part is returned
+        screen.push_str(&shown);
+        shown.clear();
+        e.clear();
+    }
+    screen
+}
+
+#[test]
+fn control_tap_breaks_the_word_and_the_shortcut() {
+    // #359 / #360: kh ⌃ phas → khphá, without any free-typing option
+    assert_eq!(typed_with_breaks(Telex, &[], &["kh", "phas "]), "khphá ");
+    // #360: with a shortcut qc → quảng cáo, q ⌃ c keeps the letters
+    assert_eq!(
+        typed_with_breaks(Telex, &[("qc", "quảng cáo")], &["q", "c "]),
+        "qc "
+    );
+    // and without the break the shortcut still fires
+    assert_eq!(
+        typed_with_breaks(Telex, &[("qc", "quảng cáo")], &["qc "]),
+        "quảng cáo "
     );
 }

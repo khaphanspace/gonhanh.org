@@ -3,7 +3,6 @@
 
 use gonhanh_core::data::keys;
 use gonhanh_core::engine::{Action, Engine};
-use gonhanh_core::utils::key_to_char;
 
 struct Rng(u64);
 impl Rng {
@@ -79,19 +78,23 @@ fn key_pool() -> Vec<u16> {
     pool
 }
 
+/// One storm: random settings, then `keys_n` random keys. Nothing may panic, a result never deletes
+/// more than a word plus its space, and every character it sends is a real char.
 fn storm(seed: u64, method: u8, restore: bool, keys_n: usize) {
     let pool = key_pool();
     let mut rng = Rng(seed);
     let mut e = Engine::new();
     e.set_method(method);
     e.set_english_auto_restore(restore);
-    e.set_auto_capitalize(rng.next() % 2 == 0);
-    e.set_modern_tone(rng.next() % 2 == 0);
-    let mut screen: Vec<char> = Vec::new();
+    e.set_auto_capitalize(rng.next().is_multiple_of(2));
+    e.set_modern_tone(rng.next().is_multiple_of(2));
+    e.set_free_tone(rng.next().is_multiple_of(3));
+    e.set_allow_foreign_consonants(rng.next().is_multiple_of(3));
+    e.set_skip_w_shortcut(rng.next().is_multiple_of(4));
     for step in 0..keys_n {
         let key = rng.pick(&pool);
-        let caps = rng.next() % 9 == 0;
-        let r = e.on_key_ext(key, caps, false, rng.next() % 13 == 0);
+        let caps = rng.next().is_multiple_of(9);
+        let r = e.on_key_ext(key, caps, false, rng.next().is_multiple_of(13));
         if r.action == Action::Send as u8 {
             // a word is at most MAXK letters (plus the space that follows it)
             assert!(
@@ -99,27 +102,22 @@ fn storm(seed: u64, method: u8, restore: bool, keys_n: usize) {
                 "step {step}: key {key}: backspace {}",
                 r.backspace
             );
-            for _ in 0..r.backspace {
-                screen.pop();
+            for &c in &r.chars[..r.count as usize] {
+                assert!(char::from_u32(c).is_some(), "step {step}: invalid char {c}");
             }
-            for i in 0..r.count as usize {
-                let c = char::from_u32(r.chars[i])
-                    .unwrap_or_else(|| panic!("step {step}: invalid char {}", r.chars[i]));
-                screen.push(c);
-            }
-        } else if key == keys::DELETE {
-            screen.pop();
-        } else if let Some(c) = key_to_char(key, caps) {
-            screen.push(c);
         }
-        // a new line or a cursor move: what was typed before is out of reach
-        if key == keys::RETURN || key == keys::ESC {
-            screen.clear();
-        }
-        if screen.len() > 4000 {
-            screen.clear();
+        if step % 50_000 == 49_999 {
+            e.clear_all(); // a fresh sentence now and then
         }
     }
+}
+
+/// `GN_FUZZ_KEYS=2000000 cargo test --test suite engine_fuzz` for a longer run.
+fn keys_per_storm() -> usize {
+    std::env::var("GN_FUZZ_KEYS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(150_000)
 }
 
 #[test]
@@ -132,6 +130,11 @@ fn random_key_storms_do_not_panic() {
         (5, 0, true),
         (6, 1, true),
     ] {
-        storm(0x9E37_79B9_7F4A_7C15 ^ seed, method, restore, 150_000);
+        storm(
+            0x9E37_79B9_7F4A_7C15 ^ seed,
+            method,
+            restore,
+            keys_per_storm(),
+        );
     }
 }

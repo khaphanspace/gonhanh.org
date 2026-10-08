@@ -8437,6 +8437,7 @@ mod tests {
     /// - "booo" → "boo" (revert), then "s" → "boos" (not "boós")
     /// - "seee" → "see" (revert), then "m" → "seem" (not "seém")
     /// - "booo" + "k" → "book" (consonant also literal)
+    ///
     /// Note: Only works with valid Vietnamese initials (b, c, d, h, l, m, n, p, s, t, etc.)
     #[test]
     fn test_literal_after_circumflex_revert() {

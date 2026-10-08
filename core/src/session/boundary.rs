@@ -40,7 +40,7 @@ impl Session {
 
     /// English restore for the finished word. Returns the edit, and the raw text when restored.
     fn restore_at_boundary(&self, with_space: bool) -> (Out, Option<Display>) {
-        let raw = match decide(&self.word, self.english_restore, self.allow_foreign) {
+        let raw = match decide(&self.word, self.english_restore, self.foreign_initials()) {
             // the screen may still show the typed letters (English guard): finish as Vietnamese
             Decision::Keep => self.word.kept_display(),
             Decision::Raw => render_raw(self.word.raw()),

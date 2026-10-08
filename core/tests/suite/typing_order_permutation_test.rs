@@ -315,14 +315,12 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
                 let mut found_first_vowel = false;
 
                 for (i, c) in vowel_chars.iter().enumerate() {
-                    if is_vowel(*c) {
-                        if !found_first_vowel {
-                            found_first_vowel = true;
-                            first_vowel_end = i + 1;
-                            // Include any mark right after the first vowel
-                            if i + 1 < vowel_chars.len() && !is_vowel(vowel_chars[i + 1]) {
-                                first_vowel_end = i + 2;
-                            }
+                    if is_vowel(*c) && !found_first_vowel {
+                        found_first_vowel = true;
+                        first_vowel_end = i + 1;
+                        // Include any mark right after the first vowel
+                        if i + 1 < vowel_chars.len() && !is_vowel(vowel_chars[i + 1]) {
+                            first_vowel_end = i + 2;
                         }
                     }
                 }
@@ -343,9 +341,7 @@ fn generate_all_telex_variants(word: &str) -> Vec<String> {
             // This works when: vowel has circumflex mark and there's a tone
             for (v_idx, (v_char, v_mark)) in vowels.iter().enumerate() {
                 // Check for circumflex (mark equals base vowel lowercase)
-                let is_circumflex = v_mark.map_or(false, |m| {
-                    m.to_ascii_lowercase() == v_char.to_ascii_lowercase()
-                });
+                let is_circumflex = v_mark.is_some_and(|m| m.eq_ignore_ascii_case(v_char));
 
                 if is_circumflex {
                     // Build base WITHOUT the circumflex (just the vowel once)
@@ -459,10 +455,10 @@ fn generate_modifiers_at_end_patterns(parts: &SyllableParts) -> Vec<String> {
 fn collect_vowel_mods(vowels: &[(char, Option<char>)]) -> Vec<char> {
     let has_uwo = vowels
         .iter()
-        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'))
+        .any(|(v, m)| v.eq_ignore_ascii_case(&'u') && *m == Some('w'))
         && vowels
             .iter()
-            .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+            .any(|(v, m)| v.eq_ignore_ascii_case(&'o') && *m == Some('w'));
 
     let mut mods = Vec::new();
     let mut horn_added = false;
@@ -592,7 +588,7 @@ fn detect_consecutive_identical_vowels(vowels: &[(char, Option<char>)]) -> bool 
     vowels.windows(2).any(|pair| {
         let (v1, m1) = &pair[0];
         let (v2, m2) = &pair[1];
-        v1.to_ascii_lowercase() == v2.to_ascii_lowercase()
+        v1.eq_ignore_ascii_case(v2)
             && m1.is_none()
             && m2.is_none()
             && matches!(v1.to_ascii_lowercase(), 'a' | 'e' | 'o')
@@ -614,7 +610,7 @@ fn generate_circumflex_cancel_variants(parts: &SyllableParts) -> Vec<String> {
         // Check for consecutive identical unmarked vowels (a/e/o)
         let is_consecutive = i + 1 < vowels.len() && {
             let (v2, m2) = &vowels[i + 1];
-            v.to_ascii_lowercase() == v2.to_ascii_lowercase()
+            v.eq_ignore_ascii_case(v2)
                 && m.is_none()
                 && m2.is_none()
                 && matches!(v.to_ascii_lowercase(), 'a' | 'e' | 'o')
@@ -681,15 +677,15 @@ fn generate_vowel_patterns(parts: &SyllableParts) -> Vec<String> {
     // Special case: ươ (horn on both u and o) - generate "uow" variant (w after o only)
     let has_horn_u = vowels
         .iter()
-        .any(|(v, m)| v.to_ascii_lowercase() == 'u' && *m == Some('w'));
+        .any(|(v, m)| v.eq_ignore_ascii_case(&'u') && *m == Some('w'));
     let has_horn_o = vowels
         .iter()
-        .any(|(v, m)| v.to_ascii_lowercase() == 'o' && *m == Some('w'));
+        .any(|(v, m)| v.eq_ignore_ascii_case(&'o') && *m == Some('w'));
     if has_horn_u && has_horn_o {
         let uow: String = vowels
             .iter()
             .flat_map(|(v, m)| {
-                let is_horn_o = v.to_ascii_lowercase() == 'o' && *m == Some('w');
+                let is_horn_o = v.eq_ignore_ascii_case(&'o') && *m == Some('w');
                 std::iter::once(*v).chain(if is_horn_o { Some('w') } else { None })
             })
             .collect();

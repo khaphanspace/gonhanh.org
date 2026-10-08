@@ -2567,6 +2567,7 @@ fn restore_word_then_extend() {
 /// After backspacing into "shortcuts", typing "Nuw" should produce:
 /// - Internal buffer: "Nư" (buffer cleared on consonant 'N', then fresh typing)
 /// - Screen: "shortcutsNư" (screen keeps restored word, adds transformed output)
+///
 /// The key fix: "uw" → "ư" transformation now works after restore
 #[test]
 fn restore_word_non_vietnamese_then_type_new() {

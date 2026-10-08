@@ -1,0 +1,22 @@
+# V1 tests that fail on engine V2 on purpose (reasons: docs/behavior-changes.md).
+# scripts/test/v2.sh fails when a test outside this list fails, or a listed one starts passing.
+auto_restore_dynamic_test::vietnamese_first_valid_buffer
+auto_restore_dynamic_test::w_final_comprehensive
+auto_restore_dynamic_test::w_vowel_produces_valid_vietnamese
+bug_reports_test::bug_bac_kan_hong_kong_telex_cancel_keys
+bug_reports_test::issue230_case_analysis
+engine_test::diphthong_uwi_tone_space
+engine_test::tone_circumflex_delayed
+english_auto_restore_test::issue142_sims_extra_s
+english_auto_restore_test::pattern2_aa_vowel_pair
+english_auto_restore_test::pattern_double_vowel_after_tone
+english_auto_restore_test::pattern_multi_consonant_partial_restore
+english_auto_restore_test::pattern_triple_vowel_auto_restore
+integration_test::test_abc_space_ook_space
+integration_test::test_aum_circumflex
+integration_test::test_aum_mark_position
+paragraph_test::paragraph_smart_auto_restore
+revert_auto_restore_test::consecutive_modifiers_followed_by_vowel
+typing_test::vni_switch_diacritics
+engine::tests::test_interleaved_diphthong_auto_restore
+engine::tests::test_literal_after_circumflex_revert

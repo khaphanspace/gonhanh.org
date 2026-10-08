@@ -1,11 +1,20 @@
 //! English restore at a word boundary: one decision, a short list of rows, evaluated in order.
 //!
-//! Most English words never need it: a Vietnamese reading that cannot become Vietnamese is
-//! pruned while typing, so the raw letters are already on screen. What is left for this table
-//! are readings that *stay* alive until the word ends.
+//! Most English words never need it: while typing, a word with no Vietnamese reading is shown as
+//! typed (or with only the marks that proved Vietnamese intent), so the screen is already right.
+//! What is left for this table are readings that *stay* alive until the word ends.
 //!
-//! Constitution I13: a finished Vietnamese reading is never restored, except the two shapes the
-//! docs name (a trailing `w` on a known English word, a loan initial `p` on one).
+//! Rows, first match wins:
+//!   1-2  feature off / nothing transformed      → keep      3  `keep.dic`            → keep
+//!   3b   stretched English word (chooose)       → squeeze   3c `wr`/`wh` start       → raw
+//!   4    stretched Vietnamese (vàooo)           → keep      6  finished VN reading   → keep, unless English evidence
+//!   7    cancelled modifier (mass, off, taxxi)  → raw if a word, else the cancelled form
+//!   8    stroke abbreviations (đc)              → keep      9  lone w, one-vowel, stretched coda → keep
+//!   9d   late circumflex with no tone           → raw       10 invalid or unfinished → raw if English, else keep
+//!
+//! A finished Vietnamese reading is only given back when something *outside* the grammar says
+//! English: the raw letters are an English word and the reading is not in `vi.dic`, the tone was
+//! changed mid-word (arts → ảt → át), or the word starts with a loan `p` (pais, pes).
 
 use crate::compose::parse::Role;
 use crate::compose::{Compose, Display, MAXK};

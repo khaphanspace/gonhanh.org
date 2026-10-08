@@ -19,65 +19,62 @@ pub const STOPS: u16 = C | CH | P | T | K;
 /// a nucleus without OPEN must be followed by a coda (iê, uô, ươ...). Letters are pre-decoded:
 /// (base letter, modifier) with modifier 0 none, 1 circumflex, 2 horn, 3 breve, 4 stroke.
 pub const NUCLEUS_CODAS: &[(&[(u8, u8)], u16)] = &[
-    (&[(b'a', 0)], OPEN | C | CH | M | N | NG | NH | P | T), // a -:132 c:45 ch:39 m:74 n:102 ng:104 nh:97 p:33 t:41
-    (&[(b'e', 0)], OPEN | C | M | N | NG | P | T), // e -:114 c:12 m:47 n:76 ng:17 p:30 t:40
-    (&[(b'i', 0)], OPEN | CH | M | N | NH | P | T), // i -:113 ch:36 m:39 n:38 nh:85 p:16 t:41
-    (&[(b'o', 0)], OPEN | C | M | N | NG | P | T), // o -:108 c:43 m:78 n:65 ng:101 p:22 t:40
-    (&[(b'u', 0)], OPEN | C | M | N | NG | P | T), // u -:110 c:41 m:62 n:61 ng:94 p:26 t:38
-    (&[(b'y', 0)], OPEN | NH | T),                 // y -:22 nh:3 t:2
-    (&[(b'a', 1)], C | M | N | NG | P | T),        // â c:15 m:103 n:105 ng:25 p:45 t:38
-    (&[(b'e', 1)], OPEN | C | CH | M | N | NG | NH | P | T), // ê -:103 c:1 ch:27 m:19 n:44 ng:3 nh:54 p:11 t:26
-    (&[(b'o', 1)], OPEN | C | M | N | NG | P | T), // ô -:112 c:37 m:47 n:74 ng:92 p:25 t:32
-    (&[(b'a', 3)], C | M | N | NG | P | T | K),    // ă c:38 m:71 n:86 ng:89 p:24 t:37 k:2
-    (&[(b'o', 2)], OPEN | M | N | P | T),          // ơ -:119 m:46 n:63 p:24 t:32
-    (&[(b'u', 2)], OPEN | C | M | N | NG | T),     // ư -:78 c:35 m:1 n:2 ng:76 t:18
-    (&[(b'a', 0), (b'i', 0)], OPEN),               // ai -:118
-    (&[(b'a', 0), (b'o', 0)], OPEN),               // ao -:115
-    (&[(b'a', 0), (b'u', 0)], OPEN),               // au -:59
-    (&[(b'a', 0), (b'y', 0)], OPEN),               // ay -:92
-    (&[(b'e', 0), (b'o', 0)], OPEN),               // eo -:103
-    (&[(b'i', 0), (b'a', 0)], OPEN),               // ia -:52
-    (&[(b'i', 0), (b'u', 0)], OPEN),               // iu -:54
-    (&[(b'i', 0), (b'e', 1)], C | M | N | NG | P | T), // iê c:13 m:45 n:73 ng:37 p:16 t:29
-    (
-        &[(b'o', 0), (b'a', 0)],
-        OPEN | C | CH | M | N | NG | NH | P | T,
-    ), // oa -:68 c:10 ch:5 m:5 n:37 ng:41 nh:14 p:2 t:12
-    (&[(b'o', 0), (b'e', 0)], OPEN | N | T | WIDE), // oe -:48 n:12 t:13
-    (&[(b'o', 0), (b'i', 0)], OPEN),               // oi -:92
-    (&[(b'o', 0), (b'o', 0)], C | NG | WIDE),      // oo c:3 ng:10
-    (&[(b'o', 0), (b'a', 3)], C | M | N | NG | T), // oă c:4 m:6 n:10 ng:10 t:10
-    (&[(b'u', 0), (b'a', 0)], OPEN),               // ua -:54
-    (&[(b'u', 0), (b'i', 0)], OPEN),               // ui -:79
-    (&[(b'u', 0), (b'y', 0)], OPEN | CH | N | NH | T | WIDE), // uy -:52 ch:3 n:1 nh:7 t:7
-    (&[(b'u', 0), (b'a', 1)], N | NG | T | WIDE),  // uâ n:21 ng:1 t:9
-    (&[(b'u', 0), (b'e', 1)], OPEN | CH | NH | WIDE), // uê -:19 ch:7 nh:3
-    (&[(b'u', 0), (b'o', 1)], C | M | N | NG | T), // uô c:19 m:13 n:22 ng:36 t:17
-    (&[(b'u', 0), (b'o', 2)], OPEN | N | WIDE),    // uơ -:4 n:1
-    (&[(b'y', 0), (b'e', 1)], M | N | NG | T | WIDE), // yê m:2 n:7 ng:2 t:3
-    (&[(b'a', 1), (b'u', 0)], OPEN),               // âu -:89
-    (&[(b'a', 1), (b'y', 0)], OPEN),               // ây -:96
-    (&[(b'e', 1), (b'u', 0)], OPEN),               // êu -:47
-    (&[(b'o', 1), (b'i', 0)], OPEN),               // ôi -:92
-    (&[(b'o', 2), (b'i', 0)], OPEN),               // ơi -:65
-    (&[(b'u', 2), (b'a', 0)], OPEN),               // ưa -:71
-    (&[(b'u', 2), (b'i', 0)], OPEN),               // ưi -:4
-    (&[(b'u', 2), (b'u', 0)], OPEN),               // ưu -:23
-    (&[(b'u', 2), (b'o', 2)], C | M | N | NG | P | T), // ươ c:26 m:22 n:25 ng:82 p:8 t:17
-    (&[(b'i', 0), (b'e', 1), (b'u', 0)], OPEN),    // iêu -:59
-    (&[(b'o', 0), (b'a', 0), (b'i', 0)], OPEN),    // oai -:35
-    (&[(b'o', 0), (b'a', 0), (b'o', 0)], OPEN),    // oao -:3
-    (&[(b'o', 0), (b'a', 0), (b'y', 0)], OPEN),    // oay -:13
-    (&[(b'o', 0), (b'e', 0), (b'o', 0)], OPEN),    // oeo -:4
-    (&[(b'u', 0), (b'y', 0), (b'a', 0)], OPEN),    // uya -:3
-    (&[(b'u', 0), (b'y', 0), (b'u', 0)], OPEN),    // uyu -:3
-    (&[(b'u', 0), (b'y', 0), (b'e', 1)], N | T | WIDE), // uyê n:34 t:9
-    (&[(b'u', 0), (b'a', 1), (b'y', 0)], OPEN),    // uây -:5
-    (&[(b'u', 0), (b'e', 1), (b'u', 0)], OPEN),    // uêu -:0
-    (&[(b'u', 0), (b'o', 1), (b'i', 0)], OPEN),    // uôi -:29
-    (&[(b'y', 0), (b'e', 1), (b'u', 0)], OPEN),    // yêu -:3
-    (&[(b'u', 2), (b'o', 2), (b'i', 0)], OPEN),    // ươi -:29
-    (&[(b'u', 2), (b'o', 2), (b'u', 0)], OPEN),    // ươu -:7
+    (&[(b'a', 0)], OPEN|C|CH|M|N|NG|NH|P|T), // a -:132 c:45 ch:39 m:74 n:102 ng:104 nh:97 p:33 t:41
+    (&[(b'e', 0)], OPEN|C|M|N|NG|P|T), // e -:114 c:12 m:47 n:76 ng:17 p:30 t:40
+    (&[(b'i', 0)], OPEN|CH|M|N|NH|P|T), // i -:113 ch:36 m:39 n:38 nh:85 p:16 t:41
+    (&[(b'o', 0)], OPEN|C|M|N|NG|P|T), // o -:108 c:43 m:78 n:65 ng:101 p:22 t:40
+    (&[(b'u', 0)], OPEN|C|M|N|NG|P|T), // u -:110 c:41 m:62 n:61 ng:94 p:26 t:38
+    (&[(b'y', 0)], OPEN|NH|T), // y -:22 nh:3 t:2
+    (&[(b'a', 1)], C|M|N|NG|P|T), // â c:15 m:103 n:105 ng:25 p:45 t:38
+    (&[(b'e', 1)], OPEN|C|CH|M|N|NG|NH|P|T), // ê -:103 c:1 ch:27 m:19 n:44 ng:3 nh:54 p:11 t:26
+    (&[(b'o', 1)], OPEN|C|M|N|NG|P|T), // ô -:112 c:37 m:47 n:74 ng:92 p:25 t:32
+    (&[(b'a', 3)], C|M|N|NG|P|T|K), // ă c:38 m:71 n:86 ng:89 p:24 t:37 k:2
+    (&[(b'o', 2)], OPEN|M|N|P|T), // ơ -:119 m:46 n:63 p:24 t:32
+    (&[(b'u', 2)], OPEN|C|M|N|NG|T), // ư -:78 c:35 m:1 n:2 ng:76 t:18
+    (&[(b'a', 0), (b'i', 0)], OPEN), // ai -:118
+    (&[(b'a', 0), (b'o', 0)], OPEN), // ao -:115
+    (&[(b'a', 0), (b'u', 0)], OPEN), // au -:59
+    (&[(b'a', 0), (b'y', 0)], OPEN), // ay -:92
+    (&[(b'e', 0), (b'o', 0)], OPEN), // eo -:103
+    (&[(b'i', 0), (b'a', 0)], OPEN), // ia -:52
+    (&[(b'i', 0), (b'u', 0)], OPEN), // iu -:54
+    (&[(b'i', 0), (b'e', 1)], C|M|N|NG|P|T), // iê c:13 m:45 n:73 ng:37 p:16 t:29
+    (&[(b'o', 0), (b'a', 0)], OPEN|C|CH|M|N|NG|NH|P|T), // oa -:68 c:10 ch:5 m:5 n:37 ng:41 nh:14 p:2 t:12
+    (&[(b'o', 0), (b'e', 0)], OPEN|N|T|WIDE), // oe -:48 n:12 t:13
+    (&[(b'o', 0), (b'i', 0)], OPEN), // oi -:92
+    (&[(b'o', 0), (b'o', 0)], C|NG|WIDE), // oo c:3 ng:10
+    (&[(b'o', 0), (b'a', 3)], C|M|N|NG|T), // oă c:4 m:6 n:10 ng:10 t:10
+    (&[(b'u', 0), (b'a', 0)], OPEN), // ua -:54
+    (&[(b'u', 0), (b'i', 0)], OPEN), // ui -:79
+    (&[(b'u', 0), (b'y', 0)], OPEN|CH|N|NH|T|WIDE), // uy -:52 ch:3 n:1 nh:7 t:7
+    (&[(b'u', 0), (b'a', 1)], N|NG|T|WIDE), // uâ n:21 ng:1 t:9
+    (&[(b'u', 0), (b'e', 1)], OPEN|CH|NH|WIDE), // uê -:19 ch:7 nh:3
+    (&[(b'u', 0), (b'o', 1)], C|M|N|NG|T), // uô c:19 m:13 n:22 ng:36 t:17
+    (&[(b'u', 0), (b'o', 2)], OPEN|N|WIDE), // uơ -:4 n:1
+    (&[(b'y', 0), (b'e', 1)], M|N|NG|T|WIDE), // yê m:2 n:7 ng:2 t:3
+    (&[(b'a', 1), (b'u', 0)], OPEN), // âu -:89
+    (&[(b'a', 1), (b'y', 0)], OPEN), // ây -:96
+    (&[(b'e', 1), (b'u', 0)], OPEN), // êu -:47
+    (&[(b'o', 1), (b'i', 0)], OPEN), // ôi -:92
+    (&[(b'o', 2), (b'i', 0)], OPEN), // ơi -:65
+    (&[(b'u', 2), (b'a', 0)], OPEN), // ưa -:71
+    (&[(b'u', 2), (b'i', 0)], OPEN), // ưi -:4
+    (&[(b'u', 2), (b'u', 0)], OPEN), // ưu -:23
+    (&[(b'u', 2), (b'o', 2)], C|M|N|NG|P|T), // ươ c:26 m:22 n:25 ng:82 p:8 t:17
+    (&[(b'i', 0), (b'e', 1), (b'u', 0)], OPEN), // iêu -:59
+    (&[(b'o', 0), (b'a', 0), (b'i', 0)], OPEN), // oai -:35
+    (&[(b'o', 0), (b'a', 0), (b'o', 0)], OPEN), // oao -:3
+    (&[(b'o', 0), (b'a', 0), (b'y', 0)], OPEN), // oay -:13
+    (&[(b'o', 0), (b'e', 0), (b'o', 0)], OPEN), // oeo -:4
+    (&[(b'u', 0), (b'y', 0), (b'a', 0)], OPEN), // uya -:3
+    (&[(b'u', 0), (b'y', 0), (b'u', 0)], OPEN), // uyu -:3
+    (&[(b'u', 0), (b'y', 0), (b'e', 1)], N|T|WIDE), // uyê n:34 t:9
+    (&[(b'u', 0), (b'a', 1), (b'y', 0)], OPEN), // uây -:5
+    (&[(b'u', 0), (b'e', 1), (b'u', 0)], OPEN), // uêu -:0
+    (&[(b'u', 0), (b'o', 1), (b'i', 0)], OPEN), // uôi -:29
+    (&[(b'y', 0), (b'e', 1), (b'u', 0)], OPEN), // yêu -:3
+    (&[(b'u', 2), (b'o', 2), (b'i', 0)], OPEN), // ươi -:29
+    (&[(b'u', 2), (b'o', 2), (b'u', 0)], OPEN), // ươu -:7
 ];
 
 /// `NUCLEUS_CODAS` flattened for typing time: key = base-25 digits of (letter a e i o u y)*4 + modifier + 1;
@@ -162,9 +159,9 @@ pub const NUCLEUS_INDEX: &[(u16, u16, u16, bool)] = &[
 /// Proper-name syllables whose spelling breaks the regular rules (data, prefix-closed at match time).
 /// (letters as above, tone 0 ngang 1 sắc 2 huyền 3 hỏi 4 ngã 5 nặng)
 pub const NAMES: &[(&[(u8, u8)], u8)] = &[
-    (&[(b'k', 0), (b'a', 0), (b'n', 0)], 5),            // kạn
+    (&[(b'k', 0), (b'a', 0), (b'n', 0)], 5), // kạn
     (&[(b'k', 0), (b'o', 1), (b'n', 0), (b'g', 0)], 0), // kông
-    (&[(b'k', 0), (b'o', 0), (b'n', 0)], 0),            // kon
+    (&[(b'k', 0), (b'o', 0), (b'n', 0)], 0), // kon
     (&[(b'k', 0), (b'r', 0), (b'o', 1), (b'n', 0), (b'g', 0)], 0), // krông
-    (&[(b'b', 0), (b'u', 0), (b'k', 0)], 1),            // búk
+    (&[(b'b', 0), (b'u', 0), (b'k', 0)], 1), // búk
 ];

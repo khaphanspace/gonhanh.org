@@ -62,14 +62,19 @@ test:
 # Fast loop (core v2 refactor): batch your edits, run `make gate` once or twice per batch
 # ============================================================================
 
-.PHONY: t gate bench bench-save update-golden
+.PHONY: t gate gate-v2 bench bench-save update-golden
 
 t: ## Inner loop (~seconds): pure unit tests only
 	@cd core && cargo test --lib -q
 
 gate: ## Full gate: unit + suite + dictionary thresholds, optimized test profile, each test runs once
+	@python3 scripts/gen/phonology_tables.py --check
 	@cd core && cargo test --profile gate --lib --test suite -q -- --skip vietnamese_dict_test:: --skip english_100k_test::english_100k_failures
 	@GN_PROFILE=gate ./scripts/test/dict.sh
+
+gate-v2: ## Engine V2: whole suite (only the documented differences may fail) + dictionary thresholds
+	@./scripts/test/v2.sh
+	@GN_PROFILE=gate GN_FEATURES=engine_v2 ./scripts/test/dict.sh
 
 bench: ## Latency / allocations / cold start / typing-UX KPI vs bench/baseline.json
 	@cd core && cargo bench --bench engine_bench

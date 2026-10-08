@@ -89,14 +89,9 @@ impl Parse {
             || (r.contains(&Role::Horn) && !r.contains(&Role::BaseHorn))
     }
 
-    /// Every key so far is a plain letter (the raw reading).
     /// Role of key `i`.
     pub fn role(&self, i: usize) -> Role {
         self.roles[i]
-    }
-
-    pub fn is_raw(&self, keys: usize) -> bool {
-        self.roles[..keys].iter().all(|r| *r == Role::Literal)
     }
 
     /// Same letters, tone and undo state: interchangeable for the future.

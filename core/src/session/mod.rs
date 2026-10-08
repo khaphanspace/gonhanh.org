@@ -94,7 +94,7 @@ impl Session {
             },
             modern_tone: self.modern_tone,
             free: self.free_tone,
-            foreign_initials: self.allow_foreign,
+            foreign_initials: self.foreign_initials(),
             w_as_vowel: !self.skip_w_shortcut,
             bracket: self.bracket_shortcut && self.method == 0,
             english_guard: self.english_restore,
@@ -156,6 +156,11 @@ impl Session {
             self.pending_capitalize = false;
             self.saw_sentence_ending = false;
         }
+    }
+
+    /// f j w z may start a syllable: asked for explicitly, or implied by free typing (zị, wé).
+    fn foreign_initials(&self) -> bool {
+        self.allow_foreign || self.free_tone
     }
 
     pub fn set_allow_foreign_consonants(&mut self, enabled: bool) {

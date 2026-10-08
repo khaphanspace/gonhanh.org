@@ -4,7 +4,7 @@
   nucleus x coda matrix  <- core/src/data/dictionaries/vi.dic  minus  vi-non-syllables.txt
   names lexicon          <- core/src/data/dictionaries/names.dic
 
-Usage: python3 scripts/gen/phonology_tables.py [--list-non-syllables]
+Usage: python3 scripts/gen/phonology_tables.py [--check | --list-non-syllables]
 Edit the dictionaries or this script, never tables.rs.
 """
 import sys, unicodedata as ud, collections as C, pathlib
@@ -186,8 +186,14 @@ def main():
         "];",
         "",
     ]
+    text = "\n".join(out)
+    if "--check" in sys.argv:  # CI: tables.rs must be what the dictionaries generate
+        if not OUT.exists() or OUT.read_text(encoding="utf8") != text:
+            sys.exit(f"{OUT.relative_to(ROOT)} is out of date: run python3 scripts/gen/phonology_tables.py")
+        print(f"{OUT.relative_to(ROOT)} is up to date")
+        return
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(out), encoding="utf8")
+    OUT.write_text(text, encoding="utf8")
     print(f"wrote {OUT.relative_to(ROOT)}: {len(rows)} nuclei, {len(names)} names, {used} syllables")
 
 

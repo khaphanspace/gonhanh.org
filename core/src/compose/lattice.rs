@@ -1,9 +1,10 @@
 //! The beam: a few live interpretations of the word, pruned by phonology, best one shown.
 //!
-//! Ranking (highest wins): a finished syllable beats a still-typing one, then more modifiers
-//! consumed, then earlier-created (stable display). The all-literal reading is kept aside and is
-//! shown when nothing else is Vietnamese, which is how English words stay untouched without any
-//! "restore" step.
+//! Ranking (highest wins): a finished syllable beats a still-typing one, then a free-typing
+//! (grammarless) one, then more modifiers consumed, then earlier-created (stable display).
+//! When no live reading is Vietnamese the display falls back to the "keep" reading (every mark
+//! that was valid when typed), or to the letters as typed when English auto-restore is on and
+//! nothing proves Vietnamese intent: English words stay untouched without a "restore" step.
 
 use super::parse::{extend, Children, Parse, Role};
 use super::render::{render, Display};
@@ -65,12 +66,6 @@ impl Compose {
 
     pub fn options(&self) -> &Options {
         &self.opts
-    }
-
-    pub fn set_options(&mut self, opts: Options) {
-        self.opts = opts;
-        self.len = 0;
-        self.keep_upto.set(0);
     }
 
     /// Change settings without dropping the word (existing readings keep their shape; the
@@ -331,7 +326,8 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
         extend(p, i, key, o, kids);
         for child in &kids.items[..kids.n] {
             order += 1;
-            let rank = match validate(child.units(), child.tone, &pho) {
+            let validity = validate(child.units(), child.tone, &pho);
+            let rank = match validity {
                 Validity::Complete => 2,
                 Validity::Prefix => 1,
                 Validity::NamePrefix => -1,
@@ -346,12 +342,17 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 }
                 Validity::Invalid => continue,
             };
-            let k = rank * 1_000_000 + child.score as i64 * 100 - order;
+            // Free typing: a lone w is a consonant (wé, wl) unless the ư reading is grammatical
+            let w_as_vowel_loosely =
+                validity == Validity::Loose && child.roles[..=i].contains(&Role::BaseHorn);
+            let penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
+            let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty;
             insert(&mut next.live, &mut ranks, &mut tn, k, child);
         }
     }
     next.n = tn;
-    next.weak = tn > 0 && ranks[0] < 0;
+    // only a name prefix (rank -1, key near -1_000_000) is weak; a bare literal word has a small negative key
+    next.weak = tn > 0 && ranks[0] <= -900_000;
 }
 
 /// Extend the "keep" reading: the best Vietnamese child; failing that a modifier whose intent

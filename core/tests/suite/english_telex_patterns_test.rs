@@ -91,9 +91,8 @@ fn has_valid_vn_initial(word: &str) -> bool {
     ];
 
     for initial in valid_initials {
-        if lower.starts_with(initial) {
+        if let Some(rest) = lower.strip_prefix(initial) {
             // Check what follows the initial
-            let rest = &lower[initial.len()..];
             if rest.is_empty() {
                 return true;
             }
@@ -194,7 +193,7 @@ fn insert_cancel_char(word: &str, pattern: &str, cancel_char: char) -> String {
             // In this case, 'w' creates horn/breve, not circumflex, so no cancel needed
             // Examples: harwood (w+oo), biweekly (w+ee), sapwood (w+oo)
             let preceded_by_w = i > 0
-                && chars[i - 1].to_ascii_lowercase() == 'w'
+                && chars[i - 1].eq_ignore_ascii_case(&'w')
                 && matches!(pattern, "aa" | "ee" | "oo");
 
             if preceded_by_w {
