@@ -12,15 +12,21 @@ fn main() {
     let ar = std::env::args().any(|a| a == "ar");
     let (mut n, mut bad, mut shown) = (0, 0, Vec::new());
     for line in std::io::stdin().lock().lines().map_while(Result::ok) {
-        let Some((typed, _)) = line.split_once('\t') else { continue };
-        let Some(v) = typed.chars().rev().find(|c| "aeiouy".contains(*c)) else { continue };
+        let Some((typed, _)) = line.split_once('\t') else {
+            continue;
+        };
+        let Some(v) = typed.chars().rev().find(|c| "aeiouy".contains(*c)) else {
+            continue;
+        };
         let screen = |t: &str| {
             let mut e = Engine::new();
             e.set_english_auto_restore(ar);
             type_word(&mut e, t)
         };
         let base = screen(typed);
-        let Some(at) = base.chars().position(|c| TONED.contains(c)) else { continue };
+        let Some(at) = base.chars().position(|c| TONED.contains(c)) else {
+            continue;
+        };
         n += 1;
         let base_marks = base.chars().filter(|c| MARKED.contains(*c)).count();
         let mut why = None;
