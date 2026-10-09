@@ -90,12 +90,23 @@ impl Parse {
 
     /// The word is no longer Vietnamese: pin the tone to the vowel it was shown on (`prev` is the
     /// reading before the key that produced `self`).
-    pub fn freeze_tone(&mut self, prev: &Parse, modern: bool) {
+    ///
+    /// A cancelled modifier puts the word back to how it was before the modifier, so the tone
+    /// goes back there too (mùa + a → muầ, + a → mùaa: it does not stay on the vanished â).
+    pub fn freeze_tone(&mut self, prev: &Parse, modern: bool, cancelled: bool) {
         if self.tone == Tone::Ngang {
             self.tone_at = NO_TONE_AT;
-        } else if self.tone_at == NO_TONE_AT {
-            let from = if prev.tone == self.tone { prev } else { &*self };
-            self.tone_at = tone_index(from.units(), modern).map_or(NO_TONE_AT, |k| k as u8);
+        } else if cancelled || self.tone_at == NO_TONE_AT {
+            // the cancel appended one literal letter: the tone sits where the word without it had it
+            let units = if cancelled {
+                let n = self.n as usize;
+                &self.units[..n.saturating_sub(1).max(1)]
+            } else if prev.tone == self.tone {
+                prev.units()
+            } else {
+                self.units()
+            };
+            self.tone_at = tone_index(units, modern).map_or(NO_TONE_AT, |k| k as u8);
         }
     }
 

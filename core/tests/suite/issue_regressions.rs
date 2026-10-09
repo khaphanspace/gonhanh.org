@@ -101,6 +101,10 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (252, Telex,   "ww ",           "w "),
     // the report: with w as a consonant allowed (free typing / foreign initials) ww must still give w
     // --- free typing relaxes the initial only: foreign codas and stray vowels are left as typed --
+    (0,   Telex,       "muafaaaa ",  "mùaaaa "),
+    (0,   Telex,       "mufaaaaa ",  "mùaaaa "),
+    (0,   Telex,       "buoifooo ",  "buòioo "),
+    (0,   Telex,       "chuyenfe ",  "chuyền "),
     (0,   TelexFree,   "ads ",       "ads "),
     (0,   TelexFreeAr, "ads ",       "ads "),
     (0,   TelexFreeAr, "expect ",    "expect "),
@@ -371,6 +375,42 @@ fn tone_stays_put_while_typing_a_non_vietnamese_word() {
                 }
                 prev = at.or(prev);
             }
+        }
+    }
+}
+
+/// Stretching the last vowel of a toned syllable (mùa + aaaa) leaves the tone where it was: the
+/// cancelled circumflex puts the word back to how it was before the modifier.
+#[test]
+fn tone_stays_when_the_last_vowel_is_stretched() {
+    let tone_at = |s: &str| s.chars().position(|c| !c.is_ascii());
+    for mode in [Telex, TelexAr, TelexFree, TelexFreeAr] {
+        for (typed, v) in [
+            ("muaf", 'a'),
+            ("mufa", 'a'),
+            ("chuas", 'a'),
+            ("cuar", 'a'),
+            ("buaj", 'a'),
+            ("buoif", 'o'),
+            ("chuoiso", 'o'),
+            ("hoaf", 'a'),
+            ("laf", 'a'),
+            ("hoef", 'e'),
+            ("khuyaf", 'a'),
+        ] {
+            let base = type_word(&mut engine(mode), typed);
+            let want = tone_at(&base);
+            assert!(want.is_some(), "{typed:?} shows no tone: {base:?}");
+            let long = type_word(&mut engine(mode), &format!("{typed}{v}{v}{v}{v}"));
+            // with auto-restore a word that is no longer Vietnamese may show its raw letters
+            if long.is_ascii() {
+                continue;
+            }
+            assert_eq!(
+                tone_at(&long),
+                want,
+                "{mode:?} {typed:?}+{v}x4: {base:?} → {long:?}"
+            );
         }
     }
 }

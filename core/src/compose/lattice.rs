@@ -349,7 +349,7 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
             let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty;
             let mut c = *child;
             if validity == Validity::Invalid {
-                c.freeze_tone(p, o.modern_tone);
+                c.freeze_tone(p, o.modern_tone, c.roles[i] == Role::Revert);
             } else {
                 c.release_tone();
             }
@@ -424,7 +424,8 @@ fn step_keep(
     }
     let mut next = best.1;
     if best_rank < 2 {
-        next.freeze_tone(prev, o.modern_tone);
+        let cancelled = next.roles[i] == Role::Revert;
+        next.freeze_tone(prev, o.modern_tone, cancelled);
     } else {
         next.release_tone();
     }

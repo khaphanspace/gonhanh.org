@@ -36,7 +36,7 @@ Hiển thị khi không còn cách đọc tiếng Việt: chuỗi `keep` (giữ 
 4. **Không cấp phát trong lõi gõ**: Beam, `Children`, `keeps` cấp một lần lúc tạo `Compose`. Chạy lại `examples/prof` khi sửa `compose/`.
 5. **Backspace ≡ quay về trạng thái phím trước** (hoặc phát lại phím trừ chữ vừa xoá). Khi từ đang hiện chữ thô, xoá một chữ là xoá đúng một phím (`serv⌫` → `ser`).
 6. **Khôi phục tiếng Anh là một bảng thứ tự cố định** (`restore.rs`, ~12 hàng, dừng ở hàng đầu khớp). Không thêm luật theo từng từ; thêm bằng chứng chung hoặc dữ liệu.
-8. **Dấu không nhảy trong từ không còn là tiếng Việt**: khi không còn cách đọc đúng, dấu giữ nguyên trên nguyên âm nó đang đứng (`háaa` + `e` → `háaae`, không thành `haáae`). Còn là tiếng Việt thì ngữ pháp đặt dấu như thường (`hoa`+`i` → `hoái`). Vị trí lưu ở `Parse::tone_at`.
+8. **Dấu không nhảy trong từ không còn là tiếng Việt**: khi không còn cách đọc đúng, dấu giữ nguyên trên nguyên âm nó đang đứng (`háaa` + `e` → `háaae`, không thành `haáae`). Còn là tiếng Việt thì ngữ pháp đặt dấu như thường (`hoa`+`i` → `hoái`). Vị trí lưu ở `Parse::tone_at`. Hoàn tác một biến đổi (dấu mũ, móc) đưa từ về trạng thái trước biến đổi đó, nên dấu cũng về lại chỗ cũ: `mùa` + `a` → `muầ`, + `a` → `mùaa` (dấu ở `u`, không ở chữ `a` đầu).
 7. **Từ tiếng Việt hợp lệ có trong `vi.dic` không bao giờ bị trả về chữ thô** trừ khi có bằng chứng tiếng Anh mạnh (xem hàng 6).
 
 ## Dữ liệu
@@ -65,6 +65,7 @@ Sửa `vi.dic` hoặc `names.dic`: chạy `python3 scripts/gen/phonology_tables.
 | `cargo run --release --features engine_v2 --example try -- telex_ar "vieetj_nam_"` | thử nhanh (`_` dấu cách, `<` backspace) |
 | `cargo run --release --features engine_v2 --example dbg -- repea` | cách đọc thắng ở từng phím |
 | `cargo run --release --features engine_v2 --example trace -- telex,free,ar hasaaaaaae` | màn hình sau từng phím (cờ `vni`, `ar`, `free`, `nw`): xem đúng trải nghiệm lúc gõ |
+| `cargo run --release --features engine_v2 --example stretch -- [ar] < core/tests/data/vietnamese_telex_pairs.txt` | kéo dài nguyên âm cuối của từng âm tiết có dấu (`mùa` + `aaaa`), đếm số lần dấu đổi chỗ; chỉ tin các chuỗi gõ chuẩn (dấu ngay sau nguyên âm hoặc cuối từ) |
 | `cargo run --release --features engine_v2 --example jumps -- ar free < core/src/data/english_dict_merged.txt` | đếm từ có dấu bị nhảy vị trí khi gõ tiếp |
 
 Đo hiệu năng: máy dùng chung thì wall-clock vô nghĩa; `prof` dùng CPU time, lấy tốt nhất trong 25 lượt. Build hai binary (có/không `engine_v2`) vào hai thư mục riêng rồi chạy xen kẽ.

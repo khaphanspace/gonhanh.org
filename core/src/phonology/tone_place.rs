@@ -43,6 +43,8 @@ pub fn tone_index(units: &[Unit], modern: bool) -> Option<usize> {
                         0
                     }
                 }
+                // uyê: the tone is on the ê that is still to come (chuyền, not chuỳen then chuyền)
+                3 if (nuc[0].ch, nuc[1].ch, nuc[2].ch) == (b'u', b'y', b'e') => 2,
                 // oai oay oeo oao uya uyu: the middle vowel; a run that is not a Vietnamese
                 // nucleus (aaae, four vowels) keeps the tone on its first vowel, so it does not
                 // jump while more letters arrive
@@ -51,7 +53,7 @@ pub fn tone_index(units: &[Unit], modern: bool) -> Option<usize> {
                     (b'o', b'a', b'i' | b'o' | b'y')
                         | (b'o', b'e', b'o')
                         | (b'u', b'a', b'i' | b'o' | b'y')
-                        | (b'u', b'y', b'a' | b'e' | b'u')
+                        | (b'u', b'y', b'a' | b'u')
                         | (b'u', b'o', b'i' | b'u')
                         | (b'i' | b'y', b'e', b'u')
                 ) =>
