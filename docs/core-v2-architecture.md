@@ -50,8 +50,19 @@ Hiển thị khi không còn cách đọc tiếng Việt: chuỗi `keep` (giữ 
 | `data/dictionaries/names.dic` | tên riêng ngoài luật (kạn, kông, krông…) | chỉ lúc sinh `tables.rs` |
 | `data/dictionaries/vi-non-syllables.txt` | mục của vi.dic không phải âm tiết | sinh bảng, audit |
 | `data/dictionaries/keep.dic` | từ luôn giữ nguyên | `build.rs` → `KEEP` |
-| `data/english_dict_merged.txt` | từ tiếng Anh | `build.rs` → `EN` |
-| `data/telex_doubles.txt` | từ Anh chứa chữ đôi kiểu Telex | `build.rs` → `DOUBLES` |
+| `data/dictionaries/en/*.txt` | từ tiếng Anh, **mỗi loại một file**: `general` (từ thông dụng), `tech` (thuật ngữ lập trình/UI/hạ tầng), `brands` (tên sản phẩm, công ty), `chat` (từ hay gặp khi chat/làm việc) | `build.rs` gộp mọi `*.txt` (chữ thường, bỏ trùng) → `EN` |
+| `data/telex_doubles.txt` | từ Anh chứa chữ đôi kiểu Telex (danh sách lịch sử của `general`); từ có chữ đôi trong các file `en/` khác được `build.rs` tự thêm | `build.rs` → `DOUBLES` |
+
+### Thêm từ tiếng Anh
+
+Muốn engine nhận ra thêm từ (không đoán theo từng từ), thêm vào đúng file trong `core/src/data/dictionaries/en/` hoặc tạo file `*.txt` mới cho một loại mới (`#` bắt đầu ghi chú, mỗi dòng một từ chữ thường a–z). Không phải sửa code, không phải sửa chỗ thứ hai. Kiểm tra:
+
+| Lệnh | Cho biết |
+|---|---|
+| `cargo test --features engine_v2 --test suite dictionary_sources -- --nocapture` | mỗi file đúng định dạng, không trùng giữa các file; **độ phủ từng file**: bao nhiêu từ gõ ra đúng nguyên dạng (tối đa 10% đổi) và liệt kê từ bị đổi (thường do trùng âm tiết `vi.dic`: `toast`→`toát`) |
+| `make gate-v2`, `scripts/test/dict.sh` | từ điển tiếng Việt vẫn 100%, tiếng Anh không tụt |
+
+Từ trùng âm tiết tiếng Việt trong `vi.dic` vẫn ưu tiên tiếng Việt (quy tắc của bảng restore); thêm từ vào từ điển không đổi điều đó.
 
 Sửa `vi.dic` hoặc `names.dic`: chạy `python3 scripts/gen/phonology_tables.py`; `make gate` kiểm bằng `--check`.
 

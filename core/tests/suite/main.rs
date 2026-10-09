@@ -7,6 +7,7 @@ mod bug_reports_test;
 mod checked_tone_stop_final_test;
 mod common;
 mod compose_diff;
+mod dictionary_sources;
 mod disabled_shortcut_test;
 mod dynamic_test;
 #[cfg(feature = "engine_v2")]

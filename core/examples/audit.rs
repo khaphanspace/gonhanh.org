@@ -178,7 +178,7 @@ mod en_compound {
     use std::collections::HashSet;
 
     pub fn run() {
-        let words: Vec<String> = std::fs::read_to_string("src/data/english_dict_merged.txt")
+        let words: Vec<String> = std::fs::read_to_string("src/data/dictionaries/en/general.txt")
             .unwrap()
             .lines()
             .filter(|w| w.len() >= 3 && w.chars().all(|c| c.is_ascii_lowercase()))
@@ -239,7 +239,7 @@ mod free_cost {
         b[0] as f64 * 1e9 + (b[1] & 0xFFFF_FFFF) as f64 * 1e3
     }
     pub fn run() {
-        let words: Vec<String> = std::fs::read_to_string("src/data/english_dict_merged.txt")
+        let words: Vec<String> = std::fs::read_to_string("src/data/dictionaries/en/general.txt")
             .unwrap()
             .lines()
             .filter(|w| w.is_ascii() && w.len() > 1)
@@ -290,7 +290,7 @@ mod spin {
         let path = if vn {
             "tests/data/vietnamese_telex_pairs.txt"
         } else {
-            "src/data/english_dict_merged.txt"
+            "src/data/dictionaries/en/general.txt"
         };
         let words: Vec<String> = std::fs::read_to_string(path)
             .unwrap()
