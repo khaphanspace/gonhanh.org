@@ -23,7 +23,7 @@ rstest = "0.18"
 serial_test = "3.0"
 
 [profile.release]
-opt-level = "z"          # Optimize for size
+opt-level = 3            # Speed: measured 20-33% less CPU per key than "z", and not larger (macOS app 11.25 -> 11.17 MB)
 lto = true               # Link-time optimization
 codegen-units = 1        # Better optimization
 strip = true             # Strip symbols

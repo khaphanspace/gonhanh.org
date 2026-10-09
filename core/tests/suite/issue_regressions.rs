@@ -461,20 +461,27 @@ fn free_typing_does_not_add_rewrites_to_english_words() {
     }
 }
 
-/// Typing the tone key twice cancels the tone at once, in every mode and without a space:
+/// Typing the tone key twice cancels the tone at once, in every mode and without a space (a word
+/// of the English dictionary, like "tess", is shown as typed while auto-restore is on):
 /// the word on screen is already the cancelled one (tesst → test), not the raw letters.
 #[test]
 fn a_doubled_key_cancels_without_waiting_for_a_space() {
     for mode in [Telex, TelexAr, TelexFree, TelexFreeAr] {
         for (typed, want) in [
             ("tesst", "test"),
-            ("tess", "tes"),
             ("wws", "ws"),
-            ("aaa", "aa"),
+            ("eee", "ee"),
             ("dddd", "ddd"),
         ] {
             let got = type_word(&mut engine(mode), typed);
             assert_eq!(got, want, "{mode:?} {typed:?}");
         }
+    }
+}
+
+#[test]
+fn a_doubled_key_cancels_in_modes_without_english_guard() {
+    for mode in [Telex, TelexFree] {
+        assert_eq!(type_word(&mut engine(mode), "tess"), "tes", "{mode:?}");
     }
 }

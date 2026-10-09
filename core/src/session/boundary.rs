@@ -44,7 +44,7 @@ impl Session {
             &self.word,
             self.english_restore,
             self.foreign_initials(),
-            || self.free_tone && self.english_restore && self.looks_english(true),
+            || self.free_tone && self.english_restore && self.is_english(true),
         ) {
             // the screen may still show the typed letters (English guard): finish as Vietnamese
             Decision::Keep => self.word.kept_display(),

@@ -73,7 +73,7 @@ Người gõ tự do viết tắt hoặc tên riêng có **phụ âm đầu lạ
 | Coda lạ hoặc cụm nguyên âm lạ không có cách đọc tự do: giữ như đã gõ | `ads`→`ads`, `expect`→`expect`, `haaas` |
 | Có cách đọc đúng ngữ pháp thì thắng cách đọc tự do | `wa`→`ưa`, `wm`→`ưm` |
 | Từ tiếng Anh đúng từ điển thắng cách đọc có phụ âm đầu lạ (bật khôi phục) | `west`, `were`, `warm`, `foresee` giữ nguyên; `wes`→`wé` vì không phải từ Anh |
-| Gõ liền nhiều âm tiết: tự tách tại chỗ không còn đọc được, trừ khi là tiền tố từ tiếng Anh | `xinchaof`→`xinchào`, `thuwrgoxTieengsVieetj`→`thửgõTiếngViệt`; `expect`, `thanks` giữ nguyên. Ghép ngẫu nhiên 2 từ tiếng Việt gõ liền: 1,1% đúng khi tắt Gõ tự do, 88,1% khi bật; ghép 2 từ tiếng Anh: số từ bị đổi chỉ do Gõ tự do giảm 3.206 → 47 trên 4.000 (`example en_compound`) (còn lại chủ yếu từ sau bắt đầu bằng phím dấu `s r x f j`) |
+| Gõ liền nhiều âm tiết: tự tách tại chỗ không còn đọc được, trừ khi là tiền tố từ tiếng Anh | `xinchaof`→`xinchào`, `thuwrgoxTieengsVieetj`→`thửgõTiếngViệt`; `expect`, `thanks` giữ nguyên. Ghép ngẫu nhiên 2 từ tiếng Việt gõ liền: 1,1% đúng khi tắt Gõ tự do, 88,1% khi bật; ghép 2 từ tiếng Anh: số từ bị đổi chỉ do Gõ tự do giảm 3.206 → 47 trên 4.000 (`audit en_compound`) (còn lại chủ yếu từ sau bắt đầu bằng phím dấu `s r x f j`) |
 | Dấu không nhảy trong từ không còn là tiếng Việt | `hasaaaaaae`: `háaaaaae`, dấu đứng yên trên `a` đầu |
 
 Đo trên 17.641 từ Anh khi bật Gõ tự do + khôi phục: từ bị đổi 397 → 405 so với không bật Gõ tự do (trước khi sửa: dấu nhảy ở 629 từ, giờ 151; phần còn lại là chuyển vần Việt hợp lệ như `lìe`→`liè`).

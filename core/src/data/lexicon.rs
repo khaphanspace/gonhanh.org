@@ -10,6 +10,8 @@ use std::cmp::Ordering;
 pub struct WordList {
     blob: &'static [u8],
     idx: &'static [u8],
+    /// first entry not smaller than each pair of first letters (676 + 1 little-endian u32)
+    bkt: &'static [u8],
 }
 
 macro_rules! list {
@@ -17,6 +19,7 @@ macro_rules! list {
         WordList {
             blob: include_bytes!(concat!(env!("OUT_DIR"), "/", $name, ".blob")),
             idx: include_bytes!(concat!(env!("OUT_DIR"), "/", $name, ".idx")),
+            bkt: include_bytes!(concat!(env!("OUT_DIR"), "/", $name, ".bkt")),
         }
     };
 }
@@ -55,8 +58,27 @@ impl WordList {
         &self.blob[self.offset(i)..self.offset(i + 1) - 1]
     }
 
+    /// The slice of entries that can start with `key`: its pair of first letters picks a bucket.
+    #[inline]
+    fn bucket(&self, key: &[u8]) -> (usize, usize) {
+        if let [a @ b'a'..=b'z', b @ b'a'..=b'z', ..] = *key {
+            let k = (a - b'a') as usize * 26 + (b - b'a') as usize;
+            let at = |i: usize| {
+                u32::from_le_bytes([
+                    self.bkt[4 * i],
+                    self.bkt[4 * i + 1],
+                    self.bkt[4 * i + 2],
+                    self.bkt[4 * i + 3],
+                ]) as usize
+            };
+            (at(k), at(k + 1))
+        } else {
+            (0, self.len())
+        }
+    }
+
     fn search(&self, key: &[u8]) -> bool {
-        let (mut lo, mut hi) = (0, self.len());
+        let (mut lo, mut hi) = self.bucket(key);
         while lo < hi {
             let mid = (lo + hi) / 2;
             match self.entry(mid).cmp(key) {
@@ -77,33 +99,22 @@ impl WordList {
     /// once into a stack buffer, not once per probe.
     pub fn contains_lower(&self, word: &str) -> bool {
         let mut buf = [0u8; 128];
-        let mut n = 0;
-        for c in word.chars() {
-            for l in c.to_lowercase() {
-                if n + l.len_utf8() > buf.len() {
-                    return false; // longer than any entry
-                }
-                n += l.encode_utf8(&mut buf[n..]).len();
-            }
+        match lower_into(word, &mut buf) {
+            Some(n) => self.search(&buf[..n]),
+            None => false, // longer than any entry
         }
-        self.search(&buf[..n])
     }
 
     /// Whether some entry starts with `prefix` (lower-cased like `contains_lower`).
     pub fn has_prefix_lower(&self, prefix: &str) -> bool {
         let mut buf = [0u8; 128];
-        let mut n = 0;
-        for c in prefix.chars() {
-            for l in c.to_lowercase() {
-                if n + l.len_utf8() > buf.len() {
-                    return false;
-                }
-                n += l.encode_utf8(&mut buf[n..]).len();
-            }
-        }
+        let Some(n) = lower_into(prefix, &mut buf) else {
+            return false;
+        };
         let key = &buf[..n];
-        // first entry that is not smaller than the prefix
-        let (mut lo, mut hi) = (0, self.len());
+        // first entry in the bucket that is not smaller than the prefix
+        let (mut lo, mut hi) = self.bucket(key);
+        let end = hi;
         while lo < hi {
             let mid = (lo + hi) / 2;
             if self.entry(mid) < key {
@@ -112,8 +123,33 @@ impl WordList {
                 hi = mid;
             }
         }
-        lo < self.len() && self.entry(lo).starts_with(key)
+        lo < end && self.entry(lo).starts_with(key)
     }
+}
+
+/// `word` lower-cased into `buf`; `None` when it does not fit. ASCII needs no Unicode tables.
+#[inline]
+fn lower_into(word: &str, buf: &mut [u8; 128]) -> Option<usize> {
+    if word.is_ascii() {
+        let b = word.as_bytes();
+        if b.len() > buf.len() {
+            return None;
+        }
+        for (d, s) in buf.iter_mut().zip(b) {
+            *d = s.to_ascii_lowercase();
+        }
+        return Some(b.len());
+    }
+    let mut n = 0;
+    for c in word.chars() {
+        for l in c.to_lowercase() {
+            if n + l.len_utf8() > buf.len() {
+                return None;
+            }
+            n += l.encode_utf8(&mut buf[n..]).len();
+        }
+    }
+    Some(n)
 }
 
 #[cfg(test)]
@@ -129,6 +165,26 @@ mod tests {
             for i in 1..list.len() {
                 assert!(list.entry(i - 1) < list.entry(i), "unsorted at {i}");
             }
+        }
+    }
+
+    #[test]
+    fn buckets_agree_with_a_plain_binary_search() {
+        for list in [&EN, &VI, &KEEP, &DOUBLES] {
+            for i in 0..list.len() {
+                let w = std::str::from_utf8(list.entry(i)).unwrap();
+                assert!(list.contains(w), "{w} lost by its bucket");
+                // every prefix of a stored word is found as a prefix
+                let lower = w.to_lowercase();
+                if lower == w {
+                    for k in 1..=w.len().min(6) {
+                        if w.is_char_boundary(k) {
+                            assert!(list.has_prefix_lower(&w[..k]), "{w}[..{k}]");
+                        }
+                    }
+                }
+            }
+            assert!(!list.contains("zzzzqq") && !list.has_prefix_lower("zzzzqq"));
         }
     }
 

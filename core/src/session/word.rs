@@ -111,8 +111,7 @@ impl Session {
         if self.free_tone
             && self.english_restore
             && self.word.needs_free_typing()
-            && !self.word.cancelled()
-            && self.looks_english(false)
+            && self.begins_english_word()
         {
             next = render_raw(self.word.raw());
         }
@@ -120,20 +119,29 @@ impl Session {
         Self::emit(&prev, &next, typed)
     }
 
-    /// The letters typed so far are English: one word, several words stuck together
-    /// (helloworld), or words ending in the start of one (helloworl). Words of four letters or
-    /// more only, so short Vietnamese syllables are not mistaken for English. No heap.
-    pub(super) fn looks_english(&self, compound_only: bool) -> bool {
-        use crate::data::lexicon::EN;
-        let mut buf = [0u8; MAXK];
+    /// The typed letters as text, on the stack.
+    fn typed_letters<'a>(&self, buf: &'a mut [u8; MAXK]) -> &'a str {
         let raw = self.word.raw();
         for (b, k) in buf.iter_mut().zip(raw) {
             *b = k.ch;
         }
-        let n = raw.len();
-        let Ok(text) = std::str::from_utf8(&buf[..n]) else {
-            return false;
-        };
+        std::str::from_utf8(&buf[..raw.len()]).unwrap_or("")
+    }
+
+    /// The typed letters are one English word or the start of one (a single lookup).
+    fn begins_english_word(&self) -> bool {
+        let mut buf = [0u8; MAXK];
+        crate::data::lexicon::EN.has_prefix_lower(self.typed_letters(&mut buf))
+    }
+
+    /// The typed letters are English: one word, the start of one, or words stuck together
+    /// (helloworld, helloworl). Parts are four letters or more, so short Vietnamese syllables are
+    /// not mistaken for English words.
+    pub(super) fn is_english(&self, compound_only: bool) -> bool {
+        use crate::data::lexicon::EN;
+        let mut buf = [0u8; MAXK];
+        let text = self.typed_letters(&mut buf);
+        let n = text.len();
         // the common case first: one word, or the start of one
         if !compound_only && EN.has_prefix_lower(text) {
             return true;
@@ -157,63 +165,70 @@ impl Session {
     /// modifiers then only reach the syllable being typed. Left alone (`None`) when the letters
     /// start an English word (auto-restore on) or cannot be split into syllables.
     fn cut_run(&mut self, prev: &Display) -> Option<Out> {
+        // an English word is never split, whether or not auto-restore is on
+        if self.is_english(false) {
+            return None;
+        }
         let n = self.word.len();
         let mut keys = [RawKey { ch: 0, caps: false }; MAXK];
         keys[..n].copy_from_slice(self.word.raw());
-        // an English word is never split, whether or not auto-restore is on
-        if self.looks_english(false) {
-            return None;
+        let free = self.options();
+        let split = self.split_into_syllables(&keys[..n]);
+        // the word is the probe: put it back to the typed keys, or to the last syllable
+        let start = split.as_ref().map_or(0, |(_, start)| *start);
+        self.word.update_options(free);
+        self.word.clear();
+        for k in &keys[start..n] {
+            self.word.push(*k);
         }
-        // One scratch word for every probe. Free typing relaxes the beginning of the word only
-        // (khphá): every later syllable must be Vietnamese as it stands, and a closed syllable has
-        // at least two letters. Otherwise English words stuck together (helloworld) would be
-        // chopped into pieces that merely look like syllables.
+        let (mut closed, _) = split?;
+        self.screen = self.word.display();
+        closed.extend_from_slice(self.screen.as_slice());
+        Some(Out::send(prev.len, &closed))
+    }
+
+    /// The text of the finished syllables of `keys` and where the last one starts. Free typing
+    /// relaxes the beginning of the word only (khphá): every later syllable must be Vietnamese as
+    /// it stands, and a closed syllable has at least two letters. Otherwise English words stuck
+    /// together (helloworld) would be chopped into pieces that merely look like syllables. Uses
+    /// the word itself as the probe (no second typing core); the caller restores it.
+    fn split_into_syllables(&mut self, keys: &[RawKey]) -> Option<(Vec<char>, usize)> {
         let free = self.options();
         let native = crate::compose::Options {
             free: false,
             foreign_initials: false,
             ..free
         };
-        let mut scratch = crate::compose::Compose::new(free);
-        let load = |c: &mut crate::compose::Compose, part: &[RawKey], first: bool| {
-            c.update_options(if first { free } else { native });
-            c.clear();
+        let (english, foreign) = (self.english_restore, self.foreign_initials());
+        let load = |w: &mut crate::compose::Compose, part: &[RawKey], first: bool| {
+            w.update_options(if first { free } else { native });
+            w.clear();
             for k in part {
-                c.push(*k);
+                w.push(*k);
             }
         };
-        let (english, foreign) = (self.english_restore, self.foreign_initials());
         let mut closed: Vec<char> = Vec::new();
         let mut start = 0;
         loop {
-            load(&mut scratch, &keys[start..n], start == 0);
-            if scratch.alive() {
+            load(&mut self.word, &keys[start..], start == 0);
+            if self.word.alive() {
                 break;
             }
-            let end = (start + 1..n).rev().find(|&e| {
-                load(&mut scratch, &keys[start..e], start == 0);
-                scratch.finished() && scratch.display().len >= 2
+            let end = (start + 1..keys.len()).rev().find(|&e| {
+                load(&mut self.word, &keys[start..e], start == 0);
+                self.word.finished() && self.word.display().len >= 2
             })?;
-            load(&mut scratch, &keys[start..end], start == 0);
+            load(&mut self.word, &keys[start..end], start == 0);
             // a closed syllable gets the verdict it would get at a space
-            let text = match decide(&scratch, english, foreign, || false) {
-                Decision::Keep => scratch.kept_display(),
-                Decision::Raw => render_raw(scratch.raw()),
+            let text = match decide(&self.word, english, foreign, || false) {
+                Decision::Keep => self.word.kept_display(),
+                Decision::Raw => render_raw(self.word.raw()),
                 Decision::Squeezed(d) => d,
             };
             closed.extend_from_slice(text.as_slice());
             start = end;
         }
-        if start == 0 {
-            return None;
-        }
-        self.word.clear();
-        for k in &keys[start..n] {
-            self.word.push(*k);
-        }
-        self.screen = self.word.display();
-        closed.extend_from_slice(self.screen.as_slice());
-        Some(Out::send(prev.len, &closed))
+        (start > 0).then_some((closed, start))
     }
 
     /// Telex: a capital after a lower-case run starts a new case segment (`useEffect`): the

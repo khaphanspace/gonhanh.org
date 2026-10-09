@@ -2,7 +2,9 @@
 //!
 //! Each list becomes `<name>.blob` (sorted words, each followed by '\n') and `<name>.idx`
 //! (little-endian u32 offsets, n+1 entries). Lookups binary-search the blob in place:
-//! no HashSet, no heap, no first-keystroke initialisation (src/data/lexicon.rs).
+//! no HashSet, no heap, no first-keystroke initialisation (src/data/lexicon.rs). `<name>.bkt`
+//! holds, for each pair of first letters (aa..zz), the first entry that is not smaller than the
+//! pair: a lookup starts in a slice of about 25 entries instead of the whole list.
 //! Entries are kept exactly as written in the source files (case included).
 
 use std::{env, fs, path::PathBuf};
@@ -28,6 +30,15 @@ fn main() {
             blob.push(b'\n');
         }
         idx.extend((blob.len() as u32).to_le_bytes());
+        // bucket table: first entry >= each pair of lower-case letters, then the list length
+        let mut bkt = Vec::new();
+        for pair in 0..26 * 26 {
+            let key = [b'a' + (pair / 26) as u8, b'a' + (pair % 26) as u8];
+            let at = words.partition_point(|w| w.as_bytes() < &key[..]);
+            bkt.extend((at as u32).to_le_bytes());
+        }
+        bkt.extend((words.len() as u32).to_le_bytes());
+        fs::write(out.join(format!("{name}.bkt")), bkt).unwrap();
         fs::write(out.join(format!("{name}.blob")), blob).unwrap();
         fs::write(out.join(format!("{name}.idx")), idx).unwrap();
     }

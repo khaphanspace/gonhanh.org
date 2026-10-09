@@ -14,6 +14,17 @@ use std::cell::{Cell, RefCell};
 
 const BEAM: usize = 8;
 
+/// Readings are ranked by one integer: validity tier first, then the parser's score, then the
+/// order the readings were produced. A tier is `TIER` wide, so the adjustments below move a
+/// reading by a fraction of a tier or by whole tiers without touching the score.
+const TIER: i64 = 1_000_000;
+/// A reading that only a guess supports (free-typing ư, the other reading of a stretch).
+const GUESS: i64 = TIER / 2;
+/// A modifier the user cancelled on purpose outranks a guess of the same tier.
+const CANCEL_BONUS: i64 = GUESS;
+/// A reading ranked this far below its tier is a name prefix: kept alive, never shown.
+const WEAK_KEY: i64 = -(TIER - TIER / 10);
+
 #[derive(Clone, Copy)]
 struct Beam {
     live: [Parse; BEAM],
@@ -48,6 +59,10 @@ pub struct Compose {
     keep_upto: Cell<usize>,
     /// after a Backspace over a word shown as typed: keep showing the letters as typed
     pin_literal: Cell<bool>,
+    /// The keys typed so far as plain letters, built one key at a time (`lit_len` keys of `raw`).
+    /// Words shown as typed ask for it on every key.
+    lit: RefCell<Parse>,
+    lit_len: Cell<usize>,
 }
 
 impl Compose {
@@ -61,6 +76,8 @@ impl Compose {
             keeps: RefCell::new([Parse::empty(); MAXK + 1]),
             keep_upto: Cell::new(0),
             pin_literal: Cell::new(false),
+            lit: RefCell::new(Parse::empty()),
+            lit_len: Cell::new(0),
         }
     }
 
@@ -78,6 +95,7 @@ impl Compose {
         self.len = 0;
         self.keep_upto.set(0);
         self.pin_literal.set(false);
+        self.lit_len.set(0);
     }
 
     pub fn len(&self) -> usize {
@@ -104,6 +122,10 @@ impl Compose {
             return false;
         }
         self.pin_literal.set(false);
+        // the cached letters include the slot this key is about to overwrite
+        if self.lit_len.get() > self.len {
+            self.lit_len.set(0);
+        }
         if literal_only {
             // a replayed word has no other reading: its keep chain is the letters themselves
             self.ensure_keep();
@@ -132,13 +154,19 @@ impl Compose {
         true
     }
 
-    /// The first `upto` keys exactly as typed (never pruned).
+    /// The first `upto` keys exactly as typed (never pruned). Extends the cached letters by the
+    /// keys typed since the last call; starts over when the word got shorter.
     fn literal_parse(&self, upto: usize) -> Parse {
-        let mut p = Parse::empty();
-        for (i, k) in self.raw[..upto].iter().enumerate() {
-            p.push_literal(i, k.ch);
+        let mut lit = self.lit.borrow_mut();
+        if self.lit_len.get() > upto || self.lit_len.get() == 0 {
+            *lit = Parse::empty();
+            self.lit_len.set(0);
         }
-        p
+        for i in self.lit_len.get()..upto {
+            lit.push_literal(i, self.raw[i].ch);
+        }
+        self.lit_len.set(upto);
+        *lit
     }
 
     /// Bring `keeps` up to the current key.
@@ -267,11 +295,6 @@ impl Compose {
         b.n > 0 && !b.weak
     }
 
-    /// A modifier of the best reading was cancelled on purpose (ss, ww, aaa).
-    pub fn cancelled(&self) -> bool {
-        self.alive() && self.best().reverted
-    }
-
     /// The best reading is Vietnamese only because free typing or foreign initials allow it
     /// (west → wét): weak evidence, which an English word may overrule.
     pub fn needs_free_typing(&self) -> bool {
@@ -371,21 +394,16 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
     for p in &prev.live[..prev.n] {
         kids.n = 0;
         extend(p, i, key, o, kids);
-        let stretch = stretches_toned_word(p, key, &pho);
-        // a circumflex that came after the tone (mùa + a → muầ) is only the other reading of a
-        // stretch: the next same vowel lengthens the stretch, it does not cancel that circumflex
-        let tone_then_circ = i > 0
-            && p.roles[i - 1] == Role::Circ
-            && p.roles[..i - 1].contains(&Role::Tone)
-            && nucleus_len(p.units()) >= 2
-            && validate(p.units(), p.tone, &pho) != Validity::Complete;
-        for child in &kids.items[..kids.n] {
-            if tone_then_circ && child.roles[i] == Role::Revert {
+        let stretch = Stretch::of(p, i, key, &pho);
+        for child in &mut kids.items[..kids.n] {
+            let role = child.roles[i];
+            // the other reading of a stretch cancels nothing: the next vowel lengthens the stretch
+            if stretch == Stretch::OfCircumflex && role == Role::Revert {
                 continue;
             }
             order += 1;
             let validity = validate(child.units(), child.tone, &pho);
-            let rank = match validity {
+            let tier = match validity {
                 Validity::Complete => 2,
                 Validity::Prefix => 1,
                 Validity::NamePrefix => -1,
@@ -394,70 +412,94 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 // A cancelled modifier makes the word literal on purpose (aaa → aa, ass → as):
                 // never Vietnamese, still kept, ranked below every Vietnamese reading.
                 Validity::Invalid
-                    if child.reverted && matches!(child.roles[i], Role::Revert | Role::Literal) =>
+                    if child.reverted && matches!(role, Role::Revert | Role::Literal) =>
                 {
                     0
                 }
                 // the same vowel again after a toned word is a stretch (mùaaa)
-                Validity::Invalid if stretch && child.roles[i] == Role::Literal => 0,
+                Validity::Invalid if stretch == Stretch::OfWord && role == Role::Literal => 0,
                 Validity::Invalid => continue,
             };
-            // Free typing: a lone w is a consonant (wé, wl) unless the ư reading is grammatical
-            // (a cancelled ư is a plain w again: nothing to penalize)
-            let w_as_vowel_loosely = validity == Validity::Loose
+            let mut k = tier * TIER + child.score as i64 * 100 - order;
+            // free typing: a lone w is a consonant (wé, wl) unless the ư reading is grammatical
+            // (a cancelled ư is a plain w again)
+            if validity == Validity::Loose
                 && !child.reverted
-                && child.roles[..=i].contains(&Role::BaseHorn);
-            let mut penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
+                && child.roles[..=i].contains(&Role::BaseHorn)
+            {
+                k -= GUESS;
+            }
             // a circumflex reading that is not a word yet (muầ, waiting for a coda) stays alive for
-            // bafan → bần but is not what is shown while the stretch reading exists; one that is a
-            // word (bồ, ấ) wins as it always did
-            if stretch && child.roles[i] != Role::Literal && validity != Validity::Complete {
-                penalty += 2_000_000;
+            // bafan → bần but is not shown while the stretch reading exists; one that is a word
+            // (bồ, ấ) wins as it always did
+            if stretch == Stretch::OfWord && role != Role::Literal && validity != Validity::Complete
+            {
+                k -= 2 * TIER;
             }
-            // a cancel the user typed on purpose (ww, ddd) outranks a free-typing guess of the same
-            // rank, so the word keeps following the cancelled reading (wws → ws, dddd → ddd)
-            let cancel_bonus = if child.reverted && rank == 0 {
-                500_000
-            } else {
-                0
-            };
-            let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty + cancel_bonus;
-            let mut c = *child;
+            // a cancel typed on purpose (ww, ddd) outranks a free-typing guess of the same tier, so
+            // the word keeps following the cancelled reading (wws → ws, dddd → ddd)
+            if child.reverted && tier == 0 {
+                k += CANCEL_BONUS;
+            }
             if validity == Validity::Invalid {
-                c.freeze_tone(p, o.modern_tone, c.roles[i] == Role::Revert);
+                child.freeze_tone(p, o.modern_tone, role == Role::Revert);
             } else {
-                c.release_tone();
+                child.release_tone();
             }
-            insert(&mut next.live, &mut ranks, &mut tn, k, &c);
+            insert(&mut next.live, &mut ranks, &mut tn, k, child);
         }
     }
     next.n = tn;
-    // only a name prefix (rank -1, key near -1_000_000) is weak; a bare literal word has a small negative key
-    next.weak = tn > 0 && ranks[0] <= -900_000;
+    // only a name prefix is weak; a bare literal word has a small negative key
+    next.weak = tn > 0 && ranks[0] <= WEAK_KEY;
 }
 
-/// The key repeats the last vowel of a diphthong in a word that already carries a tone and is a
-/// finished syllable (mùa + a) or is already being stretched (mùaa + a). Typing the tone first and the
-/// circumflex later (bafan → bần) is possible too, so the circumflex reading is kept in the beam
-/// and only the display prefers the stretch.
-fn stretches_toned_word(p: &Parse, key: RawKey, pho: &Pho) -> bool {
-    let units = p.units();
-    let Some(last) = units.last() else {
-        return false;
-    };
-    if p.tone == Tone::Ngang
-        || !last.is_vowel()
-        || last.ch != key.ch
-        || last.md != Mod::None
-        || last.stroke
-    {
-        return false;
+/// How the key relates to a stretched syllable (mùaaa, vàooo). Typing the tone first and the
+/// circumflex later (bafan → bần) is possible too, so the circumflex reading stays in the beam and
+/// only the display prefers the stretch.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stretch {
+    No,
+    /// The key repeats the last vowel of a diphthong in a toned word that is a finished syllable
+    /// (mùa + a) or already stretched (mùaa + a).
+    OfWord,
+    /// The reading is the circumflex one of such a stretch (muầ): the key repeats its letter.
+    OfCircumflex,
+}
+
+impl Stretch {
+    fn of(p: &Parse, i: usize, key: RawKey, pho: &Pho) -> Stretch {
+        // cheap tests first: this runs for every reading of every key
+        if p.tone == Tone::Ngang && i > 0 && p.roles[i - 1] != Role::Circ {
+            return Stretch::No;
+        }
+        let units = p.units();
+        if p.tone != Tone::Ngang {
+            if let Some(last) = units.last() {
+                // a lone vowel keeps its extended form (hara → hẩ, afa → ầ); only the end of a
+                // diphthong (mùa, hòa) is stretched
+                if last.is_vowel()
+                    && last.ch == key.ch
+                    && last.md == Mod::None
+                    && !last.stroke
+                    && nucleus_len(units) >= 2
+                    && (units[units.len() - 2] == *last
+                        || validate(units, p.tone, pho) == Validity::Complete)
+                {
+                    return Stretch::OfWord;
+                }
+            }
+        }
+        if i > 0
+            && p.roles[i - 1] == Role::Circ
+            && p.roles[..i - 1].contains(&Role::Tone)
+            && nucleus_len(units) >= 2
+            && validate(units, p.tone, pho) != Validity::Complete
+        {
+            return Stretch::OfCircumflex;
+        }
+        Stretch::No
     }
-    // a lone vowel keeps its extended form (hara → hẩ, afa → ầ); only the end of a diphthong
-    // (mùa, hòa) is stretched
-    let n = units.len();
-    nucleus_len(units) >= 2
-        && (units[n - 2] == *last || validate(units, p.tone, pho) == Validity::Complete)
 }
 
 /// Extend the "keep" reading: the best Vietnamese child; failing that a modifier whose intent
@@ -670,5 +712,44 @@ mod tests {
         c.pop();
         c.pop();
         assert_eq!(c.display().as_slice().iter().collect::<String>(), "viê");
+    }
+}
+
+#[cfg(test)]
+mod literal_cache_tests {
+    use super::*;
+
+    /// The cached letters always equal a fresh build, whatever pops, backspaces and clears came before.
+    #[test]
+    fn literal_parse_matches_a_fresh_build() {
+        let mut c = Compose::new(Options::default());
+        let mut seed = 7u32;
+        let mut next = || {
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            (seed >> 16) as usize
+        };
+        for _ in 0..4000 {
+            match next() % 7 {
+                0 => c.pop(),
+                1 => c.clear(),
+                2 => {
+                    c.backspace_char();
+                }
+                _ => {
+                    let ch = b"aeosrdwtn"[next() % 9];
+                    c.push(RawKey { ch, caps: false });
+                }
+            }
+            let upto = c.len();
+            let cached = c.literal_parse(upto);
+            let mut fresh = Parse::empty();
+            for (i, k) in c.raw().iter().enumerate() {
+                fresh.push_literal(i, k.ch);
+            }
+            assert!(
+                cached.units() == fresh.units() && cached.unit_key == fresh.unit_key,
+                "stale at {upto}"
+            );
+        }
     }
 }

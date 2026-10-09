@@ -68,10 +68,14 @@ Sửa `vi.dic` hoặc `names.dic`: chạy `python3 scripts/gen/phonology_tables.
 | `cargo run --release --features engine_v2 --example try -- telex_ar "vieetj_nam_"` | thử nhanh (`_` dấu cách, `<` backspace) |
 | `cargo run --release --features engine_v2 --example dbg -- repea` | cách đọc thắng ở từng phím |
 | `cargo run --release --features engine_v2 --example trace -- telex,free,ar hasaaaaaae` | màn hình sau từng phím (cờ `vni`, `ar`, `free`, `nw`): xem đúng trải nghiệm lúc gõ |
-| `cargo run --release --features engine_v2 --example stretch -- [ar] < core/tests/data/vietnamese_telex_pairs.txt` | kéo dài nguyên âm cuối của từng âm tiết có dấu (`mùa` + `aaaa`), đếm số lần dấu đổi chỗ; chỉ tin các chuỗi gõ chuẩn (dấu ngay sau nguyên âm hoặc cuối từ) |
-| `cargo run --release --features engine_v2 --example jumps -- ar free < core/src/data/english_dict_merged.txt` | đếm từ có dấu bị nhảy vị trí khi gõ tiếp |
+| `cargo run --release --features engine_v2 --example audit -- stretch < core/tests/data/vietnamese_telex_pairs.txt` | kéo dài nguyên âm cuối của từng âm tiết có dấu (`mùa` + `aaaa`), kiểm từng phím: chữ dài thêm một, dấu đứng yên, không dấu lạ chen giữa |
+| `... --example audit -- jumps ar free < core/src/data/english_dict_merged.txt` | đếm từ tiếng Anh có dấu bị đổi vị trí khi gõ tiếp |
+| `... --example audit -- runon free ar < core/tests/data/vietnamese_telex_pairs.txt` | ghép ngẫu nhiên 2 từ tiếng Việt gõ liền không dấu cách, đo tỉ lệ ra đúng |
+| `... --example audit -- en_compound` | ghép 2 từ tiếng Anh gõ liền, đếm từ bị Gõ tự do làm đổi |
+| `... --example audit -- free_cost` | CPU mỗi phím, số lần viết lại chữ, phím chậm nhất: gõ thường và Gõ tự do trên từ tiếng Anh |
+| `... --example audit -- spin [free] [vn]` | vòng gõ 12 giây để gắn trình đo (`sample`, Instruments) |
 
-Đo hiệu năng: máy dùng chung thì wall-clock vô nghĩa; `prof` dùng CPU time, lấy tốt nhất trong 25 lượt. Build hai binary (có/không `engine_v2`) vào hai thư mục riêng rồi chạy xen kẽ.
+Đo hiệu năng: máy dùng chung thì wall-clock vô nghĩa; `prof` dùng CPU time, lấy tốt nhất trong 25 lượt. So hai bản bằng cách chạy xen kẽ ≥ 20 lượt và lấy giá trị nhỏ nhất mỗi chỉ số; luôn chạy thêm một lần bản cũ lần hai để biết nhiễu (≈ 2%). Build hai binary (có/không `engine_v2`) vào hai thư mục riêng rồi chạy xen kẽ.
 
 ## Thêm một hành vi mới
 
