@@ -151,11 +151,11 @@ impl Session {
         ok[n] = true;
         for i in (0..n).rev() {
             ok[i] = EN.has_prefix_lower(&text[i..])
-                || (i + 4..=n).any(|j| ok[j] && EN.contains_lower(&text[i..j]));
+                || (i + 3..=n).any(|j| ok[j] && EN.contains_lower(&text[i..j]));
         }
         if compound_only {
             // at least two parts: a single word is the restore table's business
-            return (4..n).any(|j| ok[j] && EN.contains_lower(&text[..j]));
+            return (3..n).any(|j| ok[j] && EN.contains_lower(&text[..j]));
         }
         ok[0]
     }

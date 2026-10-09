@@ -86,7 +86,18 @@ fn free_initial(units: &[Unit], tone: Tone, strict: &Opts) -> bool {
     let Some(first) = units.iter().position(|u| u.is_vowel()) else {
         return true; // still typing the initial
     };
-    first > 0 && regular(&units[first..], tone, strict) != Validity::Invalid
+    if first == 0 {
+        return false;
+    }
+    // A native initial (ng, ch, k, r…) is not what free typing relaxes: if the syllable is wrong
+    // with it, the rhyme or the spelling is wrong (nginx: ng before i is ngh), not the initial.
+    let mut buf = [0u8; 3];
+    if let Some(len) = initial_bytes(&units[..first], &mut buf) {
+        if initial_status(&buf[..len], strict) != Validity::Invalid {
+            return false;
+        }
+    }
+    regular(&units[first..], tone, strict) != Validity::Invalid
 }
 
 /// Letters of the initial as bytes (`D` for a stroked d), at most 3.
@@ -543,6 +554,8 @@ mod tests {
             ("qcáo", Validity::Loose),
             ("khph", Validity::Loose),
             ("ád", Validity::Invalid),
+            // a native initial is never relaxed: ng + i is wrong spelling, not a foreign initial
+            ("ngĩn", Validity::Invalid),
             ("cảp", Validity::Invalid),
             ("ễp", Validity::Invalid),
         ] {
