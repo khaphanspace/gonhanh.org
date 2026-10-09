@@ -171,13 +171,9 @@ class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(freeTone, forKey: SettingsKey.freeTone)
             RustBridge.setFreeTone(freeTone)
-            RustBridge.setAllowForeignConsonants(allowForeignInitials)
+            // z, w, j, f as initials (zị, wé) are part of free typing, not a separate option
+            RustBridge.setAllowForeignConsonants(freeTone)
         }
-    }
-
-    /// z, w, j, f as initials (zị, wé): part of free typing, or the legacy option of an older version.
-    var allowForeignInitials: Bool {
-        freeTone || UserDefaults.standard.bool(forKey: SettingsKey.allowForeignConsonants)
     }
 
     @Published var toggleShortcut: KeyboardShortcut {
@@ -283,8 +279,11 @@ class AppState: ObservableObject {
             autoCapitalizeExcludedApps = Set(excludedApps)
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
-        // The separate "allow z, w, j, f" option has no switch any more (free typing includes it), but
-        // an upgrade must not turn free typing on: the old value keeps working through `allowForeignInitials`.
+        // The separate "allow z, w, j, f" option was folded into free typing: keep it for those who had it on.
+        if defaults.bool(forKey: SettingsKey.allowForeignConsonants) {
+            defaults.set(true, forKey: SettingsKey.freeTone)
+            defaults.set(false, forKey: SettingsKey.allowForeignConsonants)
+        }
         freeTone = defaults.bool(forKey: SettingsKey.freeTone)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
@@ -321,7 +320,7 @@ class AppState: ObservableObject {
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
         updateAutoCapitalizeEngine()
         RustBridge.setFreeTone(freeTone)
-        RustBridge.setAllowForeignConsonants(allowForeignInitials)
+        RustBridge.setAllowForeignConsonants(freeTone)
     }
 
     /// Update auto-capitalize engine state based on global setting and current app exclusion
