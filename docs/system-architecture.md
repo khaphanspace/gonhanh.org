@@ -254,6 +254,10 @@ Send: Unicode input event (replaces selection)
 | **2-3** | Backspace | Compound vowels, still fast | ⚡ OK - minimal delay |
 | **4+** | Backspace | Long shortcuts | ⚠️ May see brief flicker |
 
+#### Keys the hook never touches
+
+The event tap (active, HID level, `keyDown` + `flagsChanged`) returns the original event, before any AX query or engine work, for every key pressed with Command or Control that is not the toggle or restore shortcut (`isCommandOrControlCombo`). Other apps' global hotkeys (Carbon, MASShortcut) and menu shortcuts therefore see exactly what was pressed, with no added latency; such a combo also ends the current composition. Cursor keys with a modifier and Option+Backspace are handled the same way (clear the buffer, pass through) ahead of the AX lookup. If a global hotkey of another app still stops working while GoNhanh runs, create `/tmp/gonhanh_debug.log` (`touch`), press the hotkey and look for `keyDown: code=…`, `AX detect slow` and `tap disabled` lines.
+
 #### Where the per-app method and delays come from
 
 The macOS app asks the focused element for its role and owning app (one AX round trip, cached 200 ms and cleared on app switch), then looks the pair up in `platforms/macos/InjectionProfile.swift`:

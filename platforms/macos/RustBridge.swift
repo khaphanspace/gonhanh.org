@@ -1402,6 +1402,26 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
     RustBridge.clearBuffer()
 }
 
+/// Command and Control combinations are commands (menu shortcuts, other apps' global hotkeys),
+/// never typing: the keyboard hook leaves them alone and returns the original event.
+func isCommandOrControlCombo(_ flags: CGEventFlags) -> Bool {
+    flags.contains(.maskCommand) || flags.contains(.maskControl)
+}
+
+/// Keys that keep working after the restore shortcut ran (ESC closes dialogs, Tab moves focus...).
+private let restorePassthroughKeys: Set<CGKeyCode> = [
+    KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
+    KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
+    KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
+    KeyCode.forwardDelete,
+]
+
+/// Cursor-moving keys: with a modifier they end the current composition.
+private let navigationKeys: Set<UInt16> = [
+    UInt16(KeyCode.leftArrow), UInt16(KeyCode.rightArrow), UInt16(KeyCode.upArrow), UInt16(KeyCode.downArrow),
+    UInt16(KeyCode.home), UInt16(KeyCode.end), UInt16(KeyCode.pageUp), UInt16(KeyCode.pageDown),
+]
+
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon _: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
@@ -1549,14 +1569,17 @@ private func keyboardCallback(
     // Issue #275: Option-only (without Cmd/Ctrl) should NOT bypass IME for shortcuts
     // Option+Key produces special characters (e.g., Option+V → √) that can be shortcut triggers
     let hasOption = flags.contains(.maskAlternate)
-    let hasCmdOrCtrl = flags.contains(.maskCommand) || flags.contains(.maskControl)
-    let bypassIME = hasCmdOrCtrl
+    let hasCmdOrCtrl = isCommandOrControlCombo(flags)
 
     // Enter: submit and trigger auto-capitalize pending state
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
     // then clear buffer. Engine sets pending_capitalize when it sees Enter key.
     // Also handle auto-restore and shortcut results (same as ESC handling)
     if keyCode == 0x24 || keyCode == 0x4C { // Return (0x24) or Enter/Numpad (0x4C)
+        if hasCmdOrCtrl {
+            RustBridge.clearBufferAll()
+            return Unmanaged.passUnretained(event)
+        }
         if isDiscordFocusedContext() {
             RustBridge.clearBufferAll()
             return Unmanaged.passUnretained(event)
@@ -1564,7 +1587,7 @@ private func keyboardCallback(
 
         let (method, delays) = detectMethod()
 
-        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
             Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
@@ -1587,16 +1610,36 @@ private func keyboardCallback(
         // Only pass through special keys that should still function after restore
         // (ESC closes dialogs, Tab moves focus, Enter submits, etc.)
         // For letter/number keys with modifiers (Shift-Z, Option-Z), consume the event
-        let specialPassthroughKeys: Set<CGKeyCode> = [
-            KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
-            KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
-            KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
-            KeyCode.forwardDelete,
-        ]
-        if specialPassthroughKeys.contains(keyCode) {
+        if restorePassthroughKeys.contains(keyCode) {
             return Unmanaged.passUnretained(event) // Pass through special keys
         }
         return nil // Consume letter/number keys with modifiers
+    }
+
+    // Command/Control combinations are not typing. Return the original event at once, before any
+    // AX query or engine work: other apps' global hotkeys (Carbon / MASShortcut) and menu
+    // shortcuts must see exactly what was pressed, with no added latency. Any such combo also
+    // ends the current composition (Cmd+T/N/W switch tab or window, issue #365).
+    if hasCmdOrCtrl {
+        RustBridge.clearBufferAll()
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
+    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+Arrow: select
+    // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
+    // All of these invalidate the current composition context
+    let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
+    if navigationKeys.contains(keyCode), hasModifier {
+        RustBridge.clearBuffer()
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Issue #293: Option+Backspace deletes whole word at OS level
+    // Clear engine buffer so state doesn't become stale after word deletion
+    if keyCode == KeyCode.backspace, hasOption {
+        RustBridge.clearBuffer()
+        return Unmanaged.passUnretained(event)
     }
 
     // Detect injection method once per keystroke (expensive AX query)
@@ -1608,47 +1651,11 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
-    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+Arrow: select
-    // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
-    // All of these invalidate the current composition context
-    let navigationKeys: Set<UInt16> = [
-        UInt16(KeyCode.leftArrow), // 0x7B
-        UInt16(KeyCode.rightArrow), // 0x7C
-        UInt16(KeyCode.upArrow), // 0x7E
-        UInt16(KeyCode.downArrow), // 0x7D
-        UInt16(KeyCode.home), // 0x73
-        UInt16(KeyCode.end), // 0x77
-        UInt16(KeyCode.pageUp), // 0x74
-        UInt16(KeyCode.pageDown), // 0x79
-    ]
-    let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
-    if navigationKeys.contains(keyCode), hasModifier {
-        RustBridge.clearBuffer()
-        return Unmanaged.passUnretained(event)
-    }
-
-    // Pass through all Cmd+key shortcuts (Cmd+A, Cmd+C, Cmd+V, Cmd+X, Cmd+Z, etc.)
-    if flags.contains(.maskCommand), !flags.contains(.maskControl), !flags.contains(.maskAlternate) {
-        // Any Cmd+key shortcut invalidates the current composition context:
-        // Cmd+T/N/W switches tab/window, Cmd+A/V/X/Z modifies text, Cmd+1-9 switches tabs, etc.
-        // Issue #365: without this, buffer leaks across tab switches (Cmd+T) in browsers.
-        RustBridge.clearBufferAll()
-        return Unmanaged.passUnretained(event)
-    }
-
-    // Issue #293: Option+Backspace deletes whole word at OS level
-    // Clear engine buffer so state doesn't become stale after word deletion
-    if keyCode == KeyCode.backspace, hasOption {
-        RustBridge.clearBuffer()
-        return Unmanaged.passUnretained(event)
-    }
-
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
-    if keyCode == KeyCode.backspace, !bypassIME {
+    if keyCode == KeyCode.backspace {
         // First try Rust engine (handles immediate backspace-after-space)
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
             Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
             return nil
@@ -1685,7 +1692,7 @@ private func keyboardCallback(
 
     // Issue #275 + #307: Option+key → bypass Telex/VNI but still match shortcuts
     // Option+V produces √, pass actual char to engine for shortcut matching (ctrl=true skips transforms)
-    if hasOption, !hasCmdOrCtrl {
+    if hasOption {
         if let char = event.keyboardCharacter() {
             if let (bs, chars, keyConsumed) = RustBridge.processKey(
                 keyCode: keyCode, caps: caps, ctrl: true, shift: shift, char: char
@@ -1699,7 +1706,7 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
