@@ -254,6 +254,20 @@ Send: Unicode input event (replaces selection)
 | **2-3** | Backspace | Compound vowels, still fast | ⚡ OK - minimal delay |
 | **4+** | Backspace | Long shortcuts | ⚠️ May see brief flicker |
 
+#### Where the per-app method and delays come from
+
+The macOS app asks the focused element for its role and owning app (one AX round trip, cached 200 ms and cleared on app switch), then looks the pair up in `platforms/macos/InjectionProfile.swift`:
+
+```
+focusedElementInfo() → (role, bundleId)
+InjectionProfiles.resolve(bundleId, role) → InjectionProfile { method, delays, tag }   pure, first rule wins
+   passthrough (iPhone Mirroring, remote desktop) → role selection (combo, search) → Spotlight → Safari
+   → browsers → JetBrains text field → Office → Electron → editors/terminals → char-by-char apps → games → default
+profile.applying(perAppConfig) → the user's Advanced overrides (method, delay preset)
+```
+
+`Delays` holds the five delay levels (µs after each backspace, after the last backspace, after each text chunk) and is the single source for both detection and the Advanced slider (`DelayPreset`). The table is covered by `Tests/InjectionProfileTests.swift`. To support a new app: add its bundle id to the matching set (or one rule) there and a test line.
+
 #### App Compatibility Matrix
 
 **Legend:** ✅ OK | ⚠️ Sometimes issues | ❌ Known issues

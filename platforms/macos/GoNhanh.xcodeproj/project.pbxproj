@@ -22,6 +22,8 @@
 		A1000001000000000000010 /* InputSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000010 /* InputSourceManager.swift */; };
 		ADVSET001 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADVSET002 /* AdvancedSettingsView.swift */; };
 		PACMOD001 /* PerAppConfigModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = PACMOD002 /* PerAppConfigModels.swift */; };
+		IPROF001 /* InjectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPROF002 /* InjectionProfile.swift */; };
+		IPROF003 /* InjectionProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPROF004 /* InjectionProfileTests.swift */; };
 		LOGVWR001 /* LogViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGVWR002 /* LogViewer.swift */; };
 		APKRSH001 /* AppPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = APKRSH002 /* AppPickerSheet.swift */; };
 		B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000001 /* KeyboardShortcutTests.swift */; };
@@ -57,6 +59,8 @@
 		A1000002000000000000010 /* InputSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceManager.swift; sourceTree = "<group>"; };
 		ADVSET002 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
 		PACMOD002 /* PerAppConfigModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerAppConfigModels.swift; sourceTree = "<group>"; };
+		IPROF002 /* InjectionProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InjectionProfile.swift; sourceTree = "<group>"; };
+		IPROF004 /* InjectionProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InjectionProfileTests.swift; sourceTree = "<group>"; };
 		LOGVWR002 /* LogViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewer.swift; sourceTree = "<group>"; };
 		APKRSH002 /* AppPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPickerSheet.swift; sourceTree = "<group>"; };
 		UPDATECHK002 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
@@ -101,6 +105,7 @@
 				A100000200000000000000F /* MainSettingsView.swift */,
 				ADVSET002 /* AdvancedSettingsView.swift */,
 				PACMOD002 /* PerAppConfigModels.swift */,
+				IPROF002 /* InjectionProfile.swift */,
 				LOGVWR002 /* LogViewer.swift */,
 				APKRSH002 /* AppPickerSheet.swift */,
 				SPECIALPANEL002 /* SpecialPanelAppDetector.swift */,
@@ -126,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000002000000000000001 /* KeyboardShortcutTests.swift */,
+				IPROF004 /* InjectionProfileTests.swift */,
 				B1000002000000000000002 /* LaunchAtLoginTests.swift */,
 				B1000002000000000000003 /* SoundManagerTests.swift */,
 			);
@@ -247,6 +253,7 @@
 				A100000100000000000000F /* MainSettingsView.swift in Sources */,
 				ADVSET001 /* AdvancedSettingsView.swift in Sources */,
 				PACMOD001 /* PerAppConfigModels.swift in Sources */,
+				IPROF001 /* InjectionProfile.swift in Sources */,
 				LOGVWR001 /* LogViewer.swift in Sources */,
 				APKRSH001 /* AppPickerSheet.swift in Sources */,
 				SPECIALPANEL001 /* SpecialPanelAppDetector.swift in Sources */,
@@ -259,6 +266,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */,
+				IPROF003 /* InjectionProfileTests.swift in Sources */,
 				B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */,
 				B1000001000000000000003 /* SoundManagerTests.swift in Sources */,
 			);
