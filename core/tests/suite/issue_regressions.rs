@@ -431,3 +431,28 @@ fn tone_stays_when_the_last_vowel_is_stretched() {
         }
     }
 }
+
+/// Free typing must not make English words flicker more than normal typing: a reading that only
+/// free typing allows (west → wét) is not shown while the letters still begin an English word.
+#[test]
+fn free_typing_does_not_add_rewrites_to_english_words() {
+    let rewrites = |mode: Mode, word: &str| -> usize {
+        let mut e = engine(mode);
+        word.chars()
+            .map(|c| {
+                e.on_key_ext(gonhanh_core::utils::char_to_key(c), false, false, false)
+                    .backspace as usize
+            })
+            .sum()
+    };
+    for word in [
+        "west", "were", "warm", "wasp", "foresee", "thanks", "hello", "expect", "zoo", "fix",
+        "file", "jazz", "brass", "first", "world", "fresh", "wrote", "flow", "jump", "zero",
+    ] {
+        let (free, normal) = (rewrites(TelexFreeAr, word), rewrites(TelexAr, word));
+        assert!(
+            free <= normal + 1,
+            "{word:?}: {free} rewrites in free mode, {normal} normally"
+        );
+    }
+}

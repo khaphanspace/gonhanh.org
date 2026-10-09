@@ -103,9 +103,29 @@ impl Session {
                 return out;
             }
         }
-        let next = self.word.display();
+        let mut next = self.word.display();
+        // A reading that only free typing allows (west → wét) is shown as typed while the letters
+        // still begin an English word: no mark appears and disappears again at the space.
+        if self.free_tone
+            && self.english_restore
+            && self.begins_english_word()
+            && self.word.needs_free_typing()
+        {
+            next = crate::compose::render::render_raw(self.word.raw());
+        }
         self.screen = next;
         Self::emit(&prev, &next, typed)
+    }
+
+    /// The letters typed so far are the beginning of an English word (no heap).
+    fn begins_english_word(&self) -> bool {
+        let mut buf = [0u8; MAXK];
+        let raw = self.word.raw();
+        for (b, k) in buf.iter_mut().zip(raw) {
+            *b = k.ch;
+        }
+        std::str::from_utf8(&buf[..raw.len()])
+            .is_ok_and(|s| crate::data::lexicon::EN.has_prefix_lower(s))
     }
 
     /// Free typing, several syllables typed without a space (xinchaof, thuwrgoxTieengsVieetj):
@@ -116,27 +136,24 @@ impl Session {
         let n = self.word.len();
         let mut keys = [RawKey { ch: 0, caps: false }; MAXK];
         keys[..n].copy_from_slice(self.word.raw());
-        if self.english_restore {
-            let raw: String = keys[..n].iter().map(|k| k.ch as char).collect();
-            if crate::data::lexicon::EN.has_prefix_lower(&raw) {
-                return None;
-            }
+        // an English word is never split, whether or not auto-restore is on
+        if self.begins_english_word() {
+            return None;
         }
-        let opts = self.options();
-        let probe = |part: &[RawKey]| {
-            let mut c = crate::compose::Compose::new(opts);
+        // one scratch word for every probe
+        let mut scratch = crate::compose::Compose::new(self.options());
+        let mut probe = |part: &[RawKey]| {
+            scratch.clear();
             for k in part {
-                c.push(*k);
+                scratch.push(*k);
             }
-            c
+            (scratch.alive(), scratch.finished(), scratch.display())
         };
         let mut closed: Vec<char> = Vec::new();
         let mut start = 0;
-        while !probe(&keys[start..n]).alive() {
-            let end = (start + 1..n)
-                .rev()
-                .find(|&e| probe(&keys[start..e]).finished())?;
-            closed.extend_from_slice(probe(&keys[start..end]).display().as_slice());
+        while !probe(&keys[start..n]).0 {
+            let end = (start + 1..n).rev().find(|&e| probe(&keys[start..e]).1)?;
+            closed.extend_from_slice(probe(&keys[start..end]).2.as_slice());
             start = end;
         }
         if start == 0 {

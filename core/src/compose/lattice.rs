@@ -267,6 +267,23 @@ impl Compose {
         b.n > 0 && !b.weak
     }
 
+    /// The best reading is Vietnamese only because free typing or foreign initials allow it
+    /// (west → wét): weak evidence, which an English word may overrule.
+    pub fn needs_free_typing(&self) -> bool {
+        if !self.alive() {
+            return false;
+        }
+        let p = self.best();
+        let native = Pho {
+            foreign_initials: false,
+            free: false,
+            names: true,
+            lenient: true,
+            at_end: false,
+        };
+        validate(p.units(), p.tone, &native) == Validity::Invalid
+    }
+
     /// The best reading is a finished syllable (free typing counts): the word could end here.
     pub fn finished(&self) -> bool {
         if !self.alive() {
