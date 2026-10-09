@@ -241,12 +241,18 @@ pub fn decide(
         if EN.contains_lower(shown) || KEEP.contains_lower(shown) {
             return Decision::Keep;
         }
-        // English words stuck together keep every letter (grassesrailway, not grasesrailway)
-        if english_run() {
-            return Decision::Raw;
-        }
         // the cancel came late (ararat → arat): letters went missing, it was never a double-press
         if p.late_revert {
+            return Decision::Raw;
+        }
+        // the cancelled form is a word of the reference list and the typed letters are not one
+        // (dissconnect → disconnect): the user doubled a key to cancel it, and two words that
+        // happen to fit the letters (diss + connect) are no reason to keep the double
+        if REF.knows_inflected(shown) && !DOUBLES.contains(raw) && !raw_en() {
+            return Decision::Keep;
+        }
+        // English words stuck together keep every letter (grassesrailway, not grasesrailway)
+        if english_run() {
             return Decision::Raw;
         }
         return if DOUBLES.contains(raw) || (!tone_letter && raw_en()) {

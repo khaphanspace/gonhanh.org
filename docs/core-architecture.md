@@ -90,6 +90,7 @@ Sửa `vi.dic` hoặc `names.dic`: chạy `python3 scripts/gen/phonology_tables.
 | `cargo run --release --example audit -- stretch < core/tests/data/vietnamese_telex_pairs.txt` | kéo dài nguyên âm cuối của từng âm tiết có dấu (`mùa` + `aaaa`), kiểm từng phím: chữ dài thêm một, dấu đứng yên, không dấu lạ chen giữa |
 | `... --example audit -- jumps ar free < core/src/data/english_dict_merged.txt` | đếm từ tiếng Anh có dấu bị đổi vị trí khi gõ tiếp |
 | `... --example audit -- runon free ar < core/tests/data/vietnamese_telex_pairs.txt` | ghép ngẫu nhiên 2 từ tiếng Việt gõ liền không dấu cách, đo tỉ lệ ra đúng |
+| `cargo run --release --example cancel_audit -- [free] < words.txt` | gõ từng từ tiếng Anh với phím dấu gõ đôi ngay sau nguyên âm đã bị đặt dấu (`dis` + `s` + `connect`), đếm từ không trở về đúng chính tả |
 | `... --example audit -- en_compound` | ghép 2 từ tiếng Anh gõ liền, đếm từ bị Gõ tự do làm đổi |
 | `... --example audit -- free_cost` | CPU mỗi phím, số lần viết lại chữ, phím chậm nhất: gõ thường và Gõ tự do trên từ tiếng Anh |
 | `... --example audit -- spin [free] [vn]` | vòng gõ 12 giây để gắn trình đo (`sample`, Instruments) |
