@@ -1,4 +1,4 @@
-//! Where does V2 time go? best-of-N ns per key for each layer. `cargo run -q --release --features engine_v2 --example prof`
+//! Where does the time go? best-of-N ns per key for each layer. `cargo run -q --release --example prof`
 use gonhanh_core::compose::{diff::diff, Compose, Display, Options, RawKey};
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::char_to_key;

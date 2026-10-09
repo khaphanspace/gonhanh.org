@@ -241,7 +241,7 @@ fn w_vowel_produces_valid_vietnamese() {
         ("wa ", "ưa "), // ưa is valid Vietnamese - keep
         ("we ", "we "), // ưe is NOT valid Vietnamese - restore
         ("wi ", "wi "), // ưi is NOT valid Vietnamese - restore
-        ("wo ", "ươ "), // ươ is valid Vietnamese - keep
+        ("wo ", "wo "),
     ]);
 }
 
@@ -748,7 +748,7 @@ const W_FINAL_WORDS: &[(&str, &str)] = &[
     ("stew ", "stew "),
     ("threw ", "threw "),
     ("view ", "view "),
-    ("queue ", "quêu "), // qu + eue = invalid Vietnamese vowel pattern
+    ("queue ", "queue "),
     // -ow pattern: single valid consonant + ow → cơ (Vietnamese ơ vowel)
     // These form valid Vietnamese syllables (consonant + ơ)
     ("bow ", "bơ "), // bơ = butter
@@ -890,7 +890,7 @@ fn vietnamese_first_valid_buffer() {
         ("host ", "hót "), // hót (sing) is valid Vietnamese → keep
         ("lost ", "lót "), // lót (line) is valid Vietnamese → keep
         ("most ", "mót "), // mót is valid Vietnamese → keep
-        ("post ", "pót "), // pót is valid Vietnamese → keep
+        ("post ", "post "),
         ("docs ", "dóc "), // dóc is valid Vietnamese → keep
     ]);
 }

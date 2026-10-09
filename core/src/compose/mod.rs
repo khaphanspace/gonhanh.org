@@ -1,4 +1,4 @@
-//! Typing core v2: raw keys in, display text out. Pure and allocation-free.
+//! Typing core: raw keys in, display text out. Pure and allocation-free.
 //!
 //! One word = a fixed array of raw keys. Every ambiguous key (a e o w d s f r x j z, VNI digits)
 //! is either a letter or a modifier; instead of deciding greedily and undoing later, `Compose`

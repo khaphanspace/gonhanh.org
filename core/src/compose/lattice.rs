@@ -691,7 +691,7 @@ mod tests {
 
     #[test]
     fn invalid_vietnamese_keeps_the_marks_typed_while_valid() {
-        // restore at the word boundary (session) decides whether English wins
+        // restore at the word boundary (engine) decides whether English wins
         assert_eq!(t("text"), "tẽt");
         assert_eq!(t("taiw"), "taiw");
         assert_eq!(t("tawis"), "tắi");

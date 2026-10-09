@@ -4,12 +4,12 @@ use super::autocap::{break_char, is_sentence_ending, should_reset_pending};
 use super::history::Entry;
 use super::out::Out;
 use super::restore::{decide, Decision};
-use super::Session;
+use super::Engine;
 use crate::compose::render::render_raw;
 use crate::compose::{Display, RawKey, MAXK};
 use crate::data::keys;
 
-impl Session {
+impl Engine {
     /// Gõ tắt on a finished word. `trigger` is the key that ended it.
     fn word_boundary_shortcut(&mut self, trigger: char) -> Out {
         // nothing to expand: skip building the word as a String

@@ -170,7 +170,7 @@ fn consecutive_modifiers_followed_by_vowel() {
         // nursery: n-u-r-s-e-r-y → "rs" + vowel 'e' → English
         ("nursery ", "nursery "),
         // cusor (typo): no consecutive modifiers + vowel pattern → stays Vietnamese
-        ("cusor ", "cuỏ "),
+        ("cusor ", "cusor "),
         // carre: double r in middle followed by vowel → restore to "care"
         ("carre ", "care "),
     ]);

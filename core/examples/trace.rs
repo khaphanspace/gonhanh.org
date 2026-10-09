@@ -1,4 +1,4 @@
-//! Screen after every key: `cargo run -q --features engine_v2 --example trace -- [telex|vni][,ar][,free][,nw][,old] word...`
+//! Screen after every key: `cargo run -q --example trace -- [telex|vni][,ar][,free][,nw][,old] word...`
 //! `_` is space, `<` is backspace. Shows what the user sees while typing, not just the end result.
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;

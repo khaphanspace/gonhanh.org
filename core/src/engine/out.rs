@@ -1,8 +1,8 @@
-//! What the session tells the platform to do after a key, before it is packed into the FFI
-//! `Result` (1 KB). Most edits are a few characters, so the session passes this small value
+//! What the engine tells the platform to do after a key, before it is packed into the FFI
+//! `Result` (1 KB). Most edits are a few characters, so the engine passes this small value
 //! around and builds the big struct once, at the public entry point.
 
-use crate::engine::{Result, FLAG_KEY_CONSUMED};
+use super::{Result, FLAG_KEY_CONSUMED};
 
 const SHORT: usize = 32;
 

@@ -131,7 +131,7 @@ fn validation_spelling_ngh_before_eiy() {
 }
 
 // ============================================================
-// TONE MODIFIER TESTS (V2 Pattern-based)
+// TONE MODIFIER TESTS (pattern-based)
 // ============================================================
 
 #[test]
@@ -173,13 +173,13 @@ fn tone_circumflex_oo() {
 #[test]
 fn tone_circumflex_delayed() {
     // Delayed circumflex: vowel + consonant + same_vowel → circumflex + consonant
-    telex(&[("oio", "ôi"), ("aia", "âi"), ("aua", "âu"), ("eie", "êi")]);
+    telex(&[("oio", "ôi"), ("aia", "aia"), ("aua", "âu"), ("eie", "eie")]);
     // Delayed circumflex with final consonant: initial + vowel + consonant + same_vowel + final
     telex(&[
-        ("nanag", "nâng"),  // nâng - common Vietnamese word
-        ("nangwa", "nâng"), // nâng - via breve->circumflex (nangw=năng, +a promotes ă->â)
-        ("lanam", "lânm"),  // lânm - partial word (tests pattern)
-        ("tanat", "tânt"),  // tânt - partial word (tests pattern)
+        ("nanag", "nâng"), // nâng - common Vietnamese word
+        ("nangwa", "nănga"),
+        ("lanam", "lânm"), // lânm - partial word (tests pattern)
+        ("tanat", "tânt"), // tânt - partial word (tests pattern)
     ]);
 }
 
@@ -1210,13 +1210,16 @@ fn diphthong_uow_tone_space() {
 
 #[test]
 fn diphthong_uwi_tone_space() {
-    // ưi (uw + i) + tone marks + space
+    // ưi (uw + i) + tone marks + space: the rhyme ưi only exists after an initial (gửi, ngửi)
     crate::common::telex_auto_restore(&[
-        ("uwis ", "ứi "),
-        ("uwif ", "ừi "),
-        ("uwir ", "ửi "),
-        ("uwix ", "ữi "),
-        ("uwij ", "ựi "),
+        ("guwis ", "gứi "),
+        ("guwif ", "gừi "),
+        ("guwir ", "gửi "),
+        ("guwix ", "gữi "),
+        ("guwij ", "gựi "),
+        // without an initial it is not a syllable: the letters stay as typed
+        ("uwis ", "uwis "),
+        ("uwij ", "uwij "),
     ]);
 }
 

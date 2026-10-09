@@ -1,4 +1,4 @@
-//! Quick probe: `cargo run -q --example try [--features engine_v2] -- telex|vni|telex_ar|vni_ar word...`
+//! Quick probe: `cargo run -q --example try -- telex|vni|telex_ar|vni_ar word...`
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 

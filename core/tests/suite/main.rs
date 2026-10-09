@@ -6,11 +6,9 @@ mod auto_restore_dynamic_test;
 mod bug_reports_test;
 mod checked_tone_stop_final_test;
 mod common;
-mod compose_diff;
 mod dictionary_sources;
 mod disabled_shortcut_test;
 mod dynamic_test;
-#[cfg(feature = "engine_v2")]
 mod engine_fuzz;
 mod engine_test;
 mod english_100k_test;
@@ -22,7 +20,6 @@ mod foreign_consonants_test;
 mod golden_digest;
 mod integration_test;
 mod issue_387_backspace_correction_test;
-#[cfg(feature = "engine_v2")]
 mod issue_regressions;
 mod issue_uo_horn_test;
 mod issue_w_path_test;

@@ -1,5 +1,5 @@
 //! Display change → what the platform must do: delete `backspace` chars, type `chars`.
-//! One function replaces every hand-counted "+1 backspace" of engine v1.
+//! One function computes the backspace count and the new text, so no caller counts by hand.
 
 use super::render::Display;
 use super::MAXK;

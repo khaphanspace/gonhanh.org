@@ -2,11 +2,11 @@
 
 use super::autocap::break_char;
 use super::out::Out;
-use super::Session;
+use super::Engine;
 use crate::data::keys;
 use crate::utils;
 
-impl Session {
+impl Engine {
     pub(super) fn disabled_key(&mut self, key: u16, caps: bool, shift: bool) -> Out {
         self.word.clear();
         self.screen = crate::compose::Display::empty();

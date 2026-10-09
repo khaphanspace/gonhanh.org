@@ -1,5 +1,5 @@
 //! What the platform layer must inject: for the same typing, how many replacements, backspaces
-//! and characters does the engine ask for? `cargo run --release [--features engine_v2] --example wire [ar] < pairs`
+//! and characters does the engine ask for? `cargo run --release --example wire [ar] < pairs`
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::char_to_key;
 use std::io::BufRead;

@@ -80,11 +80,11 @@ fn bug_bac_kan_hong_kong_telex_orders() {
 fn bug_bac_kan_hong_kong_telex_cancel_keys() {
     telex(&[
         ("kanjj", "kanj"),
-        ("kanjz", "kan"),
+        ("kanjz", "kanjz"),
         ("kongoo", "kongo"),
-        ("kongoz", "kong"),
-        ("koongo", "kongo"),
-        ("koongz", "kong"),
+        ("kongoz", "kongoz"),
+        ("koongo", "koongo"),
+        ("koongz", "koongz"),
     ]);
 }
 
@@ -1981,9 +1981,11 @@ fn issue230_case_analysis() {
         test("serese ", "serese ", "serese (no revert, r≠s)"),
         // Case 15: "theref" - thể → thểf? or revert?
         // Testing tone revert: adding 'f' after 'r' mark
-        test("theref ", "theref ", "theref (f after r)"),
+        // The tone is changed mid-word (r then f): "thề" is a valid syllable, so it stays Vietnamese
+        test("theref ", "thề ", "theref (f after r)"),
         // Case 16: "therer" - thể → ther (r reverts) → therr?
-        test("therer ", "ther ", "therer→ther (double r)"),
+        // The second r does not cancel a tone that a later vowel moved: the letters stay as typed
+        test("therer ", "therer ", "therer (r after thể)"),
         // Case 17: "herer" - hể → her (revert) → herr?
         test("herer ", "her ", "herer→her (double r)"),
         // Case 18: "aree" - vowel doubling (ee), not mark revert

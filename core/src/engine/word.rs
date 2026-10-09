@@ -2,7 +2,7 @@
 
 use super::out::Out;
 use super::restore::{decide, Decision};
-use super::{keymap, Session};
+use super::{keymap, Engine};
 use crate::compose::diff::diff;
 use crate::compose::parse::Role;
 use crate::compose::render::render_raw;
@@ -14,7 +14,7 @@ fn is_vowel_key(k: RawKey) -> bool {
     matches!(k.ch, b'a' | b'e' | b'i' | b'o' | b'u' | b'y')
 }
 
-impl Session {
+impl Engine {
     /// Result for a change of the shown word. A plain typed letter is left to the platform
     /// (pass-through); everything else rewrites the tail.
     fn emit(prev: &Display, next: &Display, typed: char) -> Out {

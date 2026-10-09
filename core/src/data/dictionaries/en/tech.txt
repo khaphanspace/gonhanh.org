@@ -1,6 +1,6 @@
 # English technical terms: programming, UI, DevOps, data. One lowercase word per line (a-z only).
 # Adding a word = supporting it, no code change. Files in this directory are merged into one
-# English dictionary at build time (core/build.rs). Check the effect with `make gate-v2`.
+# English dictionary at build time (core/build.rs). Check the effect with `make gate`.
 # --- UI components and design
 popover
 tooltip

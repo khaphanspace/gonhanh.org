@@ -1,22 +1,22 @@
-# Issue coverage: V2 so với 251 issue của dự án
+# Issue coverage: lõi gõ so với 251 issue của dự án
 
 Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (240 đóng, 11 mở). Phân nhóm theo **tầng gây lỗi**, vì mỗi tầng được bảo vệ bằng một cách khác nhau.
 
-| Nhóm | Số issue | Tầng | V2 bảo đảm bằng | Kết luận |
+| Nhóm | Số issue | Tầng | Lõi gõ bảo đảm bằng | Kết luận |
 |---|---|---|---|---|
 | A. Gõ tiếng Việt sai (thứ tự phím, dấu, `đ`, `ươ`, chữ hoa) | 46 | lõi gõ | dấu là hàm của chữ cuối cùng (không phụ thuộc thứ tự), ngữ pháp sinh từ `vi.dic`; `issue_regressions` + từ điển 22k mọi thứ tự + `typing_order_permutation` | **Đã chặn** |
 | B. Auto-restore tiếng Anh sai (mất/thừa chữ: `simss`, `conssole`, `Therere`, `mussic`, `momoo`) | 34 | lõi gõ (restore) | một bảng quyết định ở ranh giới từ; chữ gõ được tính từ phím thô nên không thể nhân đôi chữ; EN 100k, `issue_regressions` | **Đã chặn** các ca đã báo; còn từ Anh đọc ra âm tiết VN hợp lệ (`this`→`thí`) |
 | C. Backspace / sửa từ / dán lại | 12 | lõi gõ + app | backspace ≡ quay về trạng thái phím trước; trạng thái ghim khi từ đang hiện chữ thô; bão phím 900k không lỗi | **Đã chặn** phần lõi; phần tiêm phím (Cmd+A, Option+Backspace) thuộc app |
-| D. Gõ tắt | 22 | session | dùng lại `shortcut.rs` của V1 (không đổi), vòng đời mới có test (tắt IME, dấu câu, sau backspace, `->`) | **Giữ nguyên hành vi V1**; không có test riêng cho từng issue UI |
-| E. Tự viết hoa | 6 | session | `autocap.rs` + `auto_capitalize_test` | Đã chặn phần engine; loại trừ app thuộc app |
-| F. Phím tắt bật/tắt, input source, âm thanh | 28 | Swift (macOS) | không đổi bởi V2 | **Ngoài phạm vi engine** |
-| G. Tương thích app (Terminal, Claude Code, Firefox URL, Spotlight, Notion, Excel, trình duyệt…) | 60 | Swift: cách tiêm phím, AX | không đổi bởi V2 | **Ngoài phạm vi engine**; V2 làm kết quả của lõi nhanh hơn và đúng, nhưng lỗi mất chữ do tiêm phím vẫn tồn tại |
+| D. Gõ tắt | 22 | engine | `shortcut.rs`, vòng đời có test (tắt IME, dấu câu, sau backspace, `->`) | Không có test riêng cho từng issue UI |
+| E. Tự viết hoa | 6 | engine | `autocap.rs` + `auto_capitalize_test` | Đã chặn phần engine; loại trừ app thuộc app |
+| F. Phím tắt bật/tắt, input source, âm thanh | 28 | Swift (macOS) | không thuộc lõi gõ | **Ngoài phạm vi engine** |
+| G. Tương thích app (Terminal, Claude Code, Firefox URL, Spotlight, Notion, Excel, trình duyệt…) | 60 | Swift: cách tiêm phím, AX | không thuộc lõi gõ | **Ngoài phạm vi engine**; lõi gõ cho kết quả đúng và nhanh, nhưng lỗi mất chữ do tiêm phím vẫn tồn tại |
 | H. Cài đặt / cập nhật / ký code / quyền / Linux / hiệu năng hệ thống | 29 | build, hệ điều hành | không đổi | **Ngoài phạm vi engine** |
 | I. Yêu cầu tính năng | 14 | nhiều tầng | xem bảng dưới | Một phần |
 
-## Nhóm A: các nguyên nhân gốc và cách V2 chặn
+## Nhóm A: các nguyên nhân gốc và cách lõi gõ chặn
 
-| Nguyên nhân gốc (V1) | Issue | V2 |
+| Nguyên nhân gốc | Issue | Cách chặn |
 |---|---|---|
 | Dấu/mũ phụ thuộc thứ tự gõ (`ddwocj` ra `đưọc`, `duod`, `xuatas`, `neues`, `hieuer`, `vietes`) | #14 #24 #29 #124 #136 #172 #182 #183 #259 | Mỗi phím là chữ hoặc dấu; ngữ pháp loại cách đọc sai; dấu đặt trên âm tiết hoàn chỉnh. `compose_diff` kiểm mọi thứ tự trên 22k từ |
 | `ươ`, `uơ`, `ưa` (`twong`, `giow`, `muwa`, `Quoiws`, `giuaw`) | #29 #74 #99 #106 #151 #243 | `ư`+`o` thành `ươ`; `uô`+`w` thành `ươ` |
@@ -28,7 +28,7 @@ Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (
 
 ## Nhóm B: nguyên nhân gốc
 
-| Nguyên nhân gốc (V1) | Issue | V2 |
+| Nguyên nhân gốc | Issue | Cách chặn |
 |---|---|---|
 | Hoàn tác dấu kép rồi còn thừa chữ (`sims`→`simss`, `console`→`conssole`, `Therere`, `mussic`, `bussiness`, `momo`→`momoo`, `fomo`) | #131 #142 #193 #230 #296 #337 #348 #355 #356 #367 #427 | Chữ hiển thị tính lại từ chuỗi phím thô, không giữ danh sách chữ riêng; `momo` ra `môm` (không nhân đôi `o`) |
 | Mất chữ khi từ tiếng Anh bị đọc như tiếng Việt (`respect`, `await`, `metric`, `cursor`, `view`, `useEffect`) | #15 #115 #116 #145 #147 #410 | bảng quyết định: từ không đọc được thành VN trả về chữ thô; mất ≥ 2 chữ do dấu bị ăn thì trả thô |
@@ -40,13 +40,13 @@ Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (
 
 | Issue | Tình trạng |
 |---|---|
-| #356 `mos`+space | V2 ra `mó` (đúng VN). Báo cáo là `moss` do hoàn tác sai, đã hết |
-| #211 chữ kéo dài `áaaa`, `nhéee` | V2 giữ chữ kéo dài khi từ VN hợp lệ sau khi thu gọn; ca `a`+`s`+`aaa` chưa có test, V1 cũng không đạt |
+| #356 `mos`+space | ra `mó` (đúng VN). Báo cáo là `moss` do hoàn tác sai, đã hết |
+| #211 chữ kéo dài `áaaa`, `nhéee` | giữ chữ kéo dài khi từ VN hợp lệ sau khi thu gọn; ca `a`+`s`+`aaa` chưa có test |
 | #359 gõ tự do không theo chính tả (`khphá`, `qcáo`, `wé`) | **đã có** (`free_tone`): ngữ pháp thắng trước, tự do chỉ là dự phòng nên `wes`→`wé` khi bật phụ âm ngoại và từ VN đúng không đổi; test `issue_regressions`. App macOS chưa có nút bật (chỉ có cầu FFI `ime_free_tone`). Còn thiếu phím tạm tắt bằng Ctrl/Cmd (#360) |
 | #393 `kông`, `kưng`, `kăng`, `zạ` | `kông` có (names.dic); `Kơ/Kư/Kă` chưa đưa vào vì chưa xác minh; `z j f w` bằng tuỳ chọn phụ âm ngoại |
-| #180 #316 Simple Telex | **đã có**: tắt "Gõ W thành Ư" (`skip_w_shortcut`); V2 chạy cùng test |
+| #180 #316 Simple Telex | **đã có**: tắt "Gõ W thành Ư" (`skip_w_shortcut`) |
 | #232 `zị` | có với tuỳ chọn phụ âm ngoại |
-| Từ Anh = âm tiết VN hợp lệ (`this`, `rest`, `giro`) | cần từ điển EN lớn hơn, xem `docs/behavior-changes.md` |
+| Từ Anh = âm tiết VN hợp lệ (`this`, `rest`, `giro`) | cần từ điển EN lớn hơn (xem "Thêm từ tiếng Anh" trong [core-architecture.md](core-architecture.md)) |
 
 
 ## Gõ tự do: các bộ gõ lâu đời làm gì, Gõ Nhanh làm gì
@@ -106,8 +106,8 @@ Không issue mở nào là lỗi của lõi: #349 (Dvorak), #374 (hai user macOS
 
 ## Bộ test chặn tái phát
 
-- `core/tests/suite/issue_regressions.rs`: 100 ca, mỗi ca ghi số issue; chỉ chạy với `--features engine_v2` (V1 sai 2 ca: #197, #410; V2 sai 0).
-- `typing_order_permutation_test`, `compose_diff`, `phonology_audit`, từ điển 22k và EN 100k: các lớp lỗi theo thứ tự phím và ngữ pháp.
+- `core/tests/suite/issue_regressions.rs`: 100 ca, mỗi ca ghi số issue.
+- `typing_order_permutation_test`, `phonology_audit`, từ điển 22k và EN 100k: các lớp lỗi theo thứ tự phím và ngữ pháp.
 - `engine_fuzz`: 900k phím ngẫu nhiên, không panic và không xin xoá quá một từ.
 
 Muốn thêm một lỗi mới: thêm một dòng `(issue, chế độ, gõ gì, kỳ vọng)` vào `CASES`.

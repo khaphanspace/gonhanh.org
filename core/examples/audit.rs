@@ -1,4 +1,4 @@
-//! Typing-experience and speed audits, one tool: `cargo run --release --features engine_v2 --example audit -- <name> [flags]`.
+//! Typing-experience and speed audits, one tool: `cargo run --release --example audit -- <name> [flags]`.
 //!
 //!   jumps        tone marks that move to another vowel while typing English words (`ar`, `free` flags, words on stdin)
 //!   stretch      stretch the last vowel of every toned Vietnamese syllable (mùa → mùaaaa) and check every key (`ar`; pairs on stdin)

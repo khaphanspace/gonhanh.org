@@ -124,8 +124,8 @@ fn measure(words: &[String], auto_restore: bool, passes: usize) -> Latency {
     best.unwrap()
 }
 
-/// Typing core v2: per key push + render + diff, one word at a time (word boundary = clear).
-fn measure_v2(words: &[String], passes: usize) -> Latency {
+/// Typing core: per key push + render + diff, one word at a time (word boundary = clear).
+fn measure_compose(words: &[String], passes: usize) -> Latency {
     let run = |words: &[String]| -> (Vec<u64>, usize, usize) {
         let mut c = Compose::new(Options::default());
         let mut lat = Vec::with_capacity(words.len() * 8);
@@ -293,8 +293,8 @@ fn main() {
         rows.push((leak("bytes_per_key"), l.bytes_per_key));
         rows.push((leak("best_ns_per_key"), per_key_ns(words, auto, passes)));
     }
-    for (name, words) in [("v2_vi", &vi), ("v2_en", &en)] {
-        let l = measure_v2(words, passes);
+    for (name, words) in [("compose_vi", &vi), ("compose_en", &en)] {
+        let l = measure_compose(words, passes);
         let leak = |suffix: &str| -> &'static str {
             Box::leak(format!("{name}_{suffix}").into_boxed_str())
         };

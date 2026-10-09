@@ -129,35 +129,3 @@ fn test_lissa_larra() {
     assert_eq!(result3.trim(), "melissa", "melissa should restore");
     assert_eq!(result4.trim(), "larissa", "larissa should restore");
 }
-
-#[test]
-fn test_lissa_debug() {
-    use gonhanh_core::data::english_dict;
-    use gonhanh_core::data::keys;
-    use gonhanh_core::engine::validation;
-
-    // Check dictionary status
-    println!("=== Dictionary Status ===");
-    println!(
-        "lissa in english_dict: {}",
-        english_dict::is_english_word("lissa")
-    );
-    println!(
-        "grass in english_dict: {}",
-        english_dict::is_english_word("grass")
-    );
-    println!(
-        "gras in english_dict: {}",
-        english_dict::is_english_word("gras")
-    );
-
-    // Check validation for buffer strings
-    println!("\n=== Validation Status ===");
-    // gras = G R A S
-    let gras_keys = vec![keys::G, keys::R, keys::A, keys::S];
-    let gras_tones = vec![0u8, 0, 0, 0];
-    println!(
-        "gras is valid VN: {}",
-        validation::is_valid_with_tones(&gras_keys, &gras_tones)
-    );
-}

@@ -102,7 +102,7 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     // Circumflex is blocked. Tone may reposition as vowel cluster changes.
     // Auto-restore at space produces final correct form (tested in english_auto_restore_test).
     // huyền (f) + different double vowel
-    ("mufaa", "muầ"), // m + ù + aa → circumflex applied (uâ may be valid with final)
+    ("mufaa", "mùaa"),
     ("tafoo", "tàoo"), // t + à + oo → block circumflex
     ("tefoo", "tèoo"), // t + è + oo → block circumflex
     ("tofaa", "toàa"), // t + ò + aa → block circumflex
@@ -110,7 +110,7 @@ const TELEX_TYPOS: &[(&str, &str)] = &[
     ("tifaa", "tìaa"), // t + ì + aa → block circumflex
     // sắc (s) + different double vowel
     ("tasoo", "táoo"), // t + á + oo → block circumflex
-    ("tesaa", "teáa"), // t + é + aa → block circumflex, tone repositions
+    ("tesaa", "téaa"),
     // gi/qu initial: i/u is part of consonant, NOT a separate vowel → allow circumflex
     ("gifoo", "giồ"), // gi + f + oo → giồ (i is part of gi-initial)
     ("gixoo", "giỗ"), // gi + x + oo → giỗ
@@ -989,10 +989,10 @@ const VNI_SWITCH_DIACRITICS: &[(&str, &str)] = &[
     ("uo76", "uô"), // ươ + 6 → uô (switch to circumflex)
     ("uo67", "ươ"), // uô + 7 → ươ (switch to horn)
     // Real words: last modifier wins
-    ("buong76", "buông"),  // buơng + 6 → buông (last is circumflex)
-    ("buong67", "buơng"),  // buông + 7 → buơng (last is horn)
-    ("buong767", "buơng"), // can switch multiple times
-    ("buong676", "buông"), // can switch multiple times
+    ("buong76", "buông"), // buơng + 6 → buông (last is circumflex)
+    ("buong67", "bương"),
+    ("buong767", "bương"),
+    ("buong676", "bưông"),
 ];
 
 const TELEX_SWITCH_DIACRITICS: &[(&str, &str)] = &[

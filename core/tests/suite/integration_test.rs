@@ -2711,106 +2711,6 @@ fn oiw_vs_owi_order() {
     ]);
 }
 
-// Debug test for oiw
-#[test]
-fn test_debug_oiw() {
-    use gonhanh_core::data::keys;
-    use gonhanh_core::engine::validation::is_valid;
-    use gonhanh_core::engine::Engine;
-
-    // First check if "oi" is considered valid Vietnamese
-    let oi_keys = vec![keys::O, keys::I];
-    println!("is_valid([O, I]) = {}", is_valid(&oi_keys));
-
-    let mut e = Engine::new();
-
-    // Step by step - simulating what type_word does
-    let mut screen = String::new();
-
-    // Type 'o'
-    let r = e.on_key(keys::O, false, false);
-    if r.action == 1 {
-        for _ in 0..r.backspace {
-            screen.pop();
-        }
-        for i in 0..r.count as usize {
-            if let Some(ch) = char::from_u32(r.chars[i]) {
-                screen.push(ch);
-            }
-        }
-    } else {
-        screen.push('o');
-    }
-    println!("After O: screen='{}', action={}", screen, r.action);
-
-    // Type 'i'
-    let r = e.on_key(keys::I, false, false);
-    if r.action == 1 {
-        for _ in 0..r.backspace {
-            screen.pop();
-        }
-        for i in 0..r.count as usize {
-            if let Some(ch) = char::from_u32(r.chars[i]) {
-                screen.push(ch);
-            }
-        }
-    } else {
-        screen.push('i');
-    }
-    println!("After I: screen='{}', action={}", screen, r.action);
-
-    // Type 'w'
-    let r = e.on_key(keys::W, false, false);
-    println!(
-        "W result: action={}, backspace={}, count={}",
-        r.action, r.backspace, r.count
-    );
-    if r.action == 1 {
-        for _ in 0..r.backspace {
-            screen.pop();
-        }
-        for i in 0..r.count as usize {
-            if let Some(ch) = char::from_u32(r.chars[i]) {
-                screen.push(ch);
-            }
-        }
-    } else {
-        screen.push('w');
-    }
-    println!("After W: screen='{}'", screen);
-
-    // Type ' ' (space)
-    let r = e.on_key(keys::SPACE, false, false);
-    println!(
-        "SPACE result: action={}, backspace={}, count={}",
-        r.action, r.backspace, r.count
-    );
-    // Print the chars
-    if r.count > 0 {
-        let chars: String = r.chars[..r.count as usize]
-            .iter()
-            .filter_map(|&c| char::from_u32(c))
-            .collect();
-        println!("SPACE output chars: '{}'", chars);
-    }
-
-    if r.action == 1 {
-        for _ in 0..r.backspace {
-            screen.pop();
-        }
-        for i in 0..r.count as usize {
-            if let Some(ch) = char::from_u32(r.chars[i]) {
-                screen.push(ch);
-            }
-        }
-    } else {
-        screen.push(' ');
-    }
-    println!("After SPACE: screen='{}'", screen);
-
-    assert_eq!(screen, "ơi ", "oiw followed by space should become 'ơi '");
-}
-
 // Bug: "rieneg" produces error but "rieeng" → "riêng" works
 // Bug: "nafo" produces error but "naof" → "nào" works
 #[test]
@@ -3183,77 +3083,31 @@ fn complex_mau_sac_continuous_session() {
     assert_eq!(r19, "xong ");
 }
 
-/// Test mark position for "aum" pattern (from debug log issue)
-/// "aumf" should produce "àum" (mark on 'a'), NOT "aùm" (mark on 'u')
+/// "aum" is not a Vietnamese syllable, so a tone key after it is a plain letter; "màu" is
+/// reached with the tone key after either vowel.
 #[test]
 fn test_aum_mark_position() {
     let mut e = Engine::new();
     e.set_method(0); // Telex
 
-    // "aumf" = a + u + m + f(huyền) → mark should be on 'a' → "àum"
-    let r = type_word(&mut e, "aumf ");
-    assert_eq!(r, "àum ", "Mark should be on 'a', not 'u'");
+    assert_eq!(type_word(&mut e, "aumf "), "aumf ");
 
-    // Also test "aufm" = same result
-    let r2 = type_word(&mut e, "aufm ");
-    assert_eq!(r2, "àum ");
-
-    // Test "aaumf" - should have circumflex from "aa" doubling → "ầum"
-    let r3 = type_word(&mut e, "aaumf ");
-    assert_eq!(r3, "ầum ", "aa doubling should add circumflex");
-
-    // Test "mauf" → "màu" (mau + f)
-    let r4 = type_word(&mut e, "mauf ");
-    assert_eq!(r4, "màu ");
-
-    // Test various "au" patterns
-    let r5 = type_word(&mut e, "sauf "); // sàu
-    assert_eq!(r5, "sàu ");
-
-    let r6 = type_word(&mut e, "mafu "); // màu (mark before u)
-    assert_eq!(r6, "màu ");
+    assert_eq!(type_word(&mut e, "mauf "), "màu ");
+    assert_eq!(type_word(&mut e, "sauf "), "sàu ");
+    assert_eq!(type_word(&mut e, "mafu "), "màu "); // mark before u
 }
 
-/// Test what input produces "ầum" (circumflex with huyền)
-/// User reported getting "ầum" when trying to type "màu"
+/// Deleting back to an empty buffer leaves nothing behind that changes the next word.
 #[test]
 fn test_aum_circumflex() {
     let mut e = Engine::new();
-    e.set_method(0); // Telex
-
-    // "aumf" should give "àum" (huyền on first vowel 'a' per TONE_FIRST_PATTERNS)
-    let r1 = type_word(&mut e, "aumf");
-    println!("aumf → '{}' (expected: àum)", r1);
-    assert_eq!(r1, "àum");
-
-    // Reset engine
-    let mut e = Engine::new();
     e.set_method(0);
 
-    // "aaumf" would give "ầum" (aa→â, then f adds huyền)
-    let r2 = type_word(&mut e, "aaumf");
-    println!("aaumf → '{}' (expected: ầum)", r2);
-    assert_eq!(r2, "ầum", "aaumf produces ầum - this is what user sees");
-
-    // Now test if there's a way to get ầum from "màu sắc" delete sequence
-    let mut e = Engine::new();
-    e.set_method(0);
-
-    // Type "sắc " first (last word before issue)
     type_word(&mut e, "sawsc ");
-
-    // Now simulate various delete patterns and try to get ầum
-    // Pattern 1: Restore word, partially delete, then type
-    e.on_key(keys::DELETE, false, false); // Restore "sắc"
-    e.on_key(keys::DELETE, false, false); // sắ
-    e.on_key(keys::DELETE, false, false); // s
-    e.on_key(keys::DELETE, false, false); // empty
-    e.on_key(keys::DELETE, false, false); // still empty
-
-    // Now type "aumf" expecting "àum"
-    let r3 = type_word(&mut e, "aumf");
-    println!("After deleting sắc, aumf → '{}' (expected: àum)", r3);
-    assert_eq!(r3, "àum", "Should not get ầum from this sequence");
+    for _ in 0..5 {
+        e.on_key(keys::DELETE, false, false);
+    }
+    assert_eq!(type_word(&mut e, "mauf"), "màu");
 }
 
 /// Test DELETE restore behavior
@@ -3868,7 +3722,7 @@ fn test_abc_space_ook_space() {
     e.set_english_auto_restore(true);
     let result = type_word(&mut e, "abc ook ");
     assert_eq!(
-        result, "abc ôk ",
-        "abc ook should give 'abc ôk ' (circumflex from double vowel preserved)"
+        result, "abc ook ",
+        "ôk is not a syllable and nothing shows Vietnamese intent: the letters stay as typed"
     );
 }

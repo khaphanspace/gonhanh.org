@@ -4,8 +4,8 @@
 
 cd "$(dirname "$0")/../../core"
 
-# GN_PROFILE=gate runs the optimized test profile (3.6x less CPU, see plans/261007-2250-core-v2-refactor)
-PROFILE="${GN_PROFILE:+--profile $GN_PROFILE} ${GN_FEATURES:+--features $GN_FEATURES}"
+# GN_PROFILE=gate runs the optimized test profile (3.6x less CPU)
+PROFILE="${GN_PROFILE:+--profile $GN_PROFILE}"
 
 # Run VNI test
 VNI_OUTPUT=$(cargo test $PROFILE --test suite vietnamese_dict_test::vietnamese_dict_vni -- --exact --nocapture 2>&1 || true)

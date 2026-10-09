@@ -23,9 +23,7 @@
 pub mod compose;
 pub mod data;
 pub mod engine;
-pub mod input;
 pub mod phonology;
-pub mod session;
 pub mod updater;
 pub mod utils;
 

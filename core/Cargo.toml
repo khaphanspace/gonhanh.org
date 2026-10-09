@@ -14,10 +14,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]  # Add rlib for tests
 [dependencies]
 # No external dependencies - using std::collections::HashSet for dictionary lookup
 
-[features]
-# Run the whole stack (FFI, tests) on the v2 session instead of engine v1.
-engine_v2 = []
-
 [dev-dependencies]
 rstest = "0.18"
 serial_test = "3.0"

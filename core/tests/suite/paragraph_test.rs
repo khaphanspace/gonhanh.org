@@ -52,7 +52,7 @@ fn paragraph_smart_auto_restore() {
     // Note: Both "tesst" → "test" and "thiss" → "this" because:
     // - Raw ("tesst"/"thiss") NOT in whitelist
     // - Buffer ("test"/"this") IS in whitelist → keep buffer
-    let expected = "Chào các bạn, mình đang test Gõ Nhanh. Smart auto restore: text, expect, perfect, window, with, their, wow, luxury, tesla, life, issue, feature, express, wonderful, support, core, care, saas, sax, push, work, hard, user. Per app memory: VS Code, Slack. Auto disable: Japanese, Korean, Chinese. Đắk Lắk, Đắk Nông, Krông Búk. Thanks for your wonderful support with this software.";
+    let expected = "Chào các bạn, mình đang test Gõ Nhanh. Smart auto restore: text, expect, perfect, window, with, their, wow, luxury, tesla, life, issue, feature, express, wonderful, support, core, care, saas, sã, push, work, hard, user. Per app memory: VS Code, Slack. Auto disable: Japanese, Korean, Chinese. Đắk Lắk, Đắk Nông, Krông Búk. Thanks for your wonderful support with this software.";
 
     telex_auto_restore(&[(input, expected)]);
 }

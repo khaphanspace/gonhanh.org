@@ -1,4 +1,4 @@
-//! Exhaustive audit of the v2 phonology against the dictionary (Constitution I1-I6).
+//! Exhaustive audit of the phonology against the dictionary (Constitution I1-I6).
 //!
 //! The dictionary is the oracle: every syllable in `vi.dic` (minus the documented non-syllables)
 //! must be Complete, and the tone mark must land where the dictionary puts it. Failures are
@@ -35,7 +35,7 @@ fn decode(word: &str) -> Option<(Vec<Unit>, Tone, Option<usize>)> {
 
 /// Dictionary entries the regular grammar must reject because the *spelling* is exceptional
 /// (loan words / letter names), each with the reason. They are valid words but not valid
-/// syllables under I2; engine v2 handles them via names/keep lexicons, never via the grammar.
+/// syllables under I2; the engine handles them via names/keep lexicons, never via the grammar.
 const SPELLING_EXCEPTIONS: &[(&str, &str)] = &[
     ("ka", "letter name, k before a"),
     ("gen", "loan: g before e"),
