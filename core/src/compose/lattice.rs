@@ -9,7 +9,7 @@
 use super::parse::{extend, Children, Parse, Role};
 use super::render::{render, Display};
 use super::{Options, RawKey, MAXK};
-use crate::phonology::{tone_index, validate, Opts as Pho, Tone, Validity};
+use crate::phonology::{nucleus_len, tone_index, validate, Mod, Opts as Pho, Tone, Validity};
 use std::cell::{Cell, RefCell};
 
 const BEAM: usize = 8;
@@ -324,7 +324,18 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
     for p in &prev.live[..prev.n] {
         kids.n = 0;
         extend(p, i, key, o, kids);
+        let stretch = stretches_toned_word(p, key, &pho);
+        // a circumflex that came after the tone (mùa + a → muầ) is only the other reading of a
+        // stretch: the next same vowel lengthens the stretch, it does not cancel that circumflex
+        let tone_then_circ = i > 0
+            && p.roles[i - 1] == Role::Circ
+            && p.roles[..i - 1].contains(&Role::Tone)
+            && nucleus_len(p.units()) >= 2
+            && validate(p.units(), p.tone, &pho) != Validity::Complete;
         for child in &kids.items[..kids.n] {
+            if tone_then_circ && child.roles[i] == Role::Revert {
+                continue;
+            }
             order += 1;
             let validity = validate(child.units(), child.tone, &pho);
             let rank = match validity {
@@ -340,12 +351,20 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 {
                     0
                 }
+                // the same vowel again after a toned word is a stretch (mùaaa)
+                Validity::Invalid if stretch && child.roles[i] == Role::Literal => 0,
                 Validity::Invalid => continue,
             };
             // Free typing: a lone w is a consonant (wé, wl) unless the ư reading is grammatical
             let w_as_vowel_loosely =
                 validity == Validity::Loose && child.roles[..=i].contains(&Role::BaseHorn);
-            let penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
+            let mut penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
+            // a circumflex reading that is not a word yet (muầ, waiting for a coda) stays alive for
+            // bafan → bần but is not what is shown while the stretch reading exists; one that is a
+            // word (bồ, ấ) wins as it always did
+            if stretch && child.roles[i] != Role::Literal && validity != Validity::Complete {
+                penalty += 2_000_000;
+            }
             let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty;
             let mut c = *child;
             if validity == Validity::Invalid {
@@ -359,6 +378,30 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
     next.n = tn;
     // only a name prefix (rank -1, key near -1_000_000) is weak; a bare literal word has a small negative key
     next.weak = tn > 0 && ranks[0] <= -900_000;
+}
+
+/// The key repeats the last vowel of a diphthong in a word that already carries a tone and is a
+/// finished syllable (mùa + a) or is already being stretched (mùaa + a). Typing the tone first and the
+/// circumflex later (bafan → bần) is possible too, so the circumflex reading is kept in the beam
+/// and only the display prefers the stretch.
+fn stretches_toned_word(p: &Parse, key: RawKey, pho: &Pho) -> bool {
+    let units = p.units();
+    let Some(last) = units.last() else {
+        return false;
+    };
+    if p.tone == Tone::Ngang
+        || !last.is_vowel()
+        || last.ch != key.ch
+        || last.md != Mod::None
+        || last.stroke
+    {
+        return false;
+    }
+    // a lone vowel keeps its extended form (hara → hẩ, afa → ầ); only the end of a diphthong
+    // (mùa, hòa) is stretched
+    let n = units.len();
+    nucleus_len(units) >= 2
+        && (units[n - 2] == *last || validate(units, p.tone, pho) == Validity::Complete)
 }
 
 /// Extend the "keep" reading: the best Vietnamese child; failing that a modifier whose intent

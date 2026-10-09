@@ -37,6 +37,7 @@ Hiển thị khi không còn cách đọc tiếng Việt: chuỗi `keep` (giữ 
 5. **Backspace ≡ quay về trạng thái phím trước** (hoặc phát lại phím trừ chữ vừa xoá). Khi từ đang hiện chữ thô, xoá một chữ là xoá đúng một phím (`serv⌫` → `ser`).
 6. **Khôi phục tiếng Anh là một bảng thứ tự cố định** (`restore.rs`, ~12 hàng, dừng ở hàng đầu khớp). Không thêm luật theo từng từ; thêm bằng chứng chung hoặc dữ liệu.
 8. **Dấu không nhảy trong từ không còn là tiếng Việt**: khi không còn cách đọc đúng, dấu giữ nguyên trên nguyên âm nó đang đứng (`háaa` + `e` → `háaae`, không thành `haáae`). Còn là tiếng Việt thì ngữ pháp đặt dấu như thường (`hoa`+`i` → `hoái`). Vị trí lưu ở `Parse::tone_at`. Hoàn tác một biến đổi (dấu mũ, móc) đưa từ về trạng thái trước biến đổi đó, nên dấu cũng về lại chỗ cũ: `mùa` + `a` → `muầ`, + `a` → `mùaa` (dấu ở `u`, không ở chữ `a` đầu).
+   **Kéo dài chữ**: gõ lại nguyên âm cuối của nguyên âm đôi trong từ đã có dấu (`mùa` + `a`) chỉ làm chữ dài thêm (`mùaa`, `mùaaa`), không hiện `muầ` chen giữa. Cách đọc dấu mũ vẫn sống trong beam nên `bafan` → `bần`; nếu cách đọc dấu mũ đã là một từ (`bồ`, `cố`) hoặc nguyên âm đơn (`hara` → `hẩ`, `afa` → `ầ`, quyết định ở #211) thì dấu mũ thắng như trước.
 7. **Từ tiếng Việt hợp lệ có trong `vi.dic` không bao giờ bị trả về chữ thô** trừ khi có bằng chứng tiếng Anh mạnh (xem hàng 6).
 
 ## Dữ liệu

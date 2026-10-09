@@ -13,4 +13,4 @@ pub mod validity;
 
 pub use letters::{Mod, Tone, Unit};
 pub use tone_place::tone_index;
-pub use validity::{validate, Opts, Validity};
+pub use validity::{nucleus_len, validate, Opts, Validity};

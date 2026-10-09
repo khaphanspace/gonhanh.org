@@ -101,10 +101,15 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (252, Telex,   "ww ",           "w "),
     // the report: with w as a consonant allowed (free typing / foreign initials) ww must still give w
     // --- free typing relaxes the initial only: foreign codas and stray vowels are left as typed --
-    (0,   Telex,       "muafaaaa ",  "mùaaaa "),
-    (0,   Telex,       "mufaaaaa ",  "mùaaaa "),
+    (0,   Telex,       "muafaaaa ",  "mùaaaaa "),
+    (0,   Telex,       "mufaaaaa ",  "mùaaaaa "),
     (0,   Telex,       "buoifooo ",  "buòioo "),
     (0,   Telex,       "chuyenfe ",  "chuyền "),
+    (211, Telex,       "hara ",      "hẩ "),
+    (211, Telex,       "quasa ",     "quấ "),
+    (0,   Telex,       "bafan ",     "bần "),
+    (0,   Telex,       "mufaaa ",    "mùaaa "),
+    (0,   Telex,       "hoafaa ",    "hoàaa "),
     (0,   TelexFree,   "ads ",       "ads "),
     (0,   TelexFreeAr, "ads ",       "ads "),
     (0,   TelexFreeAr, "expect ",    "expect "),

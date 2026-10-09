@@ -120,6 +120,12 @@ fn initial_status(ini: &[u8], o: &Opts) -> Validity {
     }
 }
 
+/// Number of vowels in the nucleus (`qu`/`gi` swallow their u/i: qua has one).
+pub fn nucleus_len(units: &[Unit]) -> usize {
+    let (_, start, end) = split(units);
+    end - start
+}
+
 /// (initial length, nucleus start, nucleus end). `qu` and `gi` swallow the u/i that follows when
 /// more vowel comes after it (qua, gia); everything after the nucleus is the coda.
 pub(super) fn split(units: &[Unit]) -> (usize, usize, usize) {
