@@ -22,6 +22,9 @@ const TIER: i64 = 1_000_000;
 const GUESS: i64 = TIER / 2;
 /// A modifier the user cancelled on purpose outranks a guess of the same tier.
 const CANCEL_BONUS: i64 = GUESS;
+/// In the keep chain: the lowest rank of a reading that is still Vietnamese (above it only a
+/// finished syllable); below it the reading is kept letters, so its tone stays where it was shown.
+const KEEP_VIETNAMESE: i64 = 2;
 /// A reading ranked this far below its tier is a name prefix: kept alive, never shown.
 const WEAK_KEY: i64 = -(TIER - TIER / 10);
 
@@ -545,7 +548,7 @@ fn step_keep(
         }
         let rank = match validate(child.units(), child.tone, pho) {
             Validity::Complete => 3,
-            Validity::Prefix | Validity::Loose => 2,
+            Validity::Prefix | Validity::Loose => KEEP_VIETNAMESE,
             Validity::Invalid | Validity::NamePrefix => match child.roles[i] {
                 Role::Revert | Role::Remove | Role::Bracket => 1,
                 Role::Horn | Role::Breve if child.units().last().is_some_and(|u| !u.is_vowel()) => {
@@ -557,14 +560,14 @@ fn step_keep(
                 _ => continue,
             },
         };
-        let k = rank * 1_000_000 + child.score as i64 * 100 - order as i64;
+        let k = rank * TIER + child.score as i64 * 100 - order as i64;
         if k > best.0 {
             best = (k, *child);
             best_rank = rank;
         }
     }
     let mut next = best.1;
-    if best_rank < 2 {
+    if best_rank < KEEP_VIETNAMESE {
         let cancelled = next.roles[i] == Role::Revert;
         next.freeze_tone(prev, o.modern_tone, cancelled);
     } else {
