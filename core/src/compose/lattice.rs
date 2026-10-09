@@ -261,6 +261,31 @@ impl Compose {
         }
     }
 
+    /// Some reading of the keys typed so far is still Vietnamese (free typing counts).
+    pub fn alive(&self) -> bool {
+        let b = &self.beams[self.len];
+        b.n > 0 && !b.weak
+    }
+
+    /// The best reading is a finished syllable (free typing counts): the word could end here.
+    pub fn finished(&self) -> bool {
+        if !self.alive() {
+            return false;
+        }
+        let p = self.best();
+        let pho = Pho {
+            foreign_initials: self.opts.foreign_initials,
+            free: self.opts.free,
+            names: true,
+            lenient: true,
+            at_end: true,
+        };
+        matches!(
+            validate(p.units(), p.tone, &pho),
+            Validity::Complete | Validity::Loose
+        )
+    }
+
     /// The reading on screen. With English auto-restore on, a word with no Vietnamese reading
     /// stays as typed unless it carries a stroke or horn.
     pub fn best(&self) -> Parse {
@@ -356,8 +381,10 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 Validity::Invalid => continue,
             };
             // Free typing: a lone w is a consonant (wé, wl) unless the ư reading is grammatical
-            let w_as_vowel_loosely =
-                validity == Validity::Loose && child.roles[..=i].contains(&Role::BaseHorn);
+            // (a cancelled ư is a plain w again: nothing to penalize)
+            let w_as_vowel_loosely = validity == Validity::Loose
+                && !child.reverted
+                && child.roles[..=i].contains(&Role::BaseHorn);
             let mut penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
             // a circumflex reading that is not a word yet (muầ, waiting for a coda) stays alive for
             // bafan → bần but is not what is shown while the stretch reading exists; one that is a
@@ -365,7 +392,14 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
             if stretch && child.roles[i] != Role::Literal && validity != Validity::Complete {
                 penalty += 2_000_000;
             }
-            let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty;
+            // a cancel the user typed on purpose (ww, ddd) outranks a free-typing guess of the same
+            // rank, so the word keeps following the cancelled reading (wws → ws, dddd → ddd)
+            let cancel_bonus = if child.reverted && rank == 0 {
+                500_000
+            } else {
+                0
+            };
+            let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty + cancel_bonus;
             let mut c = *child;
             if validity == Validity::Invalid {
                 c.freeze_tone(p, o.modern_tone, c.roles[i] == Role::Revert);

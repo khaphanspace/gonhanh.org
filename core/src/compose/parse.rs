@@ -193,7 +193,14 @@ impl Parse {
         self.roles[i] = Role::Revert;
         self.score += 20;
         self.reverted = true;
-        self.last = NO_LAST;
+        // remembers the cancel: the same key typed again right after it is only a letter
+        self.last = Last {
+            role: Role::Revert,
+            key: i as u8,
+            ch: 0,
+            targets: [0; 2],
+            n: 0,
+        };
         self.push_unit(from, Unit::new(ch, Mod::None));
         self
     }
@@ -210,7 +217,11 @@ pub fn extend(p: &Parse, i: usize, key: RawKey, o: &Options, out: &mut Children)
         }
         return;
     }
-    // No special "word is literal after a revert" rule: if the letters left over are Vietnamese
+    // A key typed again right after the cancel it caused (aaa → aa, then a) is just a letter.
+    if p.last.role == Role::Revert && p.last.key as usize + 1 == i && p.last.ch == key.ch {
+        return;
+    }
+    // No other "word is literal after a revert" rule: if the letters left over are Vietnamese
     // (choòng = ch+oo+ng) later tone keys still apply, otherwise grammar prunes them.
     let first = out.n;
     horn_follows_horn(p, i, key, out);

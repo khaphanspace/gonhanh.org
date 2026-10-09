@@ -4,7 +4,7 @@ use super::out::Out;
 use super::{keymap, Session};
 use crate::compose::diff::diff;
 use crate::compose::parse::Role;
-use crate::compose::{Display, RawKey};
+use crate::compose::{Display, RawKey, MAXK};
 use crate::data::keys;
 use crate::utils;
 
@@ -98,9 +98,57 @@ impl Session {
             self.screen = Display::empty();
             return Out::none();
         }
+        if self.free_tone && !self.word.alive() {
+            if let Some(out) = self.cut_run(&prev) {
+                return out;
+            }
+        }
         let next = self.word.display();
         self.screen = next;
         Self::emit(&prev, &next, typed)
+    }
+
+    /// Free typing, several syllables typed without a space (xinchaof, thuwrgoxTieengsVieetj):
+    /// when the word has no Vietnamese reading left, split it into finished syllables. Marks and
+    /// modifiers then only reach the syllable being typed. Left alone (`None`) when the letters
+    /// start an English word (auto-restore on) or cannot be split into syllables.
+    fn cut_run(&mut self, prev: &Display) -> Option<Out> {
+        let n = self.word.len();
+        let mut keys = [RawKey { ch: 0, caps: false }; MAXK];
+        keys[..n].copy_from_slice(self.word.raw());
+        if self.english_restore {
+            let raw: String = keys[..n].iter().map(|k| k.ch as char).collect();
+            if crate::data::lexicon::EN.has_prefix_lower(&raw) {
+                return None;
+            }
+        }
+        let opts = self.options();
+        let probe = |part: &[RawKey]| {
+            let mut c = crate::compose::Compose::new(opts);
+            for k in part {
+                c.push(*k);
+            }
+            c
+        };
+        let mut closed: Vec<char> = Vec::new();
+        let mut start = 0;
+        while !probe(&keys[start..n]).alive() {
+            let end = (start + 1..n)
+                .rev()
+                .find(|&e| probe(&keys[start..e]).finished())?;
+            closed.extend_from_slice(probe(&keys[start..end]).display().as_slice());
+            start = end;
+        }
+        if start == 0 {
+            return None;
+        }
+        self.word.clear();
+        for k in &keys[start..n] {
+            self.word.push(*k);
+        }
+        self.screen = self.word.display();
+        closed.extend_from_slice(self.screen.as_slice());
+        Some(Out::send(prev.len, &closed))
     }
 
     /// Telex: a capital after a lower-case run starts a new case segment (`useEffect`): the

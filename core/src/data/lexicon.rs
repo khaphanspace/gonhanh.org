@@ -88,6 +88,32 @@ impl WordList {
         }
         self.search(&buf[..n])
     }
+
+    /// Whether some entry starts with `prefix` (lower-cased like `contains_lower`).
+    pub fn has_prefix_lower(&self, prefix: &str) -> bool {
+        let mut buf = [0u8; 128];
+        let mut n = 0;
+        for c in prefix.chars() {
+            for l in c.to_lowercase() {
+                if n + l.len_utf8() > buf.len() {
+                    return false;
+                }
+                n += l.encode_utf8(&mut buf[n..]).len();
+            }
+        }
+        let key = &buf[..n];
+        // first entry that is not smaller than the prefix
+        let (mut lo, mut hi) = (0, self.len());
+        while lo < hi {
+            let mid = (lo + hi) / 2;
+            if self.entry(mid) < key {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        lo < self.len() && self.entry(lo).starts_with(key)
+    }
 }
 
 #[cfg(test)]
@@ -113,5 +139,10 @@ mod tests {
             VI.contains_lower("Chào") && VI.contains_lower("được") && !VI.contains_lower("hello")
         );
         assert!(DOUBLES.contains("aachen") && !DOUBLES.contains("Aachen"));
+        assert!(
+            EN.has_prefix_lower("Expec")
+                && EN.has_prefix_lower("the")
+                && !EN.has_prefix_lower("xinc")
+        );
     }
 }
