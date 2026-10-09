@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn lists_are_loaded_and_sorted() {
         assert!(
-            EN.len() >= 17_000 && VI.len() >= 6_000 && DOUBLES.len() >= 10_000 && !KEEP.is_empty()
+            EN.len() >= 17_000 && VI.len() >= 6_000 && DOUBLES.len() >= 8_000 && !KEEP.is_empty()
         );
         for list in [&EN, &REF, &VI, &KEEP, &DOUBLES] {
             for i in 1..list.len() {

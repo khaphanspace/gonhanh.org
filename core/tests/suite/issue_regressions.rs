@@ -137,6 +137,13 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (0,   TelexFreeAr, "reverts ",   "reverts "),
     (0,   TelexFree,   "tioo ",      "tioo "),
     (0,   TelexFreeAr, "tioo ",      "tioo "),
+    (0,   Telex,       "perr ",      "per "),
+    (0,   TelexAr,     "perr ",      "per "),
+    (0,   TelexFree,   "perr ",      "per "),
+    (0,   TelexFreeAr, "perr ",      "per "),
+    (0,   TelexFree,   "perry ",     "perry "),
+    (0,   TelexFree,   "class ",     "class "),
+    (0,   TelexFreeAr, "terr ",      "ter "),
     (0,   TelexFreeAr, "thanks ",    "thanks "),
     (0,   TelexFreeAr, "hello ",     "hello "),
     (0,   TelexFree,   "ads ",       "ads "),
@@ -497,4 +504,127 @@ fn a_doubled_key_cancels_in_modes_without_english_guard() {
     for mode in [Telex, TelexFree] {
         assert_eq!(type_word(&mut engine(mode), "xuss"), "xus", "{mode:?}");
     }
+}
+
+/// Cancelling by typing a key twice goes back to the plain letters, in every mode, at once and
+/// again at the space, for any syllable: tone keys (perr → per), circumflex (baaa → baa), stroke
+/// (ddd → dd) and w (ww → w). Stems that are, or start, a word of the English dictionaries are
+/// left out: there the dictionary may rightly keep the letters as typed.
+#[test]
+fn a_doubled_key_goes_back_to_the_plain_letters_for_any_syllable() {
+    use gonhanh_core::data::lexicon::{EN, REF};
+    let initials = [
+        "b", "c", "d", "g", "h", "k", "l", "m", "n", "p", "r", "s", "t", "v", "x", "kh", "ng",
+        "th", "tr",
+    ];
+    let vowels = ["a", "e", "i", "o", "u", "ai", "ao", "ua", "ie"];
+    let finals = ["", "n", "m", "t", "c", "p", "ng"];
+    // a word, the start of one, or two words stuck together (die + css)
+    let is_english = |w: &str| {
+        EN.begins_inflected(w)
+            || REF.begins_inflected(w)
+            || (3..w.len().saturating_sub(2)).any(|i| {
+                EN.contains_lower(&w[..i])
+                    && (EN.contains_lower(&w[i..]) || EN.has_prefix_lower(&w[i..]))
+            })
+    };
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    for ini in initials {
+        for v in vowels {
+            for fin in finals {
+                let stem = format!("{ini}{v}{fin}");
+                // (typed keys, plain letters expected)
+                let mut cases = Vec::new();
+                for k in ["s", "f", "r", "x", "j"] {
+                    cases.push((format!("{stem}{k}{k}"), format!("{stem}{k}")));
+                }
+                // a doubled vowel key: the third press cancels the circumflex
+                for c in ["a", "e", "o"] {
+                    if v == c && fin.is_empty() {
+                        cases.push((format!("{ini}{c}{c}{c}"), format!("{ini}{c}{c}")));
+                    }
+                }
+                cases.push((format!("{stem}ww"), format!("{stem}w")));
+                if ini == "d" {
+                    cases.push((format!("ddd{v}{fin}"), format!("dd{v}{fin}")));
+                }
+                for (typed, plain) in cases {
+                    if is_english(&typed) || is_english(&plain) {
+                        continue;
+                    }
+                    for mode in [Telex, TelexAr, TelexFree, TelexFreeAr] {
+                        // nothing to cancel when the key typed once changes nothing
+                        if type_word(&mut engine(mode), &plain) == plain {
+                            continue;
+                        }
+                        checked += 1;
+                        let now = type_word(&mut engine(mode), &typed);
+                        let at_space = type_word(&mut engine(mode), &format!("{typed} "));
+                        if now != plain || at_space != format!("{plain} ") {
+                            failures.push(format!(
+                                "{mode:?} {typed:?}: {now:?} / {at_space:?}, plain is {plain:?}"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} cancels did not go back:\n{}",
+        failures.len(),
+        failures
+            .iter()
+            .take(40)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
+/// The same for VNI: a digit typed twice cancels what the first one did.
+#[test]
+fn a_doubled_vni_digit_goes_back_to_the_plain_letters() {
+    let initials = [
+        "b", "c", "d", "g", "h", "k", "l", "m", "n", "t", "v", "x", "th", "tr",
+    ];
+    let vowels = ["a", "e", "i", "o", "u", "ai", "ao", "ua"];
+    let finals = ["", "n", "m", "t", "c", "ng"];
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    for ini in initials {
+        for v in vowels {
+            for fin in finals {
+                let stem = format!("{ini}{v}{fin}");
+                for k in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
+                    let (typed, plain) = (format!("{stem}{k}{k}"), format!("{stem}{k}"));
+                    // nothing to cancel when the digit typed once changes nothing
+                    if type_word(&mut engine(Vni), &plain) == plain {
+                        continue;
+                    }
+                    checked += 1;
+                    let now = type_word(&mut engine(Vni), &typed);
+                    let at_space = type_word(&mut engine(Vni), &format!("{typed} "));
+                    if now != plain || at_space != format!("{plain} ") {
+                        failures.push(format!(
+                            "{typed:?}: {now:?} / {at_space:?}, plain is {plain:?}"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} VNI cancels did not go back:\n{}",
+        failures.len(),
+        failures
+            .iter()
+            .take(30)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
 }

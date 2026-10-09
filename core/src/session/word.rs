@@ -112,7 +112,13 @@ impl Session {
         let mut next = self.word.display();
         // A reading that only free typing allows (west → wét) is shown as typed while the letters
         // still begin an English word: no mark appears and disappears again at the space.
-        if self.free_tone && self.word.needs_free_typing() && self.begins_english_word() {
+        // A doubled key is a cancel typed on purpose: the word goes back to the plain letters
+        // (perr → per), whatever the dictionary says.
+        if self.free_tone
+            && self.word.needs_free_typing()
+            && !self.word.cancelled()
+            && self.begins_english_word()
+        {
             next = render_raw(self.word.raw());
         }
         self.screen = next;
@@ -150,11 +156,15 @@ impl Session {
         if !compound_only && (EN.begins_inflected(text) || REF.begins_inflected(text)) {
             return true;
         }
+        let min_tail = if compound_only { 3 } else { 1 };
         // ok[i]: the letters from i on are English
         let mut ok = [false; MAXK + 1];
         ok[n] = true;
         for i in (0..n).rev() {
-            ok[i] = EN.has_prefix_lower(&text[i..])
+            // While typing, the letters after a word may be the start of the next one (dennisd).
+            // At the end of the word an unfinished tail counts only with three letters: rr, xx or
+            // ww are the start of some entry, not evidence of a word.
+            ok[i] = (n - i >= min_tail && EN.has_prefix_lower(&text[i..]))
                 || (i + 3..=n).any(|j| ok[j] && EN.contains_lower(&text[i..j]));
         }
         if compound_only {

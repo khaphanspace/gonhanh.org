@@ -72,6 +72,8 @@ fn has_double_letter(w: &str) -> bool {
 fn main() {
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let mut curated_doubles: Vec<String> = Vec::new();
+    let mut en_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut ref_words: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (name, source) in [
         ("en", Source::Dir("src/data/dictionaries/en")),
         ("ref", Source::Dir("src/data/dictionaries/en-ref")),
@@ -81,11 +83,19 @@ fn main() {
     ] {
         let mut all = read_words(&source);
         if name == "doubles" {
+            // A word of this list is spelled with its doubled letter on purpose (terry); an entry
+            // that is no English word (terr) would keep a typo the user cancelled. Keep only
+            // words of the English dictionaries.
+            all.retain(|(_, w)| en_words.contains(w) || ref_words.contains(w));
             // Curated English words (tech, brands, chat...) spelled with a doubled letter keep it
             // (terraform, github's ss...): they join the Telex-doubles list without a second edit.
             all.extend(curated_doubles.iter().map(|w| (String::new(), w.clone())));
         }
+        if name == "ref" {
+            ref_words = all.iter().map(|(_, w)| w.clone()).collect();
+        }
         if name == "en" {
+            en_words = all.iter().map(|(_, w)| w.clone()).collect();
             curated_doubles = all
                 .iter()
                 .filter(|(origin, w)| origin != "general" && has_double_letter(w))

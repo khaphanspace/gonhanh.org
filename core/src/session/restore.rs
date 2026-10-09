@@ -128,11 +128,17 @@ pub fn decide(
         // Auto-restore is off, but a reading that only free typing allows (revert → revẻt) still
         // yields to a word of the English dictionary: free typing must not fight English.
         let raw: String = c.raw().iter().map(|k| k.ch as char).collect();
-        return if c.options().free
-            && c.needs_free_typing()
-            && !c.cancelled()
-            && (EN.knows_inflected(&raw) || REF.knows_inflected(&raw))
-        {
+        if !c.options().free || !c.needs_free_typing() {
+            return Decision::Keep;
+        }
+        // A cancel typed on purpose (perr → per) stands, unless the letters are a word spelled
+        // with its double (perry, class): then the word wins at the space.
+        let english = if c.cancelled() {
+            EN.contains_lower(&raw)
+        } else {
+            EN.knows_inflected(&raw) || REF.knows_inflected(&raw)
+        };
+        return if english {
             Decision::Raw
         } else {
             Decision::Keep
