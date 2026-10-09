@@ -59,8 +59,14 @@ pub struct Parse {
     pub reverted: bool,
     /// the cancel came later than the key right after (herere), not a double-press
     pub late_revert: bool,
+    /// Unit that carries the tone once the word stopped being Vietnamese (`NO_TONE_AT` while it
+    /// is: the grammar places the tone then). The mark stays where it was shown, so letters
+    /// typed afterwards (háaa + e) never make it jump.
+    pub tone_at: u8,
     last: Last,
 }
+
+pub const NO_TONE_AT: u8 = u8::MAX;
 
 impl Parse {
     pub const fn empty() -> Self {
@@ -73,12 +79,29 @@ impl Parse {
             score: 0,
             reverted: false,
             late_revert: false,
+            tone_at: NO_TONE_AT,
             last: NO_LAST,
         }
     }
 
     pub fn units(&self) -> &[Unit] {
         &self.units[..self.n as usize]
+    }
+
+    /// The word is no longer Vietnamese: pin the tone to the vowel it was shown on (`prev` is the
+    /// reading before the key that produced `self`).
+    pub fn freeze_tone(&mut self, prev: &Parse, modern: bool) {
+        if self.tone == Tone::Ngang {
+            self.tone_at = NO_TONE_AT;
+        } else if self.tone_at == NO_TONE_AT {
+            let from = if prev.tone == self.tone { prev } else { &*self };
+            self.tone_at = tone_index(from.units(), modern).map_or(NO_TONE_AT, |k| k as u8);
+        }
+    }
+
+    /// The word is Vietnamese (again): the grammar decides where the tone goes.
+    pub fn release_tone(&mut self) {
+        self.tone_at = NO_TONE_AT;
     }
 
     /// A stroke, breve or horn on a typed vowel: Vietnamese on purpose (a lone `w` is not).
@@ -100,6 +123,7 @@ impl Parse {
             && self.tone == o.tone
             && self.reverted == o.reverted
             && self.late_revert == o.late_revert
+            && self.tone_at == o.tone_at
             && self.last.role == o.last.role
             && self.last.key == o.last.key
             && self.last.ch == o.last.ch

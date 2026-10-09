@@ -63,6 +63,20 @@ Nguồn: `gh issue list` (khaphanspace/gonhanh.org, 2026-10-08): **251 issue** (
 
 Khác biệt chính với UniKey khi tắt kiểm tra chính tả: UniKey *cắt từ* tại chỗ hết hợp lệ rồi áp luật Việt cho từng đoạn; Gõ Nhanh giữ một từ nhưng đặt dấu trên nguyên âm của đoạn có nguyên âm (`khphas` → `khphá`, cùng kết quả cho các ca trong issue). Cùng thứ tự gõ, hai cách ra cùng chữ vì dấu luôn đặt trên cụm nguyên âm.
 
+### Nguyên lý Gõ tự do (rút từ cách người dùng thực sự gõ)
+
+Người gõ tự do viết tắt hoặc tên riêng có **phụ âm đầu lạ** (`khph`, `qc`, `z`, `w`, `f`, `j`) rồi một vần đúng. Họ không gõ vần sai chủ ý. Nên:
+
+| Nguyên lý | Ví dụ |
+|---|---|
+| Nới đúng một chỗ: phụ âm đầu. Vần (nguyên âm + coda + dấu) vẫn phải là tiếng Việt | `khphas`→`khphá`, `qcaos`→`qcáo`, `zij`→`zị`, `wes`→`wé` |
+| Coda lạ hoặc cụm nguyên âm lạ không có cách đọc tự do: giữ như đã gõ | `ads`→`ads`, `expect`→`expect`, `haaas` |
+| Có cách đọc đúng ngữ pháp thì thắng cách đọc tự do | `wa`→`ưa`, `wm`→`ưm` |
+| Từ tiếng Anh đúng từ điển thắng cách đọc có phụ âm đầu lạ (bật khôi phục) | `west`, `were`, `warm`, `foresee` giữ nguyên; `wes`→`wé` vì không phải từ Anh |
+| Dấu không nhảy trong từ không còn là tiếng Việt | `hasaaaaaae`: `háaaaaae`, dấu đứng yên trên `a` đầu |
+
+Đo trên 17.641 từ Anh khi bật Gõ tự do + khôi phục: từ bị đổi 397 → 405 so với không bật Gõ tự do (trước khi sửa: dấu nhảy ở 629 từ, giờ 151; phần còn lại là chuyển vần Việt hợp lệ như `lìe`→`liè`).
+
 Cài đặt trên macOS gọi công tắc này là **Gõ tự do** (tắt mặc định), cách người dùng thường gọi; lưu trong khoá `gonhanh.freeTone`. Tên "Kiểm tra chính tả" của UniKey/OpenKey bị bỏ vì khó hiểu với người dùng mới.
 
 ## Issue mở (11): #349, #359, #360, #374, #375, #381, #384, #400, #406, #417, #426

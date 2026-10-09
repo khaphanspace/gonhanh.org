@@ -61,10 +61,7 @@ impl Text {
 fn squeeze(c: &Compose, to: usize) -> Option<Display> {
     let keys = c.raw();
     // no stretch, nothing to squeeze (the common case)
-    if !keys
-        .windows(3)
-        .any(|w| w[0].ch == w[1].ch && w[1].ch == w[2].ch)
-    {
+    if !has_stretch(c) {
         return None;
     }
     let mut out = Display::empty();
@@ -90,6 +87,14 @@ fn squeeze(c: &Compose, to: usize) -> Option<Display> {
     }
     (out.len as usize != keys.len() && word.n >= 3 && EN.contains_lower(word.as_str()))
         .then_some(out)
+}
+
+/// Three equal letters typed in a row. A run that only exists in the shown text (foresee → foéee,
+/// where the s was eaten as a tone) is no stretch.
+fn has_stretch(c: &Compose) -> bool {
+    c.raw()
+        .windows(3)
+        .any(|w| w[0].ch == w[1].ch && w[1].ch == w[2].ch)
 }
 
 fn is_vowel_byte(b: u8) -> bool {
@@ -152,6 +157,7 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     // Vietnamese syllable once every stretch is squeezed to one letter
     let (squeezed, sn) = collapse_runs(units, 3);
     if sn < units.len()
+        && has_stretch(c)
         && matches!(
             valid_end(&squeezed[..sn]),
             Validity::Complete | Validity::Loose
@@ -168,8 +174,14 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     // Vietnamese reading is unattested (bore → boẻ, sims → sím, wi → ưi) goes back to raw
     if matches!(validity, Validity::Complete | Validity::Loose) && !p.reverted {
         // short words (er, aus, wn, wo) are far more often Vietnamese interjections than English
-        let english_shape =
-            raw.len() >= 3 && !raw.starts_with('w') && !is_vowel_byte(raw.as_bytes()[0]);
+        // A reading with a foreign initial (west → wét, brass → brá, were → wể) is not Vietnamese
+        // evidence, so an English word wins there however short; a lone w is a vowel (ư) otherwise.
+        let foreign_initial = validity == Validity::Loose
+            || (foreign
+                && matches!(units[0].ch, b'f' | b'j' | b'w' | b'z')
+                && !units[0].is_vowel());
+        let english_shape = raw.len() >= 3
+            && (foreign_initial || (!raw.starts_with('w') && !is_vowel_byte(raw.as_bytes()[0])));
         // an unattested syllable reached by changing the tone (arts → ảt → át), or a loan initial
         // p (pais, pes): English wears these shapes far more often than Vietnamese does
         let tone_changed = p.roles[..raw.len()]

@@ -347,7 +347,13 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 validity == Validity::Loose && child.roles[..=i].contains(&Role::BaseHorn);
             let penalty = if w_as_vowel_loosely { 500_000 } else { 0 };
             let k = rank * 1_000_000 + child.score as i64 * 100 - order - penalty;
-            insert(&mut next.live, &mut ranks, &mut tn, k, child);
+            let mut c = *child;
+            if validity == Validity::Invalid {
+                c.freeze_tone(p, o.modern_tone);
+            } else {
+                c.release_tone();
+            }
+            insert(&mut next.live, &mut ranks, &mut tn, k, &c);
         }
     }
     next.n = tn;
@@ -377,6 +383,7 @@ fn step_keep(
     extend(prev, i, key, o, kids);
     let mut prev_ok: Option<bool> = None;
     let mut best = (i64::MIN, kids.items[0]);
+    let mut best_rank = 0;
     for (order, child) in kids.items[..kids.n].iter().enumerate() {
         // a stroke typed after other letters (ded → đe) is a guess the next letter may refute
         if child.roles[i] == Role::Stroke && !strokes_previous_unit(prev, child) {
@@ -412,9 +419,16 @@ fn step_keep(
         let k = rank * 1_000_000 + child.score as i64 * 100 - order as i64;
         if k > best.0 {
             best = (k, *child);
+            best_rank = rank;
         }
     }
-    best.1
+    let mut next = best.1;
+    if best_rank < 2 {
+        next.freeze_tone(prev, o.modern_tone);
+    } else {
+        next.release_tone();
+    }
+    next
 }
 
 /// The stroke landed on the last letter before the key (dd), not on an earlier d (dod).

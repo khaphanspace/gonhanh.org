@@ -18,8 +18,8 @@ pub enum Validity {
     Invalid,
     /// Only the beginning of a proper name (kô of kông): kept alive, never shown by itself.
     NamePrefix,
-    /// Free typing only: not a Vietnamese syllable, but the letters are in a plausible order
-    /// (consonants, vowels, consonants), so the marks the user typed are applied anyway.
+    /// Free typing only: the rhyme is Vietnamese but the initial is not (khph, qc), so the marks
+    /// the user typed are applied anyway.
     Loose,
     Prefix,
     Complete,
@@ -69,14 +69,16 @@ pub fn validate(units: &[Unit], tone: Tone, o: &Opts) -> Validity {
             return n;
         }
     }
-    if o.free && free_structure(units) {
+    if o.free && free_initial(units, tone, &strict) {
         return Validity::Loose;
     }
     Validity::Invalid
 }
 
-/// Letters in a plausible order for free typing: consonants, vowels, consonants (khphá, qcáo, xyzá).
-fn free_structure(units: &[Unit]) -> bool {
+/// Free typing relaxes the beginning of the word, never the rhyme: an initial that is not
+/// Vietnamese (khphá, qcáo, zị, wé) in front of a real nucleus + coda + tone. A foreign coda or a
+/// stray vowel (ads, expect, haaấ) has no free reading, so those words are left as typed.
+fn free_initial(units: &[Unit], tone: Tone, strict: &Opts) -> bool {
     const FREE_MAX: usize = 12;
     if units.len() > FREE_MAX || units.iter().any(|u| u.stroke && u.ch != b'd') {
         return false;
@@ -84,13 +86,7 @@ fn free_structure(units: &[Unit]) -> bool {
     let Some(first) = units.iter().position(|u| u.is_vowel()) else {
         return true; // still typing the initial
     };
-    let end = units[first..]
-        .iter()
-        .position(|u| !u.is_vowel())
-        .map_or(units.len(), |k| first + k);
-    units[end..]
-        .iter()
-        .all(|u| !u.is_vowel() && u.md == Mod::None && !u.stroke)
+    first > 0 && regular(&units[first..], tone, strict) != Validity::Invalid
 }
 
 /// Letters of the initial as bytes (`D` for a stroked d), at most 3.
@@ -530,18 +526,22 @@ mod tests {
             ),
             Validity::Complete
         );
-        let (u, t) = parse("cảp");
-        assert_eq!(
-            validate(
-                &u,
-                t,
-                &Opts {
-                    free: true,
-                    ..Opts::default()
-                }
-            ),
-            // hỏi on a stop coda is not Vietnamese: only free typing lets it through
-            Validity::Loose
-        );
+        let free = Opts {
+            free: true,
+            ..Opts::default()
+        };
+        // free typing relaxes the initial only: khph + á is Loose, a foreign coda or a hỏi on a
+        // stop coda has no free reading
+        for (word, want) in [
+            ("khphá", Validity::Loose),
+            ("qcáo", Validity::Loose),
+            ("khph", Validity::Loose),
+            ("ád", Validity::Invalid),
+            ("cảp", Validity::Invalid),
+            ("ễp", Validity::Invalid),
+        ] {
+            let (u, t) = parse(word);
+            assert_eq!(validate(&u, t, &free), want, "{word}");
+        }
     }
 }

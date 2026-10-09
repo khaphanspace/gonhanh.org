@@ -20,3 +20,4 @@ revert_auto_restore_test::consecutive_modifiers_followed_by_vowel
 typing_test::vni_switch_diacritics
 engine::tests::test_interleaved_diphthong_auto_restore
 engine::tests::test_literal_after_circumflex_revert
+typing_test::telex_typos

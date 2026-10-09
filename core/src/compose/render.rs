@@ -35,10 +35,12 @@ impl Display {
 pub fn render(p: &Parse, raw: &[RawKey], o: &Options) -> Display {
     let mut out = Display::empty();
     let units = p.units();
-    let at = if p.tone != Tone::Ngang {
-        tone_index(units, o.modern_tone)
-    } else {
+    let at = if p.tone == Tone::Ngang {
         None
+    } else if (p.tone_at as usize) < units.len() && units[p.tone_at as usize].is_vowel() {
+        Some(p.tone_at as usize)
+    } else {
+        tone_index(units, o.modern_tone)
     };
     for (k, u) in units.iter().enumerate() {
         let c = if Some(k) == at {

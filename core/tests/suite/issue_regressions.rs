@@ -5,7 +5,7 @@
 use crate::common::type_word;
 use gonhanh_core::engine::Engine;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Mode {
     /// Telex, English auto-restore off
     Telex,
@@ -21,6 +21,8 @@ enum Mode {
     TelexFree,
     /// Telex, free typing and f z j w allowed as initials
     TelexFreeForeign,
+    /// Telex as the app sets it with free typing on: free typing, foreign initials, auto-restore
+    TelexFreeAr,
     Vni,
 }
 use Mode::*;
@@ -43,6 +45,11 @@ fn engine(mode: Mode) -> Engine {
         TelexFreeForeign => {
             e.set_free_tone(true);
             e.set_allow_foreign_consonants(true);
+        }
+        TelexFreeAr => {
+            e.set_free_tone(true);
+            e.set_allow_foreign_consonants(true);
+            e.set_english_auto_restore(true);
         }
         Vni => e.set_method(1),
     }
@@ -93,6 +100,22 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (247, Telex,   "Dd ",           "Đ "),
     (252, Telex,   "ww ",           "w "),
     // the report: with w as a consonant allowed (free typing / foreign initials) ww must still give w
+    // --- free typing relaxes the initial only: foreign codas and stray vowels are left as typed --
+    (0,   TelexFree,   "ads ",       "ads "),
+    (0,   TelexFreeAr, "ads ",       "ads "),
+    (0,   TelexFreeAr, "expect ",    "expect "),
+    (0,   TelexFreeAr, "express ",   "express "),
+    (0,   TelexFree,   "haaaas ",    "haaas "), // the revert eats one a
+    (0,   TelexFree,   "hasaaaaaa ", "háaaaaa "),
+    (0,   TelexFreeAr, "hasaaaaaa ", "háaaaaa "),
+    (0,   TelexFreeAr, "foresee ",   "foresee "),
+    (0,   TelexFreeAr, "west ",      "west "),
+    (0,   TelexFreeAr, "were ",      "were "),
+    (0,   TelexFreeAr, "warm ",      "warm "),
+    (0,   TelexFreeAr, "khphas ",    "khphá "),
+    (0,   TelexFreeAr, "qcaos ",     "qcáo "),
+    (0,   TelexFreeAr, "wes ",       "wé "),
+    (0,   TelexFreeAr, "zij ",       "zị "),
     (252, TelexFree, "ww ",         "w "),
     (252, TelexFree, "Ww ",         "W "),
     (252, TelexFree, "WW ",         "W "),
@@ -321,4 +344,33 @@ fn control_tap_breaks_the_word_and_the_shortcut() {
         typed_with_breaks(Telex, &[("qc", "quảng cáo")], &["qc "]),
         "quảng cáo "
     );
+}
+
+/// Once a word is not Vietnamese the tone stays on the vowel it was shown on: letters typed after
+/// it never make the mark jump (háaa + e must not become haáae).
+#[test]
+fn tone_stays_put_while_typing_a_non_vietnamese_word() {
+    let tone_at = |s: &str| s.chars().position(|c| !c.is_ascii());
+    for mode in [Telex, TelexAr, TelexFree, TelexFreeAr] {
+        for word in [
+            "hasaaaaaae",
+            "hasaaaee",
+            "hoasaaae",
+            "hasaaaaan",
+            "tasoooox",
+        ] {
+            let mut prev: Option<usize> = None;
+            for k in 5..=word.len() {
+                let shown = type_word(&mut engine(mode), &word[..k]);
+                let at = tone_at(&shown);
+                if let (Some(a), Some(b)) = (prev, at) {
+                    assert_eq!(
+                        a, b,
+                        "{mode:?} {word:?}: {shown:?} moved the tone at key {k}"
+                    );
+                }
+                prev = at.or(prev);
+            }
+        }
+    }
 }
