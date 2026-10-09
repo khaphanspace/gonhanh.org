@@ -1,4 +1,4 @@
-//! Screen after every key: `cargo run -q --features engine_v2 --example trace -- [telex|vni][,ar][,free][,w] word...`
+//! Screen after every key: `cargo run -q --features engine_v2 --example trace -- [telex|vni][,ar][,free][,nw][,old] word...`
 //! `_` is space, `<` is backspace. Shows what the user sees while typing, not just the end result.
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
@@ -18,6 +18,9 @@ fn main() {
         if has("nw") {
             e.set_skip_w_shortcut(true);
         }
+        if has("old") {
+            e.set_modern_tone(false);
+        }
         let mut typed = String::new();
         let mut steps = Vec::new();
         for c in w.replace('_', " ").chars() {
@@ -31,6 +34,9 @@ fn main() {
             }
             if has("nw") {
                 f.set_skip_w_shortcut(true);
+            }
+            if has("old") {
+                f.set_modern_tone(false);
             }
             steps.push(type_word(&mut f, &typed));
         }
