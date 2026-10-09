@@ -113,7 +113,14 @@ fn collapse_runs(units: &[Unit], min: usize) -> ([Unit; MAXK], usize) {
 }
 
 /// `enabled` is the user's English auto-restore setting.
-pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
+/// `english_run`: asks the caller whether the letters are English words stuck together
+/// (helloworld); evaluated only by the row that needs it.
+pub fn decide(
+    c: &Compose,
+    enabled: bool,
+    foreign: bool,
+    english_run: impl Fn() -> bool,
+) -> Decision {
     if !enabled || c.is_empty() || !c.kept_transformed() {
         return Decision::Keep; // row 1-2: feature off, or nothing was transformed
     }
@@ -213,6 +220,10 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
         let tone_letter = matches!(letter_key, Some(b'r' | b'x' | b'j'));
         if EN.contains_lower(shown) || KEEP.contains_lower(shown) {
             return Decision::Keep;
+        }
+        // English words stuck together keep every letter (grassesrailway, not grasesrailway)
+        if english_run() {
+            return Decision::Raw;
         }
         // the cancel came late (ararat → arat): letters went missing, it was never a double-press
         if p.late_revert {

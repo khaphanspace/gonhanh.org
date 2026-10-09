@@ -1,9 +1,11 @@
 //! Keys that belong to the word being typed: letters, digits, brackets, Backspace.
 
 use super::out::Out;
+use super::restore::{decide, Decision};
 use super::{keymap, Session};
 use crate::compose::diff::diff;
 use crate::compose::parse::Role;
+use crate::compose::render::render_raw;
 use crate::compose::{Display, RawKey, MAXK};
 use crate::data::keys;
 use crate::utils;
@@ -108,24 +110,45 @@ impl Session {
         // still begin an English word: no mark appears and disappears again at the space.
         if self.free_tone
             && self.english_restore
-            && self.begins_english_word()
             && self.word.needs_free_typing()
+            && self.looks_english(false)
         {
-            next = crate::compose::render::render_raw(self.word.raw());
+            next = render_raw(self.word.raw());
         }
         self.screen = next;
         Self::emit(&prev, &next, typed)
     }
 
-    /// The letters typed so far are the beginning of an English word (no heap).
-    fn begins_english_word(&self) -> bool {
+    /// The letters typed so far are English: one word, several words stuck together
+    /// (helloworld), or words ending in the start of one (helloworl). Words of four letters or
+    /// more only, so short Vietnamese syllables are not mistaken for English. No heap.
+    pub(super) fn looks_english(&self, compound_only: bool) -> bool {
+        use crate::data::lexicon::EN;
         let mut buf = [0u8; MAXK];
         let raw = self.word.raw();
         for (b, k) in buf.iter_mut().zip(raw) {
             *b = k.ch;
         }
-        std::str::from_utf8(&buf[..raw.len()])
-            .is_ok_and(|s| crate::data::lexicon::EN.has_prefix_lower(s))
+        let n = raw.len();
+        let Ok(text) = std::str::from_utf8(&buf[..n]) else {
+            return false;
+        };
+        // the common case first: one word, or the start of one
+        if !compound_only && EN.has_prefix_lower(text) {
+            return true;
+        }
+        // ok[i]: the letters from i on are English
+        let mut ok = [false; MAXK + 1];
+        ok[n] = true;
+        for i in (0..n).rev() {
+            ok[i] = EN.has_prefix_lower(&text[i..])
+                || (i + 4..=n).any(|j| ok[j] && EN.contains_lower(&text[i..j]));
+        }
+        if compound_only {
+            // at least two parts: a single word is the restore table's business
+            return (4..n).any(|j| ok[j] && EN.contains_lower(&text[..j]));
+        }
+        ok[0]
     }
 
     /// Free typing, several syllables typed without a space (xinchaof, thuwrgoxTieengsVieetj):
@@ -137,23 +160,47 @@ impl Session {
         let mut keys = [RawKey { ch: 0, caps: false }; MAXK];
         keys[..n].copy_from_slice(self.word.raw());
         // an English word is never split, whether or not auto-restore is on
-        if self.begins_english_word() {
+        if self.looks_english(false) {
             return None;
         }
-        // one scratch word for every probe
-        let mut scratch = crate::compose::Compose::new(self.options());
-        let mut probe = |part: &[RawKey]| {
-            scratch.clear();
-            for k in part {
-                scratch.push(*k);
-            }
-            (scratch.alive(), scratch.finished(), scratch.display())
+        // One scratch word for every probe. Free typing relaxes the beginning of the word only
+        // (khphá): every later syllable must be Vietnamese as it stands, and a closed syllable has
+        // at least two letters. Otherwise English words stuck together (helloworld) would be
+        // chopped into pieces that merely look like syllables.
+        let free = self.options();
+        let native = crate::compose::Options {
+            free: false,
+            foreign_initials: false,
+            ..free
         };
+        let mut scratch = crate::compose::Compose::new(free);
+        let load = |c: &mut crate::compose::Compose, part: &[RawKey], first: bool| {
+            c.update_options(if first { free } else { native });
+            c.clear();
+            for k in part {
+                c.push(*k);
+            }
+        };
+        let (english, foreign) = (self.english_restore, self.foreign_initials());
         let mut closed: Vec<char> = Vec::new();
         let mut start = 0;
-        while !probe(&keys[start..n]).0 {
-            let end = (start + 1..n).rev().find(|&e| probe(&keys[start..e]).1)?;
-            closed.extend_from_slice(probe(&keys[start..end]).2.as_slice());
+        loop {
+            load(&mut scratch, &keys[start..n], start == 0);
+            if scratch.alive() {
+                break;
+            }
+            let end = (start + 1..n).rev().find(|&e| {
+                load(&mut scratch, &keys[start..e], start == 0);
+                scratch.finished() && scratch.display().len >= 2
+            })?;
+            load(&mut scratch, &keys[start..end], start == 0);
+            // a closed syllable gets the verdict it would get at a space
+            let text = match decide(&scratch, english, foreign, || false) {
+                Decision::Keep => scratch.kept_display(),
+                Decision::Raw => render_raw(scratch.raw()),
+                Decision::Squeezed(d) => d,
+            };
+            closed.extend_from_slice(text.as_slice());
             start = end;
         }
         if start == 0 {
