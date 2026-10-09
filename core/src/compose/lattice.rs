@@ -267,6 +267,11 @@ impl Compose {
         b.n > 0 && !b.weak
     }
 
+    /// A modifier of the best reading was cancelled on purpose (ss, ww, aaa).
+    pub fn cancelled(&self) -> bool {
+        self.alive() && self.best().reverted
+    }
+
     /// The best reading is Vietnamese only because free typing or foreign initials allow it
     /// (west → wét): weak evidence, which an English word may overrule.
     pub fn needs_free_typing(&self) -> bool {

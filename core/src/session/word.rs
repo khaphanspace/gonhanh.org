@@ -111,6 +111,7 @@ impl Session {
         if self.free_tone
             && self.english_restore
             && self.word.needs_free_typing()
+            && !self.word.cancelled()
             && self.looks_english(false)
         {
             next = render_raw(self.word.raw());
