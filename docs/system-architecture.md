@@ -270,6 +270,8 @@ InjectionProfiles.resolve(bundleId, role) → InjectionProfile { method, delays,
 profile.applying(perAppConfig) → the user's Advanced overrides (method, delay preset)
 ```
 
+After an injection the hook is held for `InjectionMethod.settleMicros` (30 ms for the empty-char and char-by-char methods, 20 ms slow, 5 ms others) so that a key typed right behind it stays queued until the app has taken the replacement; browsers handle synthetic events later than plain keys, and without the hold the next letter could land first ("lắm" → "lmắ"). The debug log shows the gap: in one session 86 of 248 injections were followed by a key within 40 ms.
+
 `Delays` holds the five delay levels (µs after each backspace, after the last backspace, after each text chunk) and is the single source for both detection and the Advanced slider (`DelayPreset`). The table is covered by `Tests/InjectionProfileTests.swift`. To support a new app: add its bundle id to the matching set (or one rule) there and a test line.
 
 #### App Compatibility Matrix

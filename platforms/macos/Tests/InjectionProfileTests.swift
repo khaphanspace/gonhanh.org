@@ -102,4 +102,11 @@ final class InjectionProfileTests: XCTestCase {
         XCTAssertEqual(DelayPreset.closest(to: Delays.high), .high)
         XCTAssertEqual(DelayPreset.closest(to: Delays.none), .none)
     }
+
+    func testMethodsThatGoThroughATextEngineHoldTheHookLonger() {
+        XCTAssertGreaterThan(InjectionMethod.emptyCharPrefix.settleMicros, InjectionMethod.fast.settleMicros)
+        XCTAssertGreaterThan(InjectionMethod.charByChar.settleMicros, InjectionMethod.fast.settleMicros)
+        XCTAssertGreaterThanOrEqual(InjectionMethod.emptyCharPrefix.settleMicros, InjectionMethod.slow.settleMicros)
+        XCTAssertEqual(InjectionMethod.fast.settleMicros, 5000)
+    }
 }

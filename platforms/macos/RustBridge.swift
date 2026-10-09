@@ -222,8 +222,8 @@ private class TextInjector {
             break
         }
 
-        // Settle time: 20ms for slow apps, 5ms for others
-        usleep(method == .slow ? 20000 : 5000)
+        // Hold the hook until the app has taken the replacement (see settleMicros)
+        usleep(method.settleMicros)
     }
 
     // MARK: - Injection Methods

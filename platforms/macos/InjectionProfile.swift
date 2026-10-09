@@ -30,6 +30,21 @@ enum InjectionMethod {
     case passthrough // iPhone Mirroring / remote desktop: pass every key through
 }
 
+extension InjectionMethod {
+    /// Microseconds to hold the keyboard hook after an injection, before the next physical key is
+    /// delivered. The injected events reach the app a little after they are posted, and a browser's
+    /// text engine handles them later than a plain key: a key typed right behind the injection
+    /// (the m of "lắm") could be handled first and land before the replacement. Holding the hook
+    /// keeps that key queued until the app has taken the replacement.
+    var settleMicros: UInt32 {
+        switch self {
+        case .emptyCharPrefix, .charByChar: 30000
+        case .slow: 20000
+        default: 5000
+        }
+    }
+}
+
 // MARK: - Profile
 
 /// How to replace text in one app: the method, the delays, and a short tag for the log.
