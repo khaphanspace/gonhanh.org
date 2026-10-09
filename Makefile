@@ -22,7 +22,13 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "\033[1;32mDev:\033[0m"
-	@echo "  test        Run Rust tests"
+	@echo "  t           Unit tests only (seconds)"
+	@echo "  gate        Full check: tables, unit + suite tests, dictionary thresholds"
+	@echo "  test        Same as gate"
+	@echo "  test-macos  Swift unit tests (xcodebuild)"
+	@echo "  tables      Regenerate phonology tables from vi.dic / names.dic"
+	@echo "  bench       Benchmark vs baseline (bench-save to overwrite it)"
+	@echo "  update-golden Regenerate tracked corpus/failure files"
 	@echo "  format      Format code (Rust + Swift)"
 	@echo "  lint        Check lint (clippy + swiftformat)"
 	@echo "  build       Build + auto-open app"
@@ -51,12 +57,17 @@ help:
 # Development
 # ============================================================================
 
-.PHONY: test format lint build build-linux clean all
+.PHONY: test test-macos tables format lint app build build-linux clean all
 all: test build
 
-test:
-	@cd core && cargo test
-	@./scripts/test/dict.sh
+test: gate
+
+test-macos: ## Swift unit tests
+	@cd platforms/macos && xcodebuild test -project GoNhanh.xcodeproj -scheme GoNhanh -configuration Debug \
+		-derivedDataPath build/TestDerivedData CODE_SIGNING_ALLOWED=NO -quiet
+
+tables: ## Regenerate core/src/phonology/tables.rs
+	@python3 scripts/gen/phonology_tables.py
 
 # ============================================================================
 # Fast loop: batch your edits, run `make gate` once or twice per batch
@@ -86,13 +97,15 @@ format:
 	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --quiet || echo "⚠️  swiftformat not found. Run: brew install swiftformat"
 
 lint:
-	@cd core && cargo clippy -- -D warnings
+	@cd core && cargo clippy --all-targets -- -D warnings
 	@command -v swiftformat >/dev/null 2>&1 && swiftformat platforms/macos --lint || echo "⚠️  swiftformat not found"
 
-build: format ## Build core + macos app
+app: format
 	@./scripts/build/core.sh
 	@./scripts/build/macos.sh
 	@./scripts/build/windows.sh
+
+build: app ## Build core + macos app, then open it
 	@killall GoNhanh 2>/dev/null || true
 	@sleep 0.5
 	@open platforms/macos/build/Release/GoNhanh.app
@@ -145,14 +158,16 @@ perf:
 setup: ## Setup dev environment
 	@./scripts/setup/macos.sh
 
-install: build
+install: app ## Build, replace /Applications/GoNhanh.app and open it
 	@osascript -e 'tell application "System Events"' -e 'repeat with i from (count of every login item) to 1 by -1' -e 'set li to login item i' -e 'if name of li is "GoNhanh" and path of li contains "/build/" then delete login item i' -e 'end repeat' -e 'end tell' 2>/dev/null || true
 	@killall GoNhanh 2>/dev/null || true
 	@sleep 0.5
-	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
+	@rm -rf /Applications/GoNhanh.app
+	@cp -R platforms/macos/build/Release/GoNhanh.app /Applications/
+	@cmp platforms/macos/build/Release/GoNhanh.app/Contents/MacOS/GoNhanh /Applications/GoNhanh.app/Contents/MacOS/GoNhanh
 	@open /Applications/GoNhanh.app
 
-dmg: build ## Create DMG installer
+dmg: app ## Create DMG installer
 	@./scripts/release/dmg-background.sh
 	@./scripts/release/dmg.sh
 
