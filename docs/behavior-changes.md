@@ -19,7 +19,7 @@ Mỗi dòng: V1 làm gì, V2 làm gì, vì sao V2 đúng hơn hoặc không th�
 | `lisa ` (AR) | `lía` | `lisa` | `lisa` là từ tiếng Anh/tên có trong từ điển, `lía` không có trong vi.dic (cùng nhóm `bore`, `pair`) | `engine::tests::test_interleaved_diphthong_auto_restore` |
 | `booos ` | `boó` | `bóo` | dấu là hàm của chữ cuối: sau khi hoàn tác `ooo`→`oo`, cặp `oo` mở đặt dấu ở chữ đầu | `engine::tests::test_literal_after_circumflex_revert` |
 | `tesaa` | `teáa` | `téaa` | `tea` không phải vần tiếng Việt nên dấu đứng yên trên `e` (V1 chuyển sang `a` rồi mới thành `teáa`: dấu nhảy khi thêm chữ) | `typing_test` |
-| `muafaa ` (AR) | `muàa` | `mùaa` | V1: `muafaa`→`muàa` nhưng `mufaaa`→`mùaa` (phụ thuộc thứ tự gõ). V2: dấu là hàm của chữ cuối (I7) | `english_auto_restore_test` |
+| `muafaa `, `mufaaa ` (AR) | `muàa`, `mùaa` | `muafaa`, `mufaaa` | V1 cho hai kết quả khác nhau với hai thứ tự gõ cùng một chữ (phụ thuộc thứ tự). V2: `muàa`/`mùaa` không phải âm tiết, cả hai trả chữ thô (I1, I7) | `english_auto_restore_test` |
 
 ## Khác biệt do V1 vá theo từng từ (CLAUDE.md cấm), V2 dùng từ điển + dấu hiệu chung
 

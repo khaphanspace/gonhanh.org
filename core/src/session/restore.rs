@@ -61,7 +61,10 @@ impl Text {
 fn squeeze(c: &Compose, to: usize) -> Option<Display> {
     let keys = c.raw();
     // no stretch, nothing to squeeze (the common case)
-    if !has_stretch(c) {
+    if !keys
+        .windows(3)
+        .any(|w| w[0].ch == w[1].ch && w[1].ch == w[2].ch)
+    {
         return None;
     }
     let mut out = Display::empty();
@@ -87,14 +90,6 @@ fn squeeze(c: &Compose, to: usize) -> Option<Display> {
     }
     (out.len as usize != keys.len() && word.n >= 3 && EN.contains_lower(word.as_str()))
         .then_some(out)
-}
-
-/// Three equal letters typed in a row. A run that only exists in the shown text (foresee → foéee,
-/// where the s was eaten as a tone) is no stretch.
-fn has_stretch(c: &Compose) -> bool {
-    c.raw()
-        .windows(3)
-        .any(|w| w[0].ch == w[1].ch && w[1].ch == w[2].ch)
 }
 
 fn is_vowel_byte(b: u8) -> bool {
@@ -155,9 +150,11 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     };
     // row 4: stretched letters ("ơiiiii", "vàooooo") are casual Vietnamese when the word is a
     // Vietnamese syllable once every stretch is squeezed to one letter
+    // (not when the raw letters are an English word: foresee is not a stretched foé)
+    let raw_en = || EN.contains_lower(raw);
     let (squeezed, sn) = collapse_runs(units, 3);
     if sn < units.len()
-        && has_stretch(c)
+        && !(raw.len() >= 4 && raw_en())
         && matches!(
             valid_end(&squeezed[..sn]),
             Validity::Complete | Validity::Loose
@@ -167,8 +164,6 @@ pub fn decide(c: &Compose, enabled: bool, foreign: bool) -> Decision {
     }
     let has_stroke = units.iter().any(|u| u.stroke);
     let validity = valid_end(units);
-    // looked up only by the rows that need it
-    let raw_en = || EN.contains_lower(raw);
 
     // row 6: a finished Vietnamese reading wins when the dictionary knows it; an English word whose
     // Vietnamese reading is unattested (bore → boẻ, sims → sím, wi → ưi) goes back to raw
