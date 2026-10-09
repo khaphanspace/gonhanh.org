@@ -57,6 +57,17 @@ fn every_source_file_is_well_formed() {
             );
         }
     }
+    // strings of one repeated letter (ww, ss, aaaa) are not words, and as dictionary entries they
+    // win over the cancel the user typed on purpose
+    for (name, words) in &all {
+        for w in words {
+            let b = w.as_bytes();
+            assert!(
+                !(b.len() >= 2 && b.iter().all(|&c| c == b[0])),
+                "{name}: {w:?} is no word"
+            );
+        }
+    }
     // a word listed in two files hides which kind it is: keep each word in one file
     let mut seen: HashMap<&str, &str> = HashMap::new();
     let mut dups = Vec::new();
@@ -72,9 +83,16 @@ fn every_source_file_is_well_formed() {
     assert!(dups.is_empty(), "words in more than one file: {dups:?}");
 }
 
+/// Curated files are checked word by word; reference lists (general, base) are too large and too
+/// full of rare words that are also Vietnamese syllables for that.
+const CURATED_MAX: usize = 2000;
+
 #[test]
 fn the_engine_recognises_what_each_source_lists() {
-    for (name, words) in sources().into_iter().filter(|(n, _)| n != "general.txt") {
+    for (name, words) in sources()
+        .into_iter()
+        .filter(|(_, w)| w.len() <= CURATED_MAX)
+    {
         let lost: Vec<String> = words
             .iter()
             .filter_map(|w| {

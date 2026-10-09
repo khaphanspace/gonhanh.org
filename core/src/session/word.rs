@@ -10,6 +10,10 @@ use crate::compose::{Display, RawKey, MAXK};
 use crate::data::keys;
 use crate::utils;
 
+fn is_vowel_key(k: RawKey) -> bool {
+    matches!(k.ch, b'a' | b'e' | b'i' | b'o' | b'u' | b'y')
+}
+
 impl Session {
     /// Result for a change of the shown word. A plain typed letter is left to the platform
     /// (pass-through); everything else rewrites the tail.
@@ -108,11 +112,7 @@ impl Session {
         let mut next = self.word.display();
         // A reading that only free typing allows (west → wét) is shown as typed while the letters
         // still begin an English word: no mark appears and disappears again at the space.
-        if self.free_tone
-            && self.english_restore
-            && self.word.needs_free_typing()
-            && self.begins_english_word()
-        {
+        if self.free_tone && self.word.needs_free_typing() && self.begins_english_word() {
             next = render_raw(self.word.raw());
         }
         self.screen = next;
@@ -131,19 +131,23 @@ impl Session {
     /// The typed letters are one English word or the start of one (a single lookup).
     fn begins_english_word(&self) -> bool {
         let mut buf = [0u8; MAXK];
-        crate::data::lexicon::EN.has_prefix_lower(self.typed_letters(&mut buf))
+        {
+            let text = self.typed_letters(&mut buf);
+            crate::data::lexicon::EN.begins_inflected(text)
+                || crate::data::lexicon::REF.begins_inflected(text)
+        }
     }
 
     /// The typed letters are English: one word, the start of one, or words stuck together
     /// (helloworld, helloworl). Parts are four letters or more, so short Vietnamese syllables are
     /// not mistaken for English words.
     pub(super) fn is_english(&self, compound_only: bool) -> bool {
-        use crate::data::lexicon::EN;
+        use crate::data::lexicon::{EN, REF};
         let mut buf = [0u8; MAXK];
         let text = self.typed_letters(&mut buf);
         let n = text.len();
         // the common case first: one word, or the start of one
-        if !compound_only && EN.has_prefix_lower(text) {
+        if !compound_only && (EN.begins_inflected(text) || REF.begins_inflected(text)) {
             return true;
         }
         // ok[i]: the letters from i on are English
@@ -215,6 +219,11 @@ impl Session {
                 break;
             }
             let end = (start + 1..keys.len()).rev().find(|&e| {
+                // A vowel next to a vowel is one nucleus typed in a odd order (tioo), not two
+                // syllables: a syllable boundary has a consonant on one side.
+                if is_vowel_key(keys[e - 1]) && is_vowel_key(keys[e]) {
+                    return false;
+                }
                 load(&mut self.word, &keys[start..e], start == 0);
                 self.word.finished() && self.word.display().len >= 2
             })?;

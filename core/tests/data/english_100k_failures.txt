@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 395
+# Total failures: 396
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -37,6 +37,7 @@ beef	beef	beef	bề	bêf
 noon	noon	noon	nôn	nôn
 boots	boots	boots	bốt	bôts
 boom	boom	boom	bôm	bôm
+aa	aa	aa	â	â
 cows	cows	cows	cớ	cơs
 downtown	dowwntowwn	downtown	downtowwn	dơwntơwn
 lawn	lawn	lawn	lăn	lăn

@@ -129,6 +129,14 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (0,   TelexFreeAr, "kubernetes ", "kubernetes "),
     (0,   TelexFreeAr, "mongodb ",   "mongodb "),
     (0,   TelexFree,   "nginx ",     "nginx "),
+    (0,   TelexFreeAr, "ww ",        "w "),
+    (0,   TelexFree,   "ww ",        "w "),
+    (0,   TelexFree,   "revert ",    "revert "),
+    (0,   TelexFreeAr, "revert ",    "revert "),
+    (0,   TelexFree,   "reverted ",  "reverted "),
+    (0,   TelexFreeAr, "reverts ",   "reverts "),
+    (0,   TelexFree,   "tioo ",      "tioo "),
+    (0,   TelexFreeAr, "tioo ",      "tioo "),
     (0,   TelexFreeAr, "thanks ",    "thanks "),
     (0,   TelexFreeAr, "hello ",     "hello "),
     (0,   TelexFree,   "ads ",       "ads "),
@@ -487,6 +495,6 @@ fn a_doubled_key_cancels_without_waiting_for_a_space() {
 #[test]
 fn a_doubled_key_cancels_in_modes_without_english_guard() {
     for mode in [Telex, TelexFree] {
-        assert_eq!(type_word(&mut engine(mode), "tess"), "tes", "{mode:?}");
+        assert_eq!(type_word(&mut engine(mode), "xuss"), "xus", "{mode:?}");
     }
 }

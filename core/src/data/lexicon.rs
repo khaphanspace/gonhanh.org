@@ -26,6 +26,8 @@ macro_rules! list {
 
 /// English words (auto-restore); consulted only at word boundaries by the restore logic.
 pub static EN: WordList = list!("en");
+/// Rare base English words (reference list): recognised only where Vietnamese evidence is weak.
+pub static REF: WordList = list!("ref");
 /// Vietnamese syllables.
 pub static VI: WordList = list!("vi");
 /// Words that must never be auto-restored.
@@ -105,6 +107,54 @@ impl WordList {
         }
     }
 
+    /// `word` is listed, or is a regular inflection of a listed word: plural, -ed, -ing, -er,
+    /// -ly (reverts, reverted, stopping, quickly). Lists carry base forms; this is how they
+    /// recognise the rest. Stems shorter than four letters are not trusted.
+    pub fn knows_inflected(&self, word: &str) -> bool {
+        if self.contains_lower(word) {
+            return true;
+        }
+        let lower = word.to_ascii_lowercase();
+        SUFFIXES.iter().any(|suf| {
+            lower
+                .strip_suffix(suf.text)
+                .is_some_and(|stem| stem.len() >= 4 && self.stem_listed(stem, suf.y))
+        })
+    }
+
+    /// The start of a listed word or of an inflection of one (reverte → reverted).
+    pub fn begins_inflected(&self, text: &str) -> bool {
+        if self.has_prefix_lower(text) {
+            return true;
+        }
+        let lower = text.to_ascii_lowercase();
+        (1..=3).any(|tail| {
+            let Some(cut) = lower.len().checked_sub(tail) else {
+                return false;
+            };
+            let (stem, rest) = lower.split_at(cut);
+            stem.len() >= 4
+                && SUFFIXES
+                    .iter()
+                    .any(|suf| suf.text.starts_with(rest) && self.stem_listed(stem, suf.y))
+        })
+    }
+
+    /// The stem as written, with a dropped `e` restored (hop|ing → hope), with a doubled final
+    /// consonant undone (stopp|ed → stop), or with `y` for -ies / -ied.
+    fn stem_listed(&self, stem: &str, y: bool) -> bool {
+        if y {
+            return self.contains_lower(&format!("{stem}y"));
+        }
+        if self.contains_lower(stem) || self.contains_lower(&format!("{stem}e")) {
+            return true;
+        }
+        let b = stem.as_bytes();
+        b.len() >= 5
+            && b[b.len() - 1] == b[b.len() - 2]
+            && self.contains_lower(&stem[..stem.len() - 1])
+    }
+
     /// Whether some entry starts with `prefix` (lower-cased like `contains_lower`).
     pub fn has_prefix_lower(&self, prefix: &str) -> bool {
         let mut buf = [0u8; 128];
@@ -126,6 +176,30 @@ impl WordList {
         lo < end && self.entry(lo).starts_with(key)
     }
 }
+
+struct Suffix {
+    text: &'static str,
+    /// the stem takes `y` back: -ies, -ied
+    y: bool,
+}
+
+const fn suf(text: &'static str, y: bool) -> Suffix {
+    Suffix { text, y }
+}
+
+const SUFFIXES: [Suffix; 11] = [
+    suf("ies", true),
+    suf("ied", true),
+    suf("es", false),
+    suf("ed", false),
+    suf("d", false),
+    suf("ing", false),
+    suf("ers", false),
+    suf("er", false),
+    suf("ly", false),
+    suf("s", false),
+    suf("est", false),
+];
 
 /// `word` lower-cased into `buf`; `None` when it does not fit. ASCII needs no Unicode tables.
 #[inline]
@@ -161,7 +235,7 @@ mod tests {
         assert!(
             EN.len() >= 17_000 && VI.len() >= 6_000 && DOUBLES.len() >= 10_000 && !KEEP.is_empty()
         );
-        for list in [&EN, &VI, &KEEP, &DOUBLES] {
+        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES] {
             for i in 1..list.len() {
                 assert!(list.entry(i - 1) < list.entry(i), "unsorted at {i}");
             }
@@ -170,7 +244,7 @@ mod tests {
 
     #[test]
     fn buckets_agree_with_a_plain_binary_search() {
-        for list in [&EN, &VI, &KEEP, &DOUBLES] {
+        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES] {
             for i in 0..list.len() {
                 let w = std::str::from_utf8(list.entry(i)).unwrap();
                 assert!(list.contains(w), "{w} lost by its bucket");
@@ -186,6 +260,19 @@ mod tests {
             }
             assert!(!list.contains("zzzzqq") && !list.has_prefix_lower("zzzzqq"));
         }
+    }
+
+    #[test]
+    fn inflections_of_listed_words_are_known() {
+        // "revert" is a base word of the reference list
+        for w in ["revert", "reverts", "reverted", "reverting"] {
+            assert!(REF.knows_inflected(w), "{w}");
+        }
+        assert!(EN.knows_inflected("stopped") && EN.knows_inflected("tests"));
+        assert!(REF.begins_inflected("reverte") && REF.begins_inflected("reverti"));
+        assert!(!REF.knows_inflected("xinchaof") && !REF.begins_inflected("xinchaof"));
+        // short stems are not trusted: "ied" is not "i" + ed
+        assert!(!EN.knows_inflected("ied"));
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! Packs the word lists into static blobs so the engine pays nothing at startup. The English list
 //! is merged from every file in `src/data/dictionaries/en/` (general words, tech terms, brand
-//! names...): to support a new kind of word, add a file there.
+//! names...): to support a new kind of word, add a file there. `en-ref/` is merged into a second
+//! list of rare base words that only weak-evidence decisions consult.
 //!
 //! Each list becomes `<name>.blob` (sorted words, each followed by '\n') and `<name>.idx`
 //! (little-endian u32 offsets, n+1 entries). Lookups binary-search the blob in place:
@@ -73,6 +74,7 @@ fn main() {
     let mut curated_doubles: Vec<String> = Vec::new();
     for (name, source) in [
         ("en", Source::Dir("src/data/dictionaries/en")),
+        ("ref", Source::Dir("src/data/dictionaries/en-ref")),
         ("vi", Source::File("src/data/dictionaries/vi.dic", 1)),
         ("keep", Source::File("src/data/dictionaries/keep.dic", 1)),
         ("doubles", Source::File("src/data/telex_doubles.txt", 0)),

@@ -18,7 +18,7 @@
 
 use crate::compose::parse::Role;
 use crate::compose::{Compose, Display, MAXK};
-use crate::data::lexicon::{DOUBLES, EN, KEEP, VI};
+use crate::data::lexicon::{DOUBLES, EN, KEEP, REF, VI};
 use crate::phonology::{validate, Mod, Opts, Unit, Validity};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -121,8 +121,22 @@ pub fn decide(
     foreign: bool,
     english_run: impl Fn() -> bool,
 ) -> Decision {
-    if !enabled || c.is_empty() || !c.kept_transformed() {
-        return Decision::Keep; // row 1-2: feature off, or nothing was transformed
+    if c.is_empty() || !c.kept_transformed() {
+        return Decision::Keep; // row 1-2: nothing was transformed
+    }
+    if !enabled {
+        // Auto-restore is off, but a reading that only free typing allows (revert → revẻt) still
+        // yields to a word of the English dictionary: free typing must not fight English.
+        let raw: String = c.raw().iter().map(|k| k.ch as char).collect();
+        return if c.options().free
+            && c.needs_free_typing()
+            && !c.cancelled()
+            && (EN.knows_inflected(&raw) || REF.knows_inflected(&raw))
+        {
+            Decision::Raw
+        } else {
+            Decision::Keep
+        };
     }
     let raw_text = Text::from_chars(c.raw().iter().map(|k| k.ch as char));
     let shown_text = Text::from_chars(c.kept_display().as_slice().iter().copied());
@@ -158,7 +172,7 @@ pub fn decide(
     // row 4: stretched letters ("ơiiiii", "vàooooo") are casual Vietnamese when the word is a
     // Vietnamese syllable once every stretch is squeezed to one letter
     // (not when the raw letters are an English word: foresee is not a stretched foé)
-    let raw_en = || EN.contains_lower(raw);
+    let raw_en = || EN.knows_inflected(raw);
     let (squeezed, sn) = collapse_runs(units, 3);
     if sn < units.len()
         && !(raw.len() >= 4 && raw_en())

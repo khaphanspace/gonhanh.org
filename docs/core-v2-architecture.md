@@ -51,7 +51,15 @@ Hiển thị khi không còn cách đọc tiếng Việt: chuỗi `keep` (giữ 
 | `data/dictionaries/vi-non-syllables.txt` | mục của vi.dic không phải âm tiết | sinh bảng, audit |
 | `data/dictionaries/keep.dic` | từ luôn giữ nguyên | `build.rs` → `KEEP` |
 | `data/dictionaries/en/*.txt` | từ tiếng Anh, **mỗi loại một file**: `general` (từ thông dụng), `tech` (thuật ngữ lập trình/UI/hạ tầng), `brands` (tên sản phẩm, công ty), `chat` (từ hay gặp khi chat/làm việc) | `build.rs` gộp mọi `*.txt` (chữ thường, bỏ trùng) → `EN` |
+| `data/dictionaries/en-ref/*.txt` | danh sách tham khảo từ hiếm (Webster 2nd, miền công cộng, 4–15 chữ: `revert`, `popover`…), **chỉ** dùng nơi bằng chứng tiếng Việt yếu: không hiện dấu cho cách đọc chỉ do Gõ tự do cho phép khi chữ gõ còn là (tiền tố của) từ tiếng Anh, kể cả khi tắt auto-restore | `build.rs` → `REF` |
 | `data/telex_doubles.txt` | từ Anh chứa chữ đôi kiểu Telex (danh sách lịch sử của `general`); từ có chữ đôi trong các file `en/` khác được `build.rs` tự thêm | `build.rs` → `DOUBLES` |
+
+### Nhận biết từ tiếng Anh: hai danh sách, một quy tắc
+
+- `EN` (thư mục `en/`, tuyển chọn) là **bằng chứng mạnh**: chữ gõ là một từ trong đó thì bảng restore trả về chữ thô; dạng đã huỷ cũng là từ trong đó thì giữ dạng huỷ (`lissa` → `lisa`). Từ hiếm trong đây làm hỏng các quyết định này (`sory`, `teet` của Webster biến `sorry`, `têt` thành sai), nên không nạp danh sách lớn vào `EN`.
+- `REF` (thư mục `en-ref/`, danh sách lớn) là **bằng chứng yếu**: chỉ quyết định khi cách đọc tiếng Việt chính nó yếu (chỉ hợp lệ nhờ Gõ tự do).
+- Cả hai nhận dạng biến cách có quy tắc (`knows_inflected`, `begins_inflected`: số nhiều, `-ed`, `-ing`, `-er`, `-ly`, gốc ≥ 4 chữ): danh sách chỉ chứa dạng gốc.
+- Không để chuỗi một chữ lặp (`ww`, `ss`, `aaaa`) hay cặp 2 chữ vô nghĩa (`qc`, `wm`) trong từ điển: chúng thắng thao tác huỷ phím và đụng các viết tắt của Gõ tự do (`dictionary_sources` kiểm).
 
 ### Thêm từ tiếng Anh
 
