@@ -1,7 +1,8 @@
 @testable import GoNhanh
 import XCTest
 
-/// The per-app injection table: which method and delays each app gets.
+/// The per-app injection table: which method each app gets. Events are posted into the event
+/// stream, so no app needs a delay unless the user sets one.
 final class InjectionProfileTests: XCTestCase {
     private func resolve(_ id: String, _ role: String? = nil) -> InjectionProfile {
         InjectionProfiles.resolve(bundleId: id, role: role)
@@ -16,7 +17,7 @@ final class InjectionProfileTests: XCTestCase {
     func testUnknownAppsGetTheSafeDefault() {
         let p = resolve("com.example.unknown")
         XCTAssertEqual(p.method, .fast)
-        assertDelays(p, Delays.low)
+        assertDelays(p, Delays.zero)
     }
 
     func testRemoteDesktopAndIPhoneMirroringPassKeysThrough() {
@@ -35,14 +36,14 @@ final class InjectionProfileTests: XCTestCase {
     func testSafariAddressBarAndContentDiffer() {
         XCTAssertEqual(resolve("com.apple.Safari", "AXTextField").method, .emptyCharPrefix)
         XCTAssertEqual(resolve("com.apple.Safari", "AXWebArea").method, .charByChar)
-        assertDelays(resolve("com.apple.Safari"), Delays.medium)
+        assertDelays(resolve("com.apple.Safari"), Delays.zero)
     }
 
     func testBrowsersBreakAutocompleteWithTheEmptyCharPrefix() {
         for id in ["com.google.Chrome", "org.mozilla.firefox", "company.thebrowser.Browser", "com.microsoft.edgemac", "com.brave.Browser"] {
             let p = resolve(id)
             XCTAssertEqual(p.method, .emptyCharPrefix, id)
-            assertDelays(p, Delays.medium)
+            assertDelays(p, Delays.zero)
         }
     }
 
@@ -50,7 +51,7 @@ final class InjectionProfileTests: XCTestCase {
         for id in ["com.microsoft.VSCode", "com.apple.Terminal", "dev.warp.Warp-Stable", "dev.zed.Zed"] {
             let p = resolve(id)
             XCTAssertEqual(p.method, .slow, id)
-            assertDelays(p, Delays.high)
+            assertDelays(p, Delays.zero)
         }
     }
 
@@ -58,21 +59,21 @@ final class InjectionProfileTests: XCTestCase {
         XCTAssertEqual(resolve("com.jetbrains.intellij", "AXTextField").method, .selection)
         let editor = resolve("com.jetbrains.intellij", "AXTextArea")
         XCTAssertEqual(editor.method, .slow)
-        assertDelays(editor, Delays.high)
+        assertDelays(editor, Delays.zero)
     }
 
     func testOfficeAndElectronApps() {
-        assertDelays(resolve("com.microsoft.Excel"), Delays.medium)
-        assertDelays(resolve("com.microsoft.Outlook"), (8000, 15000, 8000))
-        assertDelays(resolve("notion.id"), Delays.veryHigh)
-        assertDelays(resolve("com.todesktop.230313mzl4w4u92"), (8000, 15000, 8000))
+        assertDelays(resolve("com.microsoft.Excel"), Delays.zero)
+        assertDelays(resolve("com.microsoft.Outlook"), Delays.zero)
+        assertDelays(resolve("notion.id"), Delays.zero)
+        assertDelays(resolve("com.todesktop.230313mzl4w4u92"), Delays.zero)
     }
 
     func testCharByCharApps() {
         XCTAssertEqual(resolve("com.adobe.Photoshop").method, .charByChar)
         XCTAssertEqual(resolve("com.adobe.Illustrator").method, .charByChar)
         XCTAssertEqual(resolve("texstudio").method, .charByChar)
-        assertDelays(resolve("com.caudex.dev"), (5000, 15000, 5000))
+        assertDelays(resolve("com.caudex.dev"), Delays.zero)
         assertDelays(resolve("com.foxit-software.Foxit.PDF.Reader"), Delays.zero)
     }
 
@@ -94,7 +95,7 @@ final class InjectionProfileTests: XCTestCase {
         config.injectionOverride = InjectionOverride.auto.rawValue
         XCTAssertEqual(detected.applying(config).method, .emptyCharPrefix)
         XCTAssertEqual(detected.applying(nil).method, .emptyCharPrefix)
-        assertDelays(detected.applying(nil), Delays.medium)
+        assertDelays(detected.applying(nil), Delays.zero)
     }
 
     func testPresetsAreTheDetectionLevels() {
@@ -103,18 +104,4 @@ final class InjectionProfileTests: XCTestCase {
         XCTAssertEqual(DelayPreset.closest(to: Delays.none), .none)
     }
 
-    func testSlowTypingMethodsHoldTheHookAfterAReplacement() {
-        XCTAssertGreaterThan(InjectionMethod.charByChar.settleMicros, InjectionMethod.fast.settleMicros)
-        XCTAssertGreaterThanOrEqual(InjectionMethod.charByChar.settleMicros, InjectionMethod.slow.settleMicros)
-        XCTAssertEqual(InjectionMethod.fast.settleMicros, 5000)
-        XCTAssertEqual(InjectionMethod.emptyCharPrefix.settleMicros, 5000)
-    }
-
-    func testBrowsersKeepOrderByTypingTheNextKeysAsText() {
-        XCTAssertTrue(InjectionMethod.emptyCharPrefix.ordersTypedText)
-        for method in [InjectionMethod.fast, .slow, .charByChar, .selection, .axDirect, .syncProxy, .passthrough] {
-            XCTAssertFalse(method.ordersTypedText, "\(method)")
-        }
-        XCTAssertGreaterThanOrEqual(InjectionMethod.textOrderWindow, 0.2)
-    }
 }

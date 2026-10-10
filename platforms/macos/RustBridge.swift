@@ -191,156 +191,73 @@ private class TextInjector {
 
     private init() {}
 
-    /// Post break key (Enter, punctuation) synthetically after text injection
-    /// Used for auto-restore to ensure correct event ordering
-    func postBreakKey(keyCode: CGKeyCode, shift: Bool) {
+    /// Post the break key (Enter, punctuation) after a replacement, at the same place in the stream
+    func postBreakKey(keyCode: CGKeyCode, shift: Bool, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
-        let flags: CGEventFlags = shift ? .maskShift : []
-        postKey(keyCode, source: src, flags: flags)
+        postKey(keyCode, source: src, flags: shift ? .maskShift : [], proxy: proxy)
     }
 
-    /// When the last browser replacement was posted
-    private var lastTextInjectAt: CFAbsoluteTime = 0
-
-    /// Whether a replacement may still be on its way into the app
-    func textPending(window: Double) -> Bool {
-        CFAbsoluteTimeGetCurrent() - lastTextInjectAt < window
-    }
-
-    /// Hold a key that cannot travel as text (Return, Backspace, arrows) until the replacement
-    /// before it has had time to reach the app
-    func waitForPending(window: Double) {
-        let remaining = window - (CFAbsoluteTimeGetCurrent() - lastTextInjectAt)
-        if remaining > 0 { usleep(UInt32(remaining * 1_000_000)) }
-    }
-
-    /// Type one typed character as text, in the same stream as the replacement before it
-    func injectTyped(_ text: String) {
-        semaphore.wait()
-        defer { semaphore.signal() }
-        guard let src = CGEventSource(stateID: .privateState) else { return }
-        postText(text, source: src)
-        lastTextInjectAt = CFAbsoluteTimeGetCurrent()
-    }
-
-    /// Inject text replacement synchronously (blocks until complete)
+    /// Replace `bs` characters with `text` in the focused app.
+    ///
+    /// Every event is posted into the event stream at the tap's own position (CGEventTapPostEvent),
+    /// so the replacement reaches the app before the next physical key and in order, whatever the
+    /// app and however busy it is. There is nothing to wait for and nothing to tune per app.
+    /// `delays` is zero unless the user set a delay for the app by hand.
     func injectSync(bs: Int, text: String, method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
         semaphore.wait()
         defer { semaphore.signal() }
 
         switch method {
-        case .selection:
-            injectViaSelection(bs: bs, text: text, delays: delays)
         case .axDirect:
             injectViaAXWithFallback(bs: bs, text: text, proxy: proxy)
-        case .emptyCharPrefix:
-            injectViaBackspace(bs: bs, text: text, delays: delays, emptyCharPrefix: true)
-        case .charByChar:
-            injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
-        case .slow, .fast:
-            injectViaBackspace(bs: bs, text: text, delays: delays)
-        case .syncProxy:
-            injectViaProxy(bs: bs, text: text, proxy: proxy)
         case .passthrough:
-            // Should not reach here - passthrough is handled in keyboard callback
-            break
+            break // handled in the keyboard callback
+        default:
+            injectInStream(bs: bs, text: text, method: method, delays: delays, proxy: proxy)
         }
-
-        // Hold the hook until the app has taken the replacement (see settleMicros)
-        usleep(method.settleMicros)
-        if method.ordersTypedText { lastTextInjectAt = CFAbsoluteTimeGetCurrent() }
     }
 
-    // MARK: - Injection Methods
+    // MARK: - Injection
 
-    /// Standard backspace injection: delete N chars, then type replacement
-    /// - charByChar: character-by-character mode (slower but more reliable for Safari Google Docs)
-    /// - emptyCharPrefix: send empty char (U+202F) first to break autocomplete highlight (for browser address bars)
-    private func injectViaBackspace(bs: Int, text: String, delays: InjectDelays, charByChar: Bool = false, emptyCharPrefix: Bool = false) {
+    private func pause(_ micros: UInt32) {
+        if micros > 0 { usleep(micros) }
+    }
+
+    /// - selection: Shift+Left selects the characters, the text replaces the selection (address
+    ///   bars: nothing is deleted behind an autocomplete suggestion)
+    /// - emptyCharPrefix: U+202F first breaks an autocomplete highlight, and is deleted with the rest
+    /// - charByChar: the text one character at a time (editors that read one character per event)
+    private func injectInStream(bs: Int, text: String, method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else {
             Log.info("inject FAILED: no event source")
             return
         }
-
         let startTime = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
-        var bs = bs
+        var count = bs
 
-        // Empty char prefix: send U+202F to break autocomplete highlight, then +1 backspace
-        if emptyCharPrefix {
-            let emptyChar: [UniChar] = [0x202F]
-            if let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false)
-            {
-                dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                dn.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                up.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                dn.post(tap: .cgSessionEventTap)
-                up.post(tap: .cgSessionEventTap)
+        if method == .emptyCharPrefix {
+            postText("\u{202F}", source: src, proxy: proxy)
+            pause(delays.0)
+            count += 1
+        }
+
+        let select = method == .selection && !text.isEmpty
+        for _ in 0 ..< count {
+            if select {
+                postKey(KeyCode.leftArrow, source: src, flags: .maskShift, proxy: proxy)
+            } else {
+                postKey(KeyCode.backspace, source: src, proxy: proxy)
             }
-            usleep(delays.0 > 0 ? delays.0 : 1000)
-            bs += 1 // +1 to also delete the empty char
+            pause(delays.0)
         }
+        if count > 0 { pause(delays.1) }
 
-        for _ in 0 ..< bs {
-            postKey(KeyCode.backspace, source: src)
-            usleep(delays.0)
-        }
-        if bs > 0 {
-            usleep(delays.1)
-        }
-
-        let chunks = postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+        postText(text, source: src, delay: delays.2, proxy: proxy, chunkSize: method == .charByChar ? 1 : 20)
 
         if Log.isEnabled {
-            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
-            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
+            let micros = (CFAbsoluteTimeGetCurrent() - startTime) * 1_000_000
+            Log.info("inject done: bs=\(count) in \(String(format: "%.0f", micros))us")
         }
-    }
-
-    /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for zero-delay delivery
-    /// Events are injected directly into the event tap pipeline, guaranteeing correct ordering
-    private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
-
-        for _ in 0 ..< bs {
-            postKey(KeyCode.backspace, source: src, proxy: proxy)
-        }
-
-        postText(text, source: src, proxy: proxy)
-    }
-
-    /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
-    /// For backspace-only (text empty): use backspace to properly delete spaces/punctuation
-    /// For text replacement: use Shift+Left to select (normal behavior)
-    private func injectViaSelection(bs: Int, text: String, delays: InjectDelays) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
-
-        let selDelay = delays.0 > 0 ? delays.0 : 1000
-        let waitDelay = delays.1 > 0 ? delays.1 : 3000
-        let textDelay = delays.2 > 0 ? delays.2 : 2000
-
-        if bs > 0 {
-            // If text is empty (backspace-only, no replacement), use backspace to properly delete spaces/punctuation
-            // This fixes issue where Shift+Left selects space instead of deleting it
-            if text.isEmpty {
-                // Backspace-only: use backspace for all deletions
-                for _ in 0 ..< bs {
-                    postKey(KeyCode.backspace, source: src)
-                    usleep(selDelay)
-                }
-            } else {
-                // Text replacement: use Shift+Left to select (normal selection method)
-                for _ in 0 ..< bs {
-                    postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-                    usleep(selDelay)
-                }
-            }
-            usleep(waitDelay)
-        }
-
-        postText(text, source: src, delay: textDelay)
     }
 
     /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text via proxy
@@ -1619,7 +1536,7 @@ private func keyboardCallback(
             if bs > 0 || !chars.isEmpty {
                 // Shortcut: consumed, don't post. Auto-restore: post Enter after replacement
                 if !keyConsumed {
-                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
                 }
                 return nil
             }
@@ -1695,7 +1612,6 @@ private func keyboardCallback(
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
 
         // Pass through backspace to delete the character
-        _ = forwardAsTextIfPending(event, method: method, hasCmdOrCtrl: false, hasOption: false)
         return Unmanaged.passUnretained(event)
     }
 
@@ -1740,10 +1656,8 @@ private func keyboardCallback(
         let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
-            if method.ordersTypedText, let char = event.keyboardCharacter() {
-                TextInjector.shared.injectTyped(String(char))
-            } else if bs > 0, !chars.isEmpty {
-                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+            if bs > 0, !chars.isEmpty {
+                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
             } else {
                 return Unmanaged.passUnretained(event)
             }
@@ -1751,32 +1665,7 @@ private func keyboardCallback(
         return nil
     }
 
-    if forwardAsTextIfPending(event, method: method, hasCmdOrCtrl: hasCmdOrCtrl, hasOption: hasOption) {
-        return nil
-    }
-
     return Unmanaged.passUnretained(event)
-}
-
-// MARK: - Typed text that follows a replacement
-
-/// A browser takes a replacement as text and the keys typed after it as key events, and the two
-/// do not stay in order there: a letter typed right after "ê" can land before it (hiện → hinệ).
-/// While a replacement may still be on its way, the next typed character goes the same way, as
-/// text, so it queues behind it. Returns true when the key was sent that way (swallow the event).
-/// Keys that cannot travel as text wait until the window has passed.
-private func forwardAsTextIfPending(_ event: CGEvent, method: InjectionMethod, hasCmdOrCtrl: Bool, hasOption: Bool) -> Bool {
-    guard method.ordersTypedText, !hasCmdOrCtrl, !hasOption,
-          TextInjector.shared.textPending(window: InjectionMethod.textOrderWindow) else { return false }
-    if let char = event.keyboardCharacter(),
-       char.isLetter || char.isNumber || char.isPunctuation || char.isSymbol || char == " "
-    {
-        Log.info("typed as text: '\(char)'")
-        TextInjector.shared.injectTyped(String(char))
-        return true
-    }
-    TextInjector.shared.waitForPending(window: InjectionMethod.textOrderWindow)
-    return false
 }
 
 // MARK: - Helper Functions

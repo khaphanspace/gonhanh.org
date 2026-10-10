@@ -30,28 +30,6 @@ enum InjectionMethod {
     case passthrough // iPhone Mirroring / remote desktop: pass every key through
 }
 
-extension InjectionMethod {
-    /// Microseconds to hold the keyboard hook after an injection, before the next physical key is
-    /// delivered, for methods that type the replacement slowly (one character at a time, or into
-    /// a slow editor). Browsers do not need it: they keep order through `ordersTypedText`.
-    var settleMicros: UInt32 {
-        switch self {
-        case .charByChar: 30000
-        case .slow: 20000
-        default: 5000
-        }
-    }
-
-    /// Browsers take a replacement as text and a typed letter as a key event, and the two reach
-    /// the page out of order under load (hiện → hinệ, thêm → thmê, bạn → baạn). With this method
-    /// the keys typed soon after a replacement are sent as text too, so they queue behind it.
-    var ordersTypedText: Bool { self == .emptyCharPrefix }
-
-    /// Seconds after a replacement during which a browser may still be catching up: measured
-    /// worst case about 200 ms with the browser busy.
-    static let textOrderWindow = 0.25
-}
-
 // MARK: - Profile
 
 /// How to replace text in one app: the method, the delays, and a short tag for the log.
@@ -82,7 +60,7 @@ struct InjectionProfile {
 /// order and the first match wins; the tables are built once.
 enum InjectionProfiles {
     /// Used when no app can be identified.
-    static let unknownApp = InjectionProfile(.fast, Delays.none, "unknown")
+    static let unknownApp = InjectionProfile(.fast, Delays.zero, "unknown")
 
     static func resolve(bundleId id: String, role: String?) -> InjectionProfile {
         // Keys that must reach the target untouched: the other side composes the text.
@@ -109,13 +87,13 @@ enum InjectionProfiles {
         // Safari: the address bar needs the empty-char prefix, content (Google Docs) needs char by char
         if safari.contains(id) {
             return role == "AXTextField"
-                ? .init(.emptyCharPrefix, Delays.medium, "emptyChar:safari")
-                : .init(.charByChar, Delays.medium, "char:safari")
+                ? .init(.emptyCharPrefix, Delays.zero, "emptyChar:safari")
+                : .init(.charByChar, Delays.zero, "char:safari")
         }
         // Other browsers: the prefix breaks autocomplete highlights in every context; medium delays
         // cover web apps that intercept popups (Telegram Web)
         if browsers.contains(id) {
-            return .init(.emptyCharPrefix, Delays.medium, "emptyChar:browser")
+            return .init(.emptyCharPrefix, Delays.zero, "emptyChar:browser")
         }
 
         let jetBrains = id.hasPrefix("com.jetbrains")
@@ -125,44 +103,44 @@ enum InjectionProfiles {
 
         // Office: backspaces (a selection conflicts with autocomplete)
         if id == "com.microsoft.Excel" {
-            return .init(.slow, Delays.medium, "slow:excel")
+            return .init(.slow, Delays.zero, "slow:excel")
         }
         if id == "com.microsoft.Word" {
-            return .init(.slow, Delays.medium, "slow:word")
+            return .init(.slow, Delays.zero, "slow:word")
         }
         if id == "com.microsoft.Outlook" {
-            return .init(.slow, (8000, 15000, 8000), "slow:outlook")
+            return .init(.slow, Delays.zero, "slow:outlook")
         }
 
         // Electron apps
         if id == "com.todesktop.230313mzl4w4u92" {
-            return .init(.slow, (8000, 15000, 8000), "slow:claude")
+            return .init(.slow, Delays.zero, "slow:claude")
         }
         if id == "notion.id" {
-            return .init(.slow, Delays.veryHigh, "slow:notion")
+            return .init(.slow, Delays.zero, "slow:notion")
         }
 
         // Editors and terminals (Monaco, Electron, GPU terminals)
         if codeApps.contains(id) {
-            return .init(.slow, Delays.high, "slow:code")
+            return .init(.slow, Delays.zero, "slow:code")
         }
 
         // Qt and other toolkits that need one character at a time
         if id == "texstudio" {
-            return .init(.charByChar, Delays.medium, "char:texstudio")
+            return .init(.charByChar, Delays.zero, "char:texstudio")
         }
         if jetBrains {
-            return .init(.slow, Delays.high, "slow:jb")
+            return .init(.slow, Delays.zero, "slow:jb")
         }
         if id == "com.caudex.dev" {
-            return .init(.charByChar, (5000, 15000, 5000), "char:caudex")
+            return .init(.charByChar, Delays.zero, "char:caudex")
         }
         if id == "com.foxit-software.Foxit.PDF.Reader" {
             return .init(.charByChar, Delays.zero, "char:foxit")
         }
         // Adobe's text engine reads only the first character of a multi-character key event
         if id.hasPrefix("com.adobe.") {
-            return .init(.charByChar, Delays.medium, "char:adobe")
+            return .init(.charByChar, Delays.zero, "char:adobe")
         }
 
         // Games: synchronous proxy injection (Issue #264: Vietnamese typing in LOL)
@@ -170,7 +148,7 @@ enum InjectionProfiles {
             return .init(.syncProxy, Delays.zero, "sync:game")
         }
 
-        return .init(.fast, Delays.low, "default")
+        return .init(.fast, Delays.zero, "default")
     }
 
     // MARK: Data
