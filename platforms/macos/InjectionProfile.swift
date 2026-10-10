@@ -32,17 +32,24 @@ enum InjectionMethod {
 
 extension InjectionMethod {
     /// Microseconds to hold the keyboard hook after an injection, before the next physical key is
-    /// delivered. The injected events reach the app a little after they are posted, and a browser's
-    /// text engine handles them later than a plain key: a key typed right behind the injection
-    /// (the m of "lắm") could be handled first and land before the replacement. Holding the hook
-    /// keeps that key queued until the app has taken the replacement.
+    /// delivered, for methods that type the replacement slowly (one character at a time, or into
+    /// a slow editor). Browsers do not need it: they keep order through `ordersTypedText`.
     var settleMicros: UInt32 {
         switch self {
-        case .emptyCharPrefix, .charByChar: 30000
+        case .charByChar: 30000
         case .slow: 20000
         default: 5000
         }
     }
+
+    /// Browsers take a replacement as text and a typed letter as a key event, and the two reach
+    /// the page out of order under load (hiện → hinệ, thêm → thmê, bạn → baạn). With this method
+    /// the keys typed soon after a replacement are sent as text too, so they queue behind it.
+    var ordersTypedText: Bool { self == .emptyCharPrefix }
+
+    /// Seconds after a replacement during which a browser may still be catching up: measured
+    /// worst case about 200 ms with the browser busy.
+    static let textOrderWindow = 0.25
 }
 
 // MARK: - Profile

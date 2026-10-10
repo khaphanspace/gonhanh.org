@@ -199,6 +199,30 @@ private class TextInjector {
         postKey(keyCode, source: src, flags: flags)
     }
 
+    /// When the last browser replacement was posted
+    private var lastTextInjectAt: CFAbsoluteTime = 0
+
+    /// Whether a replacement may still be on its way into the app
+    func textPending(window: Double) -> Bool {
+        CFAbsoluteTimeGetCurrent() - lastTextInjectAt < window
+    }
+
+    /// Hold a key that cannot travel as text (Return, Backspace, arrows) until the replacement
+    /// before it has had time to reach the app
+    func waitForPending(window: Double) {
+        let remaining = window - (CFAbsoluteTimeGetCurrent() - lastTextInjectAt)
+        if remaining > 0 { usleep(UInt32(remaining * 1_000_000)) }
+    }
+
+    /// Type one typed character as text, in the same stream as the replacement before it
+    func injectTyped(_ text: String) {
+        semaphore.wait()
+        defer { semaphore.signal() }
+        guard let src = CGEventSource(stateID: .privateState) else { return }
+        postText(text, source: src)
+        lastTextInjectAt = CFAbsoluteTimeGetCurrent()
+    }
+
     /// Inject text replacement synchronously (blocks until complete)
     func injectSync(bs: Int, text: String, method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
         semaphore.wait()
@@ -224,6 +248,7 @@ private class TextInjector {
 
         // Hold the hook until the app has taken the replacement (see settleMicros)
         usleep(method.settleMicros)
+        if method.ordersTypedText { lastTextInjectAt = CFAbsoluteTimeGetCurrent() }
     }
 
     // MARK: - Injection Methods
@@ -1670,6 +1695,7 @@ private func keyboardCallback(
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
 
         // Pass through backspace to delete the character
+        _ = forwardAsTextIfPending(event, method: method, hasCmdOrCtrl: false, hasOption: false)
         return Unmanaged.passUnretained(event)
     }
 
@@ -1714,7 +1740,9 @@ private func keyboardCallback(
         let isBreak = isBreakKey(keyCode, shift: shift) && keyCode != KeyCode.space && !keyConsumed
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
-            if bs > 0, !chars.isEmpty {
+            if method.ordersTypedText, let char = event.keyboardCharacter() {
+                TextInjector.shared.injectTyped(String(char))
+            } else if bs > 0, !chars.isEmpty {
                 TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
             } else {
                 return Unmanaged.passUnretained(event)
@@ -1723,7 +1751,32 @@ private func keyboardCallback(
         return nil
     }
 
+    if forwardAsTextIfPending(event, method: method, hasCmdOrCtrl: hasCmdOrCtrl, hasOption: hasOption) {
+        return nil
+    }
+
     return Unmanaged.passUnretained(event)
+}
+
+// MARK: - Typed text that follows a replacement
+
+/// A browser takes a replacement as text and the keys typed after it as key events, and the two
+/// do not stay in order there: a letter typed right after "ê" can land before it (hiện → hinệ).
+/// While a replacement may still be on its way, the next typed character goes the same way, as
+/// text, so it queues behind it. Returns true when the key was sent that way (swallow the event).
+/// Keys that cannot travel as text wait until the window has passed.
+private func forwardAsTextIfPending(_ event: CGEvent, method: InjectionMethod, hasCmdOrCtrl: Bool, hasOption: Bool) -> Bool {
+    guard method.ordersTypedText, !hasCmdOrCtrl, !hasOption,
+          TextInjector.shared.textPending(window: InjectionMethod.textOrderWindow) else { return false }
+    if let char = event.keyboardCharacter(),
+       char.isLetter || char.isNumber || char.isPunctuation || char.isSymbol || char == " "
+    {
+        Log.info("typed as text: '\(char)'")
+        TextInjector.shared.injectTyped(String(char))
+        return true
+    }
+    TextInjector.shared.waitForPending(window: InjectionMethod.textOrderWindow)
+    return false
 }
 
 // MARK: - Helper Functions

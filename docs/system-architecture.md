@@ -270,7 +270,9 @@ InjectionProfiles.resolve(bundleId, role) → InjectionProfile { method, delays,
 profile.applying(perAppConfig) → the user's Advanced overrides (method, delay preset)
 ```
 
-After an injection the hook is held for `InjectionMethod.settleMicros` (30 ms for the empty-char and char-by-char methods, 20 ms slow, 5 ms others) so that a key typed right behind it stays queued until the app has taken the replacement; browsers handle synthetic events later than plain keys, and without the hold the next letter could land first ("lắm" → "lmắ"). The debug log shows the gap: in one session 86 of 248 injections were followed by a key within 40 ms.
+**Order of text in browsers.** A browser takes a replacement as text and a typed letter as a key event, and under load the two reach the page out of order: the letter typed right after `ê` can land before it ("hiện" → "hinệ", "thêm" → "thmê", "bạn" → "baạn"). Holding the hook longer does not fix it, because the delay of the browser is unbounded (measured up to ~200 ms, in bursts). For the empty-char method (`InjectionMethod.ordersTypedText`) every key typed within `textOrderWindow` (0.25 s) after a replacement is therefore sent as text too, in the same stream as the replacement, so it queues behind it; keys that cannot travel as text (Backspace, Return, arrows) wait out the rest of the window. Measured in Chrome with real keystrokes (letters, tone and punctuation, 40–55 ms per key with jitter): before 251 of 300 words wrong at 40 ms per key, after 0 of 1.050 (7 runs of 150 words) and 0 of 80 phrases with punctuation.
+
+After an injection the hook is also held for `InjectionMethod.settleMicros` (30 ms char-by-char, 20 ms slow, 5 ms others) for the methods that type the replacement slowly.
 
 `Delays` holds the five delay levels (µs after each backspace, after the last backspace, after each text chunk) and is the single source for both detection and the Advanced slider (`DelayPreset`). The table is covered by `Tests/InjectionProfileTests.swift`. To support a new app: add its bundle id to the matching set (or one rule) there and a test line.
 

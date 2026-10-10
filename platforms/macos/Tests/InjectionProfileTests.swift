@@ -103,10 +103,18 @@ final class InjectionProfileTests: XCTestCase {
         XCTAssertEqual(DelayPreset.closest(to: Delays.none), .none)
     }
 
-    func testMethodsThatGoThroughATextEngineHoldTheHookLonger() {
-        XCTAssertGreaterThan(InjectionMethod.emptyCharPrefix.settleMicros, InjectionMethod.fast.settleMicros)
+    func testSlowTypingMethodsHoldTheHookAfterAReplacement() {
         XCTAssertGreaterThan(InjectionMethod.charByChar.settleMicros, InjectionMethod.fast.settleMicros)
-        XCTAssertGreaterThanOrEqual(InjectionMethod.emptyCharPrefix.settleMicros, InjectionMethod.slow.settleMicros)
+        XCTAssertGreaterThanOrEqual(InjectionMethod.charByChar.settleMicros, InjectionMethod.slow.settleMicros)
         XCTAssertEqual(InjectionMethod.fast.settleMicros, 5000)
+        XCTAssertEqual(InjectionMethod.emptyCharPrefix.settleMicros, 5000)
+    }
+
+    func testBrowsersKeepOrderByTypingTheNextKeysAsText() {
+        XCTAssertTrue(InjectionMethod.emptyCharPrefix.ordersTypedText)
+        for method in [InjectionMethod.fast, .slow, .charByChar, .selection, .axDirect, .syncProxy, .passthrough] {
+            XCTAssertFalse(method.ordersTypedText, "\(method)")
+        }
+        XCTAssertGreaterThanOrEqual(InjectionMethod.textOrderWindow, 0.2)
     }
 }
