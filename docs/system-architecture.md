@@ -254,6 +254,30 @@ Send: Unicode input event (replaces selection)
 | **2-3** | Backspace | Compound vowels, still fast | ⚡ OK - minimal delay |
 | **4+** | Backspace | Long shortcuts | ⚠️ May see brief flicker |
 
+#### Keys the hook never touches
+
+The event tap (active, HID level, `keyDown` + `flagsChanged`) returns the original event, before any AX query or engine work, for every key pressed with Command or Control that is not the toggle or restore shortcut (`isCommandOrControlCombo`). Other apps' global hotkeys (Carbon, MASShortcut) and menu shortcuts therefore see exactly what was pressed, with no added latency; such a combo also ends the current composition. Cursor keys with a modifier and Option+Backspace are handled the same way (clear the buffer, pass through) ahead of the AX lookup. If a global hotkey of another app still stops working while GoNhanh runs, create `/tmp/gonhanh_debug.log` (`touch`), press the hotkey and look for `keyDown: code=…`, `AX detect slow` and `tap disabled` lines.
+
+#### Where the per-app method and delays come from
+
+The macOS app asks the focused element for its role and owning app (one AX round trip, cached 200 ms and cleared on app switch), then looks the pair up in `platforms/macos/InjectionProfile.swift`:
+
+```
+focusedElementInfo() → (role, bundleId)
+InjectionProfiles.resolve(bundleId, role) → InjectionProfile { method, delays, tag }   pure, first rule wins
+   passthrough (iPhone Mirroring, remote desktop) → role selection (combo, search) → Spotlight → Safari
+   → browsers → JetBrains text field → Office → Electron → editors/terminals → char-by-char apps → games → default
+profile.applying(perAppConfig) → the user's Advanced overrides (method, delay preset)
+```
+
+**Replacement goes into the event stream, with no waiting.** Every event of a replacement (empty char, backspaces or Shift+Left, text) is posted with `CGEventTapPostEvent(proxy, …)`, which inserts it at the tap's own position: it reaches the app before the next physical key, in order, whatever the app and however busy it is. Posting at the end of the session queue instead (`CGEvent.post(tap: .cgSessionEventTap)`) lets the next typed letter overtake the replacement, because an app takes a replacement as text and a letter as a key event through different paths ("hiện" → "hinệ", "thêm" → "thmê", "bạn" → "baạn"); every delay added to hide that is a guess about the app and the load, and the app table had grown to dozens of them. OpenKey posts everything this way, with no delay at all.
+
+The method now only says *what* to send, never how long to wait: `emptyCharPrefix` (browsers: U+202F first so an autocomplete highlight is not deleted), `selection` (Shift+Left instead of Backspace for address bars), `charByChar`, and the plain backspace + text for the rest; `axDirect` (Spotlight) and `passthrough` (remote desktop) are unchanged. The delays in the table are all zero; they only apply when the user sets a delay for an app by hand (Advanced settings), and are then honored between the events.
+
+Measured with real keystrokes at 28–40 ms per key with jitter (the typing harness posts HID events, so the keyboard tap is in the path): words wrong out of 100 in Chrome, Ghostty (byte log of what the terminal sends), Safari, Firefox and TextEdit: 0 for the in-stream build. With the previous session-queue posting the same test gave 251 of 300 wrong in Chrome and 80 of 80 in Ghostty at 40 ms per key; the previous engine (V1) gave 23 of 80 in Chrome and 75 of 80 in Ghostty. Not measured yet: Office, Electron apps, JetBrains, Adobe, games, address bars.
+
+`Delays` holds the delay levels (µs after each backspace, after the last backspace, after each text chunk) that the Advanced slider (`DelayPreset`) offers as a manual override. The table is covered by `Tests/InjectionProfileTests.swift`. To support a new app: add its bundle id to the matching set (or one rule) there and a test line.
+
 #### App Compatibility Matrix
 
 **Legend:** ✅ OK | ⚠️ Sometimes issues | ❌ Known issues

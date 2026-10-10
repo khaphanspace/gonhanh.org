@@ -36,19 +36,19 @@ enum DelayPreset: Int, CaseIterable {
         }
     }
 
-    /// Delay tuple: (backspace µs, wait µs, text µs) — matches detectMethod() values
-    var delays: (UInt32, UInt32, UInt32) {
+    /// Delays in µs; the same levels per-app detection uses (`Delays`).
+    var delays: InjectDelays {
         switch self {
-        case .none: (200, 800, 500) // fast default
-        case .low: (1000, 3000, 1500)
-        case .medium: (3000, 8000, 3000) // slow/Electron
-        case .high: (8000, 25000, 8000)
-        case .veryHigh: (12000, 25000, 12000)
+        case .none: Delays.none
+        case .low: Delays.low
+        case .medium: Delays.medium
+        case .high: Delays.high
+        case .veryHigh: Delays.veryHigh
         }
     }
 
     /// Find closest preset matching a delay tuple (by wait µs)
-    static func closest(to delays: (UInt32, UInt32, UInt32)) -> DelayPreset {
+    static func closest(to delays: InjectDelays) -> DelayPreset {
         let wait = delays.1
         return allCases.min(by: {
             abs(Int($0.delays.1) - Int(wait)) < abs(Int($1.delays.1) - Int(wait))
@@ -96,6 +96,18 @@ enum InjectionOverride: Int, CaseIterable {
         case .charByChar: "Gõ từng ký tự, Safari/GDocs"
         case .selection: "Select + replace, combo box"
         case .emptyCharPrefix: "Phá autocomplete trình duyệt"
+        }
+    }
+
+    /// The method this override forces; `nil` leaves the detected one.
+    var method: InjectionMethod? {
+        switch self {
+        case .auto: nil
+        case .fast: .fast
+        case .slow: .slow
+        case .charByChar: .charByChar
+        case .selection: .selection
+        case .emptyCharPrefix: .emptyCharPrefix
         }
     }
 
