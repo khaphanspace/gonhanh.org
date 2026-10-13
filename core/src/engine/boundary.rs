@@ -1,6 +1,7 @@
 //! Word boundaries: Space, punctuation, Enter, ESC. Shortcuts, English restore, history.
 
 use super::autocap::{break_char, is_sentence_ending, should_reset_pending};
+use super::context::classify;
 use super::history::Entry;
 use super::out::Out;
 use super::restore::{decide, Decision};
@@ -44,6 +45,7 @@ impl Engine {
             &self.word,
             self.english_restore,
             self.foreign_initials(),
+            self.english_run.is_open(),
             || self.free_tone && self.english_restore && self.is_english(true),
         ) {
             // the screen may still show the typed letters (English guard): finish as Vietnamese
@@ -63,6 +65,15 @@ impl Engine {
 
     /// Remember the committed word so Backspace can bring it back.
     fn commit_word(&mut self, restored: Option<Display>) {
+        // Vietnamese when what stays on screen is not the letters as typed
+        let vietnamese =
+            restored.is_none() && render_raw(self.word.raw()).as_slice() != self.screen.as_slice();
+        let mut letters = [0u8; MAXK];
+        let n = self.word.len();
+        for (dst, k) in letters.iter_mut().zip(self.word.raw()) {
+            *dst = k.ch;
+        }
+        self.english_run.note(classify(&letters[..n], vietnamese));
         let mut keys_copy = [RawKey { ch: 0, caps: false }; MAXK];
         let n = self.word.len();
         keys_copy[..n].copy_from_slice(self.word.raw());
@@ -178,6 +189,9 @@ impl Engine {
             self.spaces_after_commit = 0;
         }
         self.clear();
+        if enter {
+            self.english_run.clear();
+        }
         if let Some(ch) = break_char(key, shift) {
             self.shortcut_prefix.push(ch);
         }

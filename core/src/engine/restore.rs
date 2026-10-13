@@ -5,7 +5,8 @@
 //! What is left for this table are readings that *stay* alive until the word ends.
 //!
 //! Rows, first match wins:
-//!   1-2  feature off / nothing transformed      → keep      3  `keep.dic`            → keep
+//!   1-2  feature off / nothing transformed      → keep      2b English words before → raw
+//!   3    `keep.dic`                              → keep
 //!   3b   stretched English word (chooose)       → squeeze   3c `wr`/`wh` start       → raw
 //!   4    stretched Vietnamese (vàooo)           → keep      6  finished VN reading   → keep, unless English evidence
 //!   7    cancelled modifier (mass, off, taxxi)  → raw if a word, else the cancelled form
@@ -18,7 +19,7 @@
 
 use crate::compose::parse::Role;
 use crate::compose::{Compose, Display, MAXK};
-use crate::data::lexicon::{DOUBLES, EN, KEEP, REF, VI};
+use crate::data::lexicon::{DOUBLES, EN, FUNC, KEEP, REF, VI};
 use crate::phonology::{validate, Mod, Opts, Unit, Validity};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -113,12 +114,14 @@ fn collapse_runs(units: &[Unit], min: usize) -> ([Unit; MAXK], usize) {
 }
 
 /// `enabled` is the user's English auto-restore setting.
+/// `prior_english`: the words before this one are English (engine/context.rs).
 /// `english_run`: asks the caller whether the letters are English words stuck together
 /// (helloworld); evaluated only by the row that needs it.
 pub fn decide(
     c: &Compose,
     enabled: bool,
     foreign: bool,
+    prior_english: bool,
     english_run: impl Fn() -> bool,
 ) -> Decision {
     if c.is_empty() || !c.kept_transformed() {
@@ -150,6 +153,19 @@ pub fn decide(
     let p = c.kept();
     let units = p.units();
 
+    // row 2b: after English words, letters that spell an English word stay English even when they
+    // also read as a Vietnamese syllable (he is → is, not í). Vietnamese stroke abbreviations
+    // (đc) are not words of either list and never reach this; a tone the user cancelled on purpose
+    // (thiss → this) is decided by row 7.
+    if prior_english
+        && !c.cancelled()
+        && raw.len() >= 2
+        && raw.bytes().all(|b| b.is_ascii_alphabetic())
+        && !units.iter().any(|u| u.stroke)
+        && (FUNC.contains_lower(raw) || EN.knows_inflected(raw))
+    {
+        return Decision::Raw;
+    }
     // row 3: words that must stay as typed
     if KEEP.contains_lower(shown) || KEEP.contains_lower(raw) {
         return Decision::Keep;

@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 278
+# Total failures: 258
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -12,13 +12,11 @@ seen	seen	seen	sên	sên
 low	low	low	lơ	lơ
 room	room	room	rôm	rôm
 tree	tree	tree	trê	trê
-queen	queen	queen	quên	quên
 row	row	row	rơ	rơ
 lee	lee	lee	lê	lê
 moon	moon	moon	môn	môn
 towns	towns	towns	tớn	tơns
 roots	roots	roots	rốt	rôts
-roof	roof	roof	rồ	rôf
 thee	thee	thee	thê	thê
 beer	beer	beer	bể	bêr
 keeps	keeps	keeps	kếp	kêps
@@ -70,8 +68,6 @@ cheers	cheers	cheers	chế	chêrs
 dodd	dodd	dodd	dod	dođ
 nee	nee	nee	nê	nê
 aaa	aaa	aaa	aa	âa
-looms	looms	looms	lốm	lôms
-moors	moors	moors	mố	môrs
 gee	geee	gee	geee	gêe
 ddt	ddt	ddt	đt	đt
 beers	beers	beers	bế	bêrs
@@ -95,12 +91,10 @@ ree	ree	ree	rê	rê
 yawned	yawwned	yawned	yawwned	yăwned
 coo	coo	coo	cô	cô
 coon	coon	coon	côn	côn
-roost	roost	roost	rốt	rôst
 lows	lows	lows	lớ	lơs
 thawing	thawwing	thawing	thawwing	thăwing
 mee	mee	mee	mê	mê
 uaw	uaw	uaw	ưa	uă
-hoofs	hoofs	hoofs	hố	hôfs
 mow	mow	mow	mơ	mơ
 yawn	yawwn	yawn	yawwn	yăwn
 ddr	ddr	ddr	đr	đr
@@ -125,7 +119,6 @@ cee	ceee	cee	ceee	cêe
 kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki
 chee	chee	chee	chê	chê
 yaw	yaww	yaw	yaww	yăw
-loos	loos	loos	lố	lôs
 uw	uw	uw	ư	ư
 vee	vee	vee	vê	vê
 goo	goo	goo	gô	gô
@@ -137,13 +130,11 @@ roo	roo	roo	rô	rô
 dde	dde	dde	đe	đe
 kowloon	kowwloon	kowloon	kowwloon	kơwlôn
 kowalski	kowwalski	kowalski	kowwalski	kơwalski
-moos	moos	moos	mố	môs
 seeps	seeps	seeps	sếp	sêps
 poo	poo	poo	pô	pô
 heer	heer	heer	hể	hêr
 aac	aac	aac	âc	âc
 yoo	yooo	yoo	yooo	yôo
-oops	oops	oops	ốp	ôps
 ddc	ddc	ddc	đc	đc
 neem	neem	neem	nêm	nêm
 ooh	oooh	ooh	oooh	ôoh
@@ -156,14 +147,12 @@ ees	ees	ees	ế	ês
 oop	oop	oop	ôp	ôp
 oooo	oooooo	oooo	ooooo	ôôô
 oooo	oooo	oooo	ooo	ôô
-noor	noor	noor	nổ	nôr
 gow	gow	gow	gơ	gơ
 eez	eez	eez	e	êz
 lycee	lyceee	lycee	lyceee	lycêe
 dda	dda	dda	đa	đa
 aar	aar	aar	ẩ	âr
 yaakov	yaaakov	yaakov	yaaakov	yâakov
-coons	coons	coons	cốn	côns
 aap	aap	aap	âp	âp
 yoon	yooon	yoon	yooon	yôon
 chaffee	chaffee	chaffee	chafee	chaffê
@@ -175,7 +164,6 @@ typhoons	typhooons	typhoons	typhooons	typhôons
 mown	mown	mown	mơn	mơn
 veen	veen	veen	vên	vên
 dowson	dowson	dowson	dốn	dơson
-boor	boor	boor	bổ	bôr
 eee	eee	eee	ee	êe
 bylaw	bylaww	bylaw	bylaww	bylăw
 ooooo	ooooooo	ooooo	oooooo	ôôôo
@@ -183,7 +171,6 @@ ooooo	ooooo	ooooo	oooo	ôôo
 noo	noo	noo	nô	nô
 goon	goon	goon	gôn	gôn
 aat	aat	aat	ât	ât
-coors	coors	coors	cố	côrs
 kees	kees	kees	kế	kês
 trow	trow	trow	trơ	trơ
 geek	geeek	geek	geeek	gêek
@@ -195,8 +182,6 @@ powwow	powwwoww	powwow	powwoww	pơwwơw
 yaws	yawws	yaws	yawws	yăws
 dees	dees	dees	dế	dês
 aws	aws	aws	ắ	ăs
-boos	boos	boos	bố	bôs
-queers	queers	queers	quế	quêrs
 tycoons	tycooons	tycoons	tycooons	tycôons
 gowon	gowon	gowon	gôn	gơon
 veers	veers	veers	vế	vêrs
@@ -206,9 +191,7 @@ hoots	hoots	hoots	hốt	hôts
 thurow	thurow	thurow	thuở	thurơ
 awt	awt	awt	ăt	ăt
 oot	oot	oot	ôt	ôt
-loons	loons	loons	lốn	lôns
 hows	hows	hows	hớ	hơs
-coops	coops	coops	cốp	côps
 toon	toon	toon	tôn	tôn
 neer	neer	neer	nể	nêr
 tows	tows	tows	tớ	tơs
@@ -222,7 +205,6 @@ typee	typeee	typee	typeee	typêe
 eet	eet	eet	êt	êt
 lowi	lowi	lowi	lơi	lơi
 geen	geeen	geen	geeen	gêen
-goof	goof	goof	gồ	gôf
 beeps	beeps	beeps	bếp	bêps
 boons	boons	boons	bốn	bôns
 oom	oom	oom	ôm	ôm
@@ -268,11 +250,9 @@ oooooooo	oooooooo	oooooooo	ooooooo	ôôôô
 bybee	bybeee	bybee	bybeee	bybêe
 daan	daan	daan	dân	dân
 macaws	macaws	macaws	mắc	macăs
-usee	usee	usee	uế	usê
 lydda	lyddda	lydda	lyddda	lyđda
 kaa	kaaa	kaa	kaaa	kâa
 lowbrow	lowwbroww	lowbrow	lowbroww	lơwbrơw
-coots	coots	coots	cốt	côts
 gees	geees	gees	geees	gêes
 lown	lown	lown	lơn	lơn
 eep	eep	eep	êp	êp

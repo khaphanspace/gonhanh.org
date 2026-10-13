@@ -79,6 +79,10 @@ fn main() {
         ("ref", Source::Dir("src/data/dictionaries/en-ref")),
         ("vi", Source::File("src/data/dictionaries/vi.dic", 1)),
         ("keep", Source::File("src/data/dictionaries/keep.dic", 1)),
+        (
+            "func",
+            Source::File("src/data/dictionaries/en-function.txt", 0),
+        ),
         ("doubles", Source::File("src/data/telex_doubles.txt", 0)),
     ] {
         let mut all = read_words(&source);

@@ -9,6 +9,7 @@
 
 mod autocap;
 mod boundary;
+mod context;
 mod disabled;
 mod history;
 mod keymap;
@@ -114,6 +115,8 @@ pub struct Engine {
     pending_capitalize: bool,
     auto_capitalize_used: bool,
     saw_sentence_ending: bool,
+    /// language of the words before the current one
+    english_run: context::EnglishRun,
 }
 
 impl Default for Engine {
@@ -147,6 +150,7 @@ impl Engine {
             pending_capitalize: false,
             auto_capitalize_used: false,
             saw_sentence_ending: false,
+            english_run: context::EnglishRun::new(),
         }
     }
 
@@ -271,6 +275,7 @@ impl Engine {
             self.clear();
             self.history.clear();
             self.spaces_after_commit = 0;
+            self.english_run.clear();
             return Out::none();
         }
         if !self.enabled {
@@ -355,6 +360,7 @@ impl Engine {
         self.spaces_after_commit = 0;
         self.pending_capitalize = false;
         self.saw_sentence_ending = false;
+        self.english_run.clear();
     }
 
     pub fn get_buffer_string(&self) -> String {

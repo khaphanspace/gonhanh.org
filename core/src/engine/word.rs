@@ -239,7 +239,7 @@ impl Engine {
             })?;
             load(&mut self.word, &keys[start..end], start == 0);
             // a closed syllable gets the verdict it would get at a space
-            let text = match decide(&self.word, english, foreign, || false) {
+            let text = match decide(&self.word, english, foreign, false, || false) {
                 Decision::Keep => self.word.kept_display(),
                 Decision::Raw => render_raw(self.word.raw()),
                 Decision::Squeezed(d) => d,

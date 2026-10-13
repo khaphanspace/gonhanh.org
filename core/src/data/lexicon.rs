@@ -32,6 +32,9 @@ pub static REF: WordList = list!("ref");
 pub static VI: WordList = list!("vi");
 /// Words that must never be auto-restored.
 pub static KEEP: WordList = list!("keep");
+/// English function words (articles, pronouns, auxiliaries, prepositions, conjunctions): the closed
+/// class that tells which language a sentence is in.
+pub static FUNC: WordList = list!("func");
 /// English words that contain Telex double patterns.
 pub static DOUBLES: WordList = list!("doubles");
 
@@ -235,7 +238,7 @@ mod tests {
         assert!(
             EN.len() >= 17_000 && VI.len() >= 6_000 && DOUBLES.len() >= 8_000 && !KEEP.is_empty()
         );
-        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES] {
+        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES, &FUNC] {
             for i in 1..list.len() {
                 assert!(list.entry(i - 1) < list.entry(i), "unsorted at {i}");
             }
@@ -244,7 +247,7 @@ mod tests {
 
     #[test]
     fn buckets_agree_with_a_plain_binary_search() {
-        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES] {
+        for list in [&EN, &REF, &VI, &KEEP, &DOUBLES, &FUNC] {
             for i in 0..list.len() {
                 let w = std::str::from_utf8(list.entry(i)).unwrap();
                 assert!(list.contains(w), "{w} lost by its bucket");
