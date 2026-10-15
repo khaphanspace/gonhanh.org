@@ -63,6 +63,46 @@ fn read_words(source: &Source) -> Vec<(String, String)> {
     }
 }
 
+/// Words of `en-frequency.txt` (most common first) with their rank.
+fn frequency_ranks() -> std::collections::HashMap<String, usize> {
+    let path = "src/data/dictionaries/en-frequency.txt";
+    println!("cargo:rerun-if-changed={path}");
+    let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let mut ranks = std::collections::HashMap::new();
+    for (i, l) in text.lines().enumerate() {
+        ranks.entry(l.trim().to_lowercase()).or_insert(i + 1);
+    }
+    ranks
+}
+
+/// A doubled tone key cancels the tone (tor + r → tor), so a word spelled with a doubled tone
+/// letter (torr, off, loss) is typed on purpose only if nothing likelier is what the cancel
+/// leaves. When the word that is left is a word too (tor, of, los), the commoner of the two
+/// wins: torr (a unit of pressure) loses to tor, lissa to lisa, off to of (the way to type "of"
+/// in Telex is "off"), while loss and class, commoner than their cancels or with none, stay.
+fn cancel_is_likelier(
+    word: &str,
+    ranks: &std::collections::HashMap<String, usize>,
+    known: &std::collections::HashSet<String>,
+) -> bool {
+    /// a known word the frequency list does not rank is rarer than any ranked one
+    const UNRANKED: usize = usize::MAX - 1;
+    let rank = ranks.get(word).copied().unwrap_or(usize::MAX);
+    let b = word.as_bytes();
+    (0..b.len().saturating_sub(1)).any(|i| {
+        if b[i] != b[i + 1] || !matches!(b[i], b's' | b'f' | b'r' | b'x' | b'j') {
+            return false;
+        }
+        let left = format!("{}{}", &word[..i], &word[i + 1..]);
+        let left_rank = match ranks.get(&left) {
+            Some(&r) => r,
+            None if known.contains(&left) => UNRANKED,
+            None => return false,
+        };
+        left_rank < rank
+    })
+}
+
 fn has_double_letter(w: &str) -> bool {
     w.as_bytes()
         .windows(2)
@@ -94,6 +134,22 @@ fn main() {
             // Curated English words (tech, brands, chat...) spelled with a doubled letter keep it
             // (terraform, github's ss...): they join the Telex-doubles list without a second edit.
             all.extend(curated_doubles.iter().map(|w| (String::new(), w.clone())));
+            // every English word with a doubled tone letter, not only the legacy list's
+            all.extend(
+                en_words
+                    .iter()
+                    .filter(|w| w.bytes().all(|c| c.is_ascii_lowercase()))
+                    .filter(|w| {
+                        w.as_bytes()
+                            .windows(2)
+                            .any(|p| p[0] == p[1] && b"sfrxj".contains(&p[0]))
+                    })
+                    .map(|w| (String::new(), w.clone())),
+            );
+            let ranks = frequency_ranks();
+            let known: std::collections::HashSet<String> =
+                en_words.iter().chain(ref_words.iter()).cloned().collect();
+            all.retain(|(_, w)| !cancel_is_likelier(&w.to_lowercase(), &ranks, &known));
         }
         if name == "ref" {
             ref_words = all.iter().map(|(_, w)| w.clone()).collect();

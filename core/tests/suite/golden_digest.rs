@@ -89,7 +89,7 @@ fn digest(items: &[String], auto_restore: bool) -> (usize, u64) {
 
 #[test]
 fn engine_behavior_digest_matches_golden() {
-    let en = read("tests/data/english_100k.txt");
+    let en = read("src/data/dictionaries/en-frequency.txt");
     let en_var = variants("tests/data/english_100k_typing_variants.txt");
     let vi_var = variants("tests/data/vietnamese_22k_typing_variants.txt");
 

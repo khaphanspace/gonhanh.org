@@ -1031,7 +1031,7 @@ fn double_mark_4char_restores_english() {
         ("buss ", "bus "), // "bus" is in English dict → keep buffer form
         ("bass ", "bass "),
         ("boss ", "boss "),
-        ("loss ", "los "), // "los" is in English dict → keep buffer form
+        ("loss ", "loss "), // loss is commoner than the "los" its cancel would leave
         ("mass ", "mass "),
         ("mess ", "mess "),
         ("miss ", "miss "),

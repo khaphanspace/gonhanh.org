@@ -1,11 +1,11 @@
-//! Words from tests/data/english_100k.txt that change when typed with auto-restore: `word<TAB>actual`.
+//! Words from src/data/dictionaries/en-frequency.txt that change when typed with auto-restore: `word<TAB>actual`.
 use gonhanh_core::engine::Engine;
 use gonhanh_core::utils::type_word;
 
 fn main() {
     let path = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "tests/data/english_100k.txt".into());
+        .unwrap_or_else(|| "src/data/dictionaries/en-frequency.txt".into());
     let content = std::fs::read_to_string(path).unwrap();
     let mut e = Engine::new();
     e.set_english_auto_restore(true);

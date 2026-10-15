@@ -143,6 +143,13 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (0,   TelexFreeAr, "perr ",      "per "),
     (0,   TelexFree,   "perry ",     "perry "),
     (0,   TelexAr,     "dissconnect ",  "disconnect "),
+    // a doubled tone key cancels the tone; the commoner of the doubled word and its cancel wins
+    (430, Telex,       "torr ",         "tor "),
+    (430, TelexAr,     "torr ",         "tor "),
+    (430, TelexFreeAr, "torr ",         "tor "),
+    (430, TelexAr,     "carr ",         "car "),
+    (430, TelexAr,     "loss ",         "loss "),
+    (430, TelexAr,     "lissa ",        "lisa "),
     // the language of the words before decides a word that is both English and Vietnamese
     (0,   TelexAr,     "the is ",       "the is "),
     (0,   TelexAr,     "with was ",     "with was "),

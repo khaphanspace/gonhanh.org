@@ -6,6 +6,7 @@
 //!
 //! Rows, first match wins:
 //!   1-2  feature off / nothing transformed      → keep      2b English words before → raw
+//!   2c   cancelled tone, spelled as a likelier word → raw
 //!   3    `keep.dic`                              → keep
 //!   3b   stretched English word (chooose)       → squeeze   3c `wr`/`wh` start       → raw
 //!   4    stretched Vietnamese (vàooo)           → keep      6  finished VN reading   → keep, unless English evidence
@@ -164,6 +165,11 @@ pub fn decide(
         && !units.iter().any(|u| u.stroke)
         && (FUNC.contains_lower(raw) || EN.knows_inflected(raw))
     {
+        return Decision::Raw;
+    }
+    // row 2c: a word spelled with its doubled tone letters (class, off) wins over the word the
+    // cancel leaves (clas, of) when it is the likelier one; the list is built from frequency
+    if c.cancelled() && DOUBLES.contains(raw) {
         return Decision::Raw;
     }
     // row 3: words that must stay as typed

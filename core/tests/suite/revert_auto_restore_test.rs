@@ -57,7 +57,7 @@ fn revert_at_end_keeps_buffer_4char() {
     telex_auto_restore(&[
         // IN whitelist → restore to raw (unless buffer is also valid English word)
         ("BOSS ", "BOSS "),
-        ("LOSS ", "LOS "), // "LOS" in English dict → keep buffer (Issue #337)
+        ("LOSS ", "LOSS "), // loss is commoner than the "los" its cancel would leave
         ("MOSS ", "MOSS "),
         ("boss ", "boss "),
         ("buff ", "buff "),
@@ -69,7 +69,8 @@ fn revert_at_end_keeps_buffer_4char() {
         ("VARR ", "VAR "),
         ("norr ", "nor "),
         ("boxx ", "box "),
-        ("hajj ", "haj "),
+        // hajj is a word and "haj" is not: nothing likelier is left by the cancel
+        ("hajj ", "hajj "),
     ]);
 }
 

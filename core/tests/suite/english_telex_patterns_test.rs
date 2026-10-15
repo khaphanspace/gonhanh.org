@@ -355,8 +355,8 @@ fn type_word_with_space(engine: &mut Engine, word: &str) -> String {
 fn generate_english_telex_patterns() {
     use std::io::Write;
 
-    let content =
-        fs::read_to_string("tests/data/english_100k.txt").expect("Failed to read english_100k.txt");
+    let content = fs::read_to_string("src/data/dictionaries/en-frequency.txt")
+        .expect("Failed to read en-frequency.txt");
 
     let words: Vec<&str> = content
         .lines()
