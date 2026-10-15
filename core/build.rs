@@ -75,7 +75,7 @@ fn frequency_ranks() -> std::collections::HashMap<String, usize> {
     ranks
 }
 
-/// A doubled tone key cancels the tone (tor + r → tor), so a word spelled with a doubled tone
+/// A doubled tone key cancels the tone (tor + r → tor), so a word that ends in a doubled tone
 /// letter (torr, off, loss) is typed on purpose only if nothing likelier is what the cancel
 /// leaves. When the word that is left is a word too (tor, of, los), the commoner of the two
 /// wins: torr (a unit of pressure) loses to tor, lissa to lisa, off to of (the way to type "of"
@@ -88,19 +88,21 @@ fn cancel_is_likelier(
     /// a known word the frequency list does not rank is rarer than any ranked one
     const UNRANKED: usize = usize::MAX - 1;
     let rank = ranks.get(word).copied().unwrap_or(usize::MAX);
+    // Only a pair that ends the word competes with its cancel: that is where the user has to
+    // double the key to get a single plain letter (of = o f f, tor = t o r r). In the middle of a
+    // word (dessert) the single letter needs no cancel, so nobody doubles it to mean the cancel.
     let b = word.as_bytes();
-    (0..b.len().saturating_sub(1)).any(|i| {
-        if b[i] != b[i + 1] || !matches!(b[i], b's' | b'f' | b'r' | b'x' | b'j') {
-            return false;
-        }
-        let left = format!("{}{}", &word[..i], &word[i + 1..]);
-        let left_rank = match ranks.get(&left) {
-            Some(&r) => r,
-            None if known.contains(&left) => UNRANKED,
-            None => return false,
-        };
-        left_rank < rank
-    })
+    let n = b.len();
+    if n < 3 || b[n - 1] != b[n - 2] || !matches!(b[n - 1], b's' | b'f' | b'r' | b'x' | b'j') {
+        return false;
+    }
+    let left = &word[..n - 1];
+    let left_rank = match ranks.get(left) {
+        Some(&r) => r,
+        None if known.contains(left) => UNRANKED,
+        None => return false,
+    };
+    left_rank < rank
 }
 
 fn has_double_letter(w: &str) -> bool {
@@ -134,15 +136,17 @@ fn main() {
             // Curated English words (tech, brands, chat...) spelled with a doubled letter keep it
             // (terraform, github's ss...): they join the Telex-doubles list without a second edit.
             all.extend(curated_doubles.iter().map(|w| (String::new(), w.clone())));
-            // every English word with a doubled tone letter, not only the legacy list's
+            // every English word that ends in a doubled tone letter, not only the legacy list's:
+            // off, loss, mass are where a cancel and a word compete
             all.extend(
                 en_words
                     .iter()
                     .filter(|w| w.bytes().all(|c| c.is_ascii_lowercase()))
                     .filter(|w| {
-                        w.as_bytes()
-                            .windows(2)
-                            .any(|p| p[0] == p[1] && b"sfrxj".contains(&p[0]))
+                        let b = w.as_bytes();
+                        b.len() >= 3
+                            && b[b.len() - 1] == b[b.len() - 2]
+                            && b"sfrxj".contains(&b[b.len() - 1])
                     })
                     .map(|w| (String::new(), w.clone())),
             );

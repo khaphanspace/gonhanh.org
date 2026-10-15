@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 276
+# Total failures: 278
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -67,6 +67,7 @@ moor	moor	moor	mổ	môr
 boon	boon	boon	bôn	bôn
 een	een	een	ên	ên
 cheers	cheers	cheers	chế	chêrs
+dodd	dodd	dodd	dod	dođ
 nee	nee	nee	nê	nê
 aaa	aaa	aaa	aa	âa
 looms	looms	looms	lốm	lôms
@@ -165,6 +166,7 @@ yaakov	yaaakov	yaakov	yaaakov	yâakov
 coons	coons	coons	cốn	côns
 aap	aap	aap	âp	âp
 yoon	yooon	yoon	yooon	yôon
+chaffee	chaffee	chaffee	chafee	chaffê
 ddd	ddd	ddd	dd	đd
 cyclooxygenase	cycloooxygenase	cyclooxygenase	cycloooxygenase	cyclôoxygenase
 kawai	kawwai	kawai	kawwai	kăwai

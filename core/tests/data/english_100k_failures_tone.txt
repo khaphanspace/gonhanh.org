@@ -1,7 +1,7 @@
 # English 100k Failures - Tone Markers
 # Cause: words ending with s/f/r/x/j trigger tone marks
 # Format: WORD \t ACTUAL \t BUFFER
-# Total: 920 (+ 72 both)
+# Total: 914 (+ 72 both)
 #
 # WORD: English word typed
 # ACTUAL: engine output after space
@@ -39,6 +39,7 @@ bits	bít	bít
 rats	rát	rát
 cuts	cút	cút
 doses	does	does
+ussr	usr	usr
 sins	sín	sín
 chaos	cháo	cháo
 tips	típ	típ
@@ -567,9 +568,7 @@ basf	bà	bà
 nys	ný	ný
 berar	bear	berar
 mejor	mẻo	mẻo
-corrals	corals	corals
 ruf	rù	rù
-errs	ers	ers
 engr	ẻng	ẻng
 onr	ỏn	ỏn
 coir	cỏi	cỏi
@@ -647,7 +646,6 @@ moir	mỏi	mỏi
 casus	cáu	cáu
 esf	è	è
 quas	quá	quá
-terres	teres	teres
 iar	ỉa	ỉa
 mors	mó	mó
 suf	sù	sù
@@ -729,7 +727,6 @@ hys	hý	hý
 vix	vĩ	vĩ
 vips	víp	víp
 truax	trũa	trũa
-marris	maris	maris
 majus	máu	máu
 wx	ữ	ữ
 dois	dói	dói
@@ -853,9 +850,7 @@ coif	còi	còi
 seps	sép	sép
 rems	rém	rém
 homs	hóm	hóm
-sarris	saris	saris
 anj	ạn	ạn
-dorris	doris	doris
 doms	dóm	dóm
 wus	ứu	ứu
 larix	lãi	lãi
@@ -903,7 +898,6 @@ teos	téo	téo
 locos	lốc	lốc
 ays	áy	áy
 isf	ì	ì
-marriner	mariner	mariner
 bwr	bử	bử
 laus	láu	láu
 basor	bảo	bảo

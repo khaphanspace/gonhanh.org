@@ -114,6 +114,19 @@ fn collapse_runs(units: &[Unit], min: usize) -> ([Unit; MAXK], usize) {
     (out, n)
 }
 
+/// The letters end in the same tone letter twice (off, torr): the only place where a user must
+/// double the key to get a single plain letter.
+fn ends_in_doubled_tone_letter(raw: &str) -> bool {
+    let b = raw.as_bytes();
+    let n = b.len();
+    n >= 3
+        && b[n - 1] == b[n - 2]
+        && matches!(
+            b[n - 1].to_ascii_lowercase(),
+            b's' | b'f' | b'r' | b'x' | b'j'
+        )
+}
+
 /// `enabled` is the user's English auto-restore setting.
 /// `prior_english`: the words before this one are English (engine/context.rs).
 /// `english_run`: asks the caller whether the letters are English words stuck together
@@ -167,9 +180,10 @@ pub fn decide(
     {
         return Decision::Raw;
     }
-    // row 2c: a word spelled with its doubled tone letters (class, off) wins over the word the
-    // cancel leaves (clas, of) when it is the likelier one; the list is built from frequency
-    if c.cancelled() && DOUBLES.contains(raw) {
+    // row 2c: a word that ends in its doubled tone letter (class, off) wins over the word the
+    // cancel leaves (clas, of) when it is the likelier one; the list is built from frequency.
+    // In the middle of a word (marry) the dictionary decides below.
+    if c.cancelled() && ends_in_doubled_tone_letter(raw) && DOUBLES.contains(raw) {
         return Decision::Raw;
     }
     // row 3: words that must stay as typed

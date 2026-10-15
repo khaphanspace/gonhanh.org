@@ -56,7 +56,7 @@ Hiển thị khi không còn cách đọc tiếng Việt: chuỗi `keep` (giữ 
 | `data/dictionaries/en/*.txt` | từ tiếng Anh, **mỗi loại một file**: `general` (từ thông dụng), `tech` (thuật ngữ lập trình/UI/hạ tầng), `brands` (tên sản phẩm, công ty), `chat` (từ hay gặp khi chat/làm việc) | `build.rs` gộp mọi `*.txt` (chữ thường, bỏ trùng) → `EN` |
 | `data/dictionaries/en-ref/*.txt` | danh sách tham khảo từ hiếm (Webster 2nd, miền công cộng, 4–15 chữ: `revert`, `popover`…), **chỉ** dùng nơi bằng chứng tiếng Việt yếu: không hiện dấu cho cách đọc chỉ do Gõ tự do cho phép khi chữ gõ còn là (tiền tố của) từ tiếng Anh, kể cả khi tắt auto-restore | `build.rs` → `REF` |
 | `data/dictionaries/en-frequency.txt` | 100.000 từ tiếng Anh theo tần suất (cũng là kho test 100k): `build.rs` dùng thứ hạng để quyết định từ chữ đôi nào đáng giữ | `build.rs` → lọc `DOUBLES` |
-| `data/telex_doubles.txt` | danh sách chữ đôi kiểu Telex cũ; `build.rs` gộp thêm mọi từ trong `en/` có `ss ff rr xx jj`, rồi bỏ từ mà dạng huỷ dấu của nó là từ phổ biến hơn (`torr` → `tor`, `off` → `of`, `lissa` → `lisa`; `loss`, `class`, `perry` ở lại) | `build.rs` → `DOUBLES` |
+| `data/telex_doubles.txt` | danh sách chữ đôi kiểu Telex cũ; `build.rs` gộp thêm mọi từ trong `en/` **kết thúc bằng** `ss ff rr xx jj`, rồi bỏ từ mà dạng huỷ dấu của nó phổ biến hơn (`torr` → `tor`, `off` → `of`, `hiss` → `his`; `loss`, `class`, `hajj` ở lại). Chỉ cặp cuối từ mới cạnh tranh với phép huỷ, vì đó là nơi người gõ buộc phải gõ đôi để có một chữ thường (`of` = `off`); giữa từ (`marry`, `dessert`) từ điển tiếng Anh quyết như cũ | `build.rs` → `DOUBLES` |
 
 ### Nhận biết từ tiếng Anh: hai danh sách, một quy tắc
 
