@@ -7,39 +7,59 @@ Complete directory structure, module responsibilities, and development entry poi
 ```
 gonhanh.org/
 ├── core/                          # Rust engine (100% platform-agnostic)
+│   ├── build.rs                  # Packs data/dictionaries/* into static word lists
 │   ├── src/
-│   │   ├── lib.rs                # FFI exports (ime_init, ime_key, ime_method, etc.)
+│   │   ├── lib.rs                # FFI exports (22 functions: ime_init, ime_key, ime_method, ...)
 │   │   ├── utils.rs              # Utility functions (char conversions, etc.)
 │   │   │
-│   │   ├── engine/               # Core processing pipeline
-│   │   │   ├── mod.rs            # Main Engine struct + ime_key orchestration
-│   │   │   ├── buffer.rs         # Circular typing buffer (64 chars)
-│   │   │   ├── syllable.rs       # Syllable parsing (C+G+V+C pattern)
-│   │   │   ├── validation.rs     # Vietnamese phonology rules (5 rules)
-│   │   │   ├── transform.rs      # Diacritic + tone application (pattern-based)
+│   │   ├── phonology/            # "Is this Vietnamese? Where does the tone go?"
+│   │   │   ├── letters.rs        # Unit / Tone / Mod: the atoms of a syllable
+│   │   │   ├── validity.rs       # validate(): Invalid / Prefix / Complete
+│   │   │   ├── tone_place.rs     # tone_index(): which vowel carries the tone
+│   │   │   └── tables.rs         # Generated nucleus × coda tables (scripts/gen/phonology_tables.py)
+│   │   │
+│   │   ├── compose/              # "What do these keys type?" (beam of readings)
+│   │   │   ├── method.rs         # Telex/VNI as a table: key → intent
+│   │   │   ├── parse.rs          # Readings of the keys typed so far
+│   │   │   ├── lattice.rs        # Compose: beam, pruning by phonology, ranking
+│   │   │   ├── render.rs         # Letters → text (tone placed on the finished syllable)
+│   │   │   └── diff.rs           # Text change → backspaces + new chars
+│   │   │
+│   │   ├── engine/               # "What happens when the word ends?"
+│   │   │   ├── mod.rs            # Engine struct, settings, key entry points, FFI Result
+│   │   │   ├── word.rs           # Letter / digit / Backspace keys
+│   │   │   ├── boundary.rs       # Space, punctuation, Enter, ESC
+│   │   │   ├── restore.rs        # English restore decision table
+│   │   │   ├── history.rs        # Committed words (Backspace after space)
+│   │   │   ├── keymap.rs         # Platform keycode ↔ core key, word → keys
+│   │   │   ├── out.rs            # Internal edit instruction before packing into Result
+│   │   │   ├── autocap.rs        # Auto-capitalize helpers
+│   │   │   ├── disabled.rs       # IME off: shortcuts still work
 │   │   │   └── shortcut.rs       # User-defined abbreviations with priority
 │   │   │
-│   │   ├── input/                # Input method strategies
-│   │   │   ├── mod.rs            # Input trait + method registry
-│   │   │   ├── telex.rs          # Telex method (a/e/o/w for tones, s/f/r/x/j for marks)
-│   │   │   └── vni.rs            # VNI method (1-5 for marks, 6-8 for tones, 9 for đ)
+│   │   ├── data/                 # Keycodes + word lists
+│   │   │   ├── mod.rs            # Data module exports
+│   │   │   ├── keys.rs           # Virtual keycode constants and classifiers
+│   │   │   ├── lexicon.rs        # Static word lists (EN, REF, VI, KEEP, DOUBLES)
+│   │   │   ├── english_dict.rs   # English lookups (inflections)
+│   │   │   ├── telex_doubles.rs  # English words containing Telex doubles
+│   │   │   └── dictionaries/     # vi.dic, names.dic, keep.dic, en/, en-ref/, ...
 │   │   │
-│   │   └── data/                 # Static Vietnamese linguistic data
-│   │       ├── mod.rs            # Data module exports
-│   │       ├── keys.rs           # Telex/VNI keycode to transformation mappings
-│   │       ├── chars.rs          # Character data (UTF-32 constants, casing)
-│   │       ├── vowel.rs          # Vowel table (72 entries: 12 bases × 6 marks)
-│   │       └── constants.rs      # Constants (consonants, valid clusters, etc.)
+│   │   └── updater/mod.rs        # Version comparison for platform update checks
 │   │
-│   ├── tests/                    # Integration + unit tests (2100+ lines)
-│   │   ├── common/mod.rs         # Test utilities (IME helper, test setup)
-│   │   ├── unit_test.rs          # Unit tests for individual modules
-│   │   ├── typing_test.rs        # Full keystroke sequences (Telex + VNI)
-│   │   ├── engine_test.rs        # Engine initialization + state tests
-│   │   ├── integration_test.rs   # End-to-end keystroke→output tests
-│   │   └── paragraph_test.rs     # Multi-word paragraph typing tests
-│   │
-│   └── Cargo.toml               # Rust dependencies (zero production deps)
+│   ├── tests/
+│   │   ├── data/                 # Word corpora (english_100k, vietnamese_22k, ...)
+│   │   └── suite/                # One test binary: main.rs + modules
+│   │       ├── common/mod.rs     # Test utilities (IME helper, test setup)
+│   │       ├── typing_test.rs    # Full keystroke sequences (Telex + VNI)
+│   │       ├── engine_test.rs    # Engine state + settings
+│   │       ├── integration_test.rs # End-to-end keystroke→output tests
+│   │       ├── paragraph_test.rs # Multi-word paragraph typing tests
+│   │       ├── issue_regressions.rs, bug_reports_test.rs # Cases reported by users
+│   │       └── phonology_audit.rs, english_*_test.rs, vietnamese_*_test.rs, ...
+│   ├── benches/engine_bench.rs   # Latency / allocation benchmark
+│   ├── examples/                 # Dev tools: try, trace, prof, audit, dbg, wire
+│   └── Cargo.toml               # Rust manifest (zero production deps)
 │
 ├── platforms/                    # Platform-specific implementations
 │   │
@@ -112,147 +132,100 @@ gonhanh.org/
 
 ## Core Module Responsibilities
 
-### Engine Modules (core/src/engine/)
+Dependencies only go downward: `engine` → `compose` → `phonology`. Full picture: [core-architecture.md](core-architecture.md).
 
-#### `engine/mod.rs` - Main Processing Pipeline
-**Lines**: ~500 | **Complexity**: High | **Source**: `core/src/engine/mod.rs`
+### Phonology (core/src/phonology/)
 
-Central `Engine` struct orchestrating 7-stage keystroke processing:
-1. **Stroke detection** (đ/Đ) - Single key transformation
-2. **Tone mark detection** (sắc/huyền/hỏi/ngã/nặng) - Multi-key sequences
-3. **Vowel mark detection** (circumflex/horn/breve) - Multi-key sequences
-4. **Mark removal** (reverse vowel transformation) - Undo previous marks
-5. **W-vowel handling** (Telex-specific "w"→"ư") - Context-aware substitution
-6. **Normal letter processing** - Regular keystroke
-7. **Shortcut expansion** (user-defined) - Abbreviation matching
+Pure, stateless, allocation-free. Knows nothing about keycodes, buffers, English dictionaries or the engine.
 
-**Result**: Returns `Result` struct with action (None/Send/Restore), backspace count, output chars
+- `letters.rs` (~160 lines): `Unit` (base letter + modifier + stroke + tone), `Tone`, `Mod`.
+- `validity.rs` (~570 lines): `validate()` answers `Invalid` (no completion is Vietnamese), `Prefix` (valid so far) or `Complete`. Rules: structure (C₁)(G)V(C₂)+T, c/k/g/gh/ng/ngh spelling, nucleus whitelist, stop finals take only sắc/nặng, nucleus × coda matrix. See [validation-algorithm.md](validation-algorithm.md).
+- `tone_place.rs` (~100 lines): `tone_index()` picks the vowel that carries the tone from the finished syllable, never from typing order (`hoaf`, `hofa` agree). Modern (oà/uý) or old (òa/úy) style.
+- `tables.rs`: generated from `vi.dic` + `names.dic` by `scripts/gen/phonology_tables.py`. Do not edit by hand.
+
+### Compose (core/src/compose/)
+
+Raw keys in, display text out. Every ambiguous key (a e o w d s f r x j z, VNI digits) is a letter or a modifier; `Compose` keeps a small beam of live readings and lets `phonology::validate` prune those that can never become Vietnamese. The display is the best surviving reading, so typing order never matters and nothing is reverted.
+
+- `method.rs`: Telex and VNI as one key → intent table (Telex: s/f/r/x/j tones, aa/ee/oo/ow/aw/w modifiers, dd → đ; VNI: 1-5 tones, 6-8 modifiers, 9 → đ).
+- `parse.rs`: `extend()` returns every sensible reading of the next key.
+- `lattice.rs`: `Compose` (beam ≤ 8), ranking `Complete > Prefix > Loose > NamePrefix`, "keep" fallback when no reading is Vietnamese.
+- `render.rs`: letters → `Display`, tone placed by `tone_index`.
+- `diff.rs`: old display → new display = (backspaces, chars).
+
+### Engine (core/src/engine/)
+
+#### `engine/mod.rs` - `Engine`
+**Lines**: ~400 | **Source**: `core/src/engine/mod.rs`
+
+Owns the current word (`Compose`), settings and committed-word history. Public entry points: `on_key`, `on_key_ext`, `on_key_with_char`. Returns `Result` (action None/Send/Restore, backspace count, output chars).
+
+Key flow:
+- Ctrl → clear; IME off → `disabled.rs` (shortcuts only)
+- Space / ESC / punctuation / Enter → `boundary.rs`: shortcut expansion → English restore table → history
+- Letter / digit / Backspace → `word.rs`: `Compose::push` → render → diff → `Out` → `Result`
 
 **Key Functions**:
-- `pub fn new() -> Self` - Initialize with empty buffer
-- `pub fn process_key(&mut self, key: u16, is_shift: bool) -> Result` - Main entry point
-- `pub fn clear(&mut self)` - Reset buffer (word boundary)
-- `pub fn set_enabled(&mut self, enabled: bool)` - Toggle on/off
-- `pub fn set_method(&mut self, method: InputMethod)` - Switch Telex/VNI
-- `pub fn set_shortcuts(&mut self, shortcuts: Vec<Shortcut>)` - User abbreviations
+- `Engine::new()`, `clear()`, `clear_all()`
+- `set_method(u8)` (0=Telex, 1=VNI), `set_enabled(bool)`
+- settings: `set_esc_restore`, `set_free_tone`, `set_modern_tone`, `set_english_auto_restore`, `set_auto_capitalize`, `set_allow_foreign_consonants`, ...
+- `shortcuts_mut()` - user abbreviations
+- `restore_word(&str)` - resume editing a word already on screen
 
-#### `engine/buffer.rs` - Circular Typing Buffer
-**Lines**: ~300 | **Complexity**: Medium | **Source**: `core/src/engine/buffer.rs`
-
-Fixed 64-character circular buffer for multi-keystroke context. Tracks tone mark, vowel mark, and stroke for each character. Implements tone/mark repositioning (e.g., "hoaf" → "hoà").
-
-**Key Methods**:
-- `append_char(&mut self, ch: char, tone: ToneType, mark: VowelMark)`
-- `remove_last(&mut self)` - Backspace operation
-- `get_context(&self, count: usize) -> String` - Get last N chars
-- `last_vowel_pos(&self) -> Option<usize>` - Find tone anchor point
-
-#### `engine/syllable.rs` - Vietnamese Syllable Parsing
-**Lines**: ~400 | **Complexity**: Medium-High | **Source**: `core/src/engine/syllable.rs`
-
-Parses buffer into syllable components: (C₁)(G)V(C₂)
-- C₁ = initial consonant
-- G = glide (y/w)
-- V = vowel
-- C₂ = final consonant
-
-Identifies vowel position for tone/mark placement based on linguistic rules.
-
-#### `engine/validation.rs` - Vietnamese Phonology Rules
-**Lines**: ~350 | **Complexity**: High | **Source**: `core/src/engine/validation.rs`
-
-**5 Validation Rules** (applied BEFORE transformation, validation-first approach):
-1. **Must have vowel**: Every valid syllable contains at least one vowel
-2. **Valid initials**: Only 16 single consonants + 10 pairs + ngh allowed at start
-3. **All chars parsed**: Every character fits syllable pattern (C+G+V+C)
-4. **Spelling rules**: Enforce c/k/g restrictions (c→e/i only, k→non-e/i only, etc.)
-5. **Valid finals**: Only c,ch,m,n,ng,nh,p,t allowed at end
-
-#### `engine/transform.rs` - Diacritic & Tone Application
-**Lines**: ~600 | **Complexity**: Very High | **Source**: `core/src/engine/transform.rs`
-
-Pattern-based transformation (not case-by-case). Applies tones and vowel marks with special handling:
-- **UO Compound**: "duoc" + horn → "dươc" (both u,o receive horn)
-- **Tone Repositioning**: Smart placement by vowel combinations
-- **Revert Logic**: "ass" (double mark) → "as" (undo, keep mark+key)
-- **Last-transform tracking**: For intelligent reverting
+#### Word-level modules
+- `word.rs`, `boundary.rs`: key handlers for the word being typed and for word ends.
+- `restore.rs`: English restore as one ordered decision table (first matching row wins). Never returns raw letters for a valid Vietnamese word without strong English evidence.
+- `history.rs`: last 10 committed words so Backspace after a space can resume editing.
+- `keymap.rs`: platform keycode ↔ core key; word → typing keys.
+- `out.rs`: small internal edit value, packed once into the 1 KB `Result`.
+- `autocap.rs`, `disabled.rs`: auto-capitalize helpers; IME-off behavior.
 
 #### `engine/shortcut.rs` - User-Defined Abbreviations
-**Lines**: ~500 | **Complexity**: Medium | **Source**: `core/src/engine/shortcut.rs`
+**Lines**: ~950 | **Complexity**: Medium | **Source**: `core/src/engine/shortcut.rs`
 
-Priority-based matching system. Supports arbitrary abbreviation → expansion (e.g., "hv" → "không"). Longest-match-first strategy to avoid conflicts.
+Priority-based matching system. Supports arbitrary abbreviation → expansion (e.g., "hv" → "không"), per input method or for all. Longest-match-first strategy to avoid conflicts.
 
-### Input Method Modules (core/src/input/)
+### Data (core/src/data/)
 
-#### `input/telex.rs` - Telex Input Method
-**Lines**: ~200 | **Complexity**: Medium | **Source**: `core/src/input/telex.rs`
+- `keys.rs`: virtual keycodes and classifiers (`is_letter`, `is_vowel`, `is_break`).
+- `lexicon.rs`: static sorted word lists generated by `core/build.rs` from `data/dictionaries/` (`VI`, `KEEP`, `EN`, `REF`, `DOUBLES`); in-place binary search, no heap.
+- `english_dict.rs`, `telex_doubles.rs`: thin lookups on those lists.
+- `dictionaries/`: `vi.dic`, `names.dic`, `vi-non-syllables.txt`, `keep.dic`, `en/*.txt`, `en-ref/*.txt`.
 
-Vietnamese VIQR-style: a+s → á, a+f → à, a+r → ả, a+x → ã, a+j → ạ
+### Updater (core/src/updater/mod.rs)
 
-Tone marks: s=sắc, f=huyền, r=hỏi, x=ngã, j=nặng
-Vowel marks: w=ư (horn on u), a→â (circumflex), e→ê, o→ô
-Special: dd → đ, w alone → ư, nhw → như
-
-#### `input/vni.rs` - VNI Input Method
-**Lines**: ~200 | **Complexity**: Medium | **Source**: `core/src/input/vni.rs`
-
-Vietnamese numeric: a+1 → á, a+2 → à, etc.
-
-Tone marks: 1=sắc, 2=huyền, 3=hỏi, 4=ngã, 5=nặng
-Vowel marks: 6=circumflex, 7=horn, 8=breve
-Stroke: d+9 → đ
-Symbol typing: Shift+number skips normal letter, triggers mark directly
-
-### Data Modules (core/src/data/)
-
-#### `data/vowel.rs` - Vowel Transformation Table
-**Lines**: ~300 | **Complexity**: Low | **Source**: `core/src/data/vowel.rs`
-
-Pre-computed 72-entry table: 12 base vowels × 6 tone marks
-Maps (vowel_char, tone_type) → transformed_char
-Supports case preservation (à ↔ À)
-
-#### `data/keys.rs` - Input Method Keycode Mappings
-**Source**: `core/src/data/keys.rs`
-
-Maps virtual keycodes to character representation, handles shift/caps lock modifiers.
-
-#### `data/chars.rs` - Character Constants
-**Source**: `core/src/data/chars.rs`
-
-Pre-computed UTF-32 codepoints for all Vietnamese characters, used for FFI output.
-
-#### `data/constants.rs` - Vietnamese Phonology Constants
-**Source**: `core/src/data/constants.rs`
-
-Valid initial consonants, final consonants, consonant clusters, vowel groups.
+Semantic version comparison reused by platform update checkers.
 
 ### FFI Layer (core/src/lib.rs)
 
-**Lines**: ~300 | **Complexity**: High (unsafe) | **Source**: `core/src/lib.rs`
+**Lines**: ~900 | **Complexity**: High (unsafe) | **Source**: `core/src/lib.rs`
 
-Exports 6 C ABI functions (thread-safe via Mutex). Critical: Must maintain `#[repr(C)]` struct layout exactly.
+Exports 22 C ABI functions (thread-safe via Mutex). Critical: Must maintain `#[repr(C)]` struct layout exactly.
 
-**Exported Functions**:
+**Main functions**:
 ```rust
 ime_init()                                                  // Initialize
-ime_key(key: u16, is_shift: bool, is_ctrl: bool) -> Result // Process keystroke
-ime_key_ext(key, is_shift, is_ctrl, special) -> Result     // Extended version
+ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result   // Process keystroke
+ime_key_ext(key, caps, ctrl, shift) -> *mut Result         // With shift state
+ime_key_with_char(...) -> *mut Result                      // With the real character (Option keys)
 ime_method(method: u8)                                      // Switch input method (0=Telex, 1=VNI)
 ime_enabled(enabled: bool)                                  // Toggle on/off
-ime_clear()                                                 // Reset buffer
+ime_clear() / ime_clear_all()                               // Reset word / word + history
+ime_restore_word(word)                                      // Resume editing a word on screen
+ime_add_shortcut / ime_remove_shortcut / ime_clear_shortcuts
 ime_free(result)                                            // Deallocate Result
 ```
+Plus setting toggles (`ime_modern`, `ime_free_tone`, `ime_esc_restore`, `ime_english_auto_restore`, `ime_auto_capitalize`, `ime_allow_foreign_consonants`, `ime_skip_w_shortcut`, `ime_bracket_shortcut`).
 
 **Result Struct** (matches Swift exactly):
 ```rust
 #[repr(C)]
 pub struct Result {
-    pub chars: [u32; 32],    // UTF-32 output (128 bytes)
+    pub chars: [u32; 256],   // UTF-32 output (1024 bytes)
     pub action: u8,          // 0=None, 1=Send, 2=Restore
     pub backspace: u8,       // Characters to delete
     pub count: u8,           // Valid output chars
-    pub _pad: u8,            // Alignment padding
+    pub flags: u8,           // bit 0: key consumed (shortcut)
 }
 ```
 
@@ -263,7 +236,7 @@ pub struct Result {
 #### `RustBridge.swift` - FFI Bridge (CRITICAL)
 **Lines**: ~250 | **Responsibility**: Bridge Rust ↔ Swift | **Source**: `platforms/macos/RustBridge.swift`
 
-Must declare `ImeResult` struct matching Rust `Result` byte-for-byte. Wraps all 6 Rust FFI functions. Handles pointer safety with `defer { ime_free(ptr) }`.
+Must declare `ImeResult` struct matching Rust `Result` byte-for-byte. Wraps the Rust FFI functions. Handles pointer safety with `defer { ime_free(ptr) }`.
 
 #### `MenuBar.swift` - Status Bar UI
 **Lines**: ~350 | **Responsibility**: Main app UI | **Source**: `platforms/macos/MenuBar.swift`
@@ -324,49 +297,45 @@ Maps X11/Wayland keysyms to internal keycode representation for compatibility wi
 
 ## Test Coverage
 
-### Test Files (core/tests/)
+### Test Files (core/tests/suite/)
 
-| File | Purpose | Test Count | Source |
-|------|---------|-----------|--------|
-| `unit_test.rs` | Module unit tests | ~30 | `core/tests/unit_test.rs` |
-| `typing_test.rs` | Full keystroke sequences | ~60 | `core/tests/typing_test.rs` |
-| `engine_test.rs` | Engine initialization + state | ~20 | `core/tests/engine_test.rs` |
-| `integration_test.rs` | End-to-end keystroke→output | ~35 | `core/tests/integration_test.rs` |
-| `paragraph_test.rs` | Multi-word paragraphs | ~15 | `core/tests/paragraph_test.rs` |
+One test binary (`main.rs` + modules); corpora in `core/tests/data/`. Library unit tests live next to the code (`make t`).
 
-**Total**: 160+ test cases, 2100+ lines of test code
+| File | Purpose | Source |
+|------|---------|--------|
+| `typing_test.rs` | Full keystroke sequences (Telex + VNI) | `core/tests/suite/typing_test.rs` |
+| `engine_test.rs` | Engine state + settings | `core/tests/suite/engine_test.rs` |
+| `integration_test.rs` | End-to-end keystroke→output | `core/tests/suite/integration_test.rs` |
+| `paragraph_test.rs` | Multi-word paragraphs | `core/tests/suite/paragraph_test.rs` |
+| `issue_regressions.rs`, `bug_reports_test.rs` | Cases reported by users | `core/tests/suite/` |
+| `phonology_audit.rs` | Syllable validity + tone placement | `core/tests/suite/phonology_audit.rs` |
+| `english_*_test.rs`, `vietnamese_*_test.rs` | Corpus pass rates | `core/tests/suite/` |
 
-**Test Utilities** (core/tests/common/mod.rs):
-- `ImeHelper` struct for convenient test setup
-- `assert_output()` macro for comparing expected results
-- Test data constants
+**Test Utilities** (core/tests/suite/common/mod.rs): IME helper and assertion helpers.
 
 ## Entry Points for Common Development Tasks
 
 ### Adding a New Input Method
-1. Create `core/src/input/mynewmethod.rs` implementing InputMethod trait
-2. Export from `core/src/input/mod.rs`
-3. Add pattern matching in `engine/mod.rs` process_key()
-4. Add test cases in `core/tests/typing_test.rs`
-5. Update UI in `platforms/macos/SettingsView.swift`
+1. Add the method to `Method` and its key → intent table in `core/src/compose/method.rs`
+2. Map the platform setting in `Engine::set_method()` (`core/src/engine/mod.rs`) and `ime_method()` (`core/src/lib.rs`)
+3. Add test cases in `core/tests/suite/typing_test.rs`
+4. Update UI in `platforms/macos/SettingsView.swift`
 
-### Fixing a Transform Bug
-1. Locate issue in `core/src/engine/transform.rs`
-2. Check `core/src/data/vowel.rs` for vowel table correctness
-3. Add failing test case in `core/tests/unit_test.rs` or `typing_test.rs`
-4. Fix transform logic
-5. Run `make test` to verify
+### Fixing a Typing Bug
+1. Add the user's case (keys, expected text) to `core/tests/suite/issue_regressions.rs`
+2. Fix at the right layer: grammar in `core/src/phonology/`, readings in `core/src/compose/parse.rs`, end-of-word decision in `core/src/engine/restore.rs`
+3. If `vi.dic` / `names.dic` changed, run `python3 scripts/gen/phonology_tables.py`
+4. Run `make t`, then `make gate`
 
 ### Optimizing Engine Performance
-1. Profile with `cargo flamegraph` (optional dependency)
-2. Most time spent in: transform (60%), validation (25%), buffer operations (15%)
-3. Avoid allocations in `ime_key()` path (uses stack-allocated arrays)
+1. Measure with `cd core && cargo run --release --example prof` (CPU time per key, per layer) and `make bench`
+2. Avoid allocations in the `ime_key()` path (beam and buffers are fixed-size arrays)
 
 ### Adding Shortcut Support UI
 1. Design shortcut edit dialog in `platforms/macos/ShortcutsView.swift`
 2. Store in UserDefaults as JSON
-3. Parse in `RustBridge.swift` and call `ime_set_shortcuts()`
-4. Test with `core/tests/shortcut_test.rs`
+3. Parse in `RustBridge.swift` and call `ime_add_shortcut()` / `ime_clear_shortcuts()`
+4. Test with `core/tests/suite/disabled_shortcut_test.rs`
 
 ### Cross-Platform Port (Windows/Linux)
 1. **Core** (core/src/): Already platform-agnostic ✓
@@ -381,16 +350,13 @@ Maps X11/Wayland keysyms to internal keycode representation for compatibility wi
 ```
 lib.rs (FFI boundary)
   ↓
-engine/mod.rs (orchestration)
-  ├─→ engine/buffer.rs
-  ├─→ engine/syllable.rs
-  ├─→ engine/validation.rs
-  ├─→ engine/transform.rs
-  │    └─→ data/vowel.rs
+engine/ (word end: shortcuts, English restore, history)
   ├─→ engine/shortcut.rs
-  ├─→ input/telex.rs (or vni.rs)
-  │    └─→ data/keys.rs
-  └─→ data/constants.rs
+  ├─→ engine/restore.rs ──→ data/lexicon.rs (EN, REF, VI, KEEP, DOUBLES)
+  ├─→ data/keys.rs
+  └─→ compose/ (beam of readings, render, diff)
+        ├─→ compose/method.rs (Telex/VNI key → intent)
+        └─→ phonology/ (validate, tone_index; tables.rs generated)
 
 RustBridge.swift (macOS)
   ├─→ lib.rs exports
@@ -405,17 +371,12 @@ RustBridge.cs (Windows)
 
 | Module | LOC | Responsibility | Stability | Complexity |
 |--------|-----|-----------------|-----------|------------|
-| engine/mod.rs | 500 | Orchestration | High | High |
-| engine/transform.rs | 600 | Diacritics | High | Very High |
-| engine/shortcut.rs | 500 | User abbreviations | Medium | Medium |
-| engine/validation.rs | 350 | Phonology rules | High | High |
-| engine/buffer.rs | 300 | Circular buffer | High | Medium |
-| engine/syllable.rs | 400 | Parsing | High | Medium-High |
-| input/telex.rs | 200 | Input method | High | Medium |
-| input/vni.rs | 200 | Input method | High | Medium |
-| data/vowel.rs | 300 | Lookup table | Very High | Low |
-| data/* | 550 | Constants | Very High | Low |
-| lib.rs | 300 | FFI | Very High | High |
+| engine/mod.rs + word/boundary/restore | 1300 | Word lifecycle | High | High |
+| engine/shortcut.rs | 950 | User abbreviations | Medium | Medium |
+| compose/* | 1550 | Beam, render, diff | High | High |
+| phonology/* | 1000 | Grammar, tone placement | Very High | High |
+| data/*.rs | 500 | Keycodes, lookups | Very High | Low |
+| lib.rs | 900 | FFI | Very High | High |
 | RustBridge.swift | 250 | FFI Bridge | High | High |
 | MenuBar.swift | 350 | UI | Medium | Medium |
 | Other Swift | 1100 | Platform | Medium | Low-Medium |
@@ -423,17 +384,17 @@ RustBridge.cs (Windows)
 ## Performance Characteristics
 
 ### Critical Path (ime_key execution)
-1. Lock ENGINE mutex (1-2μs)
-2. Validate keystroke (100-150μs) - main bottleneck
-3. Process transform (50-100μs)
-4. Allocate + populate Result (20-30μs)
-5. Unlock mutex (1-2μs)
+1. Lock ENGINE mutex
+2. `Compose::push`: extend readings, prune with `phonology::validate`, rank
+3. Render + diff against the previous display
+4. Pack `Result`
+5. Unlock mutex
 
-**Total**: 170-285μs (0.17-0.28ms) - well under 1ms budget
+Target: well under 1ms per key. No heap allocation in the typing core; measure with `examples/prof` and `make bench`.
 
 ### Memory Usage
-- Static data: ~150KB (vowel table, keycodes, constants)
-- ENGINE global: ~500B (struct only)
+- Static data: word lists (`data/lexicon.rs`), phonology tables, keycodes
+- ENGINE global: fixed-size struct (beam, history of 10 words)
 - Per keystroke: Stack-allocated arrays only (no heap)
 - SwiftUI overhead: ~4.5MB (standard)
 
@@ -441,7 +402,7 @@ RustBridge.cs (Windows)
 
 ---
 
-**Last Updated**: 2025-12-14
+**Last Updated**: 2026-10-09
 **Total Lines**: ~16,000 (Rust + Swift + Windows + Linux)
 **Total Tokens**: 99,444 (per repomix analysis)
 **Coverage**: 100% of directories documented

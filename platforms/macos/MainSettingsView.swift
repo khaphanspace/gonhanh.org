@@ -166,10 +166,13 @@ class AppState: ObservableObject {
         }
     }
 
-    @Published var allowForeignConsonants: Bool = false {
+    /// Free typing: tone and mark keys apply to any syllable (khphá, qcáo), not only valid Vietnamese.
+    @Published var freeTone: Bool = false {
         didSet {
-            UserDefaults.standard.set(allowForeignConsonants, forKey: SettingsKey.allowForeignConsonants)
-            RustBridge.setAllowForeignConsonants(allowForeignConsonants)
+            UserDefaults.standard.set(freeTone, forKey: SettingsKey.freeTone)
+            RustBridge.setFreeTone(freeTone)
+            // z, w, j, f as initials (zị, wé) are part of free typing, not a separate option
+            RustBridge.setAllowForeignConsonants(freeTone)
         }
     }
 
@@ -276,7 +279,12 @@ class AppState: ObservableObject {
             autoCapitalizeExcludedApps = Set(excludedApps)
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
-        allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
+        // The separate "allow z, w, j, f" option was folded into free typing: keep it for those who had it on.
+        if defaults.bool(forKey: SettingsKey.allowForeignConsonants) {
+            defaults.set(true, forKey: SettingsKey.freeTone)
+            defaults.set(false, forKey: SettingsKey.allowForeignConsonants)
+        }
+        freeTone = defaults.bool(forKey: SettingsKey.freeTone)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
@@ -311,7 +319,8 @@ class AppState: ObservableObject {
         RustBridge.setModernTone(modernTone)
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
         updateAutoCapitalizeEngine()
-        RustBridge.setAllowForeignConsonants(allowForeignConsonants)
+        RustBridge.setFreeTone(freeTone)
+        RustBridge.setAllowForeignConsonants(freeTone)
     }
 
     /// Update auto-capitalize engine state based on global setting and current app exclusion
@@ -1004,7 +1013,7 @@ struct SettingsPageView: View {
     @State private var showShortcutsSheet = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             if appState.shouldShowSecureInputWarning {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "lock.fill")
@@ -1029,73 +1038,96 @@ struct SettingsPageView: View {
                 )
             }
 
-            // Bộ gõ
-            VStack(spacing: 0) {
-                SettingsToggleRow("Bộ gõ tiếng Việt", isOn: $appState.isEnabled)
+            // Mỗi nhóm trả lời một câu hỏi của người dùng, theo thứ tự hay dùng nhất:
+            // bật/tắt và kiểu gõ → xử lý tiếng Anh xen kẽ → luật gõ → tiện ích → phím tắt → hệ thống.
+            group("Bộ gõ") {
+                SettingsToggleRow("Gõ tiếng Việt", isOn: $appState.isEnabled)
                 Divider().padding(.leading, 12)
                 inputMethodRow
+                // phím riêng của Telex: chỉ hiện khi đang dùng Telex
                 if appState.currentMethod == .telex {
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ W thành Ư", indented: true, isOn: $appState.autoWShortcut)
+                    SettingsToggleRow("Gõ W thành Ư", subtitle: "w → ư, uw → ư, ow → ơ", indented: true, isOn: $appState.autoWShortcut)
                     Divider().padding(.leading, 12)
-                    SettingsToggleRow("Gõ [ ] thành Ơ Ư", indented: true, isOn: $appState.bracketShortcut)
-                    Divider().padding(.leading, 12)
-                    englishAutoRestoreRow
+                    SettingsToggleRow("Gõ [ ] thành Ơ Ư", subtitle: "[ → ơ, ] → ư", indented: true, isOn: $appState.bracketShortcut)
                 }
             }
-            .cardBackground()
 
-            // Phím tắt
-            VStack(spacing: 0) {
-                ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
-                                    isRecording: $isRecordingShortcut)
-                Divider().padding(.leading, 12)
-                ShortcutRecorderRow(shortcut: $appState.secondaryToggleShortcut,
-                                    isRecording: $isRecordingSecondaryShortcut,
-                                    title: "Phím tắt bật/tắt thứ hai",
-                                    subtitle: "Khi bàn phím rời không có fn",
-                                    isEnabled: $appState.secondaryToggleShortcutEnabled,
-                                    duplicateOf: appState.toggleShortcut)
-                Divider().padding(.leading, 12)
+            group("Gõ tiếng Anh xen kẽ") {
+                if appState.currentMethod == .telex {
+                    SettingsToggleRow(
+                        "Tự khôi phục tiếng Anh",
+                        subtitle: "text, where, user… giữ nguyên khi gõ dấu cách",
+                        isOn: $appState.englishAutoRestore
+                    )
+                    Divider().padding(.leading, 12)
+                }
                 RestoreShortcutRecorderRow(
                     shortcut: $appState.restoreShortcut,
                     isEnabled: $appState.restoreShortcutEnabled,
                     isRecording: $isRecordingRestoreShortcut
                 )
             }
-            .cardBackground()
 
-            // Quy tắc gõ
-            VStack(spacing: 0) {
-                SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "oà thay vì òa, uý thay vì úy", isOn: $appState.modernTone)
+            group("Quy tắc gõ", footnote: "Mẹo: nhấn Control giữa từ để ngắt nhịp, ví dụ kh ⌃ phá ra khphá, q ⌃ c không bung gõ tắt qc.") {
+                SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "hoà, thuý thay vì hòa, thúy", isOn: $appState.modernTone)
                 Divider().padding(.leading, 12)
-                SettingsToggleRow("Cho phép phụ âm ngoại", subtitle: "z, w, j, f làm phụ âm đầu", isOn: $appState.allowForeignConsonants)
-                Divider().padding(.leading, 12)
-                AutoCapitalizeRow(appState: appState)
+                SettingsToggleRow(
+                    "Gõ tự do",
+                    subtitle: "Thêm dấu cho cả chữ không đúng chính tả, cho phép z w j f làm phụ âm đầu: khphá, qcáo, zị, wé",
+                    isOn: $appState.freeTone
+                )
             }
-            .cardBackground()
 
-            // Mở rộng
-            VStack(spacing: 0) {
+            group("Tiện ích") {
                 shortcutsRow
                 Divider().padding(.leading, 12)
+                AutoCapitalizeRow(appState: appState)
+                Divider().padding(.leading, 12)
                 SettingsToggleRow("Nhớ trạng thái theo app", subtitle: "Tự bật/tắt khi chuyển ứng dụng", isOn: $appState.perAppModeEnabled)
+            }
+
+            group("Phím tắt bật/tắt") {
+                ShortcutRecorderRow(shortcut: $appState.toggleShortcut,
+                                    isRecording: $isRecordingShortcut)
+                Divider().padding(.leading, 12)
+                ShortcutRecorderRow(shortcut: $appState.secondaryToggleShortcut,
+                                    isRecording: $isRecordingSecondaryShortcut,
+                                    title: "Phím tắt thứ hai",
+                                    subtitle: "Khi bàn phím rời không có fn",
+                                    isEnabled: $appState.secondaryToggleShortcutEnabled,
+                                    duplicateOf: appState.toggleShortcut)
+            }
+
+            group("Hệ thống") {
+                LaunchAtLoginToggleRow(appState: appState)
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Âm thanh khi bật/tắt", isOn: $appState.soundEnabled)
-            }
-            .cardBackground()
-
-            // Hệ thống
-            VStack(spacing: 0) {
-                LaunchAtLoginToggleRow(appState: appState)
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Hiển thị cài đặt nâng cao", isOn: $appState.advancedMode)
             }
-            .cardBackground()
 
             Spacer()
         }
         .sheet(isPresented: $showShortcutsSheet) { ShortcutsSheet(appState: appState) }
+    }
+
+    /// A titled card: the title says what the rows below are for.
+    private func group(_ title: String, footnote: String? = nil, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(Color(NSColor.secondaryLabelColor))
+                .padding(.leading, 4)
+            VStack(spacing: 0) { content() }
+                .cardBackground()
+            if let footnote {
+                Text(footnote)
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(NSColor.tertiaryLabelColor))
+                    .padding(.horizontal, 4)
+            }
+        }
     }
 
     private var inputMethodRow: some View {
@@ -1108,10 +1140,6 @@ struct SettingsPageView: View {
             .labelsHidden()
             .frame(width: 100)
         }
-    }
-
-    private var englishAutoRestoreRow: some View {
-        SettingsToggleRow("Tự khôi phục tiếng Anh", indented: true, isOn: $appState.englishAutoRestore)
     }
 
     private var shortcutsRow: some View {

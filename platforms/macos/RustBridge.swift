@@ -180,17 +180,6 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 
 // MARK: - Injection Method
 
-private enum InjectionMethod {
-    case fast // Default: backspace + text with minimal delays
-    case slow // Terminals/Electron: backspace + text with higher delays
-    case charByChar // Safari Google Docs: backspace + text character-by-character
-    case selection // Browser address bars: Shift+Left select + type replacement
-    case axDirect // Spotlight primary: AX API direct text manipulation (macOS 13+)
-    case emptyCharPrefix // Browser address bars: empty char to break autocomplete + extra backspace
-    case syncProxy // Games: synchronous injection via CGEventTapPostEvent(proxy)
-    case passthrough // iPhone Mirroring: pass through all keys (remote device handles input)
-}
-
 // MARK: - Text Injector
 
 /// Handles text injection with proper sequencing to prevent race conditions
@@ -202,131 +191,73 @@ private class TextInjector {
 
     private init() {}
 
-    /// Post break key (Enter, punctuation) synthetically after text injection
-    /// Used for auto-restore to ensure correct event ordering
-    func postBreakKey(keyCode: CGKeyCode, shift: Bool) {
+    /// Post the break key (Enter, punctuation) after a replacement, at the same place in the stream
+    func postBreakKey(keyCode: CGKeyCode, shift: Bool, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
-        let flags: CGEventFlags = shift ? .maskShift : []
-        postKey(keyCode, source: src, flags: flags)
+        postKey(keyCode, source: src, flags: shift ? .maskShift : [], proxy: proxy)
     }
 
-    /// Inject text replacement synchronously (blocks until complete)
-    func injectSync(bs: Int, text: String, method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
+    /// Replace `bs` characters with `text` in the focused app.
+    ///
+    /// Every event is posted into the event stream at the tap's own position (CGEventTapPostEvent),
+    /// so the replacement reaches the app before the next physical key and in order, whatever the
+    /// app and however busy it is. There is nothing to wait for and nothing to tune per app.
+    /// `delays` is zero unless the user set a delay for the app by hand.
+    func injectSync(bs: Int, text: String, method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
         semaphore.wait()
         defer { semaphore.signal() }
 
         switch method {
-        case .selection:
-            injectViaSelection(bs: bs, text: text, delays: delays)
         case .axDirect:
             injectViaAXWithFallback(bs: bs, text: text, proxy: proxy)
-        case .emptyCharPrefix:
-            injectViaBackspace(bs: bs, text: text, delays: delays, emptyCharPrefix: true)
-        case .charByChar:
-            injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
-        case .slow, .fast:
-            injectViaBackspace(bs: bs, text: text, delays: delays)
-        case .syncProxy:
-            injectViaProxy(bs: bs, text: text, proxy: proxy)
         case .passthrough:
-            // Should not reach here - passthrough is handled in keyboard callback
-            break
+            break // handled in the keyboard callback
+        default:
+            injectInStream(bs: bs, text: text, method: method, delays: delays, proxy: proxy)
         }
-
-        // Settle time: 20ms for slow apps, 5ms for others
-        usleep(method == .slow ? 20000 : 5000)
     }
 
-    // MARK: - Injection Methods
+    // MARK: - Injection
 
-    /// Standard backspace injection: delete N chars, then type replacement
-    /// - charByChar: character-by-character mode (slower but more reliable for Safari Google Docs)
-    /// - emptyCharPrefix: send empty char (U+202F) first to break autocomplete highlight (for browser address bars)
-    private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), charByChar: Bool = false, emptyCharPrefix: Bool = false) {
+    private func pause(_ micros: UInt32) {
+        if micros > 0 { usleep(micros) }
+    }
+
+    /// - selection: Shift+Left selects the characters, the text replaces the selection (address
+    ///   bars: nothing is deleted behind an autocomplete suggestion)
+    /// - emptyCharPrefix: U+202F first breaks an autocomplete highlight, and is deleted with the rest
+    /// - charByChar: the text one character at a time (editors that read one character per event)
+    private func injectInStream(bs: Int, text: String, method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else {
             Log.info("inject FAILED: no event source")
             return
         }
-
         let startTime = Log.isEnabled ? CFAbsoluteTimeGetCurrent() : 0
-        var bs = bs
+        var count = bs
 
-        // Empty char prefix: send U+202F to break autocomplete highlight, then +1 backspace
-        if emptyCharPrefix {
-            let emptyChar: [UniChar] = [0x202F]
-            if let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false)
-            {
-                dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                dn.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                up.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                dn.post(tap: .cgSessionEventTap)
-                up.post(tap: .cgSessionEventTap)
+        if method == .emptyCharPrefix {
+            postText("\u{202F}", source: src, proxy: proxy)
+            pause(delays.0)
+            count += 1
+        }
+
+        let select = method == .selection && !text.isEmpty
+        for _ in 0 ..< count {
+            if select {
+                postKey(KeyCode.leftArrow, source: src, flags: .maskShift, proxy: proxy)
+            } else {
+                postKey(KeyCode.backspace, source: src, proxy: proxy)
             }
-            usleep(delays.0 > 0 ? delays.0 : 1000)
-            bs += 1 // +1 to also delete the empty char
+            pause(delays.0)
         }
+        if count > 0 { pause(delays.1) }
 
-        for _ in 0 ..< bs {
-            postKey(KeyCode.backspace, source: src)
-            usleep(delays.0)
-        }
-        if bs > 0 {
-            usleep(delays.1)
-        }
-
-        let chunks = postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+        postText(text, source: src, delay: delays.2, proxy: proxy, chunkSize: method == .charByChar ? 1 : 20)
 
         if Log.isEnabled {
-            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
-            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
+            let micros = (CFAbsoluteTimeGetCurrent() - startTime) * 1_000_000
+            Log.info("inject done: bs=\(count) in \(String(format: "%.0f", micros))us")
         }
-    }
-
-    /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for zero-delay delivery
-    /// Events are injected directly into the event tap pipeline, guaranteeing correct ordering
-    private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
-
-        for _ in 0 ..< bs {
-            postKey(KeyCode.backspace, source: src, proxy: proxy)
-        }
-
-        postText(text, source: src, proxy: proxy)
-    }
-
-    /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
-    /// For backspace-only (text empty): use backspace to properly delete spaces/punctuation
-    /// For text replacement: use Shift+Left to select (normal behavior)
-    private func injectViaSelection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
-
-        let selDelay = delays.0 > 0 ? delays.0 : 1000
-        let waitDelay = delays.1 > 0 ? delays.1 : 3000
-        let textDelay = delays.2 > 0 ? delays.2 : 2000
-
-        if bs > 0 {
-            // If text is empty (backspace-only, no replacement), use backspace to properly delete spaces/punctuation
-            // This fixes issue where Shift+Left selects space instead of deleting it
-            if text.isEmpty {
-                // Backspace-only: use backspace for all deletions
-                for _ in 0 ..< bs {
-                    postKey(KeyCode.backspace, source: src)
-                    usleep(selDelay)
-                }
-            } else {
-                // Text replacement: use Shift+Left to select (normal selection method)
-                for _ in 0 ..< bs {
-                    postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-                    usleep(selDelay)
-                }
-            }
-            usleep(waitDelay)
-        }
-
-        postText(text, source: src, delay: textDelay)
     }
 
     /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text via proxy
@@ -1413,6 +1344,26 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
     RustBridge.clearBuffer()
 }
 
+/// Command and Control combinations are commands (menu shortcuts, other apps' global hotkeys),
+/// never typing: the keyboard hook leaves them alone and returns the original event.
+func isCommandOrControlCombo(_ flags: CGEventFlags) -> Bool {
+    flags.contains(.maskCommand) || flags.contains(.maskControl)
+}
+
+/// Keys that keep working after the restore shortcut ran (ESC closes dialogs, Tab moves focus...).
+private let restorePassthroughKeys: Set<CGKeyCode> = [
+    KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
+    KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
+    KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
+    KeyCode.forwardDelete,
+]
+
+/// Cursor-moving keys: with a modifier they end the current composition.
+private let navigationKeys: Set<UInt16> = [
+    UInt16(KeyCode.leftArrow), UInt16(KeyCode.rightArrow), UInt16(KeyCode.upArrow), UInt16(KeyCode.downArrow),
+    UInt16(KeyCode.home), UInt16(KeyCode.end), UInt16(KeyCode.pageUp), UInt16(KeyCode.pageDown),
+]
+
 private func keyboardCallback(
     proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon _: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
@@ -1560,14 +1511,17 @@ private func keyboardCallback(
     // Issue #275: Option-only (without Cmd/Ctrl) should NOT bypass IME for shortcuts
     // Option+Key produces special characters (e.g., Option+V → √) that can be shortcut triggers
     let hasOption = flags.contains(.maskAlternate)
-    let hasCmdOrCtrl = flags.contains(.maskCommand) || flags.contains(.maskControl)
-    let bypassIME = hasCmdOrCtrl
+    let hasCmdOrCtrl = isCommandOrControlCombo(flags)
 
     // Enter: submit and trigger auto-capitalize pending state
     // IMPORTANT: Send Enter to engine FIRST to trigger auto-capitalize pending state,
     // then clear buffer. Engine sets pending_capitalize when it sees Enter key.
     // Also handle auto-restore and shortcut results (same as ESC handling)
     if keyCode == 0x24 || keyCode == 0x4C { // Return (0x24) or Enter/Numpad (0x4C)
+        if hasCmdOrCtrl {
+            RustBridge.clearBufferAll()
+            return Unmanaged.passUnretained(event)
+        }
         if isDiscordFocusedContext() {
             RustBridge.clearBufferAll()
             return Unmanaged.passUnretained(event)
@@ -1575,14 +1529,14 @@ private func keyboardCallback(
 
         let (method, delays) = detectMethod()
 
-        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+        if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
             Log.key(keyCode, "enter: bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
             if bs > 0 || !chars.isEmpty {
                 // Shortcut: consumed, don't post. Auto-restore: post Enter after replacement
                 if !keyConsumed {
-                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
                 }
                 return nil
             }
@@ -1598,16 +1552,36 @@ private func keyboardCallback(
         // Only pass through special keys that should still function after restore
         // (ESC closes dialogs, Tab moves focus, Enter submits, etc.)
         // For letter/number keys with modifiers (Shift-Z, Option-Z), consume the event
-        let specialPassthroughKeys: Set<CGKeyCode> = [
-            KeyCode.esc, KeyCode.tab, KeyCode.returnKey, KeyCode.enter,
-            KeyCode.leftArrow, KeyCode.rightArrow, KeyCode.upArrow, KeyCode.downArrow,
-            KeyCode.home, KeyCode.end, KeyCode.pageUp, KeyCode.pageDown,
-            KeyCode.forwardDelete,
-        ]
-        if specialPassthroughKeys.contains(keyCode) {
+        if restorePassthroughKeys.contains(keyCode) {
             return Unmanaged.passUnretained(event) // Pass through special keys
         }
         return nil // Consume letter/number keys with modifiers
+    }
+
+    // Command/Control combinations are not typing. Return the original event at once, before any
+    // AX query or engine work: other apps' global hotkeys (Carbon / MASShortcut) and menu
+    // shortcuts must see exactly what was pressed, with no added latency. Any such combo also
+    // ends the current composition (Cmd+T/N/W switch tab or window, issue #365).
+    if hasCmdOrCtrl {
+        RustBridge.clearBufferAll()
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
+    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+Arrow: select
+    // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
+    // All of these invalidate the current composition context
+    let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
+    if navigationKeys.contains(keyCode), hasModifier {
+        RustBridge.clearBuffer()
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Issue #293: Option+Backspace deletes whole word at OS level
+    // Clear engine buffer so state doesn't become stale after word deletion
+    if keyCode == KeyCode.backspace, hasOption {
+        RustBridge.clearBuffer()
+        return Unmanaged.passUnretained(event)
     }
 
     // Detect injection method once per keystroke (expensive AX query)
@@ -1619,47 +1593,11 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // Arrow keys with any modifier (Cmd/Option/Shift) that moves cursor - clear buffer
-    // Cmd+Arrow: move by line, Option+Arrow: move by word, Shift+Arrow: select
-    // Also: Shift+Home/End/PageUp/PageDown for text selection (Issue #251)
-    // All of these invalidate the current composition context
-    let navigationKeys: Set<UInt16> = [
-        UInt16(KeyCode.leftArrow), // 0x7B
-        UInt16(KeyCode.rightArrow), // 0x7C
-        UInt16(KeyCode.upArrow), // 0x7E
-        UInt16(KeyCode.downArrow), // 0x7D
-        UInt16(KeyCode.home), // 0x73
-        UInt16(KeyCode.end), // 0x77
-        UInt16(KeyCode.pageUp), // 0x74
-        UInt16(KeyCode.pageDown), // 0x79
-    ]
-    let hasModifier = flags.contains(.maskCommand) || flags.contains(.maskAlternate) || flags.contains(.maskShift)
-    if navigationKeys.contains(keyCode), hasModifier {
-        RustBridge.clearBuffer()
-        return Unmanaged.passUnretained(event)
-    }
-
-    // Pass through all Cmd+key shortcuts (Cmd+A, Cmd+C, Cmd+V, Cmd+X, Cmd+Z, etc.)
-    if flags.contains(.maskCommand), !flags.contains(.maskControl), !flags.contains(.maskAlternate) {
-        // Any Cmd+key shortcut invalidates the current composition context:
-        // Cmd+T/N/W switches tab/window, Cmd+A/V/X/Z modifies text, Cmd+1-9 switches tabs, etc.
-        // Issue #365: without this, buffer leaks across tab switches (Cmd+T) in browsers.
-        RustBridge.clearBufferAll()
-        return Unmanaged.passUnretained(event)
-    }
-
-    // Issue #293: Option+Backspace deletes whole word at OS level
-    // Clear engine buffer so state doesn't become stale after word deletion
-    if keyCode == KeyCode.backspace, hasOption {
-        RustBridge.clearBuffer()
-        return Unmanaged.passUnretained(event)
-    }
-
     // Backspace handling: try to restore word from screen when backspacing into it
     // This enables editing marks on previously committed words
-    if keyCode == KeyCode.backspace, !bypassIME {
+    if keyCode == KeyCode.backspace {
         // First try Rust engine (handles immediate backspace-after-space)
-        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+        if let (bs, chars, _) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
             Log.key(keyCode, "backspace: bs=\(bs) chars='\(String(chars))'")
             sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
             return nil
@@ -1696,7 +1634,7 @@ private func keyboardCallback(
 
     // Issue #275 + #307: Option+key → bypass Telex/VNI but still match shortcuts
     // Option+V produces √, pass actual char to engine for shortcut matching (ctrl=true skips transforms)
-    if hasOption, !hasCmdOrCtrl {
+    if hasOption {
         if let char = event.keyboardCharacter() {
             if let (bs, chars, keyConsumed) = RustBridge.processKey(
                 keyCode: keyCode, caps: caps, ctrl: true, shift: shift, char: char
@@ -1710,7 +1648,7 @@ private func keyboardCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: bypassIME, shift: shift) {
+    if let (bs, chars, keyConsumed) = RustBridge.processKey(keyCode: keyCode, caps: caps, ctrl: false, shift: shift) {
         Log.key(keyCode, "bs=\(bs) chars='\(String(chars))' consumed=\(keyConsumed)")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
 
@@ -1719,7 +1657,7 @@ private func keyboardCallback(
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
             if bs > 0, !chars.isEmpty {
-                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
             } else {
                 return Unmanaged.passUnretained(event)
             }
@@ -1740,9 +1678,10 @@ private func keyboardCallback(
 /// Uses time-based TTL (200ms) + app switch invalidation for safety
 /// PERFORMANCE: Uses CFAbsoluteTimeGetCurrent() instead of Date() for faster timestamp
 private enum DetectionCache {
-    static var result: (method: InjectionMethod, delays: (UInt32, UInt32, UInt32))?
+    static var result: (method: InjectionMethod, delays: InjectDelays)?
     static var timestamp: CFAbsoluteTime = 0
-    static var lastLoggedKey: String = "" // Only log when method+app changes
+    /// What was last logged: the log line is only built when app, tag or role change
+    private static var lastLogged: (bundleId: String, tag: String, role: String?)?
     static let ttl: CFAbsoluteTime = 0.2 // 200ms
 
     /// Snapshot of per-app profile for current app, set on app switch to avoid
@@ -1766,34 +1705,34 @@ private enum DetectionCache {
 
     /// Base detection results per bundleId (before overrides), for UI hint
     /// Accessed from keystroke thread (write) and main thread (read) — use lock
-    private static var _detectedDefaults: [String: (method: String, delays: (UInt32, UInt32, UInt32))] = [:]
+    private static var _detectedDefaults: [String: (method: String, delays: InjectDelays)] = [:]
     private static let defaultsLock = NSLock()
 
-    static func setDetectedDefault(for bundleId: String, value: (method: String, delays: (UInt32, UInt32, UInt32))) {
+    static func setDetectedDefault(for bundleId: String, value: (method: String, delays: InjectDelays)) {
         defaultsLock.lock()
         _detectedDefaults[bundleId] = value
         defaultsLock.unlock()
     }
 
-    static func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+    static func getDetectedDefault(for bundleId: String) -> (method: String, delays: InjectDelays)? {
         defaultsLock.lock()
         defer { defaultsLock.unlock() }
         return _detectedDefaults[bundleId]
     }
 
-    static func get() -> (InjectionMethod, (UInt32, UInt32, UInt32))? {
+    static func get() -> (InjectionMethod, InjectDelays)? {
         guard let cached = result,
               CFAbsoluteTimeGetCurrent() - timestamp < ttl else { return nil }
         return (cached.method, cached.delays)
     }
 
-    static func set(_ method: InjectionMethod, _ delays: (UInt32, UInt32, UInt32), logKey: String) {
+    static func set(_ method: InjectionMethod, _ delays: InjectDelays, bundleId: String, tag: String, role: String?) {
         result = (method, delays)
         timestamp = CFAbsoluteTimeGetCurrent()
-        // Only log when method+app combination changes
-        if logKey != lastLoggedKey {
-            lastLoggedKey = logKey
-            Log.method(logKey)
+        // Log only when the app, the profile or the role changes
+        if Log.isEnabled, lastLogged?.bundleId != bundleId || lastLogged?.tag != tag || lastLogged?.role != role {
+            lastLogged = (bundleId, tag, role)
+            Log.method("\(tag) [\(bundleId)] role=\(role ?? "nil") m=\(method) d=\(delays)")
         }
     }
 
@@ -1804,7 +1743,7 @@ private enum DetectionCache {
 }
 
 /// Get detected default for a bundleId (method name + delay tuple)
-func getDetectedDefault(for bundleId: String) -> (method: String, delays: (UInt32, UInt32, UInt32))? {
+func getDetectedDefault(for bundleId: String) -> (method: String, delays: InjectDelays)? {
     DetectionCache.getDetectedDefault(for: bundleId)
 }
 
@@ -1845,13 +1784,8 @@ private func isDiscordFocusedContext() -> Bool {
     return isDiscordApp(app)
 }
 
-private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-    // Fast path: return cached result if valid
-    if let cached = DetectionCache.get() {
-        return cached
-    }
-
-    // Slow path: query AX for focused element
+/// Role and owning app of the element that has keyboard focus (one AX round trip).
+private func focusedElementInfo() -> (role: String?, bundleId: String?) {
     let systemWide = axSystemWideBounded()
     var focused: CFTypeRef?
     var role: String?
@@ -1866,17 +1800,14 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     {
         let axEl = el as! AXUIElement
 
-        // Get role
         var roleVal: CFTypeRef?
         AXUIElementCopyAttributeValue(axEl, kAXRoleAttribute as CFString, &roleVal)
         role = roleVal as? String
 
-        // Get owning app's bundle ID (works for Spotlight overlay)
+        // The owning app of the element (right for the Spotlight overlay), not the frontmost one
         var pid: pid_t = 0
         if AXUIElementGetPid(axEl, &pid) == .success {
-            if let app = NSRunningApplication(processIdentifier: pid) {
-                bundleId = app.bundleIdentifier
-            }
+            bundleId = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
         }
     }
     if Log.isEnabled {
@@ -1885,206 +1816,34 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
             Log.info("AX detect slow: \(Int(axMs))ms app=\(bundleId ?? "nil")")
         }
     }
-
-    // Fallback to frontmost app if we couldn't get bundle from focused element
-    if bundleId == nil {
-        bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-    }
-
-    guard let bundleId else { return (.fast, (200, 800, 500)) }
-
-    /// Helper to cache and return result (only logs when method+app changes)
-    func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-        // Store base detection result (before overrides) for UI hint
-        DetectionCache.setDetectedDefault(for: bundleId, value: (method: "\(m)", delays: d))
-
-        // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
-        if let profile = DetectionCache.activeProfile {
-            var finalMethod = m
-            let finalDelays = DelayPreset(rawValue: profile.delayPreset)?.delays ?? d
-
-            // Injection method override
-            if profile.injectionOverride >= 0, let inject = InjectionOverride(rawValue: profile.injectionOverride) {
-                switch inject {
-                case .fast: finalMethod = .fast
-                case .slow: finalMethod = .slow
-                case .charByChar: finalMethod = .charByChar
-                case .selection: finalMethod = .selection
-                case .emptyCharPrefix: finalMethod = .emptyCharPrefix
-                case .auto: break
-                }
-            }
-
-            let logKey = "override:\(methodName) [\(bundleId)] m=\(finalMethod) d=\(finalDelays)"
-            DetectionCache.set(finalMethod, finalDelays, logKey: logKey)
-            return (finalMethod, finalDelays)
-        }
-        let logKey = "\(methodName) [\(bundleId)] role=\(role ?? "nil")"
-        DetectionCache.set(m, d, logKey: logKey); return (m, d)
-    }
-
-    // iPhone Mirroring (ScreenContinuity) - pass through all keys
-    if bundleId == "com.apple.ScreenContinuity" {
-        return cached(.passthrough, (0, 0, 0), "pass:iphone")
-    }
-
-    // Remote desktop clients - pass through all keys
-    // These apps forward physical keystrokes to the remote machine over the network.
-    // GoNhanh's synthetic injections (backspace + Vietnamese char) are NOT forwarded,
-    // causing garbled input on the remote. Passthrough lets raw keys reach the remote
-    // intact; Vietnamese composition must happen on the remote machine itself.
-    let remoteDesktopApps: Set = [
-        "com.carriez.rustdesk", // RustDesk
-        "com.philandro.anydesk", // AnyDesk
-        "com.teamviewer.TeamViewer", // TeamViewer
-    ]
-    if remoteDesktopApps.contains(bundleId) {
-        return cached(.passthrough, (0, 0, 0), "pass:remote")
-    }
-
-    // Selection method for autocomplete UI elements
-    if role == "AXComboBox" {
-        return cached(.selection, (0, 0, 0), "sel:combo")
-    }
-    if role == "AXSearchField" {
-        return cached(.selection, (0, 0, 0), "sel:search")
-    }
-
-    // Spotlight - use AX API direct manipulation (macOS 13+)
-    if SpecialPanelAppDetector.isSpotlight(bundleId) || bundleId == "com.apple.systemuiserver" {
-        return cached(.axDirect, (0, 0, 0), "ax:spotlight")
-    }
-
-    // Safari: address bar uses emptyCharPrefix, content areas (Google Docs) use charByChar
-    // Must be checked BEFORE general browsers array since Safari needs special content handling
-    if bundleId == "com.apple.Safari" || bundleId == "com.apple.SafariTechnologyPreview" {
-        if role == "AXTextField" {
-            return cached(.emptyCharPrefix, (3000, 8000, 3000), "emptyChar:safari")
-        }
-        return cached(.charByChar, (3000, 8000, 3000), "char:safari")
-    }
-
-    // Browser address bars (AXTextField/AXTextArea/AXWindow): emptyCharPrefix to break autocomplete
-    let browsers = [
-        // The Browser Company
-        "company.thebrowser.Browser", "company.thebrowser.Arc", "company.thebrowser.dia",
-        // Firefox-based
-        "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
-        "org.waterfoxproject.waterfox", "io.gitlab.librewolf-community.librewolf",
-        "one.ablaze.floorp", "org.torproject.torbrowser", "net.mullvad.mullvadbrowser",
-        "app.zen-browser.zen",
-        // Chromium-based
-        "com.google.Chrome", // Google Chrome
-        "com.google.Chrome.canary", // Chrome Canary
-        "com.google.Chrome.beta", // Chrome Beta
-        "org.chromium.Chromium", // Chromium
-        "com.brave.Browser", // Brave
-        "com.brave.Browser.beta", // Brave Beta
-        "com.brave.Browser.nightly", // Brave Nightly
-        "com.microsoft.edgemac", // Microsoft Edge
-        "com.microsoft.edgemac.Beta", // Edge Beta
-        "com.microsoft.edgemac.Dev", // Edge Dev
-        "com.microsoft.edgemac.Canary", // Edge Canary
-        "com.vivaldi.Vivaldi", // Vivaldi
-        "com.vivaldi.Vivaldi.snapshot", // Vivaldi Snapshot
-        "ru.yandex.desktop.yandex-browser", // Yandex Browser
-        "net.imput.helium", // Helium
-        // Opera
-        "com.opera.Opera", // Opera
-        "com.operasoftware.Opera", // Opera (alt)
-        "com.operasoftware.OperaGX", // Opera GX
-        "com.operasoftware.OperaAir", // Opera Air
-        "com.opera.OperaNext", // Opera Next
-        // WebKit-based
-        "com.kagi.kagimacOS", // Orion (Kagi)
-        // Others
-        "com.sigmaos.sigmaos.macos", // SigmaOS
-        "com.pushplaylabs.sidekick", // Sidekick
-        "com.firstversionist.polypane", // Polypane
-        "ai.perplexity.comet", // Comet (Perplexity AI)
-        "com.duckduckgo.macos.browser", // DuckDuckGo
-        "com.openai.atlas", // ChatGPT Atlas
-    ]
-    // All browser contexts use emptyCharPrefix to break autocomplete/suggestion highlights
-    // Medium delays (3ms/8ms/3ms) to handle web apps with popup interception (e.g. Telegram Web)
-    if browsers.contains(bundleId) {
-        return cached(.emptyCharPrefix, (3000, 8000, 3000), "emptyChar:browser")
-    }
-    if role == "AXTextField", bundleId.hasPrefix("com.jetbrains") {
-        return cached(.selection, (0, 0, 0), "sel:jb")
-    }
-
-    // Microsoft Office apps - backspace method (selection conflicts with autocomplete)
-    if bundleId == "com.microsoft.Excel" {
-        return cached(.slow, (3000, 8000, 3000), "slow:excel")
-    }
-    if bundleId == "com.microsoft.Word" {
-        return cached(.slow, (3000, 8000, 3000), "slow:word")
-    }
-    if bundleId == "com.microsoft.Outlook" {
-        return cached(.slow, (8000, 15000, 8000), "slow:outlook")
-    }
-
-    // Electron apps - higher delays for Monaco editor
-    if bundleId == "com.todesktop.230313mzl4w4u92" {
-        return cached(.slow, (8000, 15000, 8000), "slow:claude")
-    }
-    if bundleId == "notion.id" {
-        return cached(.slow, (12000, 25000, 12000), "slow:notion")
-    }
-
-    // Code editors & terminals - higher delays for Monaco/Electron-based apps
-    // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
-    let codeApps = [
-        // VSCode-based IDEs
-        "com.microsoft.VSCode", "com.google.antigravity-ide", "com.todesktop.cursor",
-        "com.visualstudio.code.oss", "com.vscodium",
-        // Terminals
-        "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
-        "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
-        "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
-        "com.raphaelamorim.rio", "com.termius-dmg.mac",
-        // Other code editors
-        "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova",
-    ]
-    if codeApps.contains(bundleId) {
-        return cached(.slow, (8000, 25000, 8000), "slow:code")
-    }
-
-    // LaTeX editors (Qt-based) - need charByChar for reliable Unicode input
-    if bundleId == "texstudio" {
-        return cached(.charByChar, (3000, 8000, 3000), "char:texstudio")
-    }
-    if bundleId.hasPrefix("com.jetbrains") {
-        return cached(.slow, (8000, 25000, 8000), "slow:jb")
-    }
-
-    // Caudex - char-by-char with higher delays for reliable text replacement
-    if bundleId == "com.caudex.dev" {
-        return cached(.charByChar, (5000, 15000, 5000), "char:caudex")
-    }
-
-    // Foxit PDF Reader - char-by-char for reliable Vietnamese input in form fields
-    if bundleId == "com.foxit-software.Foxit.PDF.Reader" {
-        return cached(.charByChar, (0, 0, 0), "char:foxit")
-    }
-
-    // Adobe apps (Illustrator, InDesign, Photoshop, ...) use a custom text engine that only
-    // reads the first character of a multi-character key event, so chunked text is truncated.
-    if bundleId.hasPrefix("com.adobe.") {
-        return cached(.charByChar, (3000, 8000, 3000), "char:adobe")
-    }
-
-    // Games - synchronous proxy injection (Issue #264: Vietnamese typing in LOL)
-    if bundleId.hasPrefix("com.riotgames") {
-        return cached(.syncProxy, (0, 0, 0), "sync:game")
-    }
-
-    // Default: safe delays
-    return cached(.fast, (1000, 3000, 1500), "default")
+    return (role, bundleId)
 }
 
-private func sendReplacement(backspace bs: Int, chars: [Character], method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
+/// How to inject text into the focused app. Answers from the cache while it is fresh; otherwise
+/// asks the focused element, looks the app up in `InjectionProfiles`, and applies the user's
+/// per-app overrides (a snapshot taken on app switch, safe to read from the keystroke thread).
+private func detectMethod() -> (InjectionMethod, InjectDelays) {
+    if let cached = DetectionCache.get() {
+        return cached
+    }
+
+    let focus = focusedElementInfo()
+    // The focused element may not name its app: fall back to the frontmost one
+    guard let bundleId = focus.bundleId ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+        let p = InjectionProfiles.unknownApp
+        return (p.method, p.delays)
+    }
+
+    let detected = InjectionProfiles.resolve(bundleId: bundleId, role: focus.role)
+    // The detected profile before overrides, for the "detected default" hint in the UI
+    DetectionCache.setDetectedDefault(for: bundleId, value: (method: "\(detected.method)", delays: detected.delays))
+
+    let profile = detected.applying(DetectionCache.activeProfile)
+    DetectionCache.set(profile.method, profile.delays, bundleId: bundleId, tag: profile.tag, role: focus.role)
+    return (profile.method, profile.delays)
+}
+
+private func sendReplacement(backspace bs: Int, chars: [Character], method: InjectionMethod, delays: InjectDelays, proxy: CGEventTapProxy) {
     let str = String(chars)
     Log.info("inject: bs=\(bs) text='\(str)' method=\(method) delays=\(delays)")
 

@@ -3,8 +3,9 @@
 > Tài liệu thuật toán cho engine gõ tiếng Việt.
 
 **Tài liệu liên quan**:
+- [core-architecture.md](./core-architecture.md) - Kiến trúc ba tầng, bất biến, dữ liệu, cách kiểm thử
 - [vietnamese-language-system.md](./vietnamese-language-system.md) - Hệ thống chữ viết tiếng Việt & Quy tắc âm vị học
-- [validation-algorithm.md](./validation-algorithm.md) - Chi tiết 5 quy tắc validation
+- [validation-algorithm.md](./validation-algorithm.md) - Chi tiết quy tắc validation
 - [system-architecture.md](./system-architecture.md) - Kiến trúc tổng thể
 
 ---
@@ -17,133 +18,135 @@
 NGUYÊN TẮC:
 │
 ├── 1. VALIDATION FIRST (★ QUAN TRỌNG NHẤT)
-│   └── Khi detect modifier → VALIDATE buffer có phải tiếng Việt không?
-│       ├── "nghieng" hợp lệ? → YES → cho phép transform
-│       ├── "claus" hợp lệ? → NO → không transform
-│       └── Nếu INVALID → không làm gì, thêm key vào buffer bình thường
+│   └── Mỗi cách đọc của chuỗi phím được kiểm bằng phonology::validate
+│       ├── "nghieng" hợp lệ? → YES → cách đọc còn sống
+│       ├── "claus" hợp lệ? → NO → cách đọc bị loại, hiện chữ như đã gõ
+│       └── Không cách đọc nào hợp lệ → không biến đổi gì
 │
-├── 2. PATTERN-BASED REPLACEMENT
-│   └── Nếu VALID → scan TOÀN BỘ buffer → apply pattern
-│       ├── Không case-by-case (prev + current)
-│       └── Scan toàn bộ để tìm pattern
+├── 2. DẤU LÀ HÀM CỦA CHỮ CUỐI CÙNG
+│   └── Dấu thanh đặt trên âm tiết hoàn chỉnh (tone_index), không phụ thuộc thứ tự gõ
+│       ├── "hoaf" và "hofa" → cùng "hoà"
+│       └── Không case-by-case (prev + current)
 │
 ├── 3. LONGEST-MATCH-FIRST
-│   └── Cho vị trí đặt dấu và matching finals
-│       ├── "nghieng" → tìm "ieng" → đặt dấu đúng
-│       └── "ch", "ng", "nh" match trước "c", "n"
+│   └── Cho phụ âm đầu/cuối và gõ tắt
+│       ├── "ngh" match trước "ng", "ch"/"ng"/"nh" match trước "c"/"n"
+│       └── Gõ tắt: trigger dài nhất thắng
 │
-└── 4. DOUBLE-KEY REVERT
-    └── Nhấn cùng phím 2 lần → revert transformation
-        ├── "aa" → "â", "aa" → "aa" (revert)
-        └── "ss" → "á", "ss" → "as" (revert)
+└── 4. GÕ ĐÔI = QUAY VỀ CHỮ THƯỜNG
+    └── Nhấn cùng phím 2 lần → hoàn tác biến đổi, luôn về các chữ thường
+        ├── "aa" → "â", "aaa" → "aa"
+        └── "ss" → "as" (không phải "á")
 ```
 
 ---
 
-## 2. 7-STAGE PIPELINE
+## 2. KIẾN TRÚC XỬ LÝ
 
-### 2.1 Main Processing Flow
+### 2.1 Ba tầng
 
 ```
-on_key_ext(key, caps, ctrl, shift) → Result
-│
-├─► [!enabled || ctrl?] ──► clear buffer ──► return NONE
-│
-├─► [is_break(key)?] ──► check shortcuts ──► clear buffer ──► return
-│
-├─► [key == DELETE?] ──► pop buffer ──► return NONE
-│
-└─► process(key, caps, shift)
-    │
-    ├── STAGE 1: Stroke (d → đ)
-    │   └── try_stroke() - scan buffer for un-stroked 'd'
-    │
-    ├── STAGE 2: Tone (circumflex/horn/breve)
-    │   └── try_tone() - apply aa→â, ow→ơ, aw→ă patterns
-    │
-    ├── STAGE 3: Mark (sắc/huyền/hỏi/ngã/nặng)
-    │   └── try_mark() - find vowel position, apply mark
-    │
-    ├── STAGE 4: Remove (z/0)
-    │   └── handle_remove() - clear mark or tone
-    │
-    ├── STAGE 5: W-Vowel (Telex only)
-    │   └── try_w_as_vowel() - "w" → "ư" với validation
-    │
-    ├── STAGE 6: Normal Letter
-    │   └── handle_normal_letter() - push to buffer
-    │
-    └── STAGE 7: Word Boundary Shortcut
-        └── try_word_boundary_shortcut() - expand abbreviations
-
-Ref: core/src/engine/mod.rs:179-229
+core/src/
+├─ phonology/   "Đây có phải tiếng Việt không? Dấu đặt ở đâu?"   validate, tone_index
+├─ compose/     "Chuỗi phím này đang gõ ra chữ gì?"               beam các cách đọc → Display → diff
+└─ engine/      "Từ này kết thúc thì làm gì?"                      dấu cách, ESC, gõ tắt, restore, lịch sử
 ```
 
-### 2.2 Result Structure
+Phụ thuộc chỉ đi xuống: `engine` → `compose` → `phonology`. Chi tiết, bất biến và dữ liệu: [core-architecture.md](./core-architecture.md).
+
+### 2.2 Luồng một phím
+
+```
+Engine::on_key_ext(key, caps, ctrl, shift) → Result
+│
+├─► [ctrl?] ──► xoá từ + lịch sử ──► return NONE
+│
+├─► [!enabled?] ──► chỉ gõ tắt (disabled.rs)
+│
+├─► [Space / dấu ngắt / ESC?] ──► boundary.rs
+│   └── gõ tắt → bảng restore tiếng Anh → lịch sử → xoá từ
+│
+├─► [DELETE?] ──► quay về trạng thái phím trước (word.rs)
+│
+└─► [chữ / số / ngoặc] ──► word.rs
+    │
+    ├── Compose::push(phím)
+    │   ├── parse.extend   mỗi phím là chữ hoặc dấu → các cách đọc con
+    │   ├── validate       phonology loại cách đọc không thể thành tiếng Việt
+    │   └── beam ≤ 8       xếp hạng Complete > Prefix > Loose > NamePrefix
+    │
+    ├── render             cách đọc tốt nhất → Display (dấu đặt bởi tone_index)
+    └── diff               Display cũ → mới = (backspace, chữ mới) → Result
+
+Ref: core/src/engine/mod.rs (key_out), core/src/engine/word.rs, core/src/engine/boundary.rs
+     core/src/compose/lattice.rs
+```
+
+### 2.3 Result Structure
 
 ```rust
-/// FFI Result - 36 bytes
+/// FFI Result - 1028 bytes
 #[repr(C)]
 pub struct Result {
-    pub chars: [u32; 32],  // UTF-32 codepoints
+    pub chars: [u32; 256], // UTF-32 codepoints
     pub action: u8,        // 0=None, 1=Send, 2=Restore
     pub backspace: u8,     // Characters to delete
     pub count: u8,         // Valid chars count
-    pub _pad: u8,          // Alignment padding
+    pub flags: u8,         // bit 0: key consumed (shortcut)
 }
 
-Ref: core/src/engine/mod.rs:40-47
+Ref: core/src/engine/mod.rs
 ```
 
 ---
 
 ## 3. MODIFIER DETECTION
 
+Bàn phím được mô tả bằng một bảng `phím → ý định` (`Intent`): chữ thường, dấu thanh, dấu mũ, móc/breve, gạch đ, xoá dấu. Engine không bao giờ hỏi "đây là Telex?".
+
 ### 3.1 Telex Modifiers
 
 ```
 TELEX:
-├── TONE_MODIFIERS (dấu phụ):
-│   ├── 'a' → aa (â - circumflex)
-│   ├── 'e' → ee (ê - circumflex)
-│   ├── 'o' → oo (ô - circumflex)
-│   ├── 'w' → horn (ơ, ư) hoặc breve (ă)
+├── Dấu phụ:
+│   ├── 'a','e','o' → lặp lại → â, ê, ô (circumflex)
+│   ├── 'w' → horn (ơ, ư) hoặc breve (ă); đứng một mình → ư
 │   └── 'd' → dd (đ - stroke)
 │
-├── MARK_MODIFIERS (dấu thanh):
-│   ├── 's' → sắc (1)
-│   ├── 'f' → huyền (2)
-│   ├── 'r' → hỏi (3)
-│   ├── 'x' → ngã (4)
-│   └── 'j' → nặng (5)
+├── Dấu thanh:
+│   ├── 's' → sắc
+│   ├── 'f' → huyền
+│   ├── 'r' → hỏi
+│   ├── 'x' → ngã
+│   └── 'j' → nặng
 │
-└── REMOVE_MODIFIER:
+└── Xoá dấu:
     └── 'z' → xóa dấu
 
-Ref: core/src/input/telex.rs
+Ref: core/src/compose/method.rs
 ```
 
 ### 3.2 VNI Modifiers
 
 ```
 VNI:
-├── TONE_MODIFIERS:
+├── Dấu phụ:
 │   ├── '6' → circumflex (â, ê, ô)
 │   ├── '7' → horn (ơ, ư)
 │   ├── '8' → breve (ă)
 │   └── '9' → stroke (đ)
 │
-├── MARK_MODIFIERS:
+├── Dấu thanh:
 │   ├── '1' → sắc
 │   ├── '2' → huyền
 │   ├── '3' → hỏi
 │   ├── '4' → ngã
 │   └── '5' → nặng
 │
-└── REMOVE_MODIFIER:
+└── Xoá dấu:
     └── '0' → xóa dấu
 
-Ref: core/src/input/vni.rs
+Ref: core/src/compose/method.rs
 ```
 
 ---
@@ -173,63 +176,54 @@ CẤU TRÚC ÂM TIẾT:
     ├── Đôi: ch, ng, nh (3)
     └── Bán nguyên âm: i, y, o, u (4)
 
-Ref: core/src/engine/syllable.rs, core/src/data/constants.rs
+Ref: core/src/phonology/validity.rs, core/src/phonology/letters.rs
 ```
 
-### 4.2 Parse Algorithm
+### 4.2 Tách âm tiết
 
 ```
-parse(buffer_keys) → Syllable { initial, glide, vowel, final_c }
+split(units) → (độ dài initial, nucleus start, nucleus end)
 │
-├── STEP 1: Find first vowel position
-│   ├── Special: "gi" + vowel → gi is initial
-│   └── Special: "qu" + vowel → qu is initial
+├── STEP 1: Bỏ qua phụ âm đến nguyên âm đầu tiên
+│   ├── Special: "gi" + nguyên âm khác → gi là initial (gia, giu, gieo; "gii" không)
+│   └── Special: "qu" + nguyên âm → qu là initial
 │
-├── STEP 2: Identify glide
-│   ├── o + (a, e) → glide
-│   └── u + (y, e) when not after "qu" → glide
+├── STEP 2: Nucleus = dãy nguyên âm liên tiếp (âm đệm o/u thuộc nucleus)
 │
-├── STEP 3: Identify vowel nucleus
-│   └── Consecutive vowels after glide
-│
-└── STEP 4: Match final consonant (longest-first)
-    ├── 2 chars: ch, ng, nh
-    └── 1 char: c, k, m, n, p, t, i, y, o, u
+└── STEP 3: Phần còn lại là coda (khớp dài nhất trước)
+    ├── 2 chữ: ch, ng, nh
+    └── 1 chữ: c, k, m, n, p, t, i, y, o, u
 
-Ref: core/src/engine/syllable.rs:50-159
+Ref: core/src/phonology/validity.rs (split)
 ```
 
-### 4.3 Parse Examples
+### 4.3 Split Examples
 
 ```
-VÍ DỤ PARSE:
+VÍ DỤ:
 
 "nghieng":
-├── initial = [0,1,2] → "ngh" (3 chars)
-├── glide = None
-├── vowel = [3,4] → "ie" (2 chars)
-├── final_c = [5,6] → "ng" (2 chars)
+├── initial = "ngh" (3 chữ)
+├── nucleus = "ie"
+├── coda = "ng"
 └── Result: valid ✓
 
 "hoa":
-├── initial = [0] → "h"
-├── glide = Some(1) → "o"
-├── vowel = [2] → "a"
-├── final_c = []
+├── initial = "h"
+├── nucleus = "oa" (o là âm đệm)
+├── coda = ""
 └── Result: valid ✓
 
 "qua":
-├── initial = [0,1] → "qu" (u thuộc initial)
-├── glide = None
-├── vowel = [2] → "a"
-├── final_c = []
+├── initial = "qu" (u thuộc initial)
+├── nucleus = "a"
+├── coda = ""
 └── Result: valid ✓
 
 "giau":
-├── initial = [0,1] → "gi" (i thuộc initial vì sau có vowel)
-├── glide = None
-├── vowel = [2,3] → "au"
-├── final_c = []
+├── initial = "gi" (i thuộc initial vì sau có nguyên âm)
+├── nucleus = "au"
+├── coda = ""
 └── Result: valid ✓
 ```
 
@@ -237,21 +231,15 @@ VÍ DỤ PARSE:
 
 ## 5. VALIDATION RULES
 
-### 5.1 Five Validation Rules
+### 5.1 Các bất biến của `validate`
 
 ```
-RULES: (chạy theo thứ tự)
+phonology::validate(units, tone, opts) → Invalid | NamePrefix | Loose | Prefix | Complete
 │
-├── Rule 1: Must have vowel
-│   └── syllable.vowel.is_empty()? → InvalidNoVowel
+├── I1 Cấu trúc: (C₁)(G)V(C₂) + thanh; qu/gi nuốt u/i
+│   └── Phải có nguyên âm; mọi chữ phải thuộc initial / nucleus / coda
 │
-├── Rule 2: Valid initial consonant
-│   └── initial ∈ VALID_INITIALS? (16 single + 10 double + ngh)
-│
-├── Rule 3: All chars parsed
-│   └── initial.len + glide.len + vowel.len + final.len == buffer.len
-│
-├── Rule 4: Spelling rules
+├── I2 Chính tả phụ âm đầu
 │   ├── c + (e,i,y) → INVALID (dùng k)
 │   ├── k + (a,o,u) → INVALID (dùng c)
 │   ├── g + (e) → INVALID (dùng gh)
@@ -259,10 +247,20 @@ RULES: (chạy theo thứ tự)
 │   ├── gh + (a,o,u) → INVALID (dùng g)
 │   └── ngh + (a,o,u) → INVALID (dùng ng)
 │
-└── Rule 5: Valid final consonant
-    └── final ∈ VALID_FINALS? (c,m,n,p,t + ch,ng,nh + semi-vowels)
+├── I3 Nucleus nằm trong danh sách nguyên âm hợp lệ
+│
+├── I4 Coda tắc (c, ch, p, t) chỉ nhận thanh sắc / nặng
+│
+└── I5 Ma trận nucleus × coda (sinh từ vi.dic vào phonology/tables.rs)
 
-Ref: core/src/engine/validation.rs:34-40
+Trạng thái:
+├── Invalid    không cách nào gõ tiếp thành tiếng Việt
+├── Prefix     chưa xong nhưng còn đường hợp lệ (thiếu dấu, thiếu coda)
+├── Complete   âm tiết hoàn chỉnh
+├── Loose      chỉ khi bật Gõ tự do: vần đúng, phụ âm đầu ngoài tiếng Việt (khphá, zị)
+└── NamePrefix đầu của tên riêng (kô của kông), giữ sống nhưng không tự hiện
+
+Ref: core/src/phonology/validity.rs, core/src/phonology/tables.rs (sinh tự động)
 ```
 
 ### 5.2 Validation Examples
@@ -272,108 +270,88 @@ VALIDATION EXAMPLES:
 
 "duoc" → VALID ✓
 ├── initial = "d" ✓
-├── vowel = "uo" ✓
-└── final = "c" ✓
+├── nucleus = "uo" ✓
+└── coda = "c" ✓
 
 "clau" → INVALID ✗
-└── initial = "cl" ∉ VALID_INITIALS
+└── initial = "cl" không phải phụ âm đầu tiếng Việt
 
 "john" → INVALID ✗
-└── initial = "j" ∉ VALID_INITIALS
+└── initial = "j" không phải phụ âm đầu tiếng Việt
 
 "http" → INVALID ✗
 └── No vowel found
 
 "ci" → INVALID ✗
-└── Spelling rule: c + i → phải dùng k
+└── Chính tả: c + i → phải dùng k
 ```
 
 ---
 
-## 6. TRANSFORMATION
+## 6. BIẾN ĐỔI VÀ ĐẶT DẤU
 
-### 6.1 Stroke Transformation (d → đ)
+Không có bước biến đổi riêng: `parse` sinh các cách đọc (mỗi phím là chữ hoặc dấu), `render` dựng chữ hiển thị từ cách đọc thắng, `diff` tính số backspace.
 
-```
-apply_stroke(buffer) → TransformResult
-│
-├── Scan buffer for 'd' with stroke = false
-│   └── Found at any position → mark stroke = true
-│
-├── Example: "Dod"
-│   ├── buffer = ['D', 'o', 'd']
-│   ├── First 'd' at position 0
-│   ├── Mark D.stroke = true
-│   └── Result: "Đo" (remove trigger 'd')
-│
-└── Double-key revert: "Đo" + 'd' → "Dod"
-
-Ref: core/src/engine/transform.rs:224-234
-```
-
-### 6.2 Tone Transformation (circumflex/horn/breve)
+### 6.1 Stroke (d → đ)
 
 ```
-apply_tone(buffer, key, tone_value, method) → TransformResult
+'d' có hai cách đọc: chữ d, hoặc gạch ngang chữ d đứng trước.
 │
-├── Find target vowels based on key and method
-│
-├── Telex patterns:
-│   ├── aa → find 'a' → tone = CIRCUMFLEX
-│   ├── ee → find 'e' → tone = CIRCUMFLEX
-│   ├── oo → find 'o' → tone = CIRCUMFLEX
-│   └── w → find a/o/u → tone = HORN
-│
-├── VNI patterns:
-│   ├── 6 → find a/e/o → tone = CIRCUMFLEX
-│   ├── 7 → find o/u → tone = HORN
-│   └── 8 → find a → tone = HORN (breve)
-│
-└── UO COMPOUND SPECIAL:
-    ├── Buffer có "uo" hoặc "ou" adjacent
-    ├── Apply HORN to BOTH
-    └── Example: "duoc" + 'w' → "dươc"
+├── "dd"   → "đ" (gạch chữ d trước đó)
+├── "Dod"  → "Đo" (d cuối gạch d đầu; Telex cho phép d cách xa)
+└── "ddd"  → "dd" (gõ đôi lần nữa hoàn tác)
 
-Ref: core/src/engine/transform.rs:59-87
+Ref: core/src/compose/parse.rs, core/src/compose/method.rs
 ```
 
-### 6.3 Mark Transformation (sắc/huyền/hỏi/ngã/nặng)
+### 6.2 Dấu mũ / móc / breve
 
 ```
-apply_mark(buffer, mark_value, modern) → TransformResult
-│
-├── Collect vowels from buffer
-│
-├── Find mark position using Phonology rules
-│   ├── Single vowel → đặt trên nó
-│   ├── Double vowel + có final → đặt trên vowel thứ 2
-│   ├── Double vowel + không final → đặt trên vowel thứ 1
-│   └── Triple vowel → đặt trên vowel giữa
-│
-├── Clear existing marks first
-│
-└── Apply new mark at position
+Telex:
+├── aa, ee, oo → circumflex (â, ê, ô)
+└── w → horn trên o/u (ơ, ư) hoặc breve trên a (ă); "w" đứng một mình → ư
 
-Ref: core/src/engine/transform.rs:192-218
+VNI:
+├── 6 → circumflex (a, e, o)
+├── 7 → horn (o, u)
+└── 8 → breve (a)
+
+Khi có nhiều nguyên âm đích (uo, ươ) cả hai cách đọc cùng sống trong beam;
+validate loại cách đọc không hợp lệ, xếp hạng chọn cách đọc còn lại tốt nhất.
+
+Ref: core/src/compose/parse.rs
+```
+
+### 6.3 Dấu thanh (sắc/huyền/hỏi/ngã/nặng)
+
+```
+Dấu thanh là một thuộc tính của cả âm tiết (parse.tone), không gắn vào phím.
+│
+├── render gọi tone_index(units, modern) trên âm tiết hoàn chỉnh
+├── Đổi dấu = thay giá trị tone, dấu cũ biến mất
+└── Dấu về lại đúng nguyên âm khi âm tiết thay đổi ("hoa" + f + i → "hoài")
+
+Ref: core/src/compose/render.rs, core/src/phonology/tone_place.rs
 ```
 
 ### 6.4 Tone Placement Rules
 
 ```
-find_tone_position(vowels, has_final, modern, has_qu) → position
+tone_index(units, modern) → vị trí nguyên âm mang dấu
 │
-├── Single vowel: return vowel position
+├── qu / gi: u / i thuộc phụ âm đầu, không mang dấu
+├── Nguyên âm có dấu phụ (ư, ơ, ô, ê, â, ă) → mang dấu (ươ → ơ, uyê → ê)
+├── Nguyên âm đơn → mang dấu
 │
-├── Double vowel:
-│   ├── Có final? → return vowel[1]
-│   ├── Có dấu phụ (ư,ơ,ô,ê,â,ă)? → return nó
-│   ├── Pattern oa, oe, uy? → return vowel[1]
-│   ├── Pattern ai, ao, au? → return vowel[0]
-│   └── Default → return vowel[0]
+├── Nguyên âm đôi:
+│   ├── Có coda → vowel[1]
+│   ├── oa, oe, uy: kiểu mới (oà, uý) → vowel[1]; kiểu cũ (òa, úy) → vowel[0]
+│   ├── uo, ue, ie, ye, ea (sắp có dấu mũ) → vowel[1]
+│   └── Còn lại (ai, ao, au, ua, ia...) → vowel[0]
 │
-└── Triple vowel: return vowel[1] (giữa)
+└── Nguyên âm ba: vowel[1] (giữa), ví dụ oai, uyê
 
-Ref: core/src/data/vowel.rs (Phonology::find_tone_position)
+Ref: core/src/phonology/tone_place.rs
 ```
 
 ---
@@ -385,80 +363,49 @@ UO COMPOUND:
 │
 ├── Khi gặp 'w' (Telex) hoặc '7' (VNI)
 │
-├── Scan for "uo" hoặc "ou" ADJACENT trong buffer
-│   ├── Found → Apply HORN to BOTH
-│   │   ├── u → ư
-│   │   └── o → ơ
-│   │
-│   └── Not found → Apply to single vowel
+├── "uo" liền kề → cách đọc thắng áp HORN cho CẢ HAI
+│   ├── u → ư
+│   └── o → ơ
 │
 └── VÍ DỤ:
-    ├── "truong" + 'w' → "trương"
-    │   ├── Found "uo" at positions 2-3
-    │   ├── u → ư, o → ơ
-    │   └── Result: "trương"
-    │
-    ├── "nguoi" + 'w' → "ngươi"
-    │   ├── Found "uo" at positions 2-3
-    │   └── Result: "ngươi"
-    │
-    └── "mua" + 'w' → "mưa"
-        ├── "ua" (not "uo")
-        ├── Only u → ư
-        └── Result: "mưa"
-
-Ref: core/src/engine/transform.rs:154-190
+    ├── "truongw" → "trương"
+    ├── "nguoiw" → "ngươi"
+    └── "mwa" → "mưa" ("ua" không phải "uo": chỉ u → ư)
 ```
 
 ---
 
-## 8. DOUBLE-KEY REVERT
+## 8. GÕ ĐÔI HOÀN TÁC
 
-### 8.1 Mechanism
+### 8.1 Cơ chế
 
 ```
-DOUBLE-KEY REVERT:
+GÕ ĐÔI:
 │
-├── Lưu last_transform = { key, pattern, result }
+├── Mỗi phím dấu là một cách đọc "dấu" song song với cách đọc "chữ"
 │
-├── Khi modifier key được nhấn:
-│   │
-│   ├── [last_transform.key == current_key?]
-│   │   ├── YES → REVERT
-│   │   │   ├── Xóa transformation trước đó
-│   │   │   ├── Thêm key vào output
-│   │   │   └── Clear last_transform
-│   │   │
-│   │   └── NO → Apply transformation bình thường
-│   │
-│   └── Save current transformation
+├── Gõ lại đúng phím vừa tạo dấu:
+│   ├── cách đọc dấu bị loại
+│   └── hiện các chữ thường, kể cả khi chuỗi phím trông như từ tiếng Anh
 │
-└── Transform Types tracked:
-    ├── Mark(key, mark_value)
-    ├── Tone(key, tone_value)
-    ├── Stroke(key)
-    ├── WAsVowel
-    └── WShortcutSkipped
+├── Phím vừa hoàn tác, gõ tiếp thì chỉ là chữ ("aaa" → "aa", "aaaa" → "aaa")
+│
+└── Từ điển chỉ đổi điều này ở dấu cách khi chữ gõ chính là một từ có chữ đôi
+    (perry, class); danh sách telex_doubles chỉ giữ từ có trong từ điển tiếng Anh
 
-Ref: core/src/engine/mod.rs:77-85
+Ref: core/src/compose/lattice.rs, core/src/engine/restore.rs, core/src/data/telex_doubles.txt
 ```
 
 ### 8.2 Revert Examples
 
 ```
-VÍ DỤ REVERT:
+VÍ DỤ:
 
-"a" + 'a' → "â" (save: Tone(key:'a'))
-"â" + 'a' → "aa" (revert: â → a, add 'a')
-
-"a" + 's' → "á" (save: Mark(key:'s'))
-"á" + 's' → "as" (revert: á → a, add 's')
-
-"d" + 'd' → "đ" (save: Stroke(key:'d'))
-"đ" + 'd' → "dd" (revert: đ → d, add 'd')
-
-"w" → "ư" (save: WAsVowel)
-"ư" + 'w' → "w" (revert: ư → w)
+"aa" → "â"           "aaa" → "aa"
+"as" → "á"           "ass" → "as"
+"dd" → "đ"           "ddd" → "dd"
+"w"  → "ư"           "ww"  → "w"
+VNI: "ba1" → "bá"    "ba11" → "ba1"
 ```
 
 ---
@@ -466,28 +413,20 @@ VÍ DỤ REVERT:
 ## 9. W-AS-VOWEL (TELEX)
 
 ```
-try_w_as_vowel(caps) → Option<Result>
+'w' trong Telex có ba cách đọc, beam giữ tất cả:
 │
-├── Chỉ trong Telex mode
+├── horn trên o/u hoặc breve trên a đứng trước
+├── "ư" (w đứng một mình như một nguyên âm)
+└── chữ "w" thường
 │
-├── Skip nếu last_transform == WShortcutSkipped
+├── validate loại cách đọc không hợp lệ
+│   ├── "w"   → "ư" (nucleus hợp lệ)
+│   ├── "nhw" → "như" (nh + ư)
+│   └── "kw"  → "kw" (k không đứng trước ư)
 │
-├── Revert check:
-│   └── last_transform == WAsVowel? → revert to "w"
-│
-├── Try transformation:
-│   ├── Push U with HORN to buffer
-│   ├── Validate: is_valid(buffer)?
-│   │   ├── YES → return "ư"
-│   │   └── NO → pop U, return None
-│
-└── VÍ DỤ:
-    ├── "w" alone → "ư" (valid syllable)
-    ├── "nhw" → "như" (valid: nh + ư)
-    ├── "kw" → "kw" (invalid: k cannot precede ư)
-    └── "ww" → "w" (revert)
+└── "ww" → "w" (gõ đôi hoàn tác)
 
-Ref: core/src/engine/mod.rs:261-300
+Ref: core/src/compose/parse.rs
 ```
 
 ---
@@ -526,7 +465,7 @@ pub enum InputMethod {
     Vni,    // Chỉ VNI
 }
 
-Ref: core/src/engine/shortcut.rs:20-53
+Ref: core/src/engine/shortcut.rs
 ```
 
 ### 10.2 Matching Algorithm
@@ -551,132 +490,104 @@ try_match(buffer, key_char, is_word_boundary, method) → Option<ShortcutMatch>
 └── STEP 4: Return result
     └── ShortcutMatch { backspace_count, output, include_trigger_key }
 
-Ref: core/src/engine/shortcut.rs:278-314
+Ref: core/src/engine/shortcut.rs (ShortcutTable::try_match)
 ```
 
 ---
 
 ## 11. DATA STRUCTURES
 
-### 11.1 Buffer
+### 11.1 Từ đang gõ
 
 ```rust
-/// Circular buffer - fixed 32 chars
-pub struct Buffer {
-    data: [Char; MAX],  // MAX = 32
-    len: usize,
-}
+/// Mỗi phím vật lý của từ hiện tại: chữ thường / số / ngoặc, kèm hoa-thường
+pub struct RawKey { pub ch: u8, pub caps: bool }
 
-/// Single character with modifiers
-pub struct Char {
-    pub key: u16,     // Virtual keycode
-    pub caps: bool,   // Uppercase?
-    pub tone: u8,     // 0=none, 1=circumflex, 2=horn
-    pub mark: u8,     // 0=none, 1-5=sắc/huyền/hỏi/ngã/nặng
-    pub stroke: bool, // d → đ
-}
+/// Một Compose = mảng cố định MAXK = 24 phím + beam các cách đọc (không cấp phát khi gõ)
+pub struct Compose { /* keys, beam ≤ 8 Parse */ }
 
-Ref: core/src/engine/buffer.rs
+/// Chữ hiển thị (tối đa một ký tự mỗi phím)
+pub struct Display { pub chars: [char; MAXK], pub len: u8 }
+
+Ref: core/src/compose/mod.rs, core/src/compose/lattice.rs, core/src/compose/render.rs
 ```
 
-### 11.2 Vowel Table
+### 11.2 Danh sách từ
 
-```rust
-/// 72-entry vowel lookup (12 bases × 5 marks + tones)
-const VOWELS: [(u32, u32, u32, u32, u32, u32); 72] = [
-    // (base, sắc, huyền, hỏi, ngã, nặng)
-    ('a', 'á', 'à', 'ả', 'ã', 'ạ'),
-    ('ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ'),
-    ('â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ'),
-    // ... 12 bases × 6 variants
-];
+```
+data/lexicon.rs: danh sách tĩnh, đã sắp xếp, tìm kiếm nhị phân ngay trên blob (không heap)
+├── VI       âm tiết tiếng Việt thật (vi.dic)
+├── KEEP     từ luôn giữ nguyên (keep.dic)
+├── EN       từ tiếng Anh tuyển chọn (dictionaries/en/*.txt): bằng chứng mạnh
+├── REF      danh sách tham khảo lớn (dictionaries/en-ref/*.txt): bằng chứng yếu
+└── DOUBLES  từ Anh chứa chữ đôi kiểu Telex
 
-Ref: core/src/data/chars.rs
+Sinh bởi core/build.rs từ core/src/data/dictionaries/
+
+Ref: core/src/data/lexicon.rs
 ```
 
 ---
 
 ## 12. FFI INTERFACE
 
-```rust
-/// Initialize engine
-#[no_mangle]
-pub extern "C" fn ime_init() -> *mut Engine
+Engine là một instance toàn cục sau Mutex; các hàm không nhận con trỏ engine.
 
-/// Process keystroke
+```rust
+/// Initialize engine (once)
 #[no_mangle]
-pub extern "C" fn ime_key(engine: *mut Engine, key: u16, caps: bool, ctrl: bool) -> Result
+pub extern "C" fn ime_init()
+
+/// Process keystroke (Result phải được giải phóng bằng ime_free)
+#[no_mangle]
+pub extern "C" fn ime_key(key: u16, caps: bool, ctrl: bool) -> *mut Result
 
 /// Process keystroke with Shift
 #[no_mangle]
-pub extern "C" fn ime_key_ext(engine: *mut Engine, key: u16, caps: bool, ctrl: bool, shift: bool) -> Result
+pub extern "C" fn ime_key_ext(key: u16, caps: bool, ctrl: bool, shift: bool) -> *mut Result
 
 /// Set input method (0=Telex, 1=VNI)
 #[no_mangle]
-pub extern "C" fn ime_method(engine: *mut Engine, method: u8)
+pub extern "C" fn ime_method(method: u8)
 
 /// Enable/disable engine
 #[no_mangle]
-pub extern "C" fn ime_enabled(engine: *mut Engine, enabled: bool)
+pub extern "C" fn ime_enabled(enabled: bool)
 
-/// Clear buffer
+/// Clear current word
 #[no_mangle]
-pub extern "C" fn ime_clear(engine: *mut Engine)
+pub extern "C" fn ime_clear()
 
-/// Free engine
+/// Free a Result
 #[no_mangle]
-pub extern "C" fn ime_free(engine: *mut Engine)
+pub unsafe extern "C" fn ime_free(r: *mut Result)
 
-Ref: core/src/lib.rs
+Ref: core/src/lib.rs (22 hàm, gồm cả các cài đặt và gõ tắt)
 ```
 
 ---
 
 ## 13. EXAMPLES
 
-### 13.1 Complete Flow: "được"
+### 13.1 Complete Flow: "dược"
 
 ```
 User types: d → u → o → c → w → j
 
-1. 'd':
-   ├── Stage 1-5: not modifier
-   ├── Stage 6: push 'd' to buffer
-   └── buffer = ['d']
+Màn hình sau từng phím (cargo run --release --example trace -- telex duocwj):
+  d | du | duo | duoc | dươc | dược
 
-2. 'u':
-   ├── Stage 1-5: not modifier
-   ├── Stage 6: push 'u' to buffer
-   └── buffer = ['d', 'u']
+5. 'w':
+   ├── parse.extend: "w" là horn trên "uo", hoặc "ư", hoặc chữ w
+   ├── validate: "dươc" Prefix (coda tắc c còn chờ thanh sắc/nặng) ✓
+   └── diff: backspace=3, "ươc" → "dươc"
 
-3. 'o':
-   ├── Stage 1-5: not modifier
-   ├── Stage 6: push 'o' to buffer
-   └── buffer = ['d', 'u', 'o']
+6. 'j' (nặng):
+   ├── tone = nặng cho cả âm tiết
+   ├── tone_index("dươc") → ơ (ươ → ơ)
+   └── diff: backspace=2, "ợc" → "dược"
 
-4. 'c':
-   ├── Stage 1-5: not modifier
-   ├── Stage 6: push 'c' to buffer
-   └── buffer = ['d', 'u', 'o', 'c']
-
-5. 'w' (horn modifier):
-   ├── Stage 2: try_tone()
-   │   ├── Validate: "duoc" → VALID ✓
-   │   ├── Find UO compound at positions 1-2
-   │   ├── Apply HORN to both: u→ư, o→ơ
-   │   └── Return: backspace=3, "ươc"
-   └── Output: delete "uoc", type "ươc" → "dươc"
-
-6. 'j' (nặng modifier):
-   ├── Stage 3: try_mark()
-   │   ├── Validate: "dươc" → VALID ✓
-   │   ├── Collect vowels: [ư, ơ]
-   │   ├── Find position: has_final=true → pos=1 (ơ)
-   │   ├── Apply mark: ơ + nặng → ợ
-   │   └── Return: backspace=2, "ợc"
-   └── Output: delete "ơc", type "ợc" → "dượC"
-
-Final: "được" ✓
+Final: "dược" ✓
 ```
 
 ### 13.2 Validation Rejection: "Claus"
@@ -684,17 +595,12 @@ Final: "được" ✓
 ```
 User types: C → l → a → u → s
 
-1-4. 'C', 'l', 'a', 'u':
-   ├── All normal letters
-   └── buffer = ['C', 'l', 'a', 'u']
+   C | Cl | Cla | Clau | Claus
 
-5. 's' (mark modifier):
-   ├── Stage 3: try_mark()
-   │   ├── Validate: "Clau" → INVALID ✗
-   │   │   └── initial = "cl" ∉ VALID_INITIALS
-   │   └── Return None (không transform)
-   ├── Stage 6: push 's' to buffer
-   └── buffer = ['C', 'l', 'a', 'u', 's']
+5. 's' (sắc):
+   ├── Cách đọc "dấu sắc": validate("Clau", sắc) → Invalid ✗
+   │   └── initial = "cl" không phải phụ âm đầu tiếng Việt
+   └── Cách đọc "chữ s" còn lại → hiện "Claus"
 
 Final: "Claus" (không bị biến đổi) ✓
 ```
@@ -703,12 +609,10 @@ Final: "Claus" (không bị biến đổi) ✓
 
 ## Changelog
 
-- **2025-12-10**: Viết lại hoàn toàn
-  - Loại bỏ V1/V2 terminology
+- **2026-10**: Viết lại theo kiến trúc phonology → compose → engine
+  - Bỏ mô tả buffer + 7 stage cũ, thay bằng beam các cách đọc
   - Đối chiếu với code thực tế trong core/src/
-  - Thêm references đến source files
-  - Cập nhật cấu trúc theo 7-stage pipeline
-  - Thêm ví dụ thực tế với flow chi tiết
+  - Thêm liên kết tới core-architecture.md
 
 ---
 
