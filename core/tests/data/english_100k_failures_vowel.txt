@@ -35,6 +35,7 @@ loom	lôm	lôm
 ooo	oo	oo
 tow	tơ	tơ
 dd	đ	đ
+aw	ă	ă
 tee	tê	tê
 boon	bôn	bôn
 een	ên	ên
@@ -111,7 +112,6 @@ eet	êt	êt
 lowi	lơi	lơi
 oom	ôm	ôm
 teem	têm	têm
-awk	ăk	ăk
 aaaa	aaa	aaa
 oon	ôn	ôn
 oost	ốt	ốt

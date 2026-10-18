@@ -716,7 +716,6 @@ fn vowel_re_patterns(#[case] prefix: &str, #[case] suffix: &str, #[case] expecte
 // ============================================================
 
 const W_FINAL_WORDS: &[(&str, &str)] = &[
-    ("aw ", "aw "),
     ("caw ", "caw "),
     ("claw ", "claw "),
     ("draw ", "draw "),

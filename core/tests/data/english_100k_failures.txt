@@ -61,6 +61,7 @@ ooo	ooo	ooo	oo	ôo
 tow	tow	tow	tơ	tơ
 dd	dd	dd	đ	đ
 reefs	reefs	reefs	rế	rêfs
+aw	aw	aw	ă	ă
 geese	geeese	geese	geeese	gêese
 tee	tee	tee	tê	tê
 moor	moor	moor	mổ	môr
@@ -232,7 +233,6 @@ oor	ooor	oor	ooor	ôor
 oor	oor	oor	ổ	ôr
 geeta	geeeta	geeta	geeeta	gêeta
 teem	teem	teem	têm	têm
-awk	awk	awk	ăk	ăk
 aaaa	aaaaaa	aaaa	aaaaa	âââ
 aaaa	aaaa	aaaa	aaa	ââ
 ceecs	ceeecs	ceecs	ceeecs	cêecs

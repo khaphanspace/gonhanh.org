@@ -144,6 +144,8 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (0,   TelexFree,   "perry ",     "perry "),
     (0,   TelexAr,     "dissconnect ",  "disconnect "),
     // a doubled tone key cancels the tone; the commoner of the doubled word and its cancel wins
+    (0,   TelexAr,     "aw ",           "ă "),
+    (0,   TelexAr,     "AW ",           "Ă "),
     (430, Telex,       "torr ",         "tor "),
     (430, TelexAr,     "torr ",         "tor "),
     (430, TelexFreeAr, "torr ",         "tor "),

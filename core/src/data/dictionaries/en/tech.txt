@@ -170,3 +170,4 @@ npm
 pnpm
 pip
 homebrew
+awk
