@@ -102,6 +102,9 @@ pub struct Engine {
     english_restore: bool,
     auto_capitalize: bool,
     allow_foreign: bool,
+    undo_on_delete: bool,
+    /// the key before was a delete: a run of deletes removes characters, only the first undoes a key
+    deleting: bool,
     shortcuts: ShortcutTable,
 
     word: Compose,
@@ -134,6 +137,8 @@ impl Engine {
             bracket_shortcut: false,
             esc_restore: false,
             free_tone: false,
+            undo_on_delete: false,
+            deleting: false,
             modern_tone: true,
             english_restore: false,
             auto_capitalize: false,
@@ -216,6 +221,12 @@ impl Engine {
         self.apply_options();
     }
 
+    /// Backspace right after a tone / mark key takes that key back instead of deleting its letter
+    /// (touch keyboards, where the last key is the likeliest typo).
+    pub fn set_undo_on_delete(&mut self, enabled: bool) {
+        self.undo_on_delete = enabled;
+    }
+
     pub fn set_english_auto_restore(&mut self, enabled: bool) {
         self.english_restore = enabled;
         self.apply_options();
@@ -271,6 +282,7 @@ impl Engine {
 
     fn key_out(&mut self, key: u16, caps: bool, ctrl: bool, shift: bool) -> Out {
         use crate::data::keys;
+        let after_delete = std::mem::replace(&mut self.deleting, key == keys::DELETE);
         if ctrl {
             self.clear();
             self.history.clear();
@@ -296,7 +308,7 @@ impl Engine {
             return self.on_break(key, shift);
         }
         if key == keys::DELETE {
-            return self.on_delete();
+            return self.on_delete(self.undo_on_delete && !after_delete);
         }
         self.on_word_key(key, caps, shift)
     }

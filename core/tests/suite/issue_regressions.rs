@@ -652,3 +652,34 @@ fn a_doubled_vni_digit_goes_back_to_the_plain_letters() {
             .join("\n")
     );
 }
+
+/// Touch keyboards: the first backspace after a tone or mark key takes that key back (`chonlẹ⌫` →
+/// `chonle`); it does not delete the letter under it. Later backspaces delete characters.
+#[test]
+fn backspace_takes_back_the_last_tone_key_when_asked() {
+    let touch = || {
+        let mut e = engine(TelexFreeAr);
+        e.set_undo_on_delete(true);
+        e
+    };
+    let cases = [
+        ("chonlej<", "chonle"),
+        ("hinjf<", "hịn"),
+        ("caaus<", "câu"),
+        ("tuw<", "tu"),
+        ("didd<", "di"),
+        ("vieetj<", "viêt"),
+        ("vieetj<<", "viê"),
+        ("caaus<<", "câ"),
+        ("caaus<<<", "c"),
+        ("toanf<<<<", "t"),
+        // a key that added a letter is deleted with its letter
+        ("viet<", "vie"),
+        ("chon<", "cho"),
+    ];
+    for (typed, want) in cases {
+        assert_eq!(type_word(&mut touch(), typed), want, "{typed:?}");
+    }
+    // off (desktop): the last shown character goes
+    assert_eq!(type_word(&mut engine(TelexFreeAr), "chonlej<"), "chonl");
+}

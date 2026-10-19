@@ -9,7 +9,7 @@ gonhanh.org/
 ├── core/                          # Rust engine (100% platform-agnostic)
 │   ├── build.rs                  # Packs data/dictionaries/* into static word lists
 │   ├── src/
-│   │   ├── lib.rs                # FFI exports (22 functions: ime_init, ime_key, ime_method, ...)
+│   │   ├── lib.rs                # FFI exports (23 functions: ime_init, ime_key, ime_method, ...)
 │   │   ├── utils.rs              # Utility functions (char conversions, etc.)
 │   │   │
 │   │   ├── phonology/            # "Is this Vietnamese? Where does the tone go?"
@@ -215,7 +215,7 @@ ime_restore_word(word)                                      // Resume editing a 
 ime_add_shortcut / ime_remove_shortcut / ime_clear_shortcuts
 ime_free(result)                                            // Deallocate Result
 ```
-Plus setting toggles (`ime_modern`, `ime_free_tone`, `ime_esc_restore`, `ime_english_auto_restore`, `ime_auto_capitalize`, `ime_allow_foreign_consonants`, `ime_skip_w_shortcut`, `ime_bracket_shortcut`).
+Plus setting toggles (`ime_modern`, `ime_free_tone`, `ime_undo_on_delete`, `ime_esc_restore`, `ime_english_auto_restore`, `ime_auto_capitalize`, `ime_allow_foreign_consonants`, `ime_skip_w_shortcut`, `ime_bracket_shortcut`).
 
 **Result Struct** (matches Swift exactly):
 ```rust

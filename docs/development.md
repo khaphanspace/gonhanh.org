@@ -45,7 +45,7 @@ gonhanh.org/
 │   ├── Cargo.toml               # Rust manifest (zero production deps)
 │   ├── build.rs                 # Packs data/dictionaries/* into lexicon tables
 │   ├── src/
-│   │   ├── lib.rs              # FFI exports (22 functions)
+│   │   ├── lib.rs              # FFI exports (23 functions)
 │   │   ├── utils.rs            # Char conversions, helpers
 │   │   ├── phonology/          # "Is this Vietnamese? Where does the tone go?"
 │   │   │   ├── letters.rs      # Unit / Tone / Mod types

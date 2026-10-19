@@ -200,6 +200,28 @@ impl Compose {
         self.len = self.len.saturating_sub(1);
     }
 
+    /// Backspace right after a key that only changed letters already there (a tone, a circumflex,
+    /// a stroke) takes back that key: `chonlẹ⌫` shows `chonle`, not `chonl`. A key that added a
+    /// letter is deleted with its letter (`backspace_char`). `false` when the last key was not such
+    /// a modifier; nothing changes then.
+    pub fn undo_modifier(&mut self) -> bool {
+        if self.len < 2 || self.pin_literal.get() {
+            return false;
+        }
+        let shown = self.display();
+        // the word is on screen as typed: one key is one letter (backspace_char)
+        if shown == render(&self.literal_parse(self.len), self.raw(), &self.opts) {
+            return false;
+        }
+        self.len -= 1;
+        let before = self.display();
+        if before.as_slice().len() == shown.as_slice().len() && before != shown {
+            return true;
+        }
+        self.len += 1;
+        false
+    }
+
     /// Delete the last *displayed* character the way the platform does (the key is not undone):
     /// go back to the state whose display is the current one minus its last char. `false` when no
     /// earlier state matches (the word can no longer be edited).

@@ -284,7 +284,7 @@ impl Engine {
         Some(Out::none())
     }
 
-    pub(super) fn on_delete(&mut self) -> Out {
+    pub(super) fn on_delete(&mut self, undo_key: bool) -> Out {
         // Backspace after a committed word: each deleted space counts, the last one brings the word back
         if self.spaces_after_commit > 0 && self.word.is_empty() {
             self.spaces_after_commit -= 1;
@@ -296,6 +296,13 @@ impl Engine {
         if self.word.is_empty() {
             self.has_non_letter_prefix = true;
         } else {
+            // a tone or mark typed by mistake goes away on its own: the key is undone, not its letter
+            let shown = self.screen;
+            if undo_key && self.word.undo_modifier() {
+                self.screen = self.word.display();
+                let e = diff(&shown, &self.screen);
+                return Out::send(e.backspace, &e.chars[..e.count as usize]);
+            }
             // the platform removes one character; find the typing state that shows the same
             self.word.backspace_char();
             self.screen = if self.word.is_empty() {
