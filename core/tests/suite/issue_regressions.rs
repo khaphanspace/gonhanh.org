@@ -683,3 +683,24 @@ fn backspace_takes_back_the_last_tone_key_when_asked() {
     // off (desktop): the last shown character goes
     assert_eq!(type_word(&mut engine(TelexFreeAr), "chonlej<"), "chonl");
 }
+
+/// A stretched word keeps its marks while it is typed, not only after the space (`tôii`, not `tooii`
+/// that turns back into `tôii` at the boundary).
+#[test]
+fn a_marked_word_stretched_keeps_its_marks_while_typing() {
+    for mode in [Telex, TelexAr, TelexFreeAr] {
+        for (typed, want) in [
+            ("tooii", "tôii"),
+            ("Tooiiiii", "Tôiiiii"),
+            ("Tooiiiii ", "Tôiiiii "),
+            ("tuoiii", "tuoiii"),
+            ("ddooii", "đôii"),
+        ] {
+            assert_eq!(
+                type_word(&mut engine(mode), typed),
+                want,
+                "{mode:?} {typed:?}"
+            );
+        }
+    }
+}

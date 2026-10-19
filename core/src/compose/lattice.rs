@@ -499,12 +499,17 @@ enum Stretch {
 
 impl Stretch {
     fn of(p: &Parse, i: usize, key: RawKey, pho: &Pho) -> Stretch {
+        let units = p.units();
+        // a word with no tone is stretched only once it carries a mark (tôi + i, not tai + i); the
+        // mark would otherwise fall back to the typed letters (tooii) and come back at the space
+        let marked = p.tone == Tone::Ngang
+            && units.last().is_some_and(|l| l.is_vowel() && l.ch == key.ch)
+            && units.iter().any(|u| u.md != Mod::None);
         // cheap tests first: this runs for every reading of every key
-        if p.tone == Tone::Ngang && i > 0 && p.roles[i - 1] != Role::Circ {
+        if p.tone == Tone::Ngang && i > 0 && p.roles[i - 1] != Role::Circ && !marked {
             return Stretch::No;
         }
-        let units = p.units();
-        if p.tone != Tone::Ngang {
+        if p.tone != Tone::Ngang || marked {
             if let Some(last) = units.last() {
                 // a lone vowel keeps its extended form (hara → hẩ, afa → ầ); only the end of a
                 // diphthong (mùa, hòa) is stretched
