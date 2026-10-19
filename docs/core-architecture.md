@@ -2,6 +2,16 @@
 
 Tài liệu bắt buộc đọc trước khi sửa engine. FFI: 22 hàm, `Result` 1028 B (`MAX` = 256). Lý do từng quyết định theo issue: [issue-coverage.md](issue-coverage.md). Ngữ pháp tiếng Việt: [vietnamese-language-system.md](vietnamese-language-system.md), [validation-algorithm.md](validation-algorithm.md).
 
+## Nguyên tắc quyết định: hành vi người dùng đứng trên code
+
+Khi code hiện có (bảng restore, bất biến, test cũ) mâu thuẫn với hành vi gõ mà người dùng kỳ vọng, **hành vi kỳ vọng thắng**: sửa code, và sửa cả test hay đoạn tài liệu đang mã hoá hành vi cũ. Không bẻ hành vi cho vừa test.
+
+- Hành vi kỳ vọng lấy từ chuỗi phím người dùng báo hoặc từ log gõ thật, không suy từ code hay từ test cũ. Test cũ chỉ là bằng chứng về điều người ta từng nghĩ.
+- Hai phép thử luôn dùng: (1) **màn hình lúc gõ = màn hình sau dấu cách**, trừ khi dấu cách mang bằng chứng tiếng Anh mới; (2) **thứ tự gõ không đổi kết quả** (dấu gõ trước hay sau đều ra cùng chữ). Lệch một trong hai là lỗi, dù mọi test đang xanh.
+- Sửa ở chỗ chung (ngữ pháp, cách đọc, bảng quyết định), không vá từng từ. Kiểm bằng test sinh tổ hợp thay vì danh sách ca.
+- Khi phải đổi test cũ, ghi lý do vào commit và nói rõ hành vi nào đổi (`tafoo ` từ chữ thô sang `tàoo `: kéo dài chữ nhất quán).
+- Giữ hai số đo: tỉ lệ tiếng Anh trong `make gate` không tụt, digest tiếng Việt (`core/bench/golden.txt`) không đổi trừ khi đổi là chủ ý.
+
 ## Ba tầng, mỗi tầng một câu hỏi
 
 ```
@@ -103,6 +113,7 @@ Sửa `vi.dic` hoặc `names.dic`: chạy `python3 scripts/gen/phonology_tables.
 
 ## Thêm một hành vi mới
 
+0. Chốt hành vi người dùng kỳ vọng trước (mục trên), rồi mới nhìn code.
 1. Tìm ca người dùng đã báo (chuỗi phím, mong đợi) và thêm một dòng vào `core/tests/suite/issue_regressions.rs`.
 2. Sửa ở tầng đúng: ngữ pháp (`phonology`), cách đọc (`compose/parse.rs`), hay quyết định cuối từ (`engine/restore.rs`).
 3. Chạy `make gate`; cập nhật tài liệu này nếu đổi một bất biến.
