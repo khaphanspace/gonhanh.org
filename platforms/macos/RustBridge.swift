@@ -538,6 +538,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_esc_restore") private func ime_esc_restore(_ enabled: Bool)
 @_silgen_name("ime_free_tone") private func ime_free_tone(_ enabled: Bool)
 @_silgen_name("ime_modern") private func ime_modern(_ modern: Bool)
+@_silgen_name("ime_undo_on_delete") private func ime_undo_on_delete(_ enabled: Bool)
 @_silgen_name("ime_english_auto_restore") private func ime_english_auto_restore(_ enabled: Bool)
 @_silgen_name("ime_auto_capitalize") private func ime_auto_capitalize(_ enabled: Bool)
 @_silgen_name("ime_allow_foreign_consonants") private func ime_allow_foreign_consonants(_ enabled: Bool)
@@ -561,6 +562,8 @@ class RustBridge {
     static func initialize() {
         guard !isInitialized else { return }
         ime_init()
+        // The first backspace after a tone/mark key takes that key back (chonlẹ⌫ → chonle), as on the iPhone keyboard.
+        ime_undo_on_delete(true)
         isInitialized = true
     }
 
