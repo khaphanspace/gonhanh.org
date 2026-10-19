@@ -695,6 +695,15 @@ fn a_marked_word_stretched_keeps_its_marks_while_typing() {
             ("Tooiiiii ", "Tôiiiii "),
             ("tuoiii", "tuoiii"),
             ("ddooii", "đôii"),
+            // a toned word stretches the same way, live and at the space, for one letter or many
+            ("nhirii", "nhỉii"),
+            ("nhirii ", "nhỉii "),
+            ("nhiriiiii ", "nhỉiiiii "),
+            ("nhasaa", "nháa"),
+            ("nhasaa ", "nháa "),
+            ("nhasaaaaaa ", "nháaaaaa "),
+            ("nhesee ", "nhée "),
+            ("nhijiii ", "nhịiii "),
         ] {
             assert_eq!(
                 type_word(&mut engine(mode), typed),

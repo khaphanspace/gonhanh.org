@@ -21,7 +21,7 @@
 use crate::compose::parse::Role;
 use crate::compose::{Compose, Display, MAXK};
 use crate::data::lexicon::{DOUBLES, EN, FUNC, KEEP, REF, VI};
-use crate::phonology::{validate, Mod, Opts, Unit, Validity};
+use crate::phonology::{validate, Mod, Opts, Tone, Unit, Validity};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Decision {
@@ -220,6 +220,30 @@ pub fn decide(
         && !(raw.len() >= 4 && raw_en())
         && matches!(
             valid_end(&squeezed[..sn]),
+            Validity::Complete | Validity::Loose
+        )
+    {
+        return Decision::Keep;
+    }
+    // the same for a toned or marked word whose last vowel is repeated (nháa, nhỉii): every
+    // repeat after the first is a stretch, the grammar sees the word once
+    let n = units.len();
+    let tail = units
+        .iter()
+        .rev()
+        .take_while(|u| **u == units[n - 1])
+        .count();
+    // typed twice at the end: one repeat between a tone and the end (isi → íi, tiara) is a word
+    let typed_twice = raw.len() >= 2
+        && raw.as_bytes()[raw.len() - 1].eq_ignore_ascii_case(&raw.as_bytes()[raw.len() - 2]);
+    if tail >= 2
+        && typed_twice
+        && units[n - 1].is_vowel()
+        && units[n - 1].md == Mod::None
+        && (p.tone != Tone::Ngang || units.iter().any(|u| u.md != Mod::None))
+        && !(raw.len() >= 4 && raw_en())
+        && matches!(
+            valid_end(&units[..n + 1 - tail]),
             Validity::Complete | Validity::Loose
         )
     {

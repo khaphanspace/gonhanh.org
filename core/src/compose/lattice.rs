@@ -511,14 +511,14 @@ impl Stretch {
         }
         if p.tone != Tone::Ngang || marked {
             if let Some(last) = units.last() {
-                // a lone vowel keeps its extended form (hara → hẩ, afa → ầ); only the end of a
-                // diphthong (mùa, hòa) is stretched
+                // a lone a / e / o keeps its extended form (hara → hẩ, afa → ầ: the circumflex reading);
+                // the end of a diphthong (mùa, hòa) and a lone i / u / y (nhỉ + i) are stretched
                 if last.is_vowel()
                     && last.ch == key.ch
                     && last.md == Mod::None
                     && !last.stroke
-                    && nucleus_len(units) >= 2
-                    && (units[units.len() - 2] == *last
+                    && (nucleus_len(units) >= 2 || matches!(last.ch, b'i' | b'u' | b'y'))
+                    && (units.len() > 1 && units[units.len() - 2] == *last
                         || validate(units, p.tone, pho) == Validity::Complete)
                 {
                     return Stretch::OfWord;

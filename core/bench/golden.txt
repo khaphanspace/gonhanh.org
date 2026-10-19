@@ -1,4 +1,4 @@
-en100k_auto_restore	100000	a611af02126429d2
-en_variants_auto_restore	6893	71858a1d366f6893
+en100k_auto_restore	100000	0c5dcfaa3866552e
+en_variants_auto_restore	6893	bea660e22f10996e
 vi_variants_auto_restore	114676	20c450b6a559ef7b
 vi_variants_raw	114676	dd1afc1cf2030839

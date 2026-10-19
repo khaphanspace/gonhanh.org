@@ -214,18 +214,20 @@ fn pattern5_double_w_at_start() {
 fn pattern_double_vowel_after_tone() {
     // When a vowel has a mark (huyền/sắc/etc.) and user types double DIFFERENT vowel,
     // circumflex should NOT be applied. This prevents invalid diphthongs like "ồa", "âi", etc.
+    // The vowel typed twice at the end is a stretch of the syllable (tào + o), the same on screen
+    // while typing and at the space; one repeat only (chaofo) is not enough to call it a stretch.
     // Example: "tafoo" = t + à (huyền on 'a') + oo → skip circumflex → "tàoo"
     telex_auto_restore(&[
         // huyền (f) + different double vowel
-        ("tafoo ", "tafoo "),
-        ("tefoo ", "tefoo "),
-        ("tofaa ", "tofaa "),
-        ("tofee ", "tofee "),
-        ("tifaa ", "tifaa "),
-        ("mufaa ", "mufaa "),
+        ("tafoo ", "tàoo "),
+        ("tefoo ", "tèoo "),
+        ("tofaa ", "toàa "),
+        ("tofee ", "toèe "),
+        ("tifaa ", "tìaa "),
+        ("mufaa ", "mùaa "),
         ("muafa ", "muafa "),
         // sắc (s) + different double vowel
-        ("tasoo ", "tasoo "),
+        ("tasoo ", "táoo "),
         ("tesaa ", "tesaa "),
     ]);
 }
