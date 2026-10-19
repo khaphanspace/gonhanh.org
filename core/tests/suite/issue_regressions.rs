@@ -153,6 +153,7 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (430, TelexAr,     "loss ",         "loss "),
     (430, TelexAr,     "lissa ",        "lisa "),
     // the language of the words before decides a word that is both English and Vietnamese
+    (0,   TelexAr,     "IT been em ",   "IT bên em "),
     (0,   TelexAr,     "the is ",       "the is "),
     (0,   TelexAr,     "with was ",     "with was "),
     (0,   TelexAr,     "the bars ",     "the bars "),

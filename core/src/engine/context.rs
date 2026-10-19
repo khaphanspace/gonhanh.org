@@ -44,8 +44,12 @@ impl EnglishRun {
     /// not the letters as typed. Runs at every word boundary, so it looks nothing up that it
     /// does not need: the function-word list (no allocation), and the English list only to
     /// tell a default from a choice while the run is open.
-    pub fn note_word(&mut self, raw: &[u8], vietnamese: bool) {
-        let kind = self.classify(raw, vietnamese);
+    pub fn note_word(&mut self, raw: &[u8], vietnamese: bool, all_caps: bool) {
+        // an acronym (IT, OS, HR) is not a function word: Vietnamese text is full of them
+        let kind = match self.classify(raw, vietnamese) {
+            WordKind::Function if all_caps => WordKind::Neutral,
+            kind => kind,
+        };
         match kind {
             WordKind::Function => self.open = true,
             WordKind::Vietnamese => self.clear(),
@@ -93,7 +97,11 @@ mod tests {
     fn run(words: &[(&str, bool)]) -> bool {
         let mut r = EnglishRun::new();
         for (w, vn) in words {
-            r.note_word(w.as_bytes(), *vn);
+            let (w, all_caps) = (
+                w.to_lowercase(),
+                w.chars().count() >= 2 && w.chars().all(char::is_uppercase),
+            );
+            r.note_word(w.as_bytes(), *vn, all_caps);
         }
         r.is_open()
     }
@@ -103,6 +111,13 @@ mod tests {
         assert!(run(&[("the", false)]));
         assert!(run(&[("with", false)]));
         assert!(run(&[("is", false)]));
+    }
+
+    #[test]
+    fn an_acronym_does_not() {
+        assert!(!run(&[("IT", false)]));
+        assert!(!run(&[("OR", false)]));
+        assert!(run(&[("It", false)]));
     }
 
     #[test]

@@ -72,7 +72,9 @@ impl Engine {
         for (dst, k) in letters.iter_mut().zip(self.word.raw()) {
             *dst = k.ch;
         }
-        self.english_run.note_word(&letters[..n], vietnamese);
+        let all_caps = n >= 2 && self.word.raw().iter().all(|k| k.caps);
+        self.english_run
+            .note_word(&letters[..n], vietnamese, all_caps);
         let mut keys_copy = [RawKey { ch: 0, caps: false }; MAXK];
         let n = self.word.len();
         keys_copy[..n].copy_from_slice(self.word.raw());
