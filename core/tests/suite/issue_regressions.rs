@@ -174,7 +174,7 @@ const CASES: &[(u32, Mode, &str, &str)] = &[
     (0,   TelexFreeAr, "ads ",       "ads "),
     (0,   TelexFreeAr, "expect ",    "expect "),
     (0,   TelexFreeAr, "express ",   "express "),
-    (0,   TelexFree,   "haaaas ",    "haaas "), // the revert eats one a
+    (0,   TelexFree,   "haaaas ",    "háaa "), // the revert eats one a; the tone typed last lands on the syllable under the stretch
     (0,   TelexFree,   "hasaaaaaa ", "háaaaaa "),
     (0,   TelexFreeAr, "hasaaaaaa ", "háaaaaa "),
     (0,   TelexFreeAr, "foresee ",   "foresee "),
@@ -704,6 +704,13 @@ fn a_marked_word_stretched_keeps_its_marks_while_typing() {
             ("nhasaaaaaa ", "nháaaaaa "),
             ("nhesee ", "nhée "),
             ("nhijiii ", "nhịiii "),
+            // the tone typed after the stretch lands on the syllable under it, same as typed before
+            ("nhiiiir", "nhỉiii"),
+            ("nhiiiir ", "nhỉiii "),
+            ("nhaaaaas ", "nháaaa "),
+            ("tooiiiir ", "tổiiii "),
+            ("chaooooof ", "chàooooo "),
+            ("muaaaaf ", "mùaaa "),
         ] {
             assert_eq!(
                 type_word(&mut engine(mode), typed),

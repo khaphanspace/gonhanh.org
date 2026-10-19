@@ -9,7 +9,7 @@
 use super::parse::{extend, Children, Parse, Role};
 use super::render::{render, Display};
 use super::{Options, RawKey, MAXK};
-use crate::phonology::{nucleus_len, tone_index, validate, Mod, Opts as Pho, Tone, Validity};
+use crate::phonology::{nucleus_len, tone_index, validate, Mod, Opts as Pho, Tone, Unit, Validity};
 use std::cell::{Cell, RefCell};
 
 const BEAM: usize = 8;
@@ -425,6 +425,7 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
         kids.n = 0;
         extend(p, i, key, o, kids);
         let stretch = Stretch::of(p, i, key, &pho);
+        let tail_core = stretch_tail(p, i);
         for child in &mut kids.items[..kids.n] {
             let role = child.roles[i];
             // the other reading of a stretch cancels nothing: the next vowel lengthens the stretch
@@ -448,6 +449,15 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
                 }
                 // the same vowel again after a toned word is a stretch (mùaaa)
                 Validity::Invalid if stretch == Stretch::OfWord && role == Role::Literal => 0,
+                // the tone typed after the stretch (nhaaaas) lands on the syllable under it
+                Validity::Invalid
+                    if role == Role::Tone
+                        && tail_core > 0
+                        && validate(&child.units()[..tail_core], child.tone, &pho)
+                            != Validity::Invalid =>
+                {
+                    0
+                }
                 Validity::Invalid => continue,
             };
             let mut k = tier * TIER + child.score as i64 * 100 - order;
@@ -462,7 +472,10 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
             // a circumflex reading that is not a word yet (muầ, waiting for a coda) stays alive for
             // bafan → bần but is not shown while the stretch reading exists; one that is a word
             // (bồ, ấ) wins as it always did
-            if stretch == Stretch::OfWord && role != Role::Literal && validity != Validity::Complete
+            if stretch == Stretch::OfWord
+                && p.tone != Tone::Ngang
+                && role != Role::Literal
+                && validity != Validity::Complete
             {
                 k -= 2 * TIER;
             }
@@ -484,6 +497,31 @@ fn step(prev: &Beam, next: &mut Beam, i: usize, key: RawKey, o: &Options, kids: 
     next.weak = tn > 0 && ranks[0] <= WEAK_KEY;
 }
 
+/// The word ends in a vowel typed again and again (nhaaa, nhii): how many units form the syllable
+/// under the stretch, `0` when it does not (or when a tone is already there). The last unit must
+/// come from the key just typed before `i`, and the two before it from keys typed together (a
+/// typed pair, not `isi`).
+fn stretch_tail(p: &Parse, i: usize) -> usize {
+    let units = p.units();
+    let n = units.len();
+    if p.tone != Tone::Ngang || n < 2 {
+        return 0;
+    }
+    let last = units[n - 1];
+    if !last.is_vowel()
+        || last.md != Mod::None
+        || last.stroke
+        || p.unit_key[n - 1] as usize + 1 != i
+    {
+        return 0;
+    }
+    let run = units.iter().rev().take_while(|u| **u == last).count();
+    if run < 2 || !p.typed_twice(last.ch) {
+        return 0;
+    }
+    n - run + 1
+}
+
 /// How the key relates to a stretched syllable (mùaaa, vàooo). Typing the tone first and the
 /// circumflex later (bafan → bần) is possible too, so the circumflex reading stays in the beam and
 /// only the display prefers the stretch.
@@ -500,29 +538,30 @@ enum Stretch {
 impl Stretch {
     fn of(p: &Parse, i: usize, key: RawKey, pho: &Pho) -> Stretch {
         let units = p.units();
-        // a word with no tone is stretched only once it carries a mark (tôi + i, not tai + i); the
-        // mark would otherwise fall back to the typed letters (tooii) and come back at the space
-        let marked = p.tone == Tone::Ngang
-            && units.last().is_some_and(|l| l.is_vowel() && l.ch == key.ch)
-            && units.iter().any(|u| u.md != Mod::None);
-        // cheap tests first: this runs for every reading of every key
-        if p.tone == Tone::Ngang && i > 0 && p.roles[i - 1] != Role::Circ && !marked {
-            return Stretch::No;
-        }
-        if p.tone != Tone::Ngang || marked {
-            if let Some(last) = units.last() {
-                // a lone a / e / o keeps its extended form (hara → hẩ, afa → ầ: the circumflex reading);
-                // the end of a diphthong (mùa, hòa) and a lone i / u / y (nhỉ + i) are stretched
-                if last.is_vowel()
-                    && last.ch == key.ch
-                    && last.md == Mod::None
-                    && !last.stroke
-                    && (nucleus_len(units) >= 2 || matches!(last.ch, b'i' | b'u' | b'y'))
-                    && (units.len() > 1 && units[units.len() - 2] == *last
-                        || validate(units, p.tone, pho) == Validity::Complete)
-                {
-                    return Stretch::OfWord;
-                }
+        let repeats = |l: &Unit| l.is_vowel() && l.ch == key.ch && l.md == Mod::None && !l.stroke;
+        // A toneless word whose last vowel is typed again (tôi + i, nhi + i, chao + o) keeps a
+        // reading in which the repeat is a stretch. A circumflex reading (nha + a) still wins where
+        // it exists; this one stays alive so that a tone typed after the stretch (nhaaaas) finds the
+        // syllable under it, and so that the marks shown while typing are the ones kept at the space.
+        if p.tone == Tone::Ngang {
+            if units.last().is_some_and(repeats)
+                && (units.len() >= 2 && units[units.len() - 2] == units[units.len() - 1]
+                    || validate(units, p.tone, pho) == Validity::Complete)
+            {
+                return Stretch::OfWord;
+            }
+            // cheap tests first: this runs for every reading of every key
+            if i == 0 || p.roles[i - 1] != Role::Circ {
+                return Stretch::No;
+            }
+        } else if let Some(last) = units.last().filter(|l| repeats(l)) {
+            // a lone a / e / o keeps its extended form (hara → hẩ, afa → ầ: the circumflex reading);
+            // the end of a diphthong (mùa, hòa) and a lone i / u / y (nhỉ + i) are stretched
+            if (nucleus_len(units) >= 2 || matches!(last.ch, b'i' | b'u' | b'y'))
+                && (units.len() > 1 && units[units.len() - 2] == *last
+                    || validate(units, p.tone, pho) == Validity::Complete)
+            {
+                return Stretch::OfWord;
             }
         }
         if i > 0
@@ -557,6 +596,11 @@ fn step_keep(
     });
     kids.n = 0;
     extend(prev, i, key, o, kids);
+    // a tone typed after a stretched ending (nhaaaas) belongs to the syllable under the stretch
+    let tail = stretch_tail(prev, i);
+    let on_tail = |child: &Parse| {
+        tail > 0 && validate(&child.units()[..tail], child.tone, pho) != Validity::Invalid
+    };
     let mut prev_ok: Option<bool> = None;
     let mut best = (i64::MIN, kids.items[0]);
     let mut best_rank = 0;
@@ -567,7 +611,7 @@ fn step_keep(
         }
         // a tone key cannot revive a word that already broke (arts: ảt + s is not át): only
         // a word still Vietnamese, or one with a deliberate ư/ơ/â/ă/đ, takes a later tone
-        if matches!(child.roles[i], Role::Tone | Role::Swallow) && !intent {
+        if matches!(child.roles[i], Role::Tone | Role::Swallow) && !intent && !on_tail(child) {
             let broke = *prev_ok.get_or_insert_with(|| {
                 !matches!(
                     validate(prev.units(), prev.tone, pho),
@@ -587,6 +631,7 @@ fn step_keep(
                     1
                 }
                 Role::Tone | Role::Swallow if intent => 1,
+                Role::Tone if on_tail(child) => 1,
                 Role::Circ if key.ch.is_ascii_digit() => 1,
                 Role::Literal => 0,
                 _ => continue,

@@ -63,6 +63,12 @@ pub struct Parse {
     /// is: the grammar places the tone then). The mark stays where it was shown, so letters
     /// typed afterwards (háaa + e) never make it jump.
     pub tone_at: u8,
+    /// How many equal letters were typed one after the other at the end (`rep_ch` is the letter);
+    /// a tone key does not count as a letter but keeps the run it interrupted in `before`.
+    rep: u8,
+    rep_ch: u8,
+    before: u8,
+    before_ch: u8,
     last: Last,
 }
 
@@ -80,6 +86,10 @@ impl Parse {
             reverted: false,
             late_revert: false,
             tone_at: NO_TONE_AT,
+            rep: 0,
+            rep_ch: 0,
+            before: 0,
+            before_ch: 0,
             last: NO_LAST,
         }
     }
@@ -123,6 +133,13 @@ impl Parse {
             || (r.contains(&Role::Horn) && !r.contains(&Role::BaseHorn))
     }
 
+    /// The letter `ch` was typed at least twice in a row at the end, a tone key last or not: a
+    /// repeat on purpose (nhaaaas, nháaa), not the same vowel on both sides of a tone key (isi).
+    pub fn typed_twice(&self, ch: u8) -> bool {
+        (self.rep >= 2 && self.rep_ch == ch)
+            || (self.rep == 0 && self.before >= 2 && self.before_ch == ch)
+    }
+
     /// Role of key `i`.
     pub fn role(&self, i: usize) -> Role {
         self.roles[i]
@@ -135,6 +152,10 @@ impl Parse {
             && self.reverted == o.reverted
             && self.late_revert == o.late_revert
             && self.tone_at == o.tone_at
+            && self.rep == o.rep
+            && self.rep_ch == o.rep_ch
+            && self.before == o.before
+            && self.before_ch == o.before_ch
             && self.last.role == o.last.role
             && self.last.key == o.last.key
             && self.last.ch == o.last.ch
@@ -210,6 +231,25 @@ const MODIFIER_SCORE: i32 = 10;
 
 /// All readings of key `i` on top of `p`. Always includes the literal reading.
 pub fn extend(p: &Parse, i: usize, key: RawKey, o: &Options, out: &mut Children) {
+    let start = out.n;
+    extend_readings(p, i, key, o, out);
+    for c in &mut out.items[start..out.n] {
+        if c.roles[i] == Role::Tone {
+            // the tone key is not a letter of the run: remember the run it cut
+            c.before = p.rep;
+            c.before_ch = p.rep_ch;
+            c.rep = 0;
+            c.rep_ch = 0;
+        } else {
+            c.before = 0;
+            c.before_ch = 0;
+            c.rep = if p.rep_ch == key.ch { p.rep + 1 } else { 1 };
+            c.rep_ch = key.ch;
+        }
+    }
+}
+
+fn extend_readings(p: &Parse, i: usize, key: RawKey, o: &Options, out: &mut Children) {
     out.push(p.literal(i, key.ch));
     if key.ch == b'[' || key.ch == b']' {
         if o.bracket && o.method == super::method::Method::Telex {

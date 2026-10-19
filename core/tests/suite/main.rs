@@ -28,6 +28,7 @@ mod permutation_test;
 mod phonology_audit;
 mod restore_toggle_after_backspace_test;
 mod revert_auto_restore_test;
+mod stretch_test;
 mod test_lissa_larra;
 mod typing_order_consistency_test;
 mod typing_order_permutation_test;

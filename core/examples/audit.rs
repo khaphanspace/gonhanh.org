@@ -2,6 +2,7 @@
 //!
 //!   jumps        tone marks that move to another vowel while typing English words (`ar`, `free` flags, words on stdin)
 //!   stretch      stretch the last vowel of every toned Vietnamese syllable (mùa → mùaaaa) and check every key (`ar`; pairs on stdin)
+//!   stretch_order  stretch the last vowel with the tone typed first or last (`ar`, `free`; pairs on stdin): screen while typing = screen after the space, both orders agree, the tone stays
 //!   runon        two Vietnamese words typed with no space between them (`ar`, `free`; pairs on stdin)
 //!   en_compound  two English words typed with no space (helloworld): how often free typing changes them beyond normal typing
 //!   free_cost    CPU per key and rewrites on English words, normal vs free typing
@@ -12,11 +13,14 @@ fn main() {
     match args.first().map(String::as_str) {
         Some("jumps") => jumps::run(),
         Some("stretch") => stretch::run(),
+        Some("stretch_order") => stretch_order::run(),
         Some("runon") => runon::run(),
         Some("en_compound") => en_compound::run(),
         Some("free_cost") => free_cost::run(),
         Some("spin") => spin::run(),
-        _ => eprintln!("usage: audit <jumps|stretch|runon|en_compound|free_cost|spin> [flags]"),
+        _ => eprintln!(
+            "usage: audit <jumps|stretch|stretch_order|runon|en_compound|free_cost|spin> [flags]"
+        ),
     }
 }
 
@@ -117,6 +121,121 @@ mod stretch {
             }
         }
         println!("{n} toned syllables, {bad} with a jump while the last vowel is stretched");
+        println!("{}", shown.join("\n"));
+    }
+}
+
+mod stretch_order {
+    use gonhanh_core::engine::Engine;
+    use gonhanh_core::utils::type_word;
+    use std::io::BufRead;
+
+    const TONED: &str = "áàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ";
+    const VOWELS: &str = "aeiouyăâêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ";
+
+    /// The word with its trailing run of one letter cut to one.
+    fn squash(s: &str) -> String {
+        let mut cs: Vec<char> = s.chars().collect();
+        while cs.len() >= 2 && cs[cs.len() - 1] == cs[cs.len() - 2] {
+            cs.pop();
+        }
+        cs.into_iter().collect()
+    }
+
+    /// The letter a Vietnamese vowel is typed from.
+    fn plain(c: char) -> char {
+        for (base, set) in [
+            ('a', "aăâáàảãạắằẳẵặấầẩẫậ"),
+            ('e', "eêéèẻẽẹếềểễệ"),
+            ('i', "iíìỉĩị"),
+            ('o', "oôơóòỏõọốồổỗộớờởỡợ"),
+            ('u', "uưúùủũụứừửữự"),
+            ('y', "yýỳỷỹỵ"),
+        ] {
+            if set.contains(c) {
+                return base;
+            }
+        }
+        c
+    }
+
+    pub fn run() {
+        let flags: Vec<String> = std::env::args().skip(1).collect();
+        let has = |f: &str| flags.iter().any(|x| x == f);
+        let screen = |t: &str| {
+            let mut e = Engine::new();
+            e.set_english_auto_restore(has("ar"));
+            if has("free") {
+                e.set_free_tone(true);
+                e.set_allow_foreign_consonants(true);
+            }
+            type_word(&mut e, t)
+        };
+        let (mut n, mut order, mut space, mut lost) = (0, 0, 0, 0);
+        let mut shown = Vec::new();
+        for line in std::io::stdin().lock().lines().map_while(Result::ok) {
+            let Some((typed, word)) = line.split_once('\t') else {
+                continue;
+            };
+            // a word whose tone key comes last: `vieetj`
+            let Some(tone) = typed.chars().last().filter(|c| "sfrxj".contains(*c)) else {
+                continue;
+            };
+            // an open syllable: the word ends in a vowel (not `acaj` → `ậc`, whose last `a` is a late circumflex)
+            if !word.chars().any(|c| TONED.contains(c))
+                || !word.chars().last().is_some_and(|c| VOWELS.contains(c))
+            {
+                continue;
+            }
+            let base = &typed[..typed.len() - 1];
+            // an open syllable whose last letter is a single vowel (`mua`, `nhi`): a doubled one is a
+            // circumflex, and Telex cannot stretch it by repeating the key
+            let mut tail = base.chars().rev();
+            let (Some(v), second) = (tail.next().filter(|c| "aeiouy".contains(*c)), tail.next())
+            else {
+                continue;
+            };
+            if second == Some(v) {
+                continue;
+            }
+            // the typed vowel is the one the word ends with (not `auar` → `ẩu`, a late circumflex)
+            if word.chars().last().map(plain) != Some(v) {
+                continue;
+            }
+            for k in 2..=4 {
+                let run = v.to_string().repeat(k);
+                let last = format!("{base}{run}{tone}"); // stretch, then the tone
+                let first = format!("{typed}{run}"); // the tone, then the stretch
+                n += 1;
+                let (live, done) = (screen(&last), screen(&format!("{last} ")));
+                let tone_first = screen(&first);
+                let mut why = None;
+                if format!("{live} ") != done {
+                    space += 1;
+                    why = Some("live≠space");
+                }
+                // how many letters the stretch shows is not part of the check: the first repeat is
+                // a circumflex try that eats a key when the tone comes last
+                if squash(&live) != squash(&tone_first) {
+                    order += 1;
+                    why = why.or(Some("order"));
+                }
+                if !live.chars().any(|c| TONED.contains(c)) {
+                    lost += 1;
+                    why = why.or(Some("tone lost"));
+                }
+                if let Some(w) = why {
+                    if shown.len() < 400 {
+                        shown.push(format!(
+                            "{last}: live {live:?} space {done:?} tone-first {tone_first:?} ({w})"
+                        ));
+                    }
+                }
+            }
+        }
+        println!(
+            "{n} stretched words: {space} live≠space, {order} order-dependent, {lost} tone lost"
+        );
         println!("{}", shown.join("\n"));
     }
 }

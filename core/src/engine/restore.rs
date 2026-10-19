@@ -233,11 +233,9 @@ pub fn decide(
         .rev()
         .take_while(|u| **u == units[n - 1])
         .count();
-    // typed twice at the end: one repeat between a tone and the end (isi → íi, tiara) is a word
-    let typed_twice = raw.len() >= 2
-        && raw.as_bytes()[raw.len() - 1].eq_ignore_ascii_case(&raw.as_bytes()[raw.len() - 2]);
+    // typed together: one repeat on either side of a tone key (isi → íi, tiara) is a word
     if tail >= 2
-        && typed_twice
+        && p.typed_twice(units[n - 1].ch)
         && units[n - 1].is_vowel()
         && units[n - 1].md == Mod::None
         && (p.tone != Tone::Ngang || units.iter().any(|u| u.md != Mod::None))

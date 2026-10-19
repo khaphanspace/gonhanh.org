@@ -2,7 +2,11 @@
 use gonhanh_core::compose::{Compose, Options, RawKey};
 fn main() {
     for w in std::env::args().skip(1) {
-        let mut c = Compose::new(Options::default());
+        let mut c = Compose::new(Options {
+            free: std::env::var_os("FREE").is_some(),
+            foreign_initials: std::env::var_os("FREE").is_some(),
+            ..Options::default()
+        });
         for ch in w.chars() {
             c.push(RawKey {
                 ch: ch as u8,
