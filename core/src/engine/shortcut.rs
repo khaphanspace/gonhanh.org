@@ -3,7 +3,7 @@
 //! Allows users to define shortcuts like "vn" → "Việt Nam"
 //! Shortcuts can be specific to input methods (Telex/VNI) or apply to all.
 
-use super::buffer::MAX;
+use super::MAX;
 use std::collections::HashMap;
 
 /// Maximum replacement length in UTF-32 codepoints (matches Result.chars array size)

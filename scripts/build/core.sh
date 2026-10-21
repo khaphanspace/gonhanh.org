@@ -8,7 +8,15 @@ fi
 
 echo "🦀 Building Rust core..."
 
-cd "$(dirname "$0")/../../core"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# The grammar tables are generated from vi.dic / names.dic; a stale file would ship old grammar
+python3 "$ROOT/scripts/gen/phonology_tables.py" --check || {
+    echo "❌ phonology tables are stale: run 'make tables'"
+    exit 1
+}
+
+cd "$ROOT/core"
 
 # Build for macOS (universal binary)
 echo "Building for aarch64-apple-darwin..."
