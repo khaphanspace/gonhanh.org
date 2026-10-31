@@ -20,9 +20,10 @@
 //! ime_clear();
 //! ```
 
+pub mod compose;
 pub mod data;
 pub mod engine;
-pub mod input;
+pub mod phonology;
 pub mod updater;
 pub mod utils;
 
@@ -246,6 +247,20 @@ pub extern "C" fn ime_modern(modern: bool) {
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_modern_tone(modern);
+    }
+}
+
+/// Set whether backspace takes back the tone / mark key typed last.
+///
+/// When `enabled` is true, the first backspace after a key that only changed letters already
+/// there (`chonlẹ`, typed `j` by mistake) shows `chonle`; later backspaces delete characters.
+/// When `enabled` is false (default), backspace deletes the last shown character.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_undo_on_delete(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_undo_on_delete(enabled);
     }
 }
 

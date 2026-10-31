@@ -1,20 +1,13 @@
-//! Vietnamese Language Data Modules
+//! Static data of the engine.
 //!
-//! This module contains all linguistic data for Vietnamese input:
-//! - `keys`: Virtual keycode definitions (platform-specific)
-//! - `chars`: Unicode character conversion (includes tone/mark constants)
-//! - `vowel`: Vietnamese vowel phonology system
-//! - `telex_doubles`: English words with Telex double patterns for auto-restore
+//! - `keys`: virtual keycode definitions (platform-specific)
+//! - `lexicon`: the word lists (English, English reference, Vietnamese syllables, keep words,
+//!   Telex doubles), packed at build time (`core/build.rs`) and searched in place
+//! - `english_dict`, `telex_doubles`: thin lookups on those lists
 
-pub mod chars;
-pub mod constants;
-pub mod dictionary;
 pub mod english_dict;
 pub mod keys;
+pub mod lexicon;
 pub mod telex_doubles;
-pub mod vowel;
 
-pub use chars::{get_d, mark, to_char, tone};
-pub use constants::*;
 pub use keys::{is_break, is_letter, is_vowel};
-pub use vowel::{Modifier, Phonology, Role, Vowel};
