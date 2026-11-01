@@ -71,6 +71,69 @@ fn ctrl_clears_buffer() {
     assert_passthrough(&mut e, keys::S);
 }
 
+/// Issue #307: Modifier keys (Cmd/Ctrl/Option) should bypass Telex/VNI transforms.
+/// Platform layer passes ctrl=true when any modifier is held (Cmd/Ctrl/Option).
+/// Engine must return Action::None (pass-through) for all Telex keys with ctrl=true.
+#[test]
+fn issue_307_modifier_bypasses_telex_keys() {
+    let mut e = Engine::new();
+
+    // Telex tone keys: s(sắc) f(huyền) r(hỏi) x(ngã) j(nặng) z(remove)
+    // With ctrl=true (modifier held), these should NOT apply tone marks
+    assert_action(&mut e, keys::S, false, true, Action::None);
+    assert_action(&mut e, keys::F, false, true, Action::None);
+    assert_action(&mut e, keys::R, false, true, Action::None);
+    assert_action(&mut e, keys::X, false, true, Action::None);
+    assert_action(&mut e, keys::J, false, true, Action::None);
+    assert_action(&mut e, keys::Z, false, true, Action::None);
+
+    // Telex vowel/mark keys: w(ư/ơ) a(â) e(ê) o(ô) d(đ)
+    assert_action(&mut e, keys::W, false, true, Action::None);
+    assert_action(&mut e, keys::A, false, true, Action::None);
+    assert_action(&mut e, keys::E, false, true, Action::None);
+    assert_action(&mut e, keys::O, false, true, Action::None);
+    assert_action(&mut e, keys::D, false, true, Action::None);
+}
+
+/// Issue #307: Modifier bypass should not corrupt buffer state.
+/// After modifier+key, normal typing should work correctly.
+#[test]
+fn issue_307_modifier_bypass_preserves_buffer() {
+    let mut e = Engine::new();
+
+    // Type "vi" normally
+    e.on_key(keys::V, false, false);
+    e.on_key(keys::I, false, false);
+
+    // Modifier+W (e.g., Option+W in iTerm) - should pass through, not add ư
+    assert_action(&mut e, keys::W, false, true, Action::None);
+
+    // Buffer cleared by ctrl, next key starts fresh
+    assert_passthrough(&mut e, keys::A);
+}
+
+/// Issue #307: VNI number keys with modifier should bypass.
+/// VNI uses 1-5 for tones, 6-8 for marks, 9 for đ, 0 for remove.
+#[test]
+fn issue_307_modifier_bypasses_vni_keys() {
+    let mut e = Engine::new();
+    e.set_method(1); // Switch to VNI
+
+    // VNI tone keys 1-5 with ctrl=true should pass through
+    assert_action(&mut e, keys::N1, false, true, Action::None);
+    assert_action(&mut e, keys::N2, false, true, Action::None);
+    assert_action(&mut e, keys::N3, false, true, Action::None);
+    assert_action(&mut e, keys::N4, false, true, Action::None);
+    assert_action(&mut e, keys::N5, false, true, Action::None);
+
+    // VNI mark keys 6-9 with ctrl=true should pass through
+    assert_action(&mut e, keys::N6, false, true, Action::None);
+    assert_action(&mut e, keys::N7, false, true, Action::None);
+    assert_action(&mut e, keys::N8, false, true, Action::None);
+    assert_action(&mut e, keys::N9, false, true, Action::None);
+    assert_action(&mut e, keys::N0, false, true, Action::None);
+}
+
 // ============================================================
 // METHOD SWITCHING: Telex <-> VNI
 // ============================================================
@@ -2029,10 +2092,11 @@ fn backspace_after_space_with_number_in_word() {
 fn backspace_after_space_vni_multiple_words() {
     let mut e = Engine::new();
     e.set_method(1); // VNI
-                     // VNI: 6=circumflex, 9=stroke(đ), 5=hỏi, 2=huyền
-                     // "to6i d9i ho5c" + space + backspace + "2" → change hỏc → hòc
-    let result = type_word(&mut e, "to6i d9i ho5c <2");
-    assert_eq!(result, "tôi đi hòc", "VNI multi-word restore should work");
+                     // VNI: 6=circumflex, 9=stroke(đ), 5=nặng, 1=sắc
+                     // "to6i d9i ho5c" → "tôi đi học"; restore + "1" switches nặng → sắc.
+                     // (huyền/hỏi/ngã are invalid on a stop final like -c — see issue #403.)
+    let result = type_word(&mut e, "to6i d9i ho5c <1");
+    assert_eq!(result, "tôi đi hóc", "VNI multi-word restore should work");
 }
 
 /// Uppercase in middle of word
@@ -2455,9 +2519,10 @@ fn restore_word_with_horn() {
 #[test]
 fn restore_word_uppercase() {
     let mut e = Engine::new();
-    let result = restore_and_type(&mut e, "Việt", "f");
-    // Typing 'f' (huyền) should change ệ to ề
-    assert_eq!(result, "Viềt", "Should change mark on uppercase word");
+    // Switch nặng → sắc. (huyền/hỏi/ngã are invalid on a stop final like -t,
+    // so a valid switch must land on sắc or nặng — see issue #403.)
+    let result = restore_and_type(&mut e, "Việt", "s");
+    assert_eq!(result, "Viết", "Should change mark on uppercase word");
 }
 
 /// restore_word empty string

@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 393
+# Total failures: 395
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -143,7 +143,6 @@ iaa	iaa	iaa	iâ	iâ
 kuwaiti	kuwwaiti	kuwaiti	kuwwaiti	kưwaiti
 ooze	ooze	ooze	oe	ôze
 sawn	sawn	sawn	săn	săn
-dodds	dodds	dodds	đó	dođs
 pawns	pawns	pawns	pắn	păns
 cee	ceee	cee	ceee	cêe
 kawasaki	kawwasaki	kawasaki	kawwasaki	kăwasaki
@@ -160,6 +159,7 @@ ioo	ioo	ioo	iô	iô
 tycoon	tycooon	tycoon	tycooon	tycôon
 tees	tees	tees	tế	tês
 leer	leer	leer	lể	lêr
+bataan	bataan	bataan	batan	batân
 baa	baa	baa	bâ	bâ
 saa	saa	saa	sâ	sâ
 dawns	dawns	dawns	dắn	dăns
@@ -211,6 +211,7 @@ lycee	lyceee	lycee	lyceee	lycêe
 dda	dda	dda	đa	đa
 aar	aar	aar	ẩ	âr
 coons	coons	coons	cốn	côns
+tepee	tepee	tepee	tepe	tepê
 taa	taa	taa	tâ	tâ
 aap	aap	aap	âp	âp
 chaffee	chaffee	chaffee	chafee	chaffê
@@ -333,7 +334,6 @@ beekeeper	beeekeeeper	beekeeper	beekeeeper	bêekêeper
 geez	geeez	geez	geeez	gêez
 towson	towson	towson	tốn	tơson
 aag	aag	aag	âg	âg
-cowpox	cowpox	cowpox	cỗp	cơpox
 kawabata	kawwabata	kawabata	kawwabata	kăwabata
 hoon	hoon	hoon	hôn	hôn
 ddi	ddi	ddi	đi	đi
@@ -341,6 +341,7 @@ booz	booz	booz	bo	bôz
 raa	raa	raa	râ	râ
 awn	awn	awn	ăn	ăn
 kootenay	koootenay	kootenay	koootenay	kôotenay
+maass	maass	maass	mas	mâss
 oaa	oaa	oaa	oâ	oâ
 kaw	kaww	kaw	kaww	kăw
 doodling	dooodling	doodling	dooling	dôodling
@@ -355,6 +356,7 @@ geert	geeert	geert	geeert	gêert
 aab	aab	aab	âb	âb
 tyree	tyreee	tyree	tyẻe	tyrêe
 owa	owa	owa	ơa	ơa
+tepees	tepees	tepees	tepes	tepês
 gawk	gawk	gawk	găk	găk
 kaaba	kaaaba	kaaba	kaaaba	kâaba
 ool	ool	ool	ôl	ôl

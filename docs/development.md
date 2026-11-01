@@ -141,8 +141,10 @@ make build       # Full build: test → core → macos
 
 make release     # Release workflow
                  # - Bumps version
+                 # - Generates release notes with Codex CLI
                  # - Creates git tag
                  # - Triggers GitHub Actions CI/CD
+                 # Requires: codex and gh in PATH
 ```
 
 ### Installation
@@ -321,6 +323,20 @@ make build
 # Then open in Finder
 open platforms/macos/build/Release/
 ```
+
+### Linux Fcitx5 addon
+
+Run these commands on Linux with the dependencies listed in
+[`platforms/linux/README.md`](../platforms/linux/README.md):
+
+```bash
+./platforms/linux/scripts/build.sh
+./platforms/linux/scripts/test.sh
+bash platforms/linux/scripts/package.sh dev ./gonhanh-linux.tar.gz
+```
+
+The package script verifies the canonical `gonhanh-linux/` archive layout used
+by the public installer and release workflows.
 
 ## Debugging
 

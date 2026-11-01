@@ -1,6 +1,5 @@
 #include "RustBridge.h"
-#include <codecvt>
-#include <locale>
+#include <algorithm>
 
 bool RustBridge::initialized_ = false;
 
@@ -31,7 +30,9 @@ std::pair<int, std::string> RustBridge::processKey(
         output.first = result->backspace;
 
         // Convert UTF-32 chars to UTF-8 string
-        for (uint8_t i = 0; i < result->count && i < 32; ++i) {
+        const std::size_t count = std::min<std::size_t>(
+            result->count, kImeResultCapacity);
+        for (std::size_t i = 0; i < count; ++i) {
             if (result->chars[i] > 0) {
                 output.second += codePointToUtf8(result->chars[i]);
             }

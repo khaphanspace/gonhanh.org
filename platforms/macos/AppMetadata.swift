@@ -80,6 +80,8 @@ enum SettingsKey {
     static let bracketShortcut = "gonhanh.bracketShortcut"
     static let restoreShortcutEnabled = "gonhanh.escRestore" // Keep old key for backward compat
     static let restoreShortcut = "gonhanh.shortcut.restore"
+    static let secondaryToggleShortcut = "gonhanh.shortcut.toggleSecondary"
+    static let secondaryToggleShortcutEnabled = "gonhanh.shortcut.toggleSecondaryEnabled"
     static let modernTone = "gonhanh.modernTone"
     static let englishAutoRestore = "gonhanh.englishAutoRestore"
     static let autoCapitalize = "gonhanh.autoCapitalize"
@@ -91,6 +93,7 @@ enum SettingsKey {
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"
     static let restartOnClose = "gonhanh.restartOnClose"
+    static let sessionTapMode = "gonhanh.sessionTapMode"
     // Clean Paste
     static let cleanPasteEnabled = "gonhanh.cleanPaste.enabled"
     static let cleanPasteShortcut = "gonhanh.cleanPaste.shortcut"
@@ -109,16 +112,31 @@ struct KeyboardShortcut: Codable, Equatable {
     // Default: ESC (for restore diacritics)
     static let defaultRestore = KeyboardShortcut(keyCode: 0x35, modifiers: 0)
 
+    // Default: Ctrl+Shift+Space (secondary toggle, for external keyboards without fn)
+    static let defaultSecondaryToggle = KeyboardShortcut(keyCode: 0x31, modifiers: CGEventFlags([.maskControl, .maskShift]).rawValue)
+
     var displayParts: [String] {
         var parts: [String] = []
         let flags = CGEventFlags(rawValue: modifiers)
-        if flags.contains(.maskSecondaryFn) { parts.append("fn") }
-        if flags.contains(.maskControl) { parts.append("⌃") }
-        if flags.contains(.maskAlternate) { parts.append("⌥") }
-        if flags.contains(.maskShift) { parts.append("⇧") }
-        if flags.contains(.maskCommand) { parts.append("⌘") }
+        if flags.contains(.maskSecondaryFn) {
+            parts.append("fn")
+        }
+        if flags.contains(.maskControl) {
+            parts.append("⌃")
+        }
+        if flags.contains(.maskAlternate) {
+            parts.append("⌥")
+        }
+        if flags.contains(.maskShift) {
+            parts.append("⇧")
+        }
+        if flags.contains(.maskCommand) {
+            parts.append("⌘")
+        }
         let keyStr = keyCodeToString(keyCode)
-        if !keyStr.isEmpty { parts.append(keyStr) } // Skip for modifier-only shortcuts
+        if !keyStr.isEmpty {
+            parts.append(keyStr)
+        } // Skip for modifier-only shortcuts
         return parts
     }
 
@@ -216,6 +234,28 @@ struct KeyboardShortcut: Codable, Equatable {
             return .defaultCleanPaste
         }
         return shortcut
+    }
+
+    static func loadSecondaryToggle() -> KeyboardShortcut {
+        guard let data = UserDefaults.standard.data(forKey: SettingsKey.secondaryToggleShortcut),
+              let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
+        else {
+            return .defaultSecondaryToggle
+        }
+        return shortcut
+    }
+
+    func saveAsSecondaryToggle() {
+        if let data = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(data, forKey: SettingsKey.secondaryToggleShortcut)
+        }
+    }
+
+    /// Secondary toggle shortcut, or nil when the user has not enabled it.
+    /// Lets an external keyboard without an fn key still toggle the engine (issue #416).
+    static func activeSecondaryToggle() -> KeyboardShortcut? {
+        guard UserDefaults.standard.bool(forKey: SettingsKey.secondaryToggleShortcutEnabled) else { return nil }
+        return loadSecondaryToggle()
     }
 
     /// Check if this shortcut is modifier-only (no character key)

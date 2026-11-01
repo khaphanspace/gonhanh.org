@@ -1,33 +1,44 @@
 #ifndef GONHANH_RUST_BRIDGE_H
 #define GONHANH_RUST_BRIDGE_H
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
-#include <vector>
+#include <utility>
+
+// Keep this value synchronized with core/src/engine/buffer.rs::MAX. The
+// layout assertions below and the real FFI tests fail if the C++ view drifts.
+constexpr std::size_t kImeResultCapacity = 256;
 
 // FFI Result structure - must match core/src/engine/mod.rs
 // #[repr(C)]
 // pub struct Result {
-//     pub chars: [u32; 32],
+//     pub chars: [u32; 256],
 //     pub action: u8,
 //     pub backspace: u8,
 //     pub count: u8,
-//     pub _pad: u8,
+//     pub flags: u8,
 // }
-//
-// Note: Rust #[repr(C)] uses C ABI layout, which matches C++ struct layout
-// for this specific arrangement. The array (128 bytes) is followed by
-// 4 bytes of u8 fields = 132 bytes total with no implicit padding needed.
 struct ImeResult {
-    uint32_t chars[32];  // 128 bytes
+    uint32_t chars[kImeResultCapacity];
     uint8_t action;      // 1 byte
     uint8_t backspace;   // 1 byte
     uint8_t count;       // 1 byte
-    uint8_t _pad;        // 1 byte (explicit padding to 4-byte boundary)
+    uint8_t flags;       // bit 0: trigger key was consumed
 };
 
-// Verify struct size matches Rust at compile time
-static_assert(sizeof(ImeResult) == 132, "ImeResult size mismatch with Rust core");
+constexpr std::size_t kImeResultMetadataOffset =
+    kImeResultCapacity * sizeof(uint32_t);
+static_assert(offsetof(ImeResult, action) == kImeResultMetadataOffset,
+              "ImeResult action offset must match Rust #[repr(C)] Result");
+static_assert(offsetof(ImeResult, backspace) == kImeResultMetadataOffset + 1,
+              "ImeResult backspace offset must match Rust Result");
+static_assert(offsetof(ImeResult, count) == kImeResultMetadataOffset + 2,
+              "ImeResult count offset must match Rust Result");
+static_assert(offsetof(ImeResult, flags) == kImeResultMetadataOffset + 3,
+              "ImeResult flags offset must match Rust Result");
+static_assert(sizeof(ImeResult) == kImeResultMetadataOffset + 4,
+              "ImeResult size must match Rust Result");
 
 // Action types
 enum class ImeAction : uint8_t {
@@ -50,6 +61,8 @@ extern "C" {
     void ime_enabled(bool enabled);
     void ime_clear();
     void ime_free(ImeResult* result);
+    void ime_add_shortcut(const char* trigger, const char* replacement);
+    void ime_clear_shortcuts();
 }
 
 // C++ wrapper class for Rust bridge

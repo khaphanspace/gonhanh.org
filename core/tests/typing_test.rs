@@ -1434,9 +1434,11 @@ const TELEX_ENGLISH_AW_WORDS: &[(&str, &str)] = &[
     ("xepse ", "xếp "), // post-tone: e → p → s → e
     // xếp with different tones (post-tone circumflex)
     // Note: 'r' doesn't work after consonant (treated as consonant, not tone modifier)
-    ("xepfe ", "xềp "), // huyền tone
-    ("xepxe ", "xễp "), // ngã tone
-    ("xepje ", "xệp "), // nặng tone
+    // huyền/ngã are invalid on a stop final (-p) → tone rejected, restored to
+    // literal (issue #403). Only sắc/nặng are valid on stop finals.
+    ("xepfe ", "xepfe "), // huyền on -p is invalid → restore
+    ("xepxe ", "xepxe "), // ngã on -p is invalid → restore
+    ("xepje ", "xệp "),   // nặng tone (valid)
     // tấm pattern (â) - all 3 typing orders
     ("taams ", "tấm "), // standard: aa → m → s
     ("tamas ", "tấm "), // delayed circumflex: a → m → a → s

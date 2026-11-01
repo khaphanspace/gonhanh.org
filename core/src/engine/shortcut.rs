@@ -894,4 +894,73 @@ mod tests {
             InputMethod::All,
         );
     }
+
+    // =========================================================================
+    // Issue #343: Multiline shortcut replacement (newlines in output)
+    // https://github.com/khaphanspace/gonhanh.org/issues/343
+    // =========================================================================
+
+    #[test]
+    fn issue343_multiline_replacement() {
+        let table = table_with_shortcut("addr", "123 Nguyễn Huệ\nQuận 1\nTP.HCM");
+        assert_shortcut_match(
+            &table,
+            "addr",
+            Some(' '),
+            true,
+            "123 Nguyễn Huệ\nQuận 1\nTP.HCM ",
+            4,
+            InputMethod::All,
+        );
+    }
+
+    #[test]
+    fn issue343_multiline_replacement_preserves_newlines() {
+        let replacement = "Dòng 1\nDòng 2\nDòng 3";
+        let shortcut = Shortcut::new("ml", replacement);
+        assert_eq!(shortcut.replacement, replacement);
+        assert!(shortcut.replacement.contains('\n'));
+    }
+
+    #[test]
+    fn issue343_multiline_case_matching() {
+        let table = table_with_shortcut("sig", "Trân trọng\nNguyễn Văn A");
+
+        // Lowercase
+        assert_shortcut_match(
+            &table,
+            "sig",
+            Some(' '),
+            true,
+            "Trân trọng\nNguyễn Văn A ",
+            3,
+            InputMethod::All,
+        );
+
+        // Uppercase → all uppercase
+        assert_shortcut_match(
+            &table,
+            "SIG",
+            Some(' '),
+            true,
+            "TRÂN TRỌNG\nNGUYỄN VĂN A ",
+            3,
+            InputMethod::All,
+        );
+    }
+
+    #[test]
+    fn issue343_multiline_immediate_shortcut() {
+        let table = table_with_immediate("---", "━━━━━━━━━━\n");
+        let result = table.try_match("---", None, false);
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.output, "━━━━━━━━━━\n");
+    }
+
+    #[test]
+    fn issue343_single_newline_replacement() {
+        let table = table_with_shortcut("br", "\n");
+        assert_shortcut_match(&table, "br", Some(' '), true, "\n ", 2, InputMethod::All);
+    }
 }

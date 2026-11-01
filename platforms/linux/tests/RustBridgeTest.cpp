@@ -4,6 +4,77 @@
 #include <gtest/gtest.h>
 #include "../src/RustBridge.h"
 
+#include <string>
+
+namespace {
+
+constexpr uint16_t kKeyA = 0;
+constexpr uint16_t kKeyS = 1;
+constexpr uint16_t kKeyZ = 6;
+constexpr uint16_t kKeySpace = 49;
+
+class RustBridgeFfiTest : public testing::Test {
+protected:
+    void SetUp() override {
+        RustBridge::initialize();
+        RustBridge::setEnabled(true);
+        RustBridge::setMethod(InputMethod::Telex);
+        RustBridge::clear();
+        ime_clear_shortcuts();
+    }
+
+    void TearDown() override {
+        ime_clear_shortcuts();
+        RustBridge::clear();
+    }
+};
+
+}  // namespace
+
+TEST(RustBridgeLayoutTest, MatchesRustResultContract) {
+    EXPECT_EQ(kImeResultCapacity, 256U);
+    EXPECT_EQ(offsetof(ImeResult, action), 1024U);
+    EXPECT_EQ(offsetof(ImeResult, flags), 1027U);
+    EXPECT_EQ(sizeof(ImeResult), 1028U);
+}
+
+TEST_F(RustBridgeFfiTest, ReadsTypicalVietnameseResultAcrossFfi) {
+    EXPECT_EQ(RustBridge::processKey(kKeyA, false, false, false),
+              std::make_pair(0, std::string()));
+
+    const auto result = RustBridge::processKey(kKeyS, false, false, false);
+    EXPECT_EQ(result.first, 1);
+    EXPECT_EQ(result.second, "á");
+}
+
+TEST_F(RustBridgeFfiTest, ReadsMaximumMultibyteOutputAcrossFfi) {
+    std::string utf8Replacement;
+    utf8Replacement.reserve(255 * 2);
+    for (std::size_t i = 0; i < 255; ++i) {
+        utf8Replacement += "ư";
+    }
+
+    ime_add_shortcut("zz", utf8Replacement.c_str());
+    EXPECT_EQ(RustBridge::processKey(kKeyZ, false, false, false).second, "");
+    EXPECT_EQ(RustBridge::processKey(kKeyZ, false, false, false).second, "");
+
+    const auto result = RustBridge::processKey(kKeySpace, false, false, false);
+    EXPECT_EQ(result.first, 2);
+    EXPECT_EQ(result.second, utf8Replacement);
+}
+
+TEST_F(RustBridgeFfiTest, OversizedOutputIsBoundedByRustContract) {
+    const std::string replacement(300, 'x');
+    ime_add_shortcut("zz", replacement.c_str());
+    RustBridge::processKey(kKeyZ, false, false, false);
+    RustBridge::processKey(kKeyZ, false, false, false);
+
+    const auto result = RustBridge::processKey(kKeySpace, false, false, false);
+    EXPECT_EQ(result.first, 2);
+    EXPECT_EQ(result.second.size(), 255U);
+    EXPECT_EQ(result.second, std::string(255, 'x'));
+}
+
 // =============================================================================
 // UTF-8 Conversion Tests - ASCII
 // =============================================================================

@@ -1,84 +1,127 @@
-#!/bin/bash
-# Gõ Nhanh CLI
-# Usage: gn [command]
+#!/usr/bin/env bash
+set -euo pipefail
 
-VERSION=$(cat ~/.local/share/gonhanh/version 2>/dev/null || echo "1.0.0")
-CONFIG_DIR="$HOME/.config/gonhanh"
-METHOD_FILE="$CONFIG_DIR/method"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PREFIX="${GONHANH_PREFIX:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE_DIR="$PREFIX/share/gonhanh"
+METHOD_FILE="$CONFIG_HOME/gonhanh/method"
+VERSION="$(sed -n '1p' "$STATE_DIR/version" 2>/dev/null || true)"
+VERSION="${VERSION:-unknown}"
 
-# Colors
-G='\033[0;32m' Y='\033[0;33m' B='\033[0;34m' N='\033[0m'
+usage() {
+    cat <<'EOF'
+Gõ Nhanh - Vietnamese Input Method
 
-# Show status: ● BẬT │ telex or ○ TẮT │ telex
+Cách dùng: gn [lệnh]
+
+  on           Chọn và bật Gõ Nhanh
+  off          Tắt Gõ Nhanh nếu đang được chọn
+  toggle       Bật/tắt Gõ Nhanh (mặc định)
+  telex        Chuyển sang Telex và bật Gõ Nhanh
+  vni          Chuyển sang VNI và bật Gõ Nhanh
+  status       Xem trạng thái riêng của Gõ Nhanh
+  update       Cài bản phát hành Linux mới nhất
+  uninstall    Gỡ Gõ Nhanh, giữ nguyên input method khác
+  version      Xem phiên bản
+  help         Hiển thị trợ giúp
+EOF
+}
+
+fail() { printf 'Lỗi: %s\n' "$*" >&2; exit 1; }
+
+require_remote() {
+    command -v fcitx5-remote >/dev/null 2>&1 ||
+        fail "Không tìm thấy fcitx5-remote. Hãy cài Fcitx5 và đăng nhập lại."
+}
+
+current_im() {
+    fcitx5-remote -n 2>/dev/null || true
+}
+
+state() {
+    fcitx5-remote 2>/dev/null || true
+}
+
+is_active() {
+    [[ "$(current_im)" == "gonhanh" && "$(state)" == "2" ]]
+}
+
 show_status() {
-    METHOD=$(cat "$METHOD_FILE" 2>/dev/null || echo "telex")
-    STATE=$(fcitx5-remote 2>/dev/null)
-    if [[ "$STATE" == "2" ]]; then
-        echo -e "${G}● BẬT${N} │ $METHOD"
+    require_remote
+    local method active_name
+    method="$(sed -n '1p' "$METHOD_FILE" 2>/dev/null || true)"
+    method="${method:-telex}"
+    active_name="$(current_im)"
+    if is_active; then
+        printf '● BẬT │ %s │ gonhanh\n' "$method"
+    elif [[ -n "$active_name" ]]; then
+        printf '○ TẮT │ %s │ input method hiện tại: %s\n' "$method" "$active_name"
     else
-        echo -e "${Y}○ TẮT${N} │ $METHOD"
+        printf '○ TẮT │ %s\n' "$method"
     fi
 }
 
-case "$1" in
-    telex)
-        mkdir -p "$CONFIG_DIR"
-        echo "telex" > "$METHOD_FILE"
-        fcitx5-remote -r 2>/dev/null || fcitx5 -r 2>/dev/null
-        show_status
-        ;;
-    vni)
-        mkdir -p "$CONFIG_DIR"
-        echo "vni" > "$METHOD_FILE"
-        fcitx5-remote -r 2>/dev/null || fcitx5 -r 2>/dev/null
-        show_status
-        ;;
+activate() {
+    require_remote
+    fcitx5-remote -s gonhanh >/dev/null 2>&1 ||
+        fail "Fcitx5 chưa nhận addon gonhanh. Hãy đăng nhập lại hoặc chạy fcitx5 -r."
+}
+
+set_method() {
+    local method="$1"
+    mkdir -p "$(dirname "$METHOD_FILE")"
+    printf '%s\n' "$method" > "$METHOD_FILE"
+    require_remote
+    fcitx5-remote -r >/dev/null 2>&1 || fail "Không thể tải lại Fcitx5"
+    sleep 0.2
+    activate
+    show_status
+}
+
+case "${1:-toggle}" in
     on)
-        fcitx5-remote -o 2>/dev/null
+        activate
         show_status
         ;;
     off)
-        fcitx5-remote -c 2>/dev/null
+        require_remote
+        if is_active; then
+            fcitx5-remote -c >/dev/null 2>&1 || fail "Không thể tắt Gõ Nhanh"
+        fi
         show_status
         ;;
-    toggle|"")
-        fcitx5-remote -t 2>/dev/null
+    toggle)
+        require_remote
+        if is_active; then
+            fcitx5-remote -c >/dev/null 2>&1 || fail "Không thể tắt Gõ Nhanh"
+        else
+            activate
+        fi
         show_status
+        ;;
+    telex|vni)
+        set_method "$1"
         ;;
     status)
         show_status
         ;;
     version|-v|--version)
-        echo "Gõ Nhanh v$VERSION"
+        printf 'Gõ Nhanh v%s\n' "$VERSION"
         ;;
     update)
-        echo -e "${B}[*]${N} Đang cập nhật..."
-        curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/install-linux.sh | bash
+        command -v curl >/dev/null 2>&1 || fail "Không tìm thấy curl"
+        curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/setup/linux.sh | bash
         ;;
     uninstall)
-        echo -e "${Y}[!]${N} Gỡ cài đặt Gõ Nhanh..."
-        rm -f ~/.local/lib/fcitx5/gonhanh.so ~/.local/lib/libgonhanh_core.so
-        rm -f ~/.local/share/fcitx5/addon/gonhanh.conf ~/.local/share/fcitx5/inputmethod/gonhanh.conf
-        rm -rf ~/.local/share/gonhanh ~/.config/gonhanh
-        rm -f ~/.local/bin/gn
-        fcitx5 -r 2>/dev/null || true
-        echo -e "${G}[✓]${N} Đã gỡ cài đặt"
+        [[ -x "$STATE_DIR/install.sh" ]] || fail "Không tìm thấy trình gỡ cài đặt"
+        exec "$STATE_DIR/install.sh" --uninstall
         ;;
-    help|-h|--help|*)
-        echo -e "${B}Gõ Nhanh${N} v$VERSION - Vietnamese Input Method"
-        echo ""
-        echo "Cách dùng: gn [lệnh]"
-        echo ""
-        echo "Lệnh:"
-        echo "  (không có)   Toggle bật/tắt"
-        echo "  on           Bật tiếng Việt"
-        echo "  off          Tắt tiếng Việt"
-        echo "  telex        Chuyển sang Telex"
-        echo "  vni          Chuyển sang VNI"
-        echo "  status       Xem trạng thái"
-        echo "  update       Cập nhật phiên bản mới"
-        echo "  uninstall    Gỡ cài đặt"
-        echo "  version      Xem phiên bản"
-        echo "  help         Hiển thị trợ giúp"
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        usage >&2
+        fail "Lệnh không hợp lệ: $1"
         ;;
 esac

@@ -18,10 +18,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         registerDefaultSettings()
 
         NSApp.setActivationPolicy(.accessory)
-        menuBar = MenuBarController()
-
-        // Start observing input source changes
+        // Resolve the current source before MenuBarController starts the engine, so
+        // native Vietnamese/non-Latin sources are gated correctly on cold launch.
         InputSourceObserver.shared.start()
+        menuBar = MenuBarController()
     }
 
     func applicationWillTerminate(_: Notification) {
@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.soundEnabled: false,
             SettingsKey.allowForeignConsonants: false,
             SettingsKey.advancedMode: false,
+            SettingsKey.sessionTapMode: false,
         ])
     }
 }

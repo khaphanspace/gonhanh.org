@@ -264,3 +264,11 @@ fn foreign_full_syllable_with_auto_restore() {
         ("jacs", "jác"), // j + ác
     ]);
 }
+
+#[test]
+fn foreign_fomo_auto_restore() {
+    // "fomoo " should auto-restore to "fomo" (oo→ô invalid in this context)
+    telex_foreign_with_auto_restore(&[
+        ("fomoo ", "fomo "), // fomô is not valid VN, restore to fomo
+    ]);
+}

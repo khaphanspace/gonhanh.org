@@ -56,9 +56,9 @@ fn revert_at_end_keeps_buffer_4char() {
     // - Words IN whitelist → restore to raw (boss, buff, cuff, loss, moss, puff)
     // - Words NOT in whitelist → keep buffer (soss → sos, varr → var, etc.)
     telex_auto_restore(&[
-        // IN whitelist → restore to raw
+        // IN whitelist → restore to raw (unless buffer is also valid English word)
         ("BOSS ", "BOSS "),
-        ("LOSS ", "LOSS "),
+        ("LOSS ", "LOS "), // "LOS" in English dict → keep buffer (Issue #337)
         ("MOSS ", "MOSS "),
         ("boss ", "boss "),
         ("buff ", "buff "),
@@ -117,6 +117,16 @@ fn revert_at_end_restores_long_english_words() {
         ("usser ", "user "), // u-s-s-e-r → buffer "user", restore to buffer
                              // Note: "user" without double s also works (tested in english_auto_restore_test.rs)
     ]);
+}
+
+#[test]
+fn revert_double_vowel_keeps_buffer() {
+    // Double vowel (ee, oo, aa) reverts circumflex/breve mark, buffer is clean English word
+    // Example: "memee" = m-e-m-e-e
+    // - 4th 'e' applies circumflex → "mêm"
+    // - 5th 'e' reverts circumflex → "meme" (buffer)
+    // - "meme" is valid English → keep buffer, don't restore to raw "memee"
+    telex_auto_restore(&[("memee ", "meme ")]);
 }
 
 // =============================================================================

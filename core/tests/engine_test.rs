@@ -177,9 +177,10 @@ fn tone_circumflex_delayed() {
     telex(&[("oio", "ôi"), ("aia", "âi"), ("aua", "âu"), ("eie", "êi")]);
     // Delayed circumflex with final consonant: initial + vowel + consonant + same_vowel + final
     telex(&[
-        ("nanag", "nâng"), // nâng - common Vietnamese word
-        ("lanam", "lânm"), // lânm - partial word (tests pattern)
-        ("tanat", "tânt"), // tânt - partial word (tests pattern)
+        ("nanag", "nâng"),  // nâng - common Vietnamese word
+        ("nangwa", "nâng"), // nâng - via breve->circumflex (nangw=năng, +a promotes ă->â)
+        ("lanam", "lânm"),  // lânm - partial word (tests pattern)
+        ("tanat", "tânt"),  // tânt - partial word (tests pattern)
     ]);
 }
 
@@ -768,14 +769,14 @@ fn delayed_circumflex_auto_restore_space() {
     use gonhanh_core::utils::type_word;
 
     let cases = [
-        ("toto ", "toto "),   // tôt (no mark) is NOT real VI → restore to English
-        ("data ", "data "),   // dât (no mark) is NOT real VI → restore to English
-        ("dataa ", "data "),  // Revert: dataa → data (circumflex reverted)
-        ("dataas", "datas"),  // Revert then mark: dataa → data, then 's' stays as letter
-        ("noto ", "noto "),   // nôt (no mark) is NOT real VI → restore to English
-        ("hete ", "hete "),   // hêt (no mark) is NOT real VI → restore to English
-        ("tetee ", "tetee "), // Neither tetee nor tete in dict → keep double form
-        ("cocoo ", "coco "),  // cocoo not in EN dict → auto-restore keeps buffer "coco"
+        ("toto ", "toto "),  // tôt (no mark) is NOT real VI → restore to English
+        ("data ", "data "),  // dât (no mark) is NOT real VI → restore to English
+        ("dataa ", "data "), // Revert: dataa → data (circumflex reverted)
+        ("dataas", "datas"), // Revert then mark: dataa → data, then 's' stays as letter
+        ("noto ", "noto "),  // nôt (no mark) is NOT real VI → restore to English
+        ("hete ", "hete "),  // hêt (no mark) is NOT real VI → restore to English
+        ("tetee ", "tete "), // Issue #367: circumflex reverted → keep buffer "tete"
+        ("cocoo ", "coco "), // cocoo not in EN dict → auto-restore keeps buffer "coco"
     ];
 
     for (input, expected) in cases {

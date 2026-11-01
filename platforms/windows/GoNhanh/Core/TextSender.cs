@@ -102,8 +102,49 @@ public static class TextSender
         }
 
         // Add text characters (Unicode)
+        char prevChar = '\0';
         foreach (char c in text)
         {
+            // Issue #343: Send Enter key for newline characters
+            if (c == '\n' || c == '\r')
+            {
+                // Skip \n if preceded by \r (CRLF pair — already sent VK_RETURN for \r)
+                if (c == '\n' && prevChar == '\r') { prevChar = c; continue; }
+                prevChar = c;
+                // Send VK_RETURN for newline
+                inputs.Add(new INPUT
+                {
+                    type = INPUT_KEYBOARD,
+                    u = new INPUTUNION
+                    {
+                        ki = new KEYBDINPUT
+                        {
+                            wVk = KeyCodes.VK_RETURN,
+                            wScan = 0,
+                            dwFlags = 0,
+                            time = 0,
+                            dwExtraInfo = marker
+                        }
+                    }
+                });
+                inputs.Add(new INPUT
+                {
+                    type = INPUT_KEYBOARD,
+                    u = new INPUTUNION
+                    {
+                        ki = new KEYBDINPUT
+                        {
+                            wVk = KeyCodes.VK_RETURN,
+                            wScan = 0,
+                            dwFlags = KEYEVENTF_KEYUP,
+                            time = 0,
+                            dwExtraInfo = marker
+                        }
+                    }
+                });
+                continue;
+            }
+
             // For Unicode characters, use wScan with KEYEVENTF_UNICODE flag
             // Key down
             inputs.Add(new INPUT
@@ -138,6 +179,7 @@ public static class TextSender
                     }
                 }
             });
+            prevChar = c;
         }
 
         if (inputs.Count > 0)

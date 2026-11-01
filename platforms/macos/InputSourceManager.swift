@@ -18,6 +18,12 @@ private let nonLatinLanguages: Set<String> = [
     "vi",
 ]
 
+/// Input source IDs that should disable Gõ Nhanh
+/// These are Latin-based but not for normal text input (e.g., hex code entry)
+private let blockedInputSourceIds: Set<String> = [
+    "com.apple.keylayout.UnicodeHexInput",
+]
+
 // MARK: - Input Source Observer
 
 /// Observes input source changes and auto-enables/disables Gõ Nhanh
@@ -48,8 +54,8 @@ final class InputSourceObserver {
             .deliverImmediately
         )
 
-        // Initial check - only update display state, don't change enabled
-        // (PerAppModeManager already set the correct enabled state)
+        // Resolve the source before MenuBarController starts the engine. RustBridge.setEnabled
+        // reads this state and applies the initial input-source gate.
         handleChangeInitial()
     }
 
@@ -64,8 +70,8 @@ final class InputSourceObserver {
         let currentId = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
         lastInputSourceId = currentId
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
-        isAllowedInputSource = isInputSourceAllowed(source: source)
-        // Don't call setEnabled - let PerAppModeManager handle initial state
+        isAllowedInputSource = isInputSourceAllowed(source: source, id: currentId)
+        // Don't call setEnabled: the engine has not started yet.
     }
 
     func stop() {
@@ -95,7 +101,7 @@ final class InputSourceObserver {
 
         // Get display character from input source
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
-        isAllowedInputSource = isInputSourceAllowed(source: source)
+        isAllowedInputSource = isInputSourceAllowed(source: source, id: currentId)
 
         if isAllowedInputSource {
             // Restore user preference from AppState (supports per-app mode)
@@ -109,7 +115,12 @@ final class InputSourceObserver {
         NotificationCenter.default.post(name: .inputSourceChanged, object: nil)
     }
 
-    private func isInputSourceAllowed(source: TISInputSource) -> Bool {
+    private func isInputSourceAllowed(source: TISInputSource, id: String) -> Bool {
+        // Block special input sources by ID (e.g., Unicode Hex Input)
+        if blockedInputSourceIds.contains(id) {
+            return false
+        }
+
         // Get primary language of the input source
         guard let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages),
               let langs = Unmanaged<CFArray>.fromOpaque(langsPtr).takeUnretainedValue() as? [String],
@@ -125,7 +136,12 @@ final class InputSourceObserver {
         return !nonLatinLanguages.contains(lang) && !nonLatinLanguages.contains(baseLang)
     }
 
-    private func getDisplayChar(from source: TISInputSource, id _: String) -> String {
+    private func getDisplayChar(from source: TISInputSource, id: String) -> String {
+        // Blocked input sources show "E" (disabled)
+        if blockedInputSourceIds.contains(id) {
+            return "E"
+        }
+
         // Get language code
         if let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages),
            let langs = Unmanaged<CFArray>.fromOpaque(langsPtr).takeUnretainedValue() as? [String],

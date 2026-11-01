@@ -1,16 +1,25 @@
 #include "Engine.h"
 #include "KeycodeMap.h"
-#include <fstream>
 #include <cstdlib>
+#include <fstream>
+#include <string>
 
 namespace GoNhanh {
 
 // Load method from config file
 static InputMethod loadMethodFromConfig() {
+    const char* xdgConfigHome = std::getenv("XDG_CONFIG_HOME");
     const char* home = std::getenv("HOME");
-    if (!home) return InputMethod::Telex;
+    std::string configHome;
+    if (xdgConfigHome && xdgConfigHome[0] != '\0') {
+        configHome = xdgConfigHome;
+    } else if (home && home[0] != '\0') {
+        configHome = std::string(home) + "/.config";
+    } else {
+        return InputMethod::Telex;
+    }
 
-    std::string path = std::string(home) + "/.config/gonhanh/method";
+    std::string path = configHome + "/gonhanh/method";
     std::ifstream file(path);
     if (!file) return InputMethod::Telex;
 

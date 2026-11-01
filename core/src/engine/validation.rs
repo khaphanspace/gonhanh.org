@@ -277,20 +277,39 @@ fn rule_valid_vowel_pattern(
 // =============================================================================
 
 /// Validate buffer as Vietnamese syllable - runs all rules
-pub fn validate(snap: &BufferSnapshot) -> ValidationResult {
+fn validate_rules(
+    snap: &BufferSnapshot,
+    rules: &[Rule],
+    allow_nonstandard_k_spelling: bool,
+) -> ValidationResult {
     if snap.keys.is_empty() {
         return ValidationResult::NoVowel;
     }
 
     let syllable = parse(&snap.keys);
+    let is_nonstandard_k_spelling = allow_nonstandard_k_spelling
+        && syllable.initial.len() == 1
+        && snap.keys[syllable.initial[0]] == keys::K
+        && !syllable.vowel.is_empty()
+        && matches!(
+            snap.keys[syllable.glide.unwrap_or(syllable.vowel[0])],
+            keys::A | keys::O | keys::U
+        );
 
-    for rule in RULES {
+    for rule in rules {
         if let Some(error) = rule(snap, &syllable) {
+            if error == ValidationResult::InvalidSpelling && is_nonstandard_k_spelling {
+                continue;
+            }
             return error;
         }
     }
 
     ValidationResult::Valid
+}
+
+pub fn validate(snap: &BufferSnapshot) -> ValidationResult {
+    validate_rules(snap, RULES, false)
 }
 
 /// Quick check if buffer could be valid Vietnamese (with modifier info)
@@ -311,13 +330,23 @@ pub fn is_valid_with_tones_and_foreign(
     tones: &[u8],
     allow_foreign_consonants: bool,
 ) -> bool {
+    is_valid_with_tones_and_options(keys, tones, allow_foreign_consonants, false)
+}
+
+/// Validate with foreign-initial and narrowly authorized nonstandard K spelling options.
+pub fn is_valid_with_tones_and_options(
+    keys: &[u16],
+    tones: &[u8],
+    allow_foreign_consonants: bool,
+    allow_nonstandard_k_spelling: bool,
+) -> bool {
     let snap = BufferSnapshot {
         keys: keys.to_vec(),
         tones: tones.to_vec(),
         has_tone_info: true,
         allow_foreign_consonants,
     };
-    validate(&snap).is_valid()
+    validate_rules(&snap, RULES, allow_nonstandard_k_spelling).is_valid()
 }
 
 /// Quick check if buffer could be valid Vietnamese (keys only - legacy)
@@ -361,21 +390,22 @@ pub fn is_valid_for_transform_with_foreign(
     buffer_keys: &[u16],
     allow_foreign_consonants: bool,
 ) -> bool {
+    is_valid_for_transform_with_options(buffer_keys, allow_foreign_consonants, false)
+}
+
+/// Pre-transform validation with foreign-initial and nonstandard K spelling options.
+pub fn is_valid_for_transform_with_options(
+    buffer_keys: &[u16],
+    allow_foreign_consonants: bool,
+    allow_nonstandard_k_spelling: bool,
+) -> bool {
     if buffer_keys.is_empty() {
         return false;
     }
 
     let snap =
         BufferSnapshot::from_keys_with_foreign(buffer_keys.to_vec(), allow_foreign_consonants);
-    let syllable = parse(&snap.keys);
-
-    for rule in RULES_FOR_TRANSFORM {
-        if rule(&snap, &syllable).is_some() {
-            return false;
-        }
-    }
-
-    true
+    validate_rules(&snap, RULES_FOR_TRANSFORM, allow_nonstandard_k_spelling).is_valid()
 }
 
 /// Check if the buffer shows patterns that suggest foreign word input.
@@ -585,6 +615,22 @@ mod tests {
     #[test]
     fn test_invalid_spelling() {
         assert_all_invalid(INVALID_SPELLING);
+    }
+
+    #[test]
+    fn test_nonstandard_k_spelling_option_is_narrow() {
+        for word in ["ka", "ko", "ku"] {
+            let keys = keys_from_str(word);
+            let tones = vec![0; keys.len()];
+            assert!(!is_valid_for_transform_with_options(&keys, false, false));
+            assert!(is_valid_for_transform_with_options(&keys, false, true));
+            assert!(is_valid_with_tones_and_options(&keys, &tones, false, true));
+        }
+
+        for word in ["ce", "ge", "ngi"] {
+            let keys = keys_from_str(word);
+            assert!(!is_valid_for_transform_with_options(&keys, false, true));
+        }
     }
 
     #[test]

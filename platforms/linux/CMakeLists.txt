@@ -27,6 +27,7 @@ set(SOURCES
 
 # Create addon shared library
 add_library(gonhanh MODULE ${SOURCES})
+target_compile_options(gonhanh PRIVATE -Wall -Wextra -Wpedantic)
 
 # Include directories
 target_include_directories(gonhanh PRIVATE
@@ -84,13 +85,7 @@ install(FILES "${RUST_LIB_DIR}/lib${RUST_LIB_NAME}.so"
 
 # User-local install target (no sudo needed)
 add_custom_target(install-user
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$ENV{HOME}/.local/lib/fcitx5"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$ENV{HOME}/.local/share/fcitx5/addon"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$ENV{HOME}/.local/share/fcitx5/inputmethod"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_BINARY_DIR}/gonhanh.so" "$ENV{HOME}/.local/lib/fcitx5/"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/data/gonhanh-addon.conf" "$ENV{HOME}/.local/share/fcitx5/addon/gonhanh.conf"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/data/gonhanh.conf" "$ENV{HOME}/.local/share/fcitx5/inputmethod/"
-    COMMAND ${CMAKE_COMMAND} -E copy "${RUST_LIB_DIR}/lib${RUST_LIB_NAME}.so" "$ENV{HOME}/.local/lib/"
+    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"
     COMMENT "Installing to user-local Fcitx5 paths"
     DEPENDS gonhanh
 )
@@ -105,8 +100,7 @@ message(STATUS "Rust core lib: ${RUST_LIB_DIR}/lib${RUST_LIB_NAME}.so")
 option(BUILD_TESTS "Build unit tests" OFF)
 
 if(BUILD_TESTS)
-    find_package(GTest QUIET)
-
+    find_package(GTest REQUIRED)
     if(GTest_FOUND)
         enable_testing()
         include(GoogleTest)
@@ -117,6 +111,7 @@ if(BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         )
         target_link_libraries(keycodemap_test GTest::gtest GTest::gtest_main)
+        target_compile_options(keycodemap_test PRIVATE -Wall -Wextra -Wpedantic)
         gtest_discover_tests(keycodemap_test)
 
         # RustBridge UTF-8 conversion tests
@@ -130,14 +125,12 @@ if(BUILD_TESTS)
             GTest::gtest_main
             ${RUST_LIB_DIR}/lib${RUST_LIB_NAME}.so
         )
+        target_compile_options(rustbridge_test PRIVATE -Wall -Wextra -Wpedantic)
         set_target_properties(rustbridge_test PROPERTIES
             BUILD_RPATH "$ORIGIN/../../lib;$ORIGIN/../..;${RUST_LIB_DIR}"
         )
         gtest_discover_tests(rustbridge_test)
 
         message(STATUS "Tests enabled - will build keycodemap_test and rustbridge_test")
-    else()
-        message(WARNING "GTest not found - tests will not be built")
-        message(WARNING "Install with: sudo apt install libgtest-dev")
     endif()
 endif()

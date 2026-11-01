@@ -54,6 +54,9 @@ obj/
 !.claude/commands/github.md
 .claude/.env*
 .claude/skills/.env*
+**/.claude/
 .opencode/
 plans/
 CLAUDE.md
+
+refs/

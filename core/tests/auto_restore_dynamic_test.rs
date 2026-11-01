@@ -1028,9 +1028,11 @@ fn double_mark_4char_restores_english() {
     // so "bass", "boss", "buff", "cuff", etc. → restore to English
     telex_auto_restore(&[
         // Double ss at end: restore to English (not Vietnamese)
+        // Issue #337: if buffer (after ss revert) is a valid English word, keep buffer
+        ("buss ", "bus "), // "bus" is in English dict → keep buffer form
         ("bass ", "bass "),
         ("boss ", "boss "),
-        ("loss ", "loss "),
+        ("loss ", "los "), // "los" is in English dict → keep buffer form
         ("mass ", "mass "),
         ("mess ", "mess "),
         ("miss ", "miss "),

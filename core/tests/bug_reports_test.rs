@@ -3,8 +3,171 @@
 
 mod common;
 use common::{telex, telex_auto_restore, vni};
-use gonhanh_core::engine::Engine;
+use gonhanh_core::data::keys;
+use gonhanh_core::engine::shortcut::Shortcut;
+use gonhanh_core::engine::{Action, Engine};
 use gonhanh_core::utils::type_word;
+
+#[test]
+fn bug_bac_kan_hong_kong_telex_orders() {
+    let cases = [
+        ("Bacsw Kanj", "Bắc Kạn"),
+        ("Bacws Kajn", "Bắc Kạn"),
+        ("Bawcs Kanj", "Bắc Kạn"),
+        ("Bawsc Kajn", "Bắc Kạn"),
+        ("Hofong Koong", "Hồng Kông"),
+        ("Hongfo Kongo", "Hồng Kông"),
+        ("Hongof Koong", "Hồng Kông"),
+        ("Hoofng Kongo", "Hồng Kông"),
+        ("Hoongf Koong", "Hồng Kông"),
+        ("BACSW KANJ", "BẮC KẠN"),
+        ("HOONGF KOONG", "HỒNG KÔNG"),
+        ("bacsw kanj", "bắc kạn"),
+        ("hoongf koong", "hồng kông"),
+        ("kanj", "kạn"),
+        ("kajn", "kạn"),
+        ("koong", "kông"),
+        ("kongo", "kông"),
+        // Keep the standard spelling guard for unrelated K-initial input.
+        ("Hong Kong", "Hong Kong"),
+        ("Kara", "Kara"),
+        ("Kans", "Kans"),
+        ("kara", "kara"),
+        ("kans", "kans"),
+        ("kanji", "kanji"),
+        ("kanjis", "kanjis"),
+        ("kajal", "kajal"),
+        ("kajol", "kajol"),
+        ("koo", "koo"),
+        ("kook", "kook"),
+        ("kooky", "kooky"),
+        ("kooks", "kooks"),
+        ("kookaburra", "kookaburra"),
+        ("kool", "kool"),
+        ("koontz", "koontz"),
+        ("koos", "koos"),
+        ("kongos", "kongos"),
+    ];
+    let mut failures = Vec::new();
+    for (input, expected) in cases {
+        for auto_restore in [false, true] {
+            let committed_input = format!("{input} ");
+            let committed_expected = format!("{expected} ");
+            let (input, expected) = if auto_restore {
+                (committed_input.as_str(), committed_expected.as_str())
+            } else {
+                (input, expected)
+            };
+
+            let mut engine = Engine::new();
+            engine.set_english_auto_restore(auto_restore);
+            let actual = type_word(&mut engine, input);
+            if actual != expected {
+                failures.push(format!(
+                    "auto_restore={auto_restore}: '{input}' → '{actual}', expected '{expected}'"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Bắc Kạn / Hồng Kông Telex regressions:\n{}",
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_telex_cancel_keys() {
+    telex(&[
+        ("kanjj", "kanj"),
+        ("kanjz", "kan"),
+        ("kongoo", "kongo"),
+        ("kongoz", "kong"),
+        ("koongo", "kongo"),
+        ("koongz", "kong"),
+    ]);
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_vni_orders() {
+    vni(&[
+        ("Ba81c Ka5n", "Bắc Kạn"),
+        ("Ba8c1 Kan5", "Bắc Kạn"),
+        ("Ho62ng Ko6ng", "Hồng Kông"),
+        ("Ho6ng2 Kong6", "Hồng Kông"),
+        ("ba81c ka5n", "bắc kạn"),
+        ("ba8c1 kan5", "bắc kạn"),
+        ("ho62ng ko6ng", "hồng kông"),
+        ("ho6ng2 kong6", "hồng kông"),
+    ]);
+}
+
+fn type_physical_events(engine: &mut Engine, input: &[(u16, char, bool, bool)]) -> String {
+    let mut screen = String::new();
+
+    for &(key, typed, caps, shift) in input {
+        let result = engine.on_key_ext(key, caps, false, shift);
+        if result.action == Action::Send as u8 {
+            for _ in 0..result.backspace {
+                screen.pop();
+            }
+            for index in 0..result.count as usize {
+                screen.push(char::from_u32(result.chars[index]).expect("valid engine output"));
+            }
+        } else {
+            screen.push(typed);
+        }
+    }
+
+    screen
+}
+
+#[test]
+fn issue410_physical_shift_e_preserves_camel_case_word() {
+    let mut engine = Engine::new();
+    engine.set_english_auto_restore(true);
+
+    // The platform reports the uppercase E from a physical Shift+E keypress
+    // with both caps and shift set. Shift key-down/up events are not forwarded
+    // to the core; their state is carried by this E event.
+    let input = [
+        (keys::U, 'u', false, false),
+        (keys::S, 's', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'E', true, true),
+        (keys::F, 'f', false, false),
+        (keys::F, 'f', false, false),
+        (keys::E, 'e', false, false),
+        (keys::C, 'c', false, false),
+        (keys::T, 't', false, false),
+    ];
+
+    assert_eq!(type_physical_events(&mut engine, &input), "useEffect");
+}
+
+#[test]
+fn shifted_case_boundary_preserves_vietnamese_telex_prefix() {
+    let mut engine = Engine::new();
+    engine.set_english_auto_restore(true);
+    let input = [
+        (keys::T, 't', false, false),
+        (keys::I, 'i', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'e', false, false),
+        (keys::N, 'n', false, false),
+        (keys::G, 'g', false, false),
+        (keys::S, 's', false, false),
+        (keys::V, 'V', true, true),
+        (keys::I, 'i', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'e', false, false),
+        (keys::J, 'j', false, false),
+        (keys::T, 't', false, false),
+    ];
+
+    assert_eq!(type_physical_events(&mut engine, &input), "tiếngViệt");
+}
 
 // =============================================================================
 // BUG 1: "did" -> expect "đi"
@@ -2061,4 +2224,152 @@ fn bug_multiword_chained_restore_mark() {
         result, "dược",
         "'duowc' + space + 'vaaxn' + space + bs×5 + 'j' should produce 'dược'"
     );
+}
+
+// =============================================================================
+// Issue #363: Shortcut √√ → ✅ không hoạt động khi bấm dấu cách
+// https://github.com/khaphanspace/gonhanh.org/issues/363
+// Sequence: User cài đặt gõ tắt √√ → ✅
+//   1. Bấm Option+V → √ (on_key_with_char, key=V, ch='√')
+//   2. Bấm Option+V → √√
+//   3. Bấm Space → expected: ✅
+//   Actual: không thay thế
+// =============================================================================
+
+#[test]
+fn issue363_sqrt_sqrt_space_replaces_checkmark() {
+    // Exact user flow: Option+V, Option+V, Space
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    // Step 1: Option+V → √
+    let r1 = e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ should pass through");
+
+    // Step 2: Option+V → √√
+    let r2 = e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    assert_eq!(
+        r2.action, 0,
+        "Second √ should pass through (word boundary shortcut)"
+    );
+
+    // Step 3: Space → should trigger √√ → ✅
+    let r3 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(r3.action, 1, "Space after √√ should trigger shortcut → ✅");
+    assert_eq!(r3.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r3.count as usize)
+        .filter_map(|i| char::from_u32(r3.chars[i]))
+        .collect();
+    assert_eq!(output, "✅ ", "Should output ✅ followed by space");
+}
+
+#[test]
+fn issue363_sqrt_sqrt_enter_replaces_checkmark() {
+    // Same flow but with Enter instead of Space
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    e.on_key_with_char(keys::V, false, false, false, Some('√'));
+
+    let r = e.on_key(keys::RETURN, false, false);
+    assert_eq!(r.action, 1, "Enter after √√ should trigger shortcut");
+    assert_eq!(r.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    assert_eq!(
+        output, "✅",
+        "Should output ✅ (no trailing space for Enter)"
+    );
+}
+
+// NOTE: prefix + word boundary shortcut (≈ç√√ + space) not supported —
+// word boundary uses exact match, not suffix. This is expected behavior.
+
+#[test]
+fn issue363_ctrl_true_still_accumulates_shortcut() {
+    // Platform passes ctrl=true for Option+key to bypass Telex/VNI transforms,
+    // but on_key_with_char should still accumulate ch for shortcut matching.
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    // Simulate platform calling with ctrl=true (Option+V on macOS)
+    let r1 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ should accumulate, not trigger");
+
+    let r2 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(
+        r2.action, 0,
+        "Second √ accumulates (word boundary, needs space)"
+    );
+
+    // Space triggers word boundary shortcut
+    let r3 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(
+        r3.action, 1,
+        "Space should trigger √√ → ✅ even with ctrl=true"
+    );
+    assert_eq!(r3.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r3.count as usize)
+        .filter_map(|i| char::from_u32(r3.chars[i]))
+        .collect();
+    assert_eq!(output, "✅ ");
+}
+
+#[test]
+fn issue363_ctrl_true_immediate_shortcut() {
+    // Immediate shortcut should also work with ctrl=true
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("√√", "✅"));
+
+    let r1 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ accumulates");
+
+    let r2 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r2.action, 1, "Second √ triggers immediate shortcut");
+
+    let output: String = (0..r2.count as usize)
+        .filter_map(|i| char::from_u32(r2.chars[i]))
+        .collect();
+    assert_eq!(output, "✅");
+}
+
+// =============================================================================
+// BUG: "dayddr" -> "đảy", expected "daydr"
+// After a stroke revert (dayd → đay → dayd via ddd-style revert), the user has
+// explicitly rejected đ. A subsequent tone-mark key must NOT resurrect the
+// stroke via the delayed-stroke pattern (dods → đó) in try_mark.
+// =============================================================================
+
+#[test]
+fn bug_dayddr_expect_daydr() {
+    telex(&[
+        // All tone-mark keys after stroke revert must stay literal
+        ("dayddr", "daydr"),
+        ("daydds", "dayds"),
+        ("dayddf", "daydf"),
+        ("dayddx", "daydx"),
+        ("dayddj", "daydj"),
+        // Delayed stroke without revert still works
+        ("dods", "đó"),
+        ("dodf", "đò"),
+    ]);
+}
+
+// =============================================================================
+// BUG: "chucwsc" -> expect "chứcc" (auto-restore ON)
+// Typing "chức" then an extra final 'c' yields buffer "chứcc". That buffer is
+// invalid Vietnamese only because of the doubled final consonant, so the loose
+// English check wrongly restored the raw keystrokes "chucwsc". Telex never emits
+// a doubled final consonant on its own, so the duplicate is intentional Vietnamese.
+// (Product decision: keep the Vietnamese buffer for this pattern.)
+// =============================================================================
+
+#[test]
+fn bug_chucwsc_expect_chucc() {
+    telex_auto_restore(&[("chucwsc", "chứcc"), ("chucwsc ", "chứcc ")]);
 }

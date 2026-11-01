@@ -53,18 +53,26 @@ class UpdateManager: NSObject, ObservableObject {
     // MARK: - Computed Properties
 
     var isChecking: Bool {
-        if case .checking = state { return true }
+        if case .checking = state {
+            return true
+        }
         return false
     }
 
     var updateAvailable: Bool {
-        if case .available = state { return true }
-        if case .readyToInstall = state { return true }
+        if case .available = state {
+            return true
+        }
+        if case .readyToInstall = state {
+            return true
+        }
         return false
     }
 
     var isReadyToInstall: Bool {
-        if case .readyToInstall = state { return true }
+        if case .readyToInstall = state {
+            return true
+        }
         return false
     }
 
@@ -93,7 +101,9 @@ class UpdateManager: NSObject, ObservableObject {
             return
         }
         // Prevent concurrent checks
-        if case .checking = state { return }
+        if case .checking = state {
+            return
+        }
         state = .checking
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self else { return }
@@ -205,15 +215,21 @@ class UpdateManager: NSObject, ObservableObject {
 
     private func checkAndDownloadSilently() {
         // Skip if currently downloading or user is checking
-        if case .downloading = state { return }
-        if case .checking = state { return }
+        if case .downloading = state {
+            return
+        }
+        if case .checking = state {
+            return
+        }
 
         UpdateChecker.shared.checkForUpdates { [weak self] result in
             guard let self else { return }
             switch result {
             case let .available(info):
                 // Skip if same version already downloaded
-                if info.version == pendingVersion, case .readyToInstall = state { return }
+                if info.version == pendingVersion, case .readyToInstall = state {
+                    return
+                }
                 // Download new version (or newer version replacing old pending)
                 pendingVersion = info.version
                 downloadSilently(info)
@@ -277,7 +293,9 @@ struct UpdatePopupView: View {
     @ObservedObject private var manager = UpdateManager.shared
 
     private var popupWidth: CGFloat {
-        if case .available = manager.state { return 480 }
+        if case .available = manager.state {
+            return 480
+        }
         return 360
     }
 
@@ -523,29 +541,43 @@ struct UpdatePopupView: View {
         var items: [NoteItem] = []
         for line in text.components(separatedBy: .newlines) {
             var l = line.trimmingCharacters(in: .whitespaces)
-            if l.isEmpty { continue }
-            if l.allSatisfy({ $0 == "-" || $0 == "=" || $0 == "*" }) { continue }
-            if l.lowercased().contains("what's changed") { continue }
-            if l.lowercased().contains("full changelog") { continue }
+            if l.isEmpty {
+                continue
+            }
+            if l.allSatisfy({ $0 == "-" || $0 == "=" || $0 == "*" }) {
+                continue
+            }
+            if l.lowercased().contains("what's changed") {
+                continue
+            }
+            if l.lowercased().contains("full changelog") {
+                continue
+            }
 
             if l.hasPrefix("#") {
                 while l.hasPrefix("#") {
                     l = String(l.dropFirst())
                 }
                 l = cleanNote(l)
-                if !l.isEmpty { items.append(.heading(l)) }
+                if !l.isEmpty {
+                    items.append(.heading(l))
+                }
                 continue
             }
 
             if l.hasPrefix("- ") || l.hasPrefix("* ") {
                 l = String(l.dropFirst(2))
                 l = cleanNote(l)
-                if !l.isEmpty { items.append(.bullet(l)) }
+                if !l.isEmpty {
+                    items.append(.bullet(l))
+                }
                 continue
             }
 
             l = cleanNote(l)
-            if !l.isEmpty { items.append(.bullet(l)) }
+            if !l.isEmpty {
+                items.append(.bullet(l))
+            }
         }
         return items
     }

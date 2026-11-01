@@ -21,6 +21,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
     private let appState = AppState.shared
     private var cancellables = Set<AnyCancellable>()
     private var pendingRestart: DispatchWorkItem?
+    private lazy var secureInputIcon = createSecureInputIcon()
 
     override init() {
         super.init()
@@ -84,6 +85,14 @@ class MenuBarController: NSObject, NSWindowDelegate {
                 self?.updateMenu()
             }
             .store(in: &cancellables)
+
+        appState.$isSecureInputBlocked
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateStatusButton()
+                self?.updateMenu()
+            }
+            .store(in: &cancellables)
     }
 
     @objc private func handleShowSettingsPage() {
@@ -137,6 +146,12 @@ class MenuBarController: NSObject, NSWindowDelegate {
     }
 
     private var statusSubtitle: String {
+        if appState.shouldShowSecureInputWarning {
+            if let holder = appState.secureInputHolderName {
+                return "Tạm dừng · Secure Input (\(holder))"
+            }
+            return "Tạm dừng · Secure Input"
+        }
         let mode = appState.isEnabled ? appState.currentMethod.name : "Đã tắt"
         return "\(mode) · \(appState.toggleShortcut.displayParts.joined())"
     }
@@ -193,6 +208,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
            let subtitle = headerView.viewWithTag(100) as? NSTextField
         {
             subtitle.stringValue = statusSubtitle
+            headerView.frame.size.width = headerView.fittingSize.width
         }
 
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
@@ -272,16 +288,60 @@ class MenuBarController: NSObject, NSWindowDelegate {
             guard let self, let button = statusItem.button else { return }
             button.title = ""
 
-            let observer = InputSourceObserver.shared
-            let text: String = if observer.isAllowedInputSource {
-                // ABC keyboard: show V (enabled) or E (disabled)
-                appState.isEnabled ? "V" : "E"
+            let isSecureInputBlocked = appState.shouldShowSecureInputWarning
+            if isSecureInputBlocked {
+                button.image = secureInputIcon
             } else {
-                // Non-ABC keyboard: show input source character
-                observer.currentDisplayChar
+                let observer = InputSourceObserver.shared
+                let text: String = if observer.isAllowedInputSource {
+                    // ABC keyboard: show V (enabled) or E (disabled)
+                    appState.isEnabled ? "V" : "E"
+                } else {
+                    // Non-ABC keyboard: show input source character
+                    observer.currentDisplayChar
+                }
+                button.image = createStatusIcon(text: text)
             }
-            button.image = createStatusIcon(text: text)
+            button.toolTip = isSecureInputBlocked
+                ? SecureInputPresentation.tooltip(holderName: appState.secureInputHolderName)
+                : nil
         }
+    }
+
+    private func createSecureInputIcon() -> NSImage {
+        let width: CGFloat = 22
+        let height: CGFloat = 16
+        let image = NSImage(size: NSSize(width: width, height: height))
+
+        image.lockFocus()
+
+        let rect = NSRect(x: 0, y: 0, width: width, height: height)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        NSColor.black.setFill()
+        path.fill()
+
+        if let symbol = NSImage(
+            systemSymbolName: "lock.fill",
+            accessibilityDescription: "Secure Input"
+        )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)) {
+            let symbolSize = symbol.size
+            let symbolRect = NSRect(
+                x: (width - symbolSize.width) / 2,
+                y: (height - symbolSize.height) / 2,
+                width: symbolSize.width,
+                height: symbolSize.height
+            )
+            symbol.draw(
+                in: symbolRect,
+                from: .zero,
+                operation: .destinationOut,
+                fraction: 1
+            )
+        }
+
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
     }
 
     private func createStatusIcon(text: String) -> NSImage {

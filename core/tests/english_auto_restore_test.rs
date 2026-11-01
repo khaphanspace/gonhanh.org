@@ -748,7 +748,7 @@ fn pattern9_double_ss_english_words() {
         ("joss ", "joss "),  // joss - Chinese idol
         ("kiss ", "kiss "),  // kiss - embrace
         ("less ", "less "),  // less - smaller amount
-        ("loss ", "loss "),  // loss - opposite of gain
+        ("loss ", "los "),   // "los" in English dict → keep buffer (Issue #337)
         ("mass ", "mass "),  // mass - quantity
         ("mess ", "mess "),  // mess - disorder
         ("miss ", "miss "),  // miss - fail to hit
@@ -1454,5 +1454,53 @@ fn w_medial_vowel_modifier_pattern() {
 
 #[test]
 fn double_consonant_auto_restore_missa_business() {
-    telex_auto_restore(&[("missa ", "misa "), ("bussiness ", "business ")]);
+    telex_auto_restore(&[
+        ("missa ", "misa "),
+        ("bussiness ", "business "),
+        ("assam ", "asam "),
+    ]);
+}
+
+// =============================================================================
+// DOUBLE VOWEL AUTO-RESTORE (Issue #367)
+// When typing words with repeated vowels like SATA, TOTO, TETE, MAMA in Telex,
+// the second vowel pair triggers circumflex (oo→ô, ee→ê, aa→â), then the extra
+// keystroke removes it. On word commit (space/punctuation), the engine should
+// NOT produce a duplicate trailing character (e.g. TOTOO instead of TOTO).
+// =============================================================================
+
+#[test]
+fn double_vowel_no_extra_char_on_restore() {
+    // Issue #367: Typing "toto" in Telex: t-o-t-o triggers delayed circumflex (tôt),
+    // then extra o reverts → "toto". With auto-restore, space should keep "toto" not "totoo".
+    // Delayed circumflex only fires when consonant between vowels is T, M, or P.
+    telex_auto_restore(&[
+        // Lowercase: V-C-V pattern where C ∈ {T, M, P} triggers delayed circumflex
+        ("totoo ", "toto "), // o-t-o: circumflex fires, oo reverts
+        ("tetee ", "tete "), // e-t-e: circumflex fires, ee reverts
+        ("mamaa ", "mama "), // a-m-a: circumflex fires, aa reverts
+        ("sataa ", "sata "), // a-t-a: circumflex fires, aa reverts
+        ("papaa ", "papa "), // a-p-a: circumflex fires, aa reverts
+        ("pomoo ", "pomo "), // o-m-o: circumflex fires, oo reverts
+        // Uppercase
+        ("TOTOO ", "TOTO "),
+        ("TETEE ", "TETE "),
+        ("MAMAA ", "MAMA "),
+        ("SATAA ", "SATA "),
+        // Mixed case
+        ("Totoo ", "Toto "),
+        ("Mamaa ", "Mama "),
+    ]);
+}
+
+#[test]
+fn double_vowel_with_punctuation_commit() {
+    telex_auto_restore(&[
+        // Commit with comma
+        ("totoo,", "toto,"),
+        ("mamaa,", "mama,"),
+        // Commit with period
+        ("totoo.", "toto."),
+        ("sataa.", "sata."),
+    ]);
 }
