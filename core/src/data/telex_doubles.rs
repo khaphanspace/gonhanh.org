@@ -1,7 +1,7 @@
 //! English words containing Telex patterns that should auto-restore.
 //! Binary search O(log n) lookup.
 
-pub static WORDS: [&str; 10021] = [
+pub static WORDS: [&str; 10020] = [
     "aa",
     "aaaa",
     "aaai",
@@ -428,7 +428,6 @@ pub static WORDS: [&str; 10021] = [
     "assailed",
     "assailing",
     "assails",
-    "assam",
     "assamese",
     "assassin",
     "assassinate",

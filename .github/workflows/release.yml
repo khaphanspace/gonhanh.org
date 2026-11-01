@@ -388,7 +388,7 @@ jobs:
           echo "✅ Release updated with stapled DMG!"
 
   build-linux:
-    if: false  # Temporarily disabled
+    needs: build-macos
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -408,46 +408,55 @@ jobs:
             fcitx5-modules-dev \
             extra-cmake-modules \
             libxkbcommon-dev \
+            libgtest-dev \
             cmake \
             pkg-config
 
-      - name: Build
+      - name: Build and test
         run: |
-          # Rust core
-          cd core
-          cargo build --release
-
-          # Fcitx5 addon
-          cd ../platforms/linux
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
+          cargo build --manifest-path core/Cargo.toml --release
+          cmake -S platforms/linux -B platforms/linux/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+          cmake --build platforms/linux/build --parallel
+          ctest --test-dir platforms/linux/build --output-on-failure
+          bash platforms/linux/tests/InstallerTest.sh
 
       - name: Package
         run: |
-          PKG="gonhanh-linux"
-          mkdir -p "$PKG/lib" "$PKG/share/fcitx5/addon" "$PKG/share/fcitx5/inputmethod"
+          bash platforms/linux/scripts/package.sh \
+            "${GITHUB_REF_NAME#v}" \
+            "$PWD/gonhanh-linux.tar.gz"
 
-          cp platforms/linux/build/gonhanh.so "$PKG/lib/"
-          cp core/target/release/libgonhanh_core.so "$PKG/lib/"
-          cp platforms/linux/data/gonhanh-addon.conf "$PKG/share/fcitx5/addon/gonhanh.conf"
-          cp platforms/linux/data/gonhanh.conf "$PKG/share/fcitx5/inputmethod/"
-          cp platforms/linux/README.md "$PKG/"
-          cp platforms/linux/scripts/install.sh "$PKG/"
-          chmod +x "$PKG/install.sh"
-
-          tar -czvf "$PKG.tar.gz" "$PKG"
+      - name: Smoke test packaged installer
+        run: |
+          unset XDG_CONFIG_HOME
+          TMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          tar -xzf gonhanh-linux.tar.gz -C "$TMP_DIR"
+          mkdir -p "$TMP_DIR/home/.config/fcitx5"
+          printf '%s\n' '[Groups/0]' 'Name=Default' 'DefaultIM=keyboard-us' \
+            '' '[Groups/0/Items/0]' 'Name=keyboard-us' 'Layout=' \
+            > "$TMP_DIR/home/.config/fcitx5/profile"
+          GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
+            "$TMP_DIR/gonhanh-linux/install.sh"
+          GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
+            "$TMP_DIR/gonhanh-linux/install.sh"
+          HOME="$TMP_DIR/home" "$TMP_DIR/home/.local/bin/gn" version
+          GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
+            "$TMP_DIR/home/.local/share/gonhanh/install.sh" --uninstall
+          test -f "$TMP_DIR/home/.config/fcitx5/profile"
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-tarball
-          path: "*.tar.gz"
+          name: GoNhanh-${{ github.ref_name }}-Linux-x86_64
+          path: gonhanh-linux.tar.gz
 
       - name: Add to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.tar.gz"
+          files: gonhanh-linux.tar.gz
 
   # DEPRECATED: Gõ Nhanh now on official Homebrew (https://formulae.brew.sh/cask/gonhanh)
   # Homebrew autobump bot handles updates via livecheck. Keep for reference only.

@@ -30,7 +30,9 @@ struct OnboardingView: View {
         }
         .onReceive(timer) { _ in
             hasPermission = AXIsProcessTrusted()
-            if step == 1, hasPermission { step = 2 }
+            if step == 1, hasPermission {
+                step = 2
+            }
         }
     }
 

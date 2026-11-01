@@ -6,7 +6,32 @@ import XCTest
 final class KeyboardShortcutTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: SettingsKey.toggleShortcut)
+        UserDefaults.standard.removeObject(forKey: SettingsKey.secondaryToggleShortcut)
+        UserDefaults.standard.removeObject(forKey: SettingsKey.secondaryToggleShortcutEnabled)
         super.tearDown()
+    }
+
+    // MARK: - Secondary Toggle Shortcut
+
+    func testSecondaryToggleDefaultDiffersFromPrimary() {
+        XCTAssertNotEqual(KeyboardShortcut.defaultSecondaryToggle, KeyboardShortcut.default)
+        XCTAssertEqual(KeyboardShortcut.loadSecondaryToggle(), .defaultSecondaryToggle)
+    }
+
+    func testSecondaryToggleSaveAndLoadIsIndependentOfPrimary() {
+        let secondary = KeyboardShortcut(keyCode: 0x00, modifiers: CGEventFlags([.maskCommand, .maskAlternate]).rawValue)
+        secondary.saveAsSecondaryToggle()
+
+        XCTAssertEqual(KeyboardShortcut.loadSecondaryToggle(), secondary)
+        XCTAssertEqual(KeyboardShortcut.load(), .default)
+    }
+
+    func testActiveSecondaryToggleIsNilUntilEnabled() {
+        KeyboardShortcut.defaultSecondaryToggle.saveAsSecondaryToggle()
+        XCTAssertNil(KeyboardShortcut.activeSecondaryToggle())
+
+        UserDefaults.standard.set(true, forKey: SettingsKey.secondaryToggleShortcutEnabled)
+        XCTAssertEqual(KeyboardShortcut.activeSecondaryToggle(), .defaultSecondaryToggle)
     }
 
     // MARK: - Default Shortcut
@@ -295,5 +320,176 @@ final class KeyboardShortcutTests: XCTestCase {
         // The matches(keyCode:flags:) should return false for modifier-only shortcuts
         // (this already works correctly)
         XCTAssertFalse(restoreShortcut.matches(keyCode: 0x00, flags: typingAWithShift))
+    }
+}
+
+// MARK: - Modifier Chord Tracker Tests
+
+final class ModifierChordTrackerTests: XCTestCase {
+    private let ctrl = CGEventFlags.maskControl
+    private let shift = CGEventFlags.maskShift
+    private let ctrlShift = CGEventFlags([.maskControl, .maskShift])
+    private let ctrlShiftCmd = CGEventFlags([.maskControl, .maskShift, .maskCommand])
+
+    /// Whether a modifier-only Ctrl+Shift toggle would fire given a flag sequence.
+    /// Mirrors the callback: feed each flagsChanged, then check the returned peak
+    /// against the shortcut.
+    private func toggleFires(_ sequence: [CGEventFlags], keyPressedAt: Int? = nil) -> Bool {
+        let shortcut = KeyboardShortcut(keyCode: 0xFFFF, modifiers: ctrlShift.rawValue)
+        var tracker = ModifierChordTracker()
+        for (i, flags) in sequence.enumerated() {
+            if keyPressedAt == i {
+                tracker.keyPressed(modifiersHeld: flags)
+            }
+            if let peak = tracker.modifiersChanged(to: flags) {
+                return shortcut.matchesModifierOnly(flags: peak)
+            }
+        }
+        return false
+    }
+
+    /// Happy path: clean press-and-release of the exact combo toggles.
+    func testCleanCtrlShiftPressReleaseFires() {
+        XCTAssertTrue(toggleFires([ctrl, ctrlShift, ctrl, []]))
+    }
+
+    func testCleanCtrlShiftReleaseInOtherOrderFires() {
+        XCTAssertTrue(toggleFires([shift, ctrlShift, shift, []]))
+    }
+
+    /// Issue #399: adding a modifier mid-chord must NOT fire on release.
+    func testIssue399_AddingCmdAfterCtrlShiftDoesNotFire() {
+        // Ctrl, +Shift, +Cmd, then release everything.
+        XCTAssertFalse(toggleFires([ctrl, ctrlShift, ctrlShiftCmd, ctrlShift, ctrl, []]))
+    }
+
+    /// Issue #399 title scenario: hold Ctrl+Shift then press Cmd (no letter), release.
+    func testIssue399_HoldCtrlShiftThenCmdDoesNotFire() {
+        XCTAssertFalse(toggleFires([ctrlShift, ctrlShiftCmd, []]))
+    }
+
+    /// Issue #399 full hotkey: Cmd+Shift+Ctrl+A must not fire on modifier release.
+    func testIssue399_FullHotkeyWithLetterDoesNotFire() {
+        // Build up the chord, press the letter while all three held, then release.
+        XCTAssertFalse(toggleFires(
+            [ctrl, ctrlShift, ctrlShiftCmd, ctrlShift, ctrl, []],
+            keyPressedAt: 2
+        ))
+    }
+
+    /// A non-modifier key pressed mid-chord invalidates the toggle.
+    func testKeyPressDuringChordInvalidates() {
+        XCTAssertFalse(toggleFires([ctrl, ctrlShift, []], keyPressedAt: 1))
+    }
+
+    /// Partial release before full release should not fire early, then fires on full release.
+    func testPartialReleaseThenFullReleaseFires() {
+        XCTAssertTrue(toggleFires([ctrlShift, ctrl, []]))
+    }
+
+    /// A chord with too few modifiers (single Ctrl) does not match the Ctrl+Shift toggle.
+    func testSingleModifierDoesNotMatchTwoModifierShortcut() {
+        XCTAssertFalse(toggleFires([ctrl, []]))
+    }
+
+    /// Tracker resets between chords: a completed chord doesn't leak into the next.
+    func testTrackerResetsBetweenChords() {
+        var tracker = ModifierChordTracker()
+        _ = tracker.modifiersChanged(to: ctrlShiftCmd) // first chord builds up
+        _ = tracker.modifiersChanged(to: []) // first chord released (peak too big)
+        // Second clean Ctrl+Shift chord must report the correct peak.
+        XCTAssertNil(tracker.modifiersChanged(to: ctrl))
+        XCTAssertNil(tracker.modifiersChanged(to: ctrlShift))
+        XCTAssertEqual(tracker.modifiersChanged(to: []), ctrlShift)
+    }
+
+    /// keyPressed with no modifiers held (plain typing) must not invalidate a later chord.
+    func testTypingWithoutModifiersDoesNotBlockNextChord() {
+        var tracker = ModifierChordTracker()
+        tracker.keyPressed(modifiersHeld: []) // plain "a" with no modifiers
+        XCTAssertNil(tracker.modifiersChanged(to: ctrl))
+        XCTAssertNil(tracker.modifiersChanged(to: ctrlShift))
+        XCTAssertEqual(tracker.modifiersChanged(to: []), ctrlShift)
+    }
+}
+
+// MARK: - Secure Input Recovery Tests
+
+final class SecureInputRecoveryTests: XCTestCase {
+    func testRefreshPolicyReusesLowFrequencyWatchdog() {
+        XCTAssertEqual(SecureInputRefreshPolicy.watchdogInterval, 2.0)
+        XCTAssertEqual(SecureInputRefreshPolicy.watchdogTolerance, 0.5)
+    }
+
+    func testOnlyMouseUpRequestsSecureInputRefresh() {
+        XCTAssertFalse(SecureInputRefreshPolicy.shouldRefreshAfterMouseEvent(.leftMouseDown))
+        XCTAssertTrue(SecureInputRefreshPolicy.shouldRefreshAfterMouseEvent(.leftMouseUp))
+        XCTAssertEqual(SecureInputRefreshPolicy.mouseSettleDelay, 0.05)
+    }
+
+    func testWakeAndSessionActivationAreEventDrivenRefreshTriggers() {
+        XCTAssertEqual(SecureInputRefreshPolicy.workspaceNotifications, [
+            NSWorkspace.didWakeNotification,
+            NSWorkspace.sessionDidBecomeActiveNotification,
+        ])
+    }
+
+    func testInitialAvailableSampleDoesNothing() {
+        var tracker = SecureInputStateTracker()
+
+        XCTAssertEqual(tracker.update(isBlocked: false), .unchanged)
+        XCTAssertFalse(tracker.isBlocked)
+    }
+
+    func testBlockedTransitionOnlyFiresOnce() {
+        var tracker = SecureInputStateTracker()
+
+        XCTAssertEqual(tracker.update(isBlocked: true), .becameBlocked)
+        XCTAssertEqual(tracker.update(isBlocked: true), .unchanged)
+        XCTAssertTrue(tracker.isBlocked)
+    }
+
+    func testAvailableTransitionOnlyFiresAfterBlocking() {
+        var tracker = SecureInputStateTracker()
+        _ = tracker.update(isBlocked: true)
+
+        XCTAssertEqual(tracker.update(isBlocked: false), .becameAvailable)
+        XCTAssertEqual(tracker.update(isBlocked: false), .unchanged)
+        XCTAssertFalse(tracker.isBlocked)
+    }
+
+    func testWarningRequiresEnabledEngineAndSecureInput() {
+        XCTAssertTrue(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: true, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: false, inputSourceAllowed: true, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: false, secureInputBlocked: true
+        ))
+        XCTAssertFalse(SecureInputPresentation.shouldShow(
+            engineEnabled: true, inputSourceAllowed: true, secureInputBlocked: false
+        ))
+    }
+
+    func testHolderPIDReadsFirstPositiveSessionPID() {
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: []))
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: [["kCGSSessionUserNameKey": "a"]]))
+        XCTAssertNil(SecureInputHolder.holderPID(consoleUsers: [[SecureInputHolder.sessionPIDKey: 0]]))
+        XCTAssertEqual(
+            SecureInputHolder.holderPID(consoleUsers: [
+                ["kCGSSessionUserNameKey": "a"],
+                [SecureInputHolder.sessionPIDKey: 2463],
+            ]),
+            2463
+        )
+    }
+
+    func testWarningTextNamesHolderWhenKnown() {
+        XCTAssertTrue(SecureInputPresentation.warningMessage(holderName: "Chromium").hasPrefix("Chromium đang giữ"))
+        XCTAssertTrue(SecureInputPresentation.warningMessage(holderName: nil).hasPrefix("macOS Secure Input"))
+        XCTAssertTrue(SecureInputPresentation.tooltip(holderName: "Chromium").contains("Chromium"))
+        XCTAssertFalse(SecureInputPresentation.tooltip(holderName: nil).contains("("))
     }
 }

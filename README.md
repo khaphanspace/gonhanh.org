@@ -30,12 +30,12 @@
 
 <table>
   <tr>
-    <td><a href="CONTRIBUTORS.md#-sponsors"><b>💖 Sponsors (8)</b></a></td>
+    <td><a href="CONTRIBUTORS.md#-sponsors"><b>💖 Sponsors (15)</b></a></td>
     <td align="center"><a href="https://github.com/blueberry6401"><img src="https://avatars.githubusercontent.com/u/7337535?v=4" width="40" style="border-radius:50%"/><br/><sub>blueberry6401</sub></a></td>
+    <td align="center"><a href="https://github.com/nguyenvulong"><img src="https://avatars.githubusercontent.com/u/1311412?v=4" width="40" style="border-radius:50%"/><br/><sub>nguyenvulong</sub></a></td>
     <td align="center"><a href="https://github.com/nguyencaokyvn"><img src="https://avatars.githubusercontent.com/u/2754877?v=4" width="40" style="border-radius:50%"/><br/><sub>nguyencaokyvn</sub></a></td>
-    <td align="center"><a href="https://github.com/trinhquocviet"><img src="https://avatars.githubusercontent.com/u/9828732?v=4" width="40" style="border-radius:50%"/><br/><sub>trinhquocviet</sub></a></td>
-    <td align="center"><a href="https://github.com/vienkmt"><img src="https://avatars.githubusercontent.com/u/20434534?v=4" width="40" style="border-radius:50%"/><br/><sub>vienkmt</sub></a></td>
-    <td align="center"><a href="https://github.com/ducfilan"><img src="https://avatars.githubusercontent.com/u/1677524?v=4" width="40" style="border-radius:50%"/><br/><sub>ducfilan</sub></a></td>
+    <td align="center"><a href="https://github.com/kientux"><img src="https://avatars.githubusercontent.com/u/4200743?v=4" width="40" style="border-radius:50%"/><br/><sub>kientux</sub></a></td>
+    <td align="center"><a href="https://github.com/tuandev-nv"><img src="https://avatars.githubusercontent.com/u/6220969?v=4" width="40" style="border-radius:50%"/><br/><sub>tuandev-nv</sub></a></td>
   </tr>
   <tr>
     <td><a href="CONTRIBUTORS.md#-code-contributors"><b>💻 Code (6)</b></a></td>
@@ -43,15 +43,15 @@
     <td align="center"><a href="https://github.com/tuananhht94"><img src="https://avatars.githubusercontent.com/u/4498336?v=4" width="40" style="border-radius:50%"/><br/><sub>tuananhht94</sub></a></td>
     <td align="center"><a href="https://github.com/brotherbui"><img src="https://avatars.githubusercontent.com/u/80878082?v=4" width="40" style="border-radius:50%"/><br/><sub>brotherbui</sub></a></td>
     <td align="center"><a href="https://github.com/sonnh-uit"><img src="https://avatars.githubusercontent.com/u/62142647?v=4" width="40" style="border-radius:50%"/><br/><sub>sonnh-uit</sub></a></td>
-    <td align="center"><a href="https://github.com/zeldrisho"><img src="https://avatars.githubusercontent.com/u/80939130?v=4" width="40" style="border-radius:50%"/><br/><sub>zeldrisho</sub></a></td>
+    <td align="center"><a href="https://github.com/oornasp"><img src="https://avatars.githubusercontent.com/u/16114639?v=4" width="40" style="border-radius:50%"/><br/><sub>oornasp</sub></a></td>
   </tr>
   <tr>
-    <td><a href="CONTRIBUTORS.md#-cộng-đồng"><b>💬 Cộng đồng (111)</b></a></td>
+    <td><a href="CONTRIBUTORS.md#-cộng-đồng"><b>💬 Cộng đồng (144)</b></a></td>
+    <td align="center"><a href="https://github.com/ducfilan"><img src="https://avatars.githubusercontent.com/u/1677524?v=4" width="40" style="border-radius:50%"/><br/><sub>ducfilan</sub></a></td>
     <td align="center"><a href="https://github.com/m0n99"><img src="https://avatars.githubusercontent.com/u/62840357?v=4" width="40" style="border-radius:50%"/><br/><sub>m0n99</sub></a></td>
     <td align="center"><a href="https://github.com/voquanghoa"><img src="https://avatars.githubusercontent.com/u/10450325?v=4" width="40" style="border-radius:50%"/><br/><sub>voquanghoa</sub></a></td>
-    <td align="center"><a href="https://github.com/ducfilan"><img src="https://avatars.githubusercontent.com/u/1677524?v=4" width="40" style="border-radius:50%"/><br/><sub>ducfilan</sub></a></td>
-    <td align="center"><a href="https://github.com/duynguyeenx96"><img src="https://avatars.githubusercontent.com/u/57407583?v=4" width="40" style="border-radius:50%"/><br/><sub>duynguyeenx96</sub></a></td>
-    <td align="center"><a href="https://github.com/ngthminhdev"><img src="https://avatars.githubusercontent.com/u/95201788?v=4" width="40" style="border-radius:50%"/><br/><sub>ngthminhdev</sub></a></td>
+    <td align="center"><a href="https://github.com/meichengg"><img src="https://avatars.githubusercontent.com/u/25204246?v=4" width="40" style="border-radius:50%"/><br/><sub>meichengg</sub></a></td>
+    <td align="center"><a href="https://github.com/tuantmtb"><img src="https://avatars.githubusercontent.com/u/9003486?v=4" width="40" style="border-radius:50%"/><br/><sub>tuantmtb</sub></a></td>
   </tr>
 </table>
 
@@ -74,7 +74,7 @@ brew install --cask gonhanh
 |  Nền tảng   | Trạng thái  |                                               Tải xuống                                                | Hướng dẫn                                |
 | :---------: | :---------: | :----------------------------------------------------------------------------------------------------: | :--------------------------------------- |
 |  **macOS**  | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md)   |
-|  **Linux**  |   🧪 Beta   |                                                   —                                                    | [Xem hướng dẫn](docs/install-linux.md)   |
+| **Linux x86_64** | 🧪 Beta | [📥 Tải gonhanh-linux.tar.gz](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/gonhanh-linux.tar.gz) | [Xem hướng dẫn](docs/install-linux.md) |
 | **Windows** |   🧪 Beta   |                                                   —                                                    | [Xem hướng dẫn](docs/install-windows.md) |
 
 <details>
@@ -189,7 +189,7 @@ Nếu các bạn thấy phần mềm hữu ích có thể [ủng hộ tôi tại
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)](https://www.star-history.com/#khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)
+[![Star History Chart](https://star-history.dera.page/svg?repos=khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)](https://star-history.dera.page/#khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)
 
 ---
 

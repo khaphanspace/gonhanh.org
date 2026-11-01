@@ -2092,10 +2092,11 @@ fn backspace_after_space_with_number_in_word() {
 fn backspace_after_space_vni_multiple_words() {
     let mut e = Engine::new();
     e.set_method(1); // VNI
-                     // VNI: 6=circumflex, 9=stroke(đ), 5=hỏi, 2=huyền
-                     // "to6i d9i ho5c" + space + backspace + "2" → change hỏc → hòc
-    let result = type_word(&mut e, "to6i d9i ho5c <2");
-    assert_eq!(result, "tôi đi hòc", "VNI multi-word restore should work");
+                     // VNI: 6=circumflex, 9=stroke(đ), 5=nặng, 1=sắc
+                     // "to6i d9i ho5c" → "tôi đi học"; restore + "1" switches nặng → sắc.
+                     // (huyền/hỏi/ngã are invalid on a stop final like -c — see issue #403.)
+    let result = type_word(&mut e, "to6i d9i ho5c <1");
+    assert_eq!(result, "tôi đi hóc", "VNI multi-word restore should work");
 }
 
 /// Uppercase in middle of word
@@ -2518,9 +2519,10 @@ fn restore_word_with_horn() {
 #[test]
 fn restore_word_uppercase() {
     let mut e = Engine::new();
-    let result = restore_and_type(&mut e, "Việt", "f");
-    // Typing 'f' (huyền) should change ệ to ề
-    assert_eq!(result, "Viềt", "Should change mark on uppercase word");
+    // Switch nặng → sắc. (huyền/hỏi/ngã are invalid on a stop final like -t,
+    // so a valid switch must land on sắc or nặng — see issue #403.)
+    let result = restore_and_type(&mut e, "Việt", "s");
+    assert_eq!(result, "Viết", "Should change mark on uppercase word");
 }
 
 /// restore_word empty string

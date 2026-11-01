@@ -48,7 +48,9 @@ struct AppPickerSheet: View {
     }
 
     private var filtered: [(name: String, bundleId: String)] {
-        if searchText.isEmpty { return runningApps }
+        if searchText.isEmpty {
+            return runningApps
+        }
         return runningApps.filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
                 || $0.bundleId.localizedCaseInsensitiveContains(searchText)
@@ -83,7 +85,9 @@ struct AppPickerSheet: View {
                         ForEach(filtered, id: \.bundleId) { app in
                             AppPickerRow(name: app.name, bundleId: app.bundleId,
                                          isSelected: selectedBundleId == app.bundleId) { selectedBundleId = app.bundleId }
-                            if app.bundleId != filtered.last?.bundleId { Divider().padding(.leading, 40) }
+                            if app.bundleId != filtered.last?.bundleId {
+                                Divider().padding(.leading, 40)
+                            }
                         }
                     }
                 }
@@ -95,7 +99,9 @@ struct AppPickerSheet: View {
                 Button("Huỷ") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Thêm") {
-                    if let id = selectedBundleId { onAdd(id) }
+                    if let id = selectedBundleId {
+                        onAdd(id)
+                    }
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

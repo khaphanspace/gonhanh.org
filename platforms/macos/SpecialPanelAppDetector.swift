@@ -16,9 +16,15 @@ import Cocoa
 class SpecialPanelAppDetector {
     // MARK: - Properties
 
-    /// List of special panel app bundle identifiers
-    static let specialPanelApps: [String] = [
+    /// Bundle identifiers that host the Spotlight search field.
+    /// macOS 27 moved the Spotlight panel into Siri AI.app (com.apple.campo).
+    static let spotlightBundleIds: [String] = [
         "com.apple.Spotlight",
+        "com.apple.campo",
+    ]
+
+    /// List of special panel app bundle identifiers
+    static let specialPanelApps: [String] = spotlightBundleIds + [
         "com.raycast.macos",
         "com.runningwithcrayons.Alfred", // Alfred launcher
         "com.apple.inputmethod.EmojiFunctionRowItem",
@@ -58,10 +64,15 @@ class SpecialPanelAppDetector {
         return specialPanelApps.contains { bundleId.hasPrefix($0) || bundleId == $0 }
     }
 
+    /// Check if a bundle ID hosts the Spotlight search field
+    static func isSpotlight(_ bundleId: String) -> Bool {
+        spotlightBundleIds.contains { bundleId.hasPrefix($0) }
+    }
+
     /// Fast path: check focused element only (cheapest AX query)
     /// Returns bundle ID if focused element belongs to a special panel app
     private static func getFocusedSpecialPanelApp() -> String? {
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = axSystemWideBounded()
         var focusedElement: CFTypeRef?
 
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
@@ -86,7 +97,9 @@ class SpecialPanelAppDetector {
     /// Uses caching and fast-path to avoid expensive operations on every call
     static func getActiveSpecialPanelApp() -> String? {
         // Check cache first
-        if let cached = Cache.get() { return cached }
+        if let cached = Cache.get() {
+            return cached
+        }
 
         // Fast path: check focused element (single AX query)
         if let focusedApp = getFocusedSpecialPanelApp() {

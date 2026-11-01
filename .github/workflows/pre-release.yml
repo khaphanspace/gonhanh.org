@@ -39,6 +39,8 @@ jobs:
       (github.event_name == 'workflow_dispatch' && (inputs.platform == 'macos' || inputs.platform == 'all')) ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.user.login == github.repository_owner)
     runs-on: macos-26
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -196,23 +198,6 @@ jobs:
           path: platforms/macos/build/*.dmg
           retention-days: 14
 
-      - name: Create GitHub Pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cd platforms/macos
-          V="${{ steps.version.outputs.version }}"
-          TAG_NAME="v${V}"
-          DMG_FILE=$(ls build/*.dmg | head -1)
-
-          gh release create "$TAG_NAME" \
-            --title "GoNhanh $V (Pre-release)" \
-            --notes "Pre-release build from CI." \
-            --prerelease \
-            "$DMG_FILE"
-
-          echo "Created pre-release: $TAG_NAME"
-
       # ============================================================
       # CLEANUP
       # ============================================================
@@ -225,6 +210,8 @@ jobs:
     # Manual trigger only (no auto PR build for Linux)
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.platform == 'linux' || inputs.platform == 'all') }}
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -243,18 +230,19 @@ jobs:
             fcitx5-modules-dev \
             extra-cmake-modules \
             libxkbcommon-dev \
+            libgtest-dev \
             cmake \
             pkg-config
 
-      - name: Build Rust core
-        run: cargo build --manifest-path core/Cargo.toml --release
-
-      - name: Build Fcitx5 addon
+      - name: Build and test Linux addon
         run: |
-          cd platforms/linux
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
+          cargo build --manifest-path core/Cargo.toml --release
+          cmake -S platforms/linux -B platforms/linux/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+          cmake --build platforms/linux/build --parallel
+          ctest --test-dir platforms/linux/build --output-on-failure
+          bash platforms/linux/tests/InstallerTest.sh
 
       - name: Get version from latest release tag
         id: version
@@ -276,17 +264,95 @@ jobs:
 
       - name: Package
         run: |
-          V="${{ steps.version.outputs.version }}"
-          cd platforms/linux
-          mkdir -p dist
-          cp build/src/libgonhanh.so dist/
-          cp -r data/* dist/
-          cp ../../core/target/release/libgonhanh_core.so dist/ || true
-          tar -czvf "gonhanh-${V}-linux.tar.gz" -C dist .
+          bash platforms/linux/scripts/package.sh \
+            "${{ steps.version.outputs.version }}" \
+            "$PWD/gonhanh-linux.tar.gz"
+
+      - name: Smoke test packaged installer
+        run: |
+          TMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          tar -xzf gonhanh-linux.tar.gz -C "$TMP_DIR"
+          GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
+            "$TMP_DIR/gonhanh-linux/install.sh"
+          HOME="$TMP_DIR/home" "$TMP_DIR/home/.local/bin/gn" version
+          GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
+            "$TMP_DIR/home/.local/share/gonhanh/install.sh" --uninstall
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: GoNhanh-${{ steps.version.outputs.version }}-Linux
-          path: platforms/linux/*.tar.gz
+          path: gonhanh-linux.tar.gz
           retention-days: 14
+
+  publish-pre-release:
+    needs: [build-macos, build-linux]
+    if: |
+      always() &&
+      (
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            (inputs.platform == 'macos' && needs.build-macos.result == 'success') ||
+            (inputs.platform == 'linux' && needs.build-linux.result == 'success') ||
+            (
+              inputs.platform == 'all' &&
+              needs.build-macos.result == 'success' &&
+              needs.build-linux.result == 'success'
+            )
+          )
+        ) ||
+        (
+          github.event_name == 'pull_request' &&
+          needs.build-macos.result == 'success'
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS artifact
+        if: ${{ github.event_name == 'pull_request' || inputs.platform == 'macos' || inputs.platform == 'all' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: GoNhanh-${{ needs.build-macos.outputs.version }}-macOS
+          path: artifacts/macos
+
+      - name: Download Linux artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.platform == 'linux' || inputs.platform == 'all') }}
+        uses: actions/download-artifact@v4
+        with:
+          name: GoNhanh-${{ needs.build-linux.outputs.version }}-Linux
+          path: artifacts/linux
+
+      - name: Create or update GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_VERSION: ${{ needs.build-macos.outputs.version }}
+          LINUX_VERSION: ${{ needs.build-linux.outputs.version }}
+        run: |
+          if [ -n "$MACOS_VERSION" ] && [ -n "$LINUX_VERSION" ] && [ "$MACOS_VERSION" != "$LINUX_VERSION" ]; then
+            echo "Version mismatch: macOS=$MACOS_VERSION Linux=$LINUX_VERSION" >&2
+            exit 1
+          fi
+
+          V="${MACOS_VERSION:-$LINUX_VERSION}"
+          [ -n "$V" ] || { echo "No pre-release version produced" >&2; exit 1; }
+          TAG_NAME="v${V}"
+          shopt -s nullglob
+          FILES=(artifacts/macos/*.dmg artifacts/linux/gonhanh-linux.tar.gz)
+          [ "${#FILES[@]}" -gt 0 ] || { echo "No pre-release assets found" >&2; exit 1; }
+
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${FILES[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$TAG_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "GoNhanh $V (Pre-release)" \
+              --notes "Pre-release build from CI." \
+              --prerelease \
+              "${FILES[@]}"
+          fi
+
+          echo "Published pre-release: $TAG_NAME"

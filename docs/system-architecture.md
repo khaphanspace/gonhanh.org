@@ -151,14 +151,14 @@ void ime_init(void);
 
 // Process keystroke
 typedef struct {
-    uint32_t chars[32];      // UTF-32 output characters
+    uint32_t chars[256];     // UTF-32 output characters
     uint8_t action;          // 0=None, 1=Send, 2=Restore
     uint8_t backspace;       // Number of chars to delete
     uint8_t count;           // Number of valid chars
-    uint8_t _pad;            // Padding for alignment
+    uint8_t flags;           // bit 0: trigger key was consumed
 } ImeResult;
 
-ImeResult* ime_key(uint16_t keycode, bool caps, bool ctrl);
+ImeResult* ime_key_ext(uint16_t keycode, bool caps, bool ctrl, bool shift);
 
 // Set input method (0=Telex, 1=VNI)
 void ime_method(uint8_t method);
@@ -184,8 +184,9 @@ void ime_free(ImeResult* result);
 ### Memory Ownership
 
 - **FFI Responsibility**: Rust engine allocates Result struct
-- **Caller Responsibility**: Swift must call `ime_free(result)` to deallocate
-- **Safety**: Use `defer { ime_free(ptr) }` to guarantee cleanup even on early return
+- **Caller Responsibility**: Every platform bridge must call `ime_free(result)` exactly once
+- **Layout Contract**: Platform structs must retain the 256-entry array and four metadata bytes in this order
+- **Safety**: macOS uses `defer`; C++/C# callers use equivalent guaranteed cleanup
 
 ## Platform Integration Details
 
@@ -412,6 +413,12 @@ NotificationCenter.default.post(name: .toggleVietnamese, object: nil)
 // Consume event (don't pass to app)
 return nil
 ```
+
+The toggle hotkey is user-configurable (`KeyboardShortcut` in `AppMetadata.swift`). An optional
+**secondary toggle shortcut** (default Ctrl+Shift+Space, off by default) can be enabled in Settings so
+an external keyboard without an `fn` key can still toggle the engine when the primary shortcut is
+`fn`-only. Both are matched in the keyboard callback (`matchesToggleShortcut` /
+`matchesModifierOnlyShortcut` in `RustBridge.swift`); the secondary is `nil` while disabled.
 
 ## Component Interactions
 

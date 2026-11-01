@@ -99,7 +99,9 @@ class UpdateChecker {
             for release in releases {
                 guard let tagName = release["tag_name"] as? String,
                       release["draft"] as? Bool != true else { continue }
-                if !includePrerelease, release["prerelease"] as? Bool == true { continue }
+                if !includePrerelease, release["prerelease"] as? Bool == true {
+                    continue
+                }
 
                 let version = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
 

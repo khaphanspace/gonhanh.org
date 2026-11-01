@@ -1,18 +1,19 @@
 #!/bin/bash
-# Generate release notes using Claude Code CLI
+# Generate release notes with AI (Codex → Claude), falling back to commit list
 # Usage: ./generate-release-notes.sh [version] [from-ref]
 # Examples:
 #   ./generate-release-notes.sh                    # from last GitHub release to HEAD
 #   ./generate-release-notes.sh v1.0.18            # from last GitHub release to HEAD
 #   ./generate-release-notes.sh v1.0.18 v1.0.17   # from v1.0.17 to HEAD
 #
-# STRICT MODE: Script will FAIL if release notes cannot be generated properly.
-# No fallbacks - ensures every release has quality notes.
+# Override CLIs via CODEX_BIN / CLAUDE_BIN. Missing or failing CLIs are skipped.
 
 set -e  # Exit on any error
 
 VERSION="${1:-next}"
 FROM_REF="$2"
+CODEX_BIN="${CODEX_BIN:-codex}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 
 # Colors for terminal output
 RED='\033[0;31m'
@@ -25,7 +26,6 @@ info() { echo -e "${YELLOW}$1${NC}" >&2; }
 success() { echo -e "${GREEN}$1${NC}" >&2; }
 
 # Check required tools
-command -v claude &> /dev/null || error "Claude Code CLI not found. Install: https://docs.anthropic.com/en/docs/claude-code"
 command -v gh &> /dev/null || error "GitHub CLI (gh) not found"
 
 # Determine FROM_REF - strictly from GitHub releases only
@@ -39,8 +39,8 @@ info "📝 Generating release notes: $FROM_REF → HEAD"
 # Validate FROM_REF exists
 git rev-parse "$FROM_REF" &>/dev/null || error "Reference '$FROM_REF' not found in git history"
 
-# Get commit list (exclude release commits and merge commits)
-COMMITS=$(git log "$FROM_REF"..HEAD --pretty=format:"%s|%h|%an" --no-merges 2>/dev/null | grep -v "^release:" || true)
+# Get commit list (exclude release, merge, and bot [skip ci] commits)
+COMMITS=$(git log "$FROM_REF"..HEAD --pretty=format:"%s|%h|%an" --no-merges 2>/dev/null | grep -v "^release:" | grep -vF "[skip ci]" || true)
 
 if [ -z "$COMMITS" ]; then
     error "No commits found between $FROM_REF and HEAD (excluding release commits)"
@@ -75,7 +75,7 @@ DIFF_STAT=$(git diff "$FROM_REF"..HEAD --stat 2>/dev/null)
 # Get detailed diff (limited)
 DIFF_CONTENT=$(git diff "$FROM_REF"..HEAD --no-color 2>/dev/null | head -800)
 
-# Build prompt for Claude
+# Build prompt for Codex
 PROMPT="Generate release notes for 'Gõ Nhanh' $VERSION (Vietnamese IME for macOS/Linux).
 
 OUTPUT FORMAT - Follow this EXACTLY:
@@ -112,14 +112,10 @@ $DIFF_STAT
 CODE DIFF (truncated):
 $DIFF_CONTENT"
 
-# Try Claude Code first, fallback to commit-based generation
-info "🤖 Calling Claude Code..."
-AI_OUTPUT=$(cd /tmp && claude -p --output-format text --dangerously-skip-permissions "$PROMPT" 2>/dev/null) || true
-
 # Strip leading/trailing blank lines
-AI_OUTPUT=$(echo "$AI_OUTPUT" | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+trim_blank() { sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'; }
 
-# Validate Claude output
+# Validate AI output
 validate_release_notes() {
     local text="$1"
     [ -z "$text" ] && return 1
@@ -131,19 +127,35 @@ validate_release_notes() {
     return 0
 }
 
-if validate_release_notes "$AI_OUTPUT"; then
-    success "✅ Release notes generated (AI)"
+AI_OUTPUT=""
+AI_NAME=""
+
+if command -v "$CODEX_BIN" &>/dev/null; then
+    info "🤖 Calling Codex CLI..."
+    AI_OUTPUT=$(cd /tmp && "$CODEX_BIN" exec --skip-git-repo-check --sandbox read-only --color never --ephemeral "$PROMPT" 2>/dev/null | trim_blank) || true
+    validate_release_notes "$AI_OUTPUT" && AI_NAME="Codex" || info "⚠️  Codex output empty/invalid"
+fi
+
+if [ -z "$AI_NAME" ] && command -v "$CLAUDE_BIN" &>/dev/null; then
+    info "🤖 Calling Claude CLI..."
+    AI_OUTPUT=$(cd /tmp && "$CLAUDE_BIN" -p "$PROMPT" 2>/dev/null | trim_blank) || true
+    validate_release_notes "$AI_OUTPUT" && AI_NAME="Claude" || info "⚠️  Claude output empty/invalid"
+fi
+
+if [ -n "$AI_NAME" ]; then
+    success "✅ Release notes generated ($AI_NAME)"
     echo "$AI_OUTPUT"
 else
     # Fallback: generate from commit data directly
-    info "⚠️  Claude output empty/invalid, generating from commits..."
+    info "⚠️  No AI output, generating from commits..."
 
     FEATURES=""
     IMPROVEMENTS=""
     FIXES=""
 
+    # FORMATTED_COMMITS lines: "- <subject> bởi @login" (keeps attribution)
     while IFS= read -r line; do
-        msg=$(echo "$line" | cut -d'|' -f1)
+        msg="${line#- }"
         # Strip conventional commit prefix
         display=$(echo "$msg" | sed -E 's/^(feat|fix|refactor|perf|docs|chore|style|test|ci|build)(\([^)]*\))?!?:[[:space:]]*//')
         case "$msg" in
@@ -151,7 +163,7 @@ else
             fix:*|fix\(*)   FIXES="${FIXES}- ${display}\n" ;;
             *)              IMPROVEMENTS="${IMPROVEMENTS}- ${display}\n" ;;
         esac
-    done <<< "$COMMITS"
+    done <<< "$FORMATTED_COMMITS"
 
     OUTPUT="## What's Changed\n"
     [ -n "$FEATURES" ] && OUTPUT="${OUTPUT}\n### ✨ New Features\n${FEATURES}"
@@ -159,7 +171,7 @@ else
     [ -n "$FIXES" ] && OUTPUT="${OUTPUT}\n### 🐛 Bug Fixes\n${FIXES}"
     OUTPUT="${OUTPUT}\n**Full Changelog**: https://github.com/$REPO/compare/$FROM_REF...$VERSION"
 
-    RESULT=$(printf "$OUTPUT")
+    RESULT=$(printf '%b' "$OUTPUT")
     success "✅ Release notes generated (fallback)"
     echo "$RESULT"
 fi
