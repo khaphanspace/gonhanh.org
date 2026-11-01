@@ -94,6 +94,10 @@ enum SettingsKey {
     static let disablePanelDetection = "gonhanh.disablePanelDetection"
     static let restartOnClose = "gonhanh.restartOnClose"
     static let sessionTapMode = "gonhanh.sessionTapMode"
+    // Clean Paste
+    static let cleanPasteEnabled = "gonhanh.cleanPaste.enabled"
+    static let cleanPasteShortcut = "gonhanh.cleanPaste.shortcut"
+    static let cleanPasteMappings = "gonhanh.cleanPaste.mappings"
 }
 
 // MARK: - Keyboard Shortcut Model
@@ -215,6 +219,21 @@ struct KeyboardShortcut: Codable, Equatable {
         if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: SettingsKey.restoreShortcut)
         }
+    }
+
+    // Default: Cmd+Shift+V (keyCode 0x09 = V key)
+    static let defaultCleanPaste = KeyboardShortcut(
+        keyCode: 0x09,
+        modifiers: CGEventFlags.maskCommand.rawValue | CGEventFlags.maskShift.rawValue
+    )
+
+    static func loadCleanPasteShortcut() -> KeyboardShortcut {
+        guard let data = UserDefaults.standard.data(forKey: SettingsKey.cleanPasteShortcut),
+              let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
+        else {
+            return .defaultCleanPaste
+        }
+        return shortcut
     }
 
     static func loadSecondaryToggle() -> KeyboardShortcut {
