@@ -1326,7 +1326,7 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
     </td>
     <td align="center">
       <a href="https://github.com/n3d06">
-        <img src="https://avatars.githubusercontent.com/u/217141310?u=24d9e58106626fc04b38dff1cfcf51cae76eff55&v=4" width="50" style="border-radius:50%"/><br/>
+        <img src="https://avatars.githubusercontent.com/u/217141310?v=4" width="50" style="border-radius:50%"/><br/>
         <b>n3d06</b>
       </a>
     </td>
@@ -1363,6 +1363,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 01/11/2026*
+*Được cập nhật tự động · Lần cuối: 02/11/2026*
 
 </div>
