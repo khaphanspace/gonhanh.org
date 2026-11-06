@@ -159,9 +159,15 @@ jobs:
         run: |
           cd platforms/macos
           APP="build/Build/Products/Release/GoNhanh.app"
+          CLI_BIN="$APP/Contents/SharedSupport/bin/gonhanh"
 
           if [ "$SHOULD_SIGN" = "true" ]; then
             echo "Signing with Developer ID and hardened runtime..."
+            codesign --force --sign "$CODE_SIGN_IDENTITY" \
+              --identifier org.gonhanh.GoNhanh.cli \
+              --options runtime \
+              --timestamp \
+              "$CLI_BIN"
             codesign --force --deep --sign "$CODE_SIGN_IDENTITY" \
               --entitlements GoNhanh.entitlements.production \
               --options runtime \
@@ -169,14 +175,20 @@ jobs:
               "$APP"
           else
             echo "Signing with ad-hoc identity..."
+            codesign --force --sign - \
+              --identifier org.gonhanh.GoNhanh.cli \
+              "$CLI_BIN"
             codesign --force --deep --sign - \
               --entitlements GoNhanh.entitlements \
               "$APP"
           fi
 
-          # Verify signature
+          # Verify signature & bundled CLI
           echo "Verifying signature..."
+          codesign -vvv --strict "$CLI_BIN"
           codesign -vvv --deep --strict "$APP"
+          "$CLI_BIN" version
+          "$APP/Contents/SharedSupport/bin/gn" version
           echo "Signature verified successfully!"
 
       - name: Create DMG
@@ -275,6 +287,7 @@ jobs:
           tar -xzf gonhanh-linux.tar.gz -C "$TMP_DIR"
           GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
             "$TMP_DIR/gonhanh-linux/install.sh"
+          HOME="$TMP_DIR/home" "$TMP_DIR/home/.local/bin/gonhanh" version
           HOME="$TMP_DIR/home" "$TMP_DIR/home/.local/bin/gn" version
           GONHANH_SKIP_RESTART=1 HOME="$TMP_DIR/home" \
             "$TMP_DIR/home/.local/share/gonhanh/install.sh" --uninstall

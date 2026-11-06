@@ -22,11 +22,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // native Vietnamese/non-Latin sources are gated correctly on cold launch.
         InputSourceObserver.shared.start()
         menuBar = MenuBarController()
+        ControlServer.shared.start()
     }
 
     func applicationWillTerminate(_: Notification) {
         // Cancel any pending restart-on-close (window may have closed during quit)
         menuBar?.cancelPendingRestart()
+        ControlServer.shared.stop()
         KeyboardHookManager.shared.stop()
         InputSourceObserver.shared.stop()
     }

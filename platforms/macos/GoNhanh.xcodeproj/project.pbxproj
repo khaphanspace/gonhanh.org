@@ -27,6 +27,11 @@
 		B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000001 /* KeyboardShortcutTests.swift */; };
 		B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000002 /* LaunchAtLoginTests.swift */; };
 		B1000001000000000000003 /* SoundManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002000000000000003 /* SoundManagerTests.swift */; };
+		C10000010000000000000001 /* ControlProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000020000000000000001 /* ControlProtocol.swift */; };
+		C10000010000000000000002 /* ControlServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000020000000000000002 /* ControlServer.swift */; };
+		C10000010000000000000003 /* ControlProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000020000000000000001 /* ControlProtocol.swift */; };
+		C10000010000000000000004 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000020000000000000003 /* main.swift */; };
+		C10000010000000000000005 /* ControlServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000020000000000000004 /* ControlServerTests.swift */; };
 		UPDATECHK001 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = UPDATECHK002 /* UpdateChecker.swift */; };
 /* End PBXBuildFile section */
 
@@ -37,6 +42,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A1000006000000000000001;
 			remoteInfo = GoNhanh;
+		};
+		C10000030000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1000010000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C10000060000000000000001;
+			remoteInfo = gonhanh;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -65,6 +77,11 @@
 		B1000002000000000000002 /* LaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginTests.swift; sourceTree = "<group>"; };
 		B1000002000000000000003 /* SoundManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManagerTests.swift; sourceTree = "<group>"; };
 		B1000003000000000000002 /* GoNhanhTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GoNhanhTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000020000000000000001 /* ControlProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlProtocol.swift; sourceTree = "<group>"; };
+		C10000020000000000000002 /* ControlServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlServer.swift; sourceTree = "<group>"; };
+		C10000020000000000000003 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		C10000020000000000000004 /* ControlServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlServerTests.swift; sourceTree = "<group>"; };
+		C10000030000000000000001 /* gonhanh */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gonhanh; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +100,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000040000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +115,8 @@
 			children = (
 				A1000002000000000000007 /* AppMetadata.swift */,
 				A1000002000000000000001 /* App.swift */,
+				C10000020000000000000001 /* ControlProtocol.swift */,
+				C10000020000000000000002 /* ControlServer.swift */,
 				A1000002000000000000002 /* MenuBar.swift */,
 				A1000002000000000000003 /* SettingsView.swift */,
 				A1000002000000000000008 /* OnboardingView.swift */,
@@ -108,6 +134,7 @@
 				A1000002000000000000005 /* libgonhanh_core.a */,
 				A1000002000000000000006 /* Info.plist */,
 				A100000200000000000000A /* Assets.xcassets */,
+				C10000050000000000000001 /* CLI */,
 				B1000005000000000000001 /* Tests */,
 				A1000005000000000000002 /* Products */,
 			);
@@ -117,6 +144,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000003000000000000001 /* GoNhanh.app */,
+				C10000030000000000000001 /* gonhanh */,
 				B1000003000000000000002 /* GoNhanhTests.xctest */,
 			);
 			name = Products;
@@ -125,11 +153,20 @@
 		B1000005000000000000001 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				C10000020000000000000004 /* ControlServerTests.swift */,
 				B1000002000000000000001 /* KeyboardShortcutTests.swift */,
 				B1000002000000000000002 /* LaunchAtLoginTests.swift */,
 				B1000002000000000000003 /* SoundManagerTests.swift */,
 			);
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		C10000050000000000000001 /* CLI */ = {
+			isa = PBXGroup;
+			children = (
+				C10000020000000000000003 /* main.swift */,
+			);
+			path = CLI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -142,10 +179,12 @@
 				A1000008000000000000001 /* Sources */,
 				A1000004000000000000001 /* Frameworks */,
 				A1000009000000000000001 /* Resources */,
+				C10000090000000000000001 /* Embed CLI */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C10000030000000000000003 /* PBXTargetDependency */,
 			);
 			name = GoNhanh;
 			packageProductDependencies = (
@@ -172,6 +211,24 @@
 			productReference = B1000003000000000000002 /* GoNhanhTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C10000060000000000000001 /* gonhanh */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000070000000000000001 /* Build configuration list for PBXNativeTarget "gonhanh" */;
+			buildPhases = (
+				C10000080000000000000001 /* Sources */,
+				C10000040000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = gonhanh;
+			packageProductDependencies = (
+			);
+			productName = gonhanh;
+			productReference = C10000030000000000000001 /* gonhanh */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -188,6 +245,9 @@
 					B1000006000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
 						TestTargetID = A1000006000000000000001;
+					};
+					C10000060000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
@@ -207,6 +267,7 @@
 			projectRoot = "";
 			targets = (
 				A1000006000000000000001 /* GoNhanh */,
+				C10000060000000000000001 /* gonhanh */,
 				B1000006000000000000001 /* GoNhanhTests */,
 			);
 		};
@@ -230,6 +291,30 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		C10000090000000000000001 /* Embed CLI */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/gonhanh",
+			);
+			name = "Embed CLI";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Contents/SharedSupport/bin/gonhanh",
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Contents/SharedSupport/bin/gn",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nBIN_DIR=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/SharedSupport/bin\"\nmkdir -p \"$BIN_DIR\"\ncp -f \"${BUILT_PRODUCTS_DIR}/gonhanh\" \"$BIN_DIR/gonhanh\"\nchmod 755 \"$BIN_DIR/gonhanh\"\nln -sfn gonhanh \"$BIN_DIR/gn\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		A1000008000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -237,6 +322,8 @@
 			files = (
 				A1000001000000000000007 /* AppMetadata.swift in Sources */,
 				A1000001000000000000001 /* App.swift in Sources */,
+				C10000010000000000000001 /* ControlProtocol.swift in Sources */,
+				C10000010000000000000002 /* ControlServer.swift in Sources */,
 				A1000001000000000000002 /* MenuBar.swift in Sources */,
 				A1000001000000000000003 /* SettingsView.swift in Sources */,
 				A1000001000000000000008 /* OnboardingView.swift in Sources */,
@@ -258,9 +345,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C10000010000000000000005 /* ControlServerTests.swift in Sources */,
 				B1000001000000000000001 /* KeyboardShortcutTests.swift in Sources */,
 				B1000001000000000000002 /* LaunchAtLoginTests.swift in Sources */,
 				B1000001000000000000003 /* SoundManagerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000080000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C10000010000000000000003 /* ControlProtocol.swift in Sources */,
+				C10000010000000000000004 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,6 +368,11 @@
 			isa = PBXTargetDependency;
 			target = A1000006000000000000001 /* GoNhanh */;
 			targetProxy = B1000003000000000000001 /* PBXContainerItemProxy */;
+		};
+		C10000030000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C10000060000000000000001 /* gonhanh */;
+			targetProxy = C10000030000000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -312,7 +414,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -375,7 +477,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -509,6 +611,40 @@
 			};
 			name = Release;
 		};
+		C10000130000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.gonhanh.GoNhanh.cli;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C10000130000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.gonhanh.GoNhanh.cli;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -535,6 +671,15 @@
 			buildConfigurations = (
 				B1000013000000000000001 /* Debug */,
 				B1000013000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000070000000000000001 /* Build configuration list for PBXNativeTarget "gonhanh" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000130000000000000001 /* Debug */,
+				C10000130000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
