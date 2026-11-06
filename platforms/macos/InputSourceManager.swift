@@ -36,6 +36,9 @@ final class InputSourceObserver {
     /// Current input source display character (for menu icon)
     private(set) var currentDisplayChar: String = "V"
 
+    /// Current input source localized name (for CLI status display)
+    private(set) var currentInputSourceName: String?
+
     /// Whether Gõ Nhanh is allowed for current input source
     private(set) var isAllowedInputSource: Bool = true
 
@@ -70,6 +73,7 @@ final class InputSourceObserver {
         let currentId = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
         lastInputSourceId = currentId
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
+        currentInputSourceName = getInputSourceName(from: source, id: currentId)
         isAllowedInputSource = isInputSourceAllowed(source: source, id: currentId)
         // Don't call setEnabled: the engine has not started yet.
     }
@@ -101,6 +105,7 @@ final class InputSourceObserver {
 
         // Get display character from input source
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
+        currentInputSourceName = getInputSourceName(from: source, id: currentId)
         isAllowedInputSource = isInputSourceAllowed(source: source, id: currentId)
 
         if isAllowedInputSource {
@@ -181,6 +186,16 @@ final class InputSourceObserver {
         }
 
         return "E"
+    }
+
+    private func getInputSourceName(from source: TISInputSource, id: String) -> String {
+        if let namePtr = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) {
+            let name = Unmanaged<CFString>.fromOpaque(namePtr).takeUnretainedValue() as String
+            if !name.isEmpty {
+                return name
+            }
+        }
+        return id
     }
 }
 

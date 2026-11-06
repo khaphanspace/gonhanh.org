@@ -126,7 +126,8 @@ install: build
 	@osascript -e 'tell application "System Events"' -e 'repeat with i from (count of every login item) to 1 by -1' -e 'set li to login item i' -e 'if name of li is "GoNhanh" and path of li contains "/build/" then delete login item i' -e 'end repeat' -e 'end tell' 2>/dev/null || true
 	@killall GoNhanh 2>/dev/null || true
 	@sleep 0.5
-	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
+	@rm -rf /Applications/GoNhanh.app
+	@cp -R platforms/macos/build/Release/GoNhanh.app /Applications/
 	@open /Applications/GoNhanh.app
 
 dmg: build ## Create DMG installer

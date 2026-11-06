@@ -210,11 +210,18 @@ if [ -d "GoNhanh.xcodeproj" ]; then
     # Copy app from DerivedData to local build directory
     echo "Copying app to build directory..."
     mkdir -p build/Release
+    rm -rf build/Release/GoNhanh.app
     cp -R "build/DerivedData/Build/Products/Release/GoNhanh.app" build/Release/
 
-    # Sign app with entitlements
+    # Sign app and embedded CLI (inside-out signing for Apple Notarization)
     echo "Signing app with entitlements..."
+    CLI_BIN="build/Release/GoNhanh.app/Contents/SharedSupport/bin/gonhanh"
     if [ "$SIGN_APP" = true ]; then
+        codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+            --identifier org.gonhanh.GoNhanh.cli \
+            --options runtime \
+            --timestamp \
+            "$CLI_BIN"
         codesign --force --deep --sign "$APPLE_SIGNING_IDENTITY" \
             --entitlements GoNhanh.entitlements.production \
             --options runtime \
@@ -225,11 +232,17 @@ if [ -d "GoNhanh.xcodeproj" ]; then
         # Use Developer ID cert if available, fallback to ad-hoc
         DEV_CERT=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
         if [ -n "$DEV_CERT" ]; then
+            codesign --force --sign "$DEV_CERT" \
+                --identifier org.gonhanh.GoNhanh.cli \
+                "$CLI_BIN"
             codesign --force --deep --sign "$DEV_CERT" \
                 --entitlements GoNhanh.entitlements \
                 build/Release/GoNhanh.app
             echo "Signed with: $DEV_CERT"
         else
+            codesign --force --sign - \
+                --identifier org.gonhanh.GoNhanh.cli \
+                "$CLI_BIN"
             codesign --force --deep --sign - \
                 --entitlements GoNhanh.entitlements \
                 build/Release/GoNhanh.app
@@ -239,6 +252,7 @@ if [ -d "GoNhanh.xcodeproj" ]; then
 
     # Verify signature
     echo "Verifying signature..."
+    codesign -vvv --strict "$CLI_BIN"
     codesign -vvv --deep --strict build/Release/GoNhanh.app
     echo "Signature verified!"
 
