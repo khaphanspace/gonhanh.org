@@ -1,0 +1,35 @@
+# English words and abbreviations Vietnamese speakers often type while chatting and working.
+# One lowercase word per line (a-z only). Merged into the English dictionary at build time.
+roadmap
+milestone
+standup
+freelancer
+outsource
+onsite
+livestream
+webinar
+brainstorm
+caption
+trending
+hashtag
+influencer
+fanpage
+unread
+btw
+fyi
+asap
+eta
+imo
+omg
+kpi
+okr
+roi
+cto
+cfo
+sem
+saas
+hotspot
+selfie
+uninstall
+shutdown
+downgrade

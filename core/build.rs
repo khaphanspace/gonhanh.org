@@ -1,0 +1,193 @@
+//! Packs the word lists into static blobs so the engine pays nothing at startup. The English list
+//! is merged from every file in `src/data/dictionaries/en/` (general words, tech terms, brand
+//! names...): to support a new kind of word, add a file there. `en-ref/` is merged into a second
+//! list of rare base words that only weak-evidence decisions consult.
+//!
+//! Each list becomes `<name>.blob` (sorted words, each followed by '\n') and `<name>.idx`
+//! (little-endian u32 offsets, n+1 entries). Lookups binary-search the blob in place:
+//! no HashSet, no heap, no first-keystroke initialisation (src/data/lexicon.rs). `<name>.bkt`
+//! holds, for each pair of first letters (aa..zz), the first entry that is not smaller than the
+//! pair: a lookup starts in a slice of about 25 entries instead of the whole list.
+//! Entries of single-file lists are kept as written (case included); merged ones are lowercased.
+
+use std::{env, fs, path::PathBuf};
+
+/// Where a list comes from.
+enum Source {
+    /// One file; the first `skip` lines are a header.
+    File(&'static str, usize),
+    /// Every `*.txt` in a directory, merged: one file per kind of word (general, tech, brands...),
+    /// so a new kind is a new file and no code changes. `#` starts a comment.
+    Dir(&'static str),
+}
+
+/// (file the word came from, word); single files have no origin name.
+fn read_words(source: &Source) -> Vec<(String, String)> {
+    match source {
+        Source::File(path, skip) => {
+            println!("cargo:rerun-if-changed={path}");
+            let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+            text.lines()
+                .skip(*skip)
+                .filter(|l| !l.is_empty())
+                .map(|l| (String::new(), l.to_string()))
+                .collect()
+        }
+        Source::Dir(dir) => {
+            println!("cargo:rerun-if-changed={dir}");
+            let mut files: Vec<PathBuf> = fs::read_dir(dir)
+                .unwrap_or_else(|e| panic!("{dir}: {e}"))
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.extension().is_some_and(|x| x == "txt"))
+                .collect();
+            files.sort();
+            let mut words = Vec::new();
+            for f in files {
+                println!("cargo:rerun-if-changed={}", f.display());
+                let text =
+                    fs::read_to_string(&f).unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+                for line in text.lines() {
+                    let w = line.split('#').next().unwrap_or("").trim().to_lowercase();
+                    if !w.is_empty() {
+                        let origin = f
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned();
+                        words.push((origin, w));
+                    }
+                }
+            }
+            words
+        }
+    }
+}
+
+/// Words of `en-frequency.txt` (most common first) with their rank.
+fn frequency_ranks() -> std::collections::HashMap<String, usize> {
+    let path = "src/data/dictionaries/en-frequency.txt";
+    println!("cargo:rerun-if-changed={path}");
+    let text = fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let mut ranks = std::collections::HashMap::new();
+    for (i, l) in text.lines().enumerate() {
+        ranks.entry(l.trim().to_lowercase()).or_insert(i + 1);
+    }
+    ranks
+}
+
+/// A doubled tone key cancels the tone (tor + r → tor), so a word that ends in a doubled tone
+/// letter (torr, off, loss) is typed on purpose only if nothing likelier is what the cancel
+/// leaves. When the word that is left is a word too (tor, of, los), the commoner of the two
+/// wins: torr (a unit of pressure) loses to tor, lissa to lisa, off to of (the way to type "of"
+/// in Telex is "off"), while loss and class, commoner than their cancels or with none, stay.
+fn cancel_is_likelier(
+    word: &str,
+    ranks: &std::collections::HashMap<String, usize>,
+    known: &std::collections::HashSet<String>,
+) -> bool {
+    /// a known word the frequency list does not rank is rarer than any ranked one
+    const UNRANKED: usize = usize::MAX - 1;
+    let rank = ranks.get(word).copied().unwrap_or(usize::MAX);
+    // Only a pair that ends the word competes with its cancel: that is where the user has to
+    // double the key to get a single plain letter (of = o f f, tor = t o r r). In the middle of a
+    // word (dessert) the single letter needs no cancel, so nobody doubles it to mean the cancel.
+    let b = word.as_bytes();
+    let n = b.len();
+    if n < 3 || b[n - 1] != b[n - 2] || !matches!(b[n - 1], b's' | b'f' | b'r' | b'x' | b'j') {
+        return false;
+    }
+    let left = &word[..n - 1];
+    let left_rank = match ranks.get(left) {
+        Some(&r) => r,
+        None if known.contains(left) => UNRANKED,
+        None => return false,
+    };
+    left_rank < rank
+}
+
+fn has_double_letter(w: &str) -> bool {
+    w.as_bytes()
+        .windows(2)
+        .any(|p| p[0] == p[1] && p[0].is_ascii_alphabetic())
+}
+
+fn main() {
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let mut curated_doubles: Vec<String> = Vec::new();
+    let mut en_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut ref_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (name, source) in [
+        ("en", Source::Dir("src/data/dictionaries/en")),
+        ("ref", Source::Dir("src/data/dictionaries/en-ref")),
+        ("vi", Source::File("src/data/dictionaries/vi.dic", 1)),
+        ("keep", Source::File("src/data/dictionaries/keep.dic", 1)),
+        (
+            "func",
+            Source::File("src/data/dictionaries/en-function.txt", 0),
+        ),
+        ("doubles", Source::File("src/data/telex_doubles.txt", 0)),
+    ] {
+        let mut all = read_words(&source);
+        if name == "doubles" {
+            // A word of this list is spelled with its doubled letter on purpose (terry); an entry
+            // that is no English word (terr) would keep a typo the user cancelled. Keep only
+            // words of the English dictionaries.
+            all.retain(|(_, w)| en_words.contains(w) || ref_words.contains(w));
+            // Curated English words (tech, brands, chat...) spelled with a doubled letter keep it
+            // (terraform, github's ss...): they join the Telex-doubles list without a second edit.
+            all.extend(curated_doubles.iter().map(|w| (String::new(), w.clone())));
+            // every English word that ends in a doubled tone letter, not only the legacy list's:
+            // off, loss, mass are where a cancel and a word compete
+            all.extend(
+                en_words
+                    .iter()
+                    .filter(|w| w.bytes().all(|c| c.is_ascii_lowercase()))
+                    .filter(|w| {
+                        let b = w.as_bytes();
+                        b.len() >= 3
+                            && b[b.len() - 1] == b[b.len() - 2]
+                            && b"sfrxj".contains(&b[b.len() - 1])
+                    })
+                    .map(|w| (String::new(), w.clone())),
+            );
+            let ranks = frequency_ranks();
+            let known: std::collections::HashSet<String> =
+                en_words.iter().chain(ref_words.iter()).cloned().collect();
+            all.retain(|(_, w)| !cancel_is_likelier(&w.to_lowercase(), &ranks, &known));
+        }
+        if name == "ref" {
+            ref_words = all.iter().map(|(_, w)| w.clone()).collect();
+        }
+        if name == "en" {
+            en_words = all.iter().map(|(_, w)| w.clone()).collect();
+            curated_doubles = all
+                .iter()
+                .filter(|(origin, w)| origin != "general" && has_double_letter(w))
+                .map(|(_, w)| w.clone())
+                .collect();
+        }
+        let all: Vec<String> = all.into_iter().map(|(_, w)| w).collect();
+        let mut words: Vec<&str> = all.iter().map(String::as_str).collect();
+        words.sort_unstable();
+        words.dedup();
+        let (mut blob, mut idx) = (Vec::new(), Vec::new());
+        for w in &words {
+            idx.extend((blob.len() as u32).to_le_bytes());
+            blob.extend(w.as_bytes());
+            blob.push(b'\n');
+        }
+        idx.extend((blob.len() as u32).to_le_bytes());
+        // bucket table: first entry >= each pair of lower-case letters, then the list length
+        let mut bkt = Vec::new();
+        for pair in 0..26 * 26 {
+            let key = [b'a' + (pair / 26) as u8, b'a' + (pair % 26) as u8];
+            let at = words.partition_point(|w| w.as_bytes() < &key[..]);
+            bkt.extend((at as u32).to_le_bytes());
+        }
+        bkt.extend((words.len() as u32).to_le_bytes());
+        fs::write(out.join(format!("{name}.bkt")), bkt).unwrap();
+        fs::write(out.join(format!("{name}.blob")), blob).unwrap();
+        fs::write(out.join(format!("{name}.idx")), idx).unwrap();
+    }
+    println!("cargo:rerun-if-changed=build.rs");
+}

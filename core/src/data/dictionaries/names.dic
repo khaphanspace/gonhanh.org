@@ -1,0 +1,9 @@
+# Proper-name syllables whose spelling breaks the regular rules (c/k, K coda, kr...).
+# One syllable per line, lowercase with diacritics. Matching is prefix-closed: typing "kon"
+# is a valid prefix of "kông" in ANY key order. Add a line = support it, no code change.
+# Every entry must be verified (official toponym / standard transliteration), source in the comment.
+kạn     # Bắc Kạn (Tày "Pác Kạn"), vi.wikipedia.org/wiki/Bắc_Kạn_(tỉnh); VnExpress 2024
+kông    # Hồng Kông (phiên âm "Hong Kong", giữ K) vi.wikipedia.org/wiki/Hồng_Kông; Kông Chro (Gia Lai)
+kon     # Kon Tum (tên tỉnh chính thức không theo quy tắc c/k)
+krông   # Krông Pắc, Krông Búk, Krông Ana, Krông Năng, Krông Bông (Đắk Lắk)
+búk     # Krông Búk (Đắk Lắk), docs §10.5.3

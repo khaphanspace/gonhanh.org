@@ -19,8 +19,19 @@ rstest = "0.18"
 serial_test = "3.0"
 
 [profile.release]
-opt-level = "z"          # Optimize for size
+opt-level = 3            # Speed: measured 20-33% less CPU per key than "z", and not larger (macOS app 11.25 -> 11.17 MB)
 lto = true               # Link-time optimization
 codegen-units = 1        # Better optimization
 strip = true             # Strip symbols
 panic = "abort"          # Smaller binary
+
+# Fast test/bench profile: ~3.6x less CPU than dev on the corpus tests (measured), no debuginfo
+# (cuts link time). Used by `make gate`; plain `cargo test` keeps the debuggable dev profile.
+[profile.gate]
+inherits = "dev"
+opt-level = 1
+debug = 0
+
+[[bench]]
+name = "engine_bench"
+harness = false

@@ -1,14 +1,9 @@
 //! Shared utilities for Vietnamese IME processing
 //!
-//! Contains common functions used across engine modules to avoid duplication.
+//! Key-code to character conversion shared by the engine and the platform layers.
 //! Also includes test utilities under #[cfg(test)].
 
-use crate::data::{
-    chars::tone,
-    keys,
-    vowel::{Modifier, Vowel},
-};
-use crate::engine::buffer::Buffer;
+use crate::data::keys;
 
 /// Convert key code to character
 pub fn key_to_char(key: u16, caps: bool) -> Option<char> {
@@ -85,58 +80,6 @@ pub fn key_to_char_ext(key: u16, caps: bool, shift: bool) -> Option<char> {
         };
     }
     key_to_char(key, caps)
-}
-
-/// Collect vowels from buffer with phonological info
-pub fn collect_vowels(buf: &Buffer) -> Vec<Vowel> {
-    buf.iter()
-        .enumerate()
-        .filter(|(_, c)| keys::is_vowel(c.key))
-        .map(|(pos, c)| {
-            let modifier = match c.tone {
-                tone::CIRCUMFLEX => Modifier::Circumflex,
-                tone::HORN => Modifier::Horn,
-                _ => Modifier::None,
-            };
-            Vowel::new(c.key, modifier, pos)
-        })
-        .collect()
-}
-
-/// Check if there's a consonant after position
-pub fn has_final_consonant(buf: &Buffer, after_pos: usize) -> bool {
-    (after_pos + 1..buf.len()).any(|i| {
-        buf.get(i)
-            .map(|c| keys::is_consonant(c.key))
-            .unwrap_or(false)
-    })
-}
-
-/// Check if 'q' precedes 'u' in buffer
-pub fn has_qu_initial(buf: &Buffer) -> bool {
-    for (i, c) in buf.iter().enumerate() {
-        if c.key == keys::U && i > 0 {
-            if let Some(prev) = buf.get(i - 1) {
-                return prev.key == keys::Q;
-            }
-        }
-    }
-    false
-}
-
-/// Check if 'gi' is initial followed by another vowel
-/// e.g., "gia", "giau" → gi is initial, 'i' is NOT a vowel
-pub fn has_gi_initial(buf: &Buffer) -> bool {
-    if buf.len() < 3 {
-        return false;
-    }
-    // Check for g + i + vowel pattern
-    let first = buf.get(0).map(|c| c.key);
-    let second = buf.get(1).map(|c| c.key);
-    let third = buf.get(2).map(|c| c.key);
-
-    matches!((first, second), (Some(keys::G), Some(keys::I)))
-        && third.map(keys::is_vowel).unwrap_or(false)
 }
 
 mod test_utils {
