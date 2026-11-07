@@ -349,6 +349,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/no-vici">
+        <img src="https://avatars.githubusercontent.com/u/113570767?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>no-vici</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/vanloc0301">
         <img src="https://avatars.githubusercontent.com/u/4168981?v=4" width="50" style="border-radius:50%"/><br/>
         <b>vanloc0301</b>
@@ -360,14 +366,14 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
         <b>padit69</b>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/PhucHuwu">
         <img src="https://avatars.githubusercontent.com/u/142735617?v=4" width="50" style="border-radius:50%"/><br/>
         <b>PhucHuwu</b>
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://github.com/lantrinh1999">
         <img src="https://avatars.githubusercontent.com/u/41521233?v=4" width="50" style="border-radius:50%"/><br/>
@@ -390,12 +396,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/cooldevdotcodes">
         <img src="https://avatars.githubusercontent.com/u/129320950?v=4" width="50" style="border-radius:50%"/><br/>
         <b>cooldevdotcodes</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/no-vici">
-        <img src="https://avatars.githubusercontent.com/u/113570767?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>no-vici</b>
       </a>
     </td>
     <td align="center">
