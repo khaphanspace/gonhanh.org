@@ -943,7 +943,7 @@ class KeyboardHookManager {
     private var mouseMonitor: Any? // NSEvent monitor for mouse clicks
     private var watchdogTimer: Timer? // periodically re-enables a silently-disabled tap
     private var workspaceObservers: [NSObjectProtocol] = []
-    private var isRunning = false
+    private(set) var isRunning = false
     private var currentTapIsSession = false // which tap level the active hook was created at
     private var secureInputState = SecureInputStateTracker()
 

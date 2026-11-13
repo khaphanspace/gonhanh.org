@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 PREFIX="${GONHANH_PREFIX:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 STATE_DIR="$PREFIX/share/gonhanh"
@@ -13,18 +19,21 @@ usage() {
     cat <<'EOF'
 Gõ Nhanh - Vietnamese Input Method
 
-Cách dùng: gn [lệnh]
+Cách dùng: gonhanh [lệnh] (hoặc: gn [lệnh])
 
-  on           Chọn và bật Gõ Nhanh
-  off          Tắt Gõ Nhanh nếu đang được chọn
-  toggle       Bật/tắt Gõ Nhanh (mặc định)
-  telex        Chuyển sang Telex và bật Gõ Nhanh
-  vni          Chuyển sang VNI và bật Gõ Nhanh
-  status       Xem trạng thái riêng của Gõ Nhanh
-  update       Cài bản phát hành Linux mới nhất
-  uninstall    Gỡ Gõ Nhanh, giữ nguyên input method khác
-  version      Xem phiên bản
-  help         Hiển thị trợ giúp
+  (không tham số)  In trạng thái hiện tại: "vi" hoặc "en"
+  vi               Bật gõ tiếng Việt (im lặng, dùng cho Vim/script)
+  en               Tắt gõ tiếng Việt (im lặng, dùng cho Vim/script)
+  on               Chọn và bật Gõ Nhanh
+  off              Tắt Gõ Nhanh nếu đang được chọn
+  toggle           Đảo trạng thái bật/tắt
+  telex            Chuyển sang Telex và bật Gõ Nhanh
+  vni              Chuyển sang VNI và bật Gõ Nhanh
+  status           Xem trạng thái riêng của Gõ Nhanh
+  update           Cài bản phát hành Linux mới nhất
+  uninstall        Gỡ Gõ Nhanh, giữ nguyên input method khác
+  version          Xem phiên bản
+  help             Hiển thị trợ giúp
 EOF
 }
 
@@ -35,25 +44,29 @@ require_remote() {
         fail "Không tìm thấy fcitx5-remote. Hãy cài Fcitx5 và đăng nhập lại."
 }
 
+FCITX_STATE=""
+
+read_state() {
+    require_remote
+    FCITX_STATE="$(fcitx5-remote 2>/dev/null)" ||
+        fail "Fcitx5 chưa chạy. Hãy khởi động Fcitx5 hoặc đăng nhập lại."
+}
+
 current_im() {
     fcitx5-remote -n 2>/dev/null || true
 }
 
-state() {
-    fcitx5-remote 2>/dev/null || true
-}
-
 is_active() {
-    [[ "$(current_im)" == "gonhanh" && "$(state)" == "2" ]]
+    [[ "$FCITX_STATE" == "2" && "$(current_im)" == "gonhanh" ]]
 }
 
 show_status() {
-    require_remote
+    read_state
     local method active_name
     method="$(sed -n '1p' "$METHOD_FILE" 2>/dev/null || true)"
     method="${method:-telex}"
     active_name="$(current_im)"
-    if is_active; then
+    if [[ "$FCITX_STATE" == "2" && "$active_name" == "gonhanh" ]]; then
         printf '● BẬT │ %s │ gonhanh\n' "$method"
     elif [[ -n "$active_name" ]]; then
         printf '○ TẮT │ %s │ input method hiện tại: %s\n' "$method" "$active_name"
@@ -79,20 +92,42 @@ set_method() {
     show_status
 }
 
-case "${1:-toggle}" in
+if [[ $# -gt 1 ]]; then
+    usage >&2
+    fail "Lệnh không hợp lệ: $*"
+fi
+
+case "${1:-}" in
+    "")
+        read_state
+        if is_active; then
+            printf 'vi\n'
+        else
+            printf 'en\n'
+        fi
+        ;;
+    vi)
+        activate
+        ;;
+    en)
+        read_state
+        if is_active; then
+            fcitx5-remote -c >/dev/null 2>&1 || fail "Không thể tắt Gõ Nhanh"
+        fi
+        ;;
     on)
         activate
         show_status
         ;;
     off)
-        require_remote
+        read_state
         if is_active; then
             fcitx5-remote -c >/dev/null 2>&1 || fail "Không thể tắt Gõ Nhanh"
         fi
         show_status
         ;;
     toggle)
-        require_remote
+        read_state
         if is_active; then
             fcitx5-remote -c >/dev/null 2>&1 || fail "Không thể tắt Gõ Nhanh"
         else
