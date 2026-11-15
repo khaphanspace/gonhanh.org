@@ -1880,4 +1880,8 @@ struct LaunchAtLoginToggleRow: View {
 
 // MARK: - Preview
 
-#Preview { MainSettingsView() }
+struct MainSettingsView_Previews: PreviewProvider {
+    static var previews: some View {
+        MainSettingsView()
+    }
+}

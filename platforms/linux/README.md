@@ -55,7 +55,7 @@ The canonical installer is safe to repeat and preserves existing Fcitx entries:
 ```bash
 bash platforms/linux/scripts/install.sh
 source ~/.profile
-gn on
+gonhanh on
 ```
 
 `make install-user` invokes the same script.
@@ -68,7 +68,7 @@ Installed files:
 | Rust core | `~/.local/lib/libgonhanh_core.so` |
 | Addon config | `~/.local/share/fcitx5/addon/gonhanh.conf` |
 | Input method config | `~/.local/share/fcitx5/inputmethod/gonhanh.conf` |
-| CLI | `~/.local/bin/gn` |
+| CLI | `~/.local/bin/gonhanh` (symlink `~/.local/bin/gn`) |
 | Installer/version | `~/.local/share/gonhanh/` |
 
 The installer appends one GoNhanh item to the first Fcitx group. It does not

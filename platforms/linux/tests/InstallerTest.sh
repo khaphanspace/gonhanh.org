@@ -59,7 +59,9 @@ GONHANH_SKIP_RESTART=1 HOME="$HOME_ONE" bash "$PACKAGE/install.sh"
 assert_once "Name=bamboo" "$HOME_ONE/.config/fcitx5/profile"
 assert_once "Name=gonhanh" "$HOME_ONE/.config/fcitx5/profile"
 assert_once "# >>> Gõ Nhanh Fcitx5 >>>" "$HOME_ONE/.profile"
-[[ -x "$HOME_ONE/.local/bin/gn" ]]
+[[ -x "$HOME_ONE/.local/bin/gonhanh" ]]
+[[ -L "$HOME_ONE/.local/bin/gn" && -x "$HOME_ONE/.local/bin/gn" ]]
+[[ "$(HOME="$HOME_ONE" "$HOME_ONE/.local/bin/gonhanh" version)" == "Gõ Nhanh v9.9.9" ]]
 [[ "$(HOME="$HOME_ONE" "$HOME_ONE/.local/bin/gn" version)" == "Gõ Nhanh v9.9.9" ]]
 
 # CLI selects GoNhanh specifically instead of reporting another active IM as GoNhanh.
@@ -67,6 +69,7 @@ FAKE_BIN="$TEST_ROOT/fake-bin"
 mkdir -p "$FAKE_BIN"
 cat > "$FAKE_BIN/fcitx5-remote" <<'EOF'
 #!/usr/bin/env bash
+[[ ! -f "$HOME/fcitx-down" ]] || exit 1
 case "${1:-}" in
     -n) sed -n '1p' "$HOME/current-im" 2>/dev/null || true ;;
     -s) printf '%s\n' "$2" > "$HOME/current-im"; printf '2\n' > "$HOME/fcitx-state" ;;
@@ -80,8 +83,31 @@ chmod +x "$FAKE_BIN/fcitx5-remote"
 printf 'bamboo\n' > "$HOME_ONE/current-im"
 printf '2\n' > "$HOME_ONE/fcitx-state"
 CLI_PATH="$HOME_ONE/.local/bin/gn"
+GONHANH_CLI_PATH="$HOME_ONE/.local/bin/gonhanh"
+
+# im-select / macism compatibility: no args prints "en" when another IM is active
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH")" == "en" ]]
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH")" == "en" ]]
+
 status_output="$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH" status)"
 [[ "$status_output" == *"○ TẮT"* && "$status_output" == *"bamboo"* ]]
+
+# Silent "vi" / "en" switching for Vim plugins (empty stdout, synchronous state update)
+vi_stdout="$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" vi)"
+[[ -z "$vi_stdout" ]]
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH")" == "vi" ]]
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH")" == "vi" ]]
+
+en_stdout="$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" en)"
+[[ -z "$en_stdout" ]]
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH")" == "en" ]]
+
+# Toggle flips between en and vi
+PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" toggle >/dev/null
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH")" == "vi" ]]
+PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH" toggle >/dev/null
+[[ "$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH")" == "en" ]]
+
 PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH" on >/dev/null
 [[ "$(sed -n '1p' "$HOME_ONE/current-im")" == "gonhanh" ]]
 PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH" vni >/dev/null
@@ -92,6 +118,23 @@ if PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$CLI_PATH" unknown >/dev/null 2>&1; 
     printf 'Unknown CLI command unexpectedly succeeded\n' >&2
     exit 1
 fi
+if PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" vi extra >/dev/null 2>&1; then
+    printf 'Extra CLI arguments unexpectedly succeeded\n' >&2
+    exit 1
+fi
+
+# Non-zero exit code and empty stdout when Fcitx5 is not running
+touch "$HOME_ONE/fcitx-down"
+for down_args in "" "vi" "en" "status"; do
+    down_stdout="$(PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" ${down_args:+$down_args} 2>"$TEST_ROOT/down.err" || true)"
+    [[ -z "$down_stdout" ]]
+    if PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$GONHANH_CLI_PATH" ${down_args:+$down_args} >/dev/null 2>&1; then
+        printf 'CLI unexpectedly succeeded when Fcitx5 is down (arg=%q)\n' "$down_args" >&2
+        exit 1
+    fi
+    [[ -s "$TEST_ROOT/down.err" ]]
+done
+rm -f "$HOME_ONE/fcitx-down"
 
 # Empty and malformed profiles are preserved and receive one valid GoNhanh item.
 for case_name in empty malformed; do
@@ -139,15 +182,17 @@ EOF
 cp "$HOME_PREFIX/.profile" "$TEST_ROOT/unmatched-profile.expected"
 GONHANH_SKIP_RESTART=1 PATH="$FAKE_BIN:$PATH" HOME="$HOME_PREFIX" "$CUSTOM_CLI" uninstall >/dev/null
 cmp "$TEST_ROOT/unmatched-profile.expected" "$HOME_PREFIX/.profile"
-[[ ! -e "$CUSTOM_CLI" ]]
+[[ ! -e "$CUSTOM_CLI" && ! -L "$CUSTOM_CLI" ]]
+[[ ! -e "$CUSTOM_PREFIX/bin/gonhanh" ]]
 
 # Uninstall removes only GoNhanh-owned state and leaves Bamboo/profile content.
-GONHANH_SKIP_RESTART=1 PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$HOME_ONE/.local/bin/gn" uninstall
+GONHANH_SKIP_RESTART=1 PATH="$FAKE_BIN:$PATH" HOME="$HOME_ONE" "$HOME_ONE/.local/bin/gonhanh" uninstall
 assert_once "Name=bamboo" "$HOME_ONE/.config/fcitx5/profile"
 if sed -n '/^Name=gonhanh$/p' "$HOME_ONE/.config/fcitx5/profile" | awk 'NF { found=1 } END { exit(found ? 0 : 1) }'; then
     printf 'GoNhanh profile entry survived uninstall\n' >&2
     exit 1
 fi
-[[ ! -e "$HOME_ONE/.local/bin/gn" ]]
+[[ ! -e "$HOME_ONE/.local/bin/gonhanh" ]]
+[[ ! -e "$HOME_ONE/.local/bin/gn" && ! -L "$HOME_ONE/.local/bin/gn" ]]
 
 printf 'Installer tests passed\n'

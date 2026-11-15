@@ -37,6 +37,19 @@ jobs:
       - name: Check Swift formatting
         run: swiftformat --lint platforms/macos
       - run: cargo build --manifest-path core/Cargo.toml --release
+      - name: Build macOS app, CLI, and unit tests
+        run: |
+          cp core/target/release/libgonhanh_core.a platforms/macos/libgonhanh_core.a
+          xcodebuild build-for-testing \
+            -project platforms/macos/GoNhanh.xcodeproj \
+            -scheme GoNhanh \
+            -derivedDataPath platforms/macos/build \
+            CODE_SIGN_IDENTITY="-"
+          BIN_DIR="platforms/macos/build/Build/Products/Debug/GoNhanh.app/Contents/SharedSupport/bin"
+          test -x "$BIN_DIR/gonhanh"
+          test -L "$BIN_DIR/gn"
+          "$BIN_DIR/gonhanh" version
+          "$BIN_DIR/gn" --help >/dev/null
 
   build-linux:
     runs-on: ubuntu-latest
@@ -79,4 +92,6 @@ jobs:
           ./keycodemap_test --gtest_color=yes
           LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/core/target/release:$LD_LIBRARY_PATH" \
             ./rustbridge_test --gtest_color=yes
+          cd "${GITHUB_WORKSPACE}"
+          bash platforms/linux/tests/InstallerTest.sh
 

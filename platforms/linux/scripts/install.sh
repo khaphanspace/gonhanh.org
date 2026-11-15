@@ -149,7 +149,7 @@ uninstall() {
     rm -f "$PREFIX/lib/fcitx5/gonhanh.so" "$PREFIX/lib/libgonhanh_core.so"
     rm -f "$PREFIX/share/fcitx5/addon/gonhanh.conf"
     rm -f "$PREFIX/share/fcitx5/inputmethod/gonhanh.conf"
-    rm -f "$PREFIX/bin/gn"
+    rm -f "$PREFIX/bin/gonhanh" "$PREFIX/bin/gn"
     remove_fcitx_profile_entry
     remove_shell_profile_block
     rm -rf "$CONFIG_HOME/gonhanh" "$STATE_DIR"
@@ -205,7 +205,8 @@ install_files() {
     install -m 0755 "$RUST_LIBRARY" "$PREFIX/lib/libgonhanh_core.so"
     install -m 0644 "$addon_config" "$PREFIX/share/fcitx5/addon/gonhanh.conf"
     install -m 0644 "$input_method_config" "$PREFIX/share/fcitx5/inputmethod/gonhanh.conf"
-    install -m 0755 "$CLI_SOURCE" "$PREFIX/bin/gn"
+    install -m 0755 "$CLI_SOURCE" "$PREFIX/bin/gonhanh"
+    ln -sfn gonhanh "$PREFIX/bin/gn"
     install -m 0755 "$SCRIPT_DIR/install.sh" "$STATE_DIR/install.sh"
 
     version="${GONHANH_VERSION:-}"
@@ -230,4 +231,4 @@ configure_fcitx_profile
 configure_shell_profile
 restart_fcitx
 log "✓ Đã cài Gõ Nhanh mà không thay đổi các input method Fcitx hiện có."
-log "  Chạy 'gn on' để chọn Gõ Nhanh, hoặc mở fcitx5-configtool."
+log "  Chạy 'gonhanh on' (hoặc 'gn on') để chọn Gõ Nhanh, hoặc mở fcitx5-configtool."

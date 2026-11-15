@@ -13,27 +13,52 @@ curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scrip
 Sau khi cài:
 
 1. Đăng xuất rồi đăng nhập lại để desktop nạp Fcitx5.
-2. Chạy `source ~/.profile` để dùng lệnh `gn` ngay trong terminal hiện tại.
-3. Chạy `gn on` để chọn GoNhanh.
+2. Chạy `source ~/.profile` để dùng lệnh `gonhanh` (hoặc bí danh `gn`) ngay trong terminal hiện tại.
+3. Chạy `gonhanh on` (hoặc `gn on`) để chọn GoNhanh.
 
 Có thể tải archive thủ công tại
 [`gonhanh-linux.tar.gz`](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/gonhanh-linux.tar.gz),
 giải nén và chạy `gonhanh-linux/install.sh`.
 
-## Sử dụng
+## Sử dụng (CLI & Vim Mode)
+
+CLI `gonhanh` / `gn` tương thích quy ước `im-select` / `macism` và đồng nhất với bản macOS:
 
 | Lệnh | Chức năng |
 |------|-----------|
-| `gn` hoặc `gn toggle` | Bật/tắt riêng GoNhanh |
-| `gn on` | Chọn và bật GoNhanh |
-| `gn off` | Tắt GoNhanh nếu đang được chọn |
-| `gn vni` | Chuyển sang VNI, tải lại Fcitx5 và bật GoNhanh |
-| `gn telex` | Chuyển sang Telex, tải lại Fcitx5 và bật GoNhanh |
-| `gn status` | Xem trạng thái riêng của GoNhanh và input method hiện tại |
-| `gn update` | Cài bản Linux mới nhất |
-| `gn uninstall` | Gỡ GoNhanh, giữ nguyên input method khác |
-| `gn version` | Xem phiên bản |
-| `gn help` | Hiển thị trợ giúp |
+| `gonhanh` (hoặc `gn`) | In trạng thái hiện tại: `vi` hoặc `en` |
+| `gonhanh vi` | Bật GoNhanh (im lặng trên `stdout`, dùng cho Vim/script) |
+| `gonhanh en` | Tắt GoNhanh (im lặng trên `stdout`, dùng cho Vim/script) |
+| `gonhanh toggle` | Đảo trạng thái bật/tắt riêng GoNhanh |
+| `gonhanh on` | Chọn và bật GoNhanh |
+| `gonhanh off` | Tắt GoNhanh nếu đang được chọn |
+| `gonhanh vni` | Chuyển sang VNI, tải lại Fcitx5 và bật GoNhanh |
+| `gonhanh telex` | Chuyển sang Telex, tải lại Fcitx5 và bật GoNhanh |
+| `gonhanh status` | Xem trạng thái riêng của GoNhanh và input method hiện tại |
+| `gonhanh update` | Cài bản Linux mới nhất |
+| `gonhanh uninstall` | Gỡ GoNhanh, giữ nguyên input method khác |
+| `gonhanh version` | Xem phiên bản |
+| `gonhanh help` | Hiển thị trợ giúp |
+
+### Tích hợp Vim Mode
+
+**Neovim ([`im-select.nvim`](https://github.com/keaising/im-select.nvim)):**
+```lua
+require("im_select").setup({
+  default_command = "gonhanh",
+  default_im_select = "en",
+})
+```
+
+**VS Code ([VSCodeVim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim)):**
+```json
+{
+  "vim.autoSwitchInputMethod.enable": true,
+  "vim.autoSwitchInputMethod.defaultIM": "en",
+  "vim.autoSwitchInputMethod.obtainIMCmd": "gonhanh",
+  "vim.autoSwitchInputMethod.switchIMCmd": "gonhanh {im}"
+}
+```
 
 Phím chuyển input method mặc định của Fcitx5 thường là `Ctrl + Space`; cấu hình
 thực tế phụ thuộc desktop.

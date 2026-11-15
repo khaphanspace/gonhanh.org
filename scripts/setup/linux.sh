@@ -87,7 +87,7 @@ print_summary() {
     printf "${GREEN}Cài đặt hoàn tất.${NC}\n"
     printf '  1. Đăng xuất rồi đăng nhập lại để desktop nạp cấu hình Fcitx5.\n'
     printf '  2. Chạy: source ~/.profile\n'
-    printf '  3. Chạy: gn on\n'
+    printf '  3. Chạy: gonhanh on (hoặc: gn on)\n'
     printf '  4. Nếu cần, mở fcitx5-configtool để kiểm tra Gõ Nhanh.\n\n'
     log_warn "Các input method hiện có (ví dụ Bamboo) được giữ nguyên."
 }
