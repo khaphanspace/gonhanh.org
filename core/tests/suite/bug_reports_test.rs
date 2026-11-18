@@ -1,0 +1,2376 @@
+//! Bug reports test cases
+//! These tests document expected behavior from user bug reports.
+
+use crate::common::{telex, telex_auto_restore, vni};
+use gonhanh_core::data::keys;
+use gonhanh_core::engine::shortcut::Shortcut;
+use gonhanh_core::engine::{Action, Engine};
+use gonhanh_core::utils::type_word;
+
+#[test]
+fn bug_bac_kan_hong_kong_telex_orders() {
+    let cases = [
+        ("Bacsw Kanj", "Bắc Kạn"),
+        ("Bacws Kajn", "Bắc Kạn"),
+        ("Bawcs Kanj", "Bắc Kạn"),
+        ("Bawsc Kajn", "Bắc Kạn"),
+        ("Hofong Koong", "Hồng Kông"),
+        ("Hongfo Kongo", "Hồng Kông"),
+        ("Hongof Koong", "Hồng Kông"),
+        ("Hoofng Kongo", "Hồng Kông"),
+        ("Hoongf Koong", "Hồng Kông"),
+        ("BACSW KANJ", "BẮC KẠN"),
+        ("HOONGF KOONG", "HỒNG KÔNG"),
+        ("bacsw kanj", "bắc kạn"),
+        ("hoongf koong", "hồng kông"),
+        ("kanj", "kạn"),
+        ("kajn", "kạn"),
+        ("koong", "kông"),
+        ("kongo", "kông"),
+        // Keep the standard spelling guard for unrelated K-initial input.
+        ("Hong Kong", "Hong Kong"),
+        ("Kara", "Kara"),
+        ("Kans", "Kans"),
+        ("kara", "kara"),
+        ("kans", "kans"),
+        ("kanji", "kanji"),
+        ("kanjis", "kanjis"),
+        ("kajal", "kajal"),
+        ("kajol", "kajol"),
+        ("koo", "koo"),
+        ("kook", "kook"),
+        ("kooky", "kooky"),
+        ("kooks", "kooks"),
+        ("kookaburra", "kookaburra"),
+        ("kool", "kool"),
+        ("koontz", "koontz"),
+        ("koos", "koos"),
+        ("kongos", "kongos"),
+    ];
+    let mut failures = Vec::new();
+    for (input, expected) in cases {
+        for auto_restore in [false, true] {
+            let committed_input = format!("{input} ");
+            let committed_expected = format!("{expected} ");
+            let (input, expected) = if auto_restore {
+                (committed_input.as_str(), committed_expected.as_str())
+            } else {
+                (input, expected)
+            };
+
+            let mut engine = Engine::new();
+            engine.set_english_auto_restore(auto_restore);
+            let actual = type_word(&mut engine, input);
+            if actual != expected {
+                failures.push(format!(
+                    "auto_restore={auto_restore}: '{input}' → '{actual}', expected '{expected}'"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Bắc Kạn / Hồng Kông Telex regressions:\n{}",
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_telex_cancel_keys() {
+    telex(&[
+        ("kanjj", "kanj"),
+        ("kanjz", "kanjz"),
+        ("kongoo", "kongo"),
+        ("kongoz", "kongoz"),
+        ("koongo", "koongo"),
+        ("koongz", "koongz"),
+    ]);
+}
+
+#[test]
+fn bug_bac_kan_hong_kong_vni_orders() {
+    vni(&[
+        ("Ba81c Ka5n", "Bắc Kạn"),
+        ("Ba8c1 Kan5", "Bắc Kạn"),
+        ("Ho62ng Ko6ng", "Hồng Kông"),
+        ("Ho6ng2 Kong6", "Hồng Kông"),
+        ("ba81c ka5n", "bắc kạn"),
+        ("ba8c1 kan5", "bắc kạn"),
+        ("ho62ng ko6ng", "hồng kông"),
+        ("ho6ng2 kong6", "hồng kông"),
+    ]);
+}
+
+fn type_physical_events(engine: &mut Engine, input: &[(u16, char, bool, bool)]) -> String {
+    let mut screen = String::new();
+
+    for &(key, typed, caps, shift) in input {
+        let result = engine.on_key_ext(key, caps, false, shift);
+        if result.action == Action::Send as u8 {
+            for _ in 0..result.backspace {
+                screen.pop();
+            }
+            for index in 0..result.count as usize {
+                screen.push(char::from_u32(result.chars[index]).expect("valid engine output"));
+            }
+        } else {
+            screen.push(typed);
+        }
+    }
+
+    screen
+}
+
+#[test]
+fn issue410_physical_shift_e_preserves_camel_case_word() {
+    let mut engine = Engine::new();
+    engine.set_english_auto_restore(true);
+
+    // The platform reports the uppercase E from a physical Shift+E keypress
+    // with both caps and shift set. Shift key-down/up events are not forwarded
+    // to the core; their state is carried by this E event.
+    let input = [
+        (keys::U, 'u', false, false),
+        (keys::S, 's', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'E', true, true),
+        (keys::F, 'f', false, false),
+        (keys::F, 'f', false, false),
+        (keys::E, 'e', false, false),
+        (keys::C, 'c', false, false),
+        (keys::T, 't', false, false),
+    ];
+
+    assert_eq!(type_physical_events(&mut engine, &input), "useEffect");
+}
+
+#[test]
+fn shifted_case_boundary_preserves_vietnamese_telex_prefix() {
+    let mut engine = Engine::new();
+    engine.set_english_auto_restore(true);
+    let input = [
+        (keys::T, 't', false, false),
+        (keys::I, 'i', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'e', false, false),
+        (keys::N, 'n', false, false),
+        (keys::G, 'g', false, false),
+        (keys::S, 's', false, false),
+        (keys::V, 'V', true, true),
+        (keys::I, 'i', false, false),
+        (keys::E, 'e', false, false),
+        (keys::E, 'e', false, false),
+        (keys::J, 'j', false, false),
+        (keys::T, 't', false, false),
+    ];
+
+    assert_eq!(type_physical_events(&mut engine, &input), "tiếngViệt");
+}
+
+// =============================================================================
+// BUG 1: "did" -> expect "đi"
+// Current: ?
+// Expected: "đi"
+// =============================================================================
+
+#[test]
+fn bug1_did_to_di() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "did");
+    println!("'did' -> '{}' (expected: 'đi')", result);
+    // TODO: Verify expected behavior
+    // telex(&[("did", "đi")]);
+}
+
+// =============================================================================
+// BUG 2: "thowifi" -> "thơìi", expected "thờii"
+// Current: thơìi (horn on o, huyền on second i)
+// Expected: thờii (horn+huyền on o, plain ii)
+// =============================================================================
+
+#[test]
+fn bug2_thowifi() {
+    // Test with huyền tone mark (f) - the actual input sequence
+    // "thowifi" should produce "thờii" (tone on ơ, not on i)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "thowifi");
+    println!("'thowifi' -> '{}' (expected: 'thờii')", result);
+    // TODO: Verify expected behavior
+    // telex(&[("thowifi", "thờii")]);
+}
+
+// =============================================================================
+// BUG 3: "uawf"
+// GoNhanh: uằ (w applies breve to a)
+// OS built-in: ừa (w applies horn to u, creating ưa pattern)
+// =============================================================================
+
+#[test]
+fn bug3_uawf() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "uawf");
+    println!("'uawf' -> '{}' (OS built-in gives: 'ừa')", result);
+    // TODO: Decide on expected behavior
+    // If following OS built-in: telex(&[("uawf", "ừa")]);
+}
+
+// =============================================================================
+// BUG 4: "cuoiwsi" -> "cươii", expected "cướii"
+// Current: cươii (ươ without tone, or tone on wrong position)
+// Expected: cướii (ươ + sắc tone on ươ)
+// =============================================================================
+
+#[test]
+fn bug4_thuoiwfi() {
+    // Test with compound vowel ươ + sắc tone mark (s)
+    // "cuoiwsi" should produce "cướii" (tone on ươ, not on i)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "cuoiwsi");
+    println!("'cuoiwsi' -> '{}' (expected: 'cướii')", result);
+    // TODO: Verify expected behavior
+    // telex(&[("cuoiwsi", "cướii")]);
+}
+
+// =============================================================================
+// BUG 5: "ddd" -> "đd", expected "dd"
+// Current: đd (đ + d because third d is just added)
+// Expected: dd (third d reverts stroke, returning to raw)
+// =============================================================================
+
+#[test]
+fn bug5_ddd_revert() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "ddd");
+    println!("'ddd' -> '{}' (expected: 'dd')", result);
+    // TODO: Change behavior
+    // telex(&[("ddd", "dd")]);
+}
+
+// =============================================================================
+// Additional test: Current expected behaviors
+// =============================================================================
+
+#[test]
+fn current_dd_makes_stroke() {
+    // dd → đ (correct, should not change)
+    telex(&[("dd", "đ")]);
+}
+
+#[test]
+fn current_thowi() {
+    // Check what thowi produces
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "thowi");
+    println!("'thowi' -> '{}'", result);
+}
+
+#[test]
+fn current_uaw() {
+    // Check what uaw produces (without f)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "uaw");
+    println!("'uaw' -> '{}'", result);
+}
+
+// =============================================================================
+// BUG 6: " ddddd" (space + ddddd) -> deletes the space
+// Current: space is deleted
+// Expected: " dddd" (space preserved)
+// =============================================================================
+
+#[test]
+fn bug6_ddddd_deletes_space() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, " ddddd");
+    println!("' ddddd' -> '{}' (expected: ' dddd')", result);
+    assert_eq!(
+        result, " dddd",
+        "Space should be preserved when typing ' ddddd'"
+    );
+}
+
+#[test]
+fn ddddd_behavior() {
+    let mut e = Engine::new();
+
+    // Debug step by step
+    use gonhanh_core::engine::Action;
+
+    let mut screen = String::new();
+    let inputs = ['d', 'd', 'd', 'd', 'd'];
+
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            println!(
+                "Key '{}': backspace={}, output='{}' (screen before: '{}')",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            println!("Key '{}': passthrough (screen before: '{}')", c, screen);
+            screen.push(c);
+        }
+        println!("  -> screen after: '{}'", screen);
+    }
+
+    println!("\nFinal: 'ddddd' -> '{}' (expected: 'dddd')", screen);
+    assert_eq!(screen, "dddd", "'ddddd' should produce 'dddd'");
+}
+
+// =============================================================================
+// FIXED: "Wf" → "Ừ", "wmf" → "ừm", "Wmf " → "Ừm "
+// W shortcut converts to ư, then mark 'f' applies to ư correctly
+// Tests added to unit_test.rs TELEX_WORDS section
+// =============================================================================
+
+#[test]
+fn fixed_w_shortcut_with_mark() {
+    telex(&[
+        ("Wf", "Ừ"),
+        ("wf", "ừ"),
+        ("wmf", "ừm"),
+        ("Wmf ", "Ừm "),
+        ("wmf ", "ừm "),
+    ]);
+}
+
+// =============================================================================
+// BUG 7: After "ddddd" → "dddd", backspace to "d", then "d" should produce "đ"
+// The stroke_reverted flag should be reset on backspace
+// =============================================================================
+
+#[test]
+fn bug7_backspace_resets_stroke_reverted() {
+    // Type "ddddd" → "dddd", then backspace 3 times → "d", then type "d" → should be "đ"
+    // Note: '<' is mapped to DELETE key in char_to_key
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "ddddd<<<d");
+    println!(
+        "'ddddd' + backspace×3 + 'd' -> '{}' (expected: 'đ')",
+        result
+    );
+    assert_eq!(result, "đ", "After backspace, dd should produce đ again");
+}
+
+// =============================================================================
+// BUG 8: "taifii" -> "taìi", expected "tàii"
+// When extra vowels are typed after a valid diphthong with mark, the mark
+// should stay on the correct vowel for the original diphthong, not move to
+// a new position based on invalid triphthong rules.
+// =============================================================================
+
+#[test]
+fn bug8_extra_vowel_after_diphthong_mark() {
+    let mut e = Engine::new();
+    // taif → tài (mark on 'a' for "ai" diphthong)
+    // taifi → should be tàii (mark stays on 'a', not moved to 'i')
+    // The issue was: typing "taifi" produced "taìi" (mark wrongly on first 'i')
+    // Fixed: "taifi" now correctly produces "tàii" (mark stays on 'a')
+    let result = type_word(&mut e, "taifi");
+    println!("'taifi' -> '{}' (expected: 'tàii')", result);
+    assert_eq!(
+        result, "tàii",
+        "'taifi' should produce 'tàii' (mark on 'a')"
+    );
+
+    // Also verify the 6-key input produces 3 i's
+    let mut e2 = Engine::new();
+    let result2 = type_word(&mut e2, "taifii");
+    println!("'taifii' -> '{}' (expected: 'tàiii')", result2);
+    assert_eq!(
+        result2, "tàiii",
+        "'taifii' should produce 'tàiii' (mark on 'a')"
+    );
+}
+
+// =============================================================================
+// BUG 9: Delayed circumflex with post-tone 'd' for stroke
+// "ddoong " -> "đông " (dd=đ, oo=ô, ng=final)
+// "doodng " -> "đông " (d, oo=ô, d=stroke on initial d, ng=final)
+// "duod" -> "đuo" (d, uo, d=stroke on initial d)
+// =============================================================================
+
+#[test]
+fn bug9_delayed_circumflex_stroke() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "ddoong ");
+    println!("'ddoong ' -> '{}' (expected: 'đông ')", result);
+    assert_eq!(result, "đông ", "'ddoong ' should produce 'đông '");
+
+    let mut e2 = Engine::new();
+    let result2 = type_word(&mut e2, "doodng ");
+    println!("'doodng ' -> '{}' (expected: 'đông ')", result2);
+    assert_eq!(result2, "đông ", "'doodng ' should produce 'đông '");
+
+    // Test without space
+    let mut e3 = Engine::new();
+    let result3 = type_word(&mut e3, "duod");
+    println!("'duod' -> '{}' (expected: 'đuo')", result3);
+    assert_eq!(result3, "đuo", "'duod' should produce 'đuo'");
+
+    // Test with space
+    let mut e4 = Engine::new();
+    let result4 = type_word(&mut e4, "duod ");
+    println!("'duod ' -> '{}' (expected: 'đuo ')", result4);
+    assert_eq!(result4, "đuo ", "'duod ' should produce 'đuo '");
+}
+
+// =============================================================================
+// BUG 10: "raisse " should restore to "raise ", "raise " should stay "raise "
+// With auto_restore enabled, English words should be detected and restored
+// =============================================================================
+
+#[test]
+fn bug10_raisse_restore() {
+    // First check without auto_restore
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "raisse ");
+    println!("[no auto_restore] 'raisse ' -> '{}'", result);
+
+    let mut e2 = Engine::new();
+    let result2 = type_word(&mut e2, "raise ");
+    println!("[no auto_restore] 'raise ' -> '{}'", result2);
+
+    // Then with auto_restore
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let result3 = type_word(&mut e3, "raisse ");
+    println!("[auto_restore] 'raisse ' -> '{}'", result3);
+
+    let mut e4 = Engine::new();
+    e4.set_english_auto_restore(true);
+    let result4 = type_word(&mut e4, "raise ");
+    println!("[auto_restore] 'raise ' -> '{}'", result4);
+
+    // Assert expected behavior with auto_restore
+    assert_eq!(result3, "raise ", "'raisse ' should produce 'raise '");
+    assert_eq!(result4, "raise ", "'raise ' should produce 'raise '");
+
+    // Check what "theme " produces (without and with auto_restore)
+    let mut e5a = Engine::new();
+    let result5a = type_word(&mut e5a, "theme ");
+    println!("[no auto_restore] 'theme ' -> '{}'", result5a);
+
+    let mut e5b = Engine::new();
+    e5b.set_english_auto_restore(true);
+    let result5b = type_word(&mut e5b, "theme ");
+    println!("[auto_restore] 'theme ' -> '{}'", result5b);
+
+    // "theme " should produce "thêm " (valid Vietnamese, NOT restored)
+    // In Telex: delayed circumflex - 'e' after consonant applies to previous 'e'
+    assert_eq!(
+        result5b, "thêm ",
+        "'theme ' should produce 'thêm ' (valid Vietnamese)"
+    );
+
+    // "sorry " should stay as "sorry " (not "sory ")
+    // This verifies we excluded 'y' from the double-s + vowel pattern
+    let mut e6 = Engine::new();
+    e6.set_english_auto_restore(true);
+    let result6 = type_word(&mut e6, "sorry ");
+    println!("[auto_restore] 'sorry ' -> '{}'", result6);
+    assert_eq!(
+        result6, "sorry ",
+        "'sorry ' should produce 'sorry ' (not 'sory ')"
+    );
+
+    // "dayda " and "daday " should produce "đây " (valid Vietnamese)
+    let mut e7 = Engine::new();
+    let result7 = type_word(&mut e7, "dayda ");
+    println!("[no auto_restore] 'dayda ' -> '{}'", result7);
+
+    let mut e8 = Engine::new();
+    e8.set_english_auto_restore(true);
+    let result8 = type_word(&mut e8, "dayda ");
+    println!("[auto_restore] 'dayda ' -> '{}'", result8);
+
+    let mut e9 = Engine::new();
+    e9.set_english_auto_restore(true);
+    let result9 = type_word(&mut e9, "daday ");
+    println!("[auto_restore] 'daday ' -> '{}'", result9);
+
+    assert_eq!(result8, "đây ", "'dayda ' should produce 'đây '");
+    assert_eq!(result9, "đây ", "'daday ' should produce 'đây '");
+}
+
+// =============================================================================
+// BUG 11: Shortcut "->" → "→" not working
+// Break characters like '-' and '>' are not accumulated in buffer
+// =============================================================================
+
+#[test]
+fn bug11_arrow_shortcut() {
+    use gonhanh_core::engine::shortcut::Shortcut;
+
+    let mut e = Engine::new();
+    // Add shortcut "->" → "→"
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    let result = type_word(&mut e, "->");
+    println!("'->' -> '{}' (expected: '→')", result);
+    assert_eq!(result, "→", "'->' should produce '→'");
+}
+
+// =============================================================================
+// ISSUE #128: Gõ tắt không hoạt động sau khi xoá
+// After typing shortcut "->", deleting "→", then typing "->" again doesn't work
+// =============================================================================
+
+#[test]
+fn issue128_shortcut_after_delete() {
+    use gonhanh_core::engine::shortcut::Shortcut;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    // Step 1: Type "->" → "→"
+    let result1 = type_word(&mut e, "->");
+    println!("Step 1: '->' -> '{}' (expected: '→')", result1);
+    assert_eq!(result1, "→", "First '->' should produce '→'");
+
+    // Step 2: Delete "→" (simulated by '<' which maps to DELETE)
+    let result2 = type_word(&mut e, "<");
+    println!("Step 2: after delete -> '{}' (expected: '')", result2);
+
+    // Step 3: Type "->" again → should still produce "→"
+    let result3 = type_word(&mut e, "->");
+    println!("Step 3: '->' again -> '{}' (expected: '→')", result3);
+    assert_eq!(result3, "→", "Second '->' after delete should produce '→'");
+}
+
+#[test]
+fn issue128_shortcut_after_multiple_deletes() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::shortcut::Shortcut;
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    // Step 1: Type "-" (first char of shortcut)
+    let r1 = e.on_key_ext(keys::MINUS, false, false, false);
+    println!("Step 1: '-' action={}", r1.action);
+
+    // Step 2: Type ">" (should trigger shortcut)
+    let r2 = e.on_key_ext(keys::DOT, false, false, true); // Shift+DOT = '>'
+    println!("Step 2: '>' action={}, count={}", r2.action, r2.count);
+    assert_eq!(r2.action, Action::Send as u8, "Shortcut should fire");
+
+    // Step 3: Delete (backspace)
+    let r3 = e.on_key_ext(keys::DELETE, false, false, false);
+    println!("Step 3: DELETE action={}", r3.action);
+
+    // Step 4: Type "-" again
+    let r4 = e.on_key_ext(keys::MINUS, false, false, false);
+    println!("Step 4: '-' action={}", r4.action);
+
+    // Step 5: Type ">" again (should trigger shortcut)
+    let r5 = e.on_key_ext(keys::DOT, false, false, true);
+    println!("Step 5: '>' action={}, count={}", r5.action, r5.count);
+    assert_eq!(
+        r5.action,
+        Action::Send as u8,
+        "Second shortcut should fire after delete"
+    );
+}
+
+#[test]
+fn issue128_detailed_debug() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::shortcut::Shortcut;
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    println!("=== Issue #128 Detailed Debug ===");
+
+    // Type "->" first time
+    println!("\n[1] Type '-'");
+    let r = e.on_key_ext(keys::MINUS, false, false, false);
+    println!("    Result: action={}", r.action);
+
+    println!("\n[2] Type '>' (Shift+DOT)");
+    let r = e.on_key_ext(keys::DOT, false, false, true);
+    println!(
+        "    Result: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
+    if r.action == Action::Send as u8 {
+        let chars: String = (0..r.count as usize)
+            .filter_map(|i| char::from_u32(r.chars[i]))
+            .collect();
+        println!("    Output: '{}'", chars);
+    }
+
+    // Now delete
+    println!("\n[3] Press DELETE");
+    let r = e.on_key_ext(keys::DELETE, false, false, false);
+    println!("    Result: action={}", r.action);
+
+    // Type "->" second time
+    println!("\n[4] Type '-' again");
+    let r = e.on_key_ext(keys::MINUS, false, false, false);
+    println!("    Result: action={}", r.action);
+
+    println!("\n[5] Type '>' again (Shift+DOT)");
+    let r = e.on_key_ext(keys::DOT, false, false, true);
+    println!(
+        "    Result: action={}, backspace={}, count={}",
+        r.action, r.backspace, r.count
+    );
+    if r.action == Action::Send as u8 {
+        let chars: String = (0..r.count as usize)
+            .filter_map(|i| char::from_u32(r.chars[i]))
+            .collect();
+        println!("    Output: '{}' ✓", chars);
+    } else {
+        println!("    ✗ Shortcut did NOT fire!");
+    }
+
+    assert_eq!(r.action, Action::Send as u8, "Second shortcut should fire");
+}
+
+// =============================================================================
+// ISSUE #129: Gõ tắt không hoạt động khi chuyển sang tiếng Anh
+// Shortcuts don't work after switching to English mode
+// Note: This is a design decision - shortcuts should work in English mode too
+// =============================================================================
+
+#[test]
+fn issue129_shortcut_in_english_mode() {
+    use gonhanh_core::engine::shortcut::Shortcut;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    // Step 1: Type "->" in Vietnamese mode → "→"
+    let result1 = type_word(&mut e, "->");
+    println!("Step 1 [VI]: '->' -> '{}' (expected: '→')", result1);
+    assert_eq!(result1, "→", "'->' in Vietnamese mode should produce '→'");
+
+    // Step 2: Switch to English mode (disable IME)
+    e.set_enabled(false);
+
+    // Step 3: Type "->" in English mode → should still produce "→"
+    // Currently this fails because disabled IME bypasses all processing
+    let result2 = type_word(&mut e, "->");
+    println!("Step 2 [EN]: '->' -> '{}' (expected: '→')", result2);
+    assert_eq!(
+        result2, "→",
+        "'->' in English mode should still produce '→'"
+    );
+}
+
+// =============================================================================
+// ISSUE #130: Gõ tắt không hoạt động khi gõ tắt nhiều lần
+// Shortcut doesn't work when used multiple times with text in between
+// =============================================================================
+
+#[test]
+fn issue130_multiple_shortcuts() {
+    use gonhanh_core::engine::shortcut::Shortcut;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    // Step 1: Type "->" → "→"
+    let result1 = type_word(&mut e, "->");
+    println!("Step 1: '->' -> '{}' (expected: '→')", result1);
+    assert_eq!(result1, "→", "First '->' should produce '→'");
+
+    // Step 2: Type "abc"
+    let result2 = type_word(&mut e, "abc");
+    println!("Step 2: 'abc' -> '{}' (expected: 'abc')", result2);
+    assert_eq!(result2, "abc", "'abc' should produce 'abc'");
+
+    // Step 3: Type "->" again → should produce "→"
+    let result3 = type_word(&mut e, "->");
+    println!("Step 3: '->' again -> '{}' (expected: '→')", result3);
+    assert_eq!(result3, "→", "Second '->' should produce '→'");
+}
+
+#[test]
+fn issue130_shortcut_after_word_with_space() {
+    use gonhanh_core::engine::shortcut::Shortcut;
+
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("->", "→"));
+
+    // Type "->" + "abc " + "->"
+    // The space after "abc" should clear state properly
+    let result1 = type_word(&mut e, "->");
+    assert_eq!(result1, "→", "First '->'");
+
+    let result2 = type_word(&mut e, "abc ");
+    assert_eq!(result2, "abc ", "'abc ' should pass through");
+
+    let result3 = type_word(&mut e, "->");
+    println!("After '→abc ': '->' -> '{}' (expected: '→')", result3);
+    assert_eq!(result3, "→", "'->' after 'abc ' should produce '→'");
+}
+
+// =============================================================================
+// BUG 145: "view" → "vieư", expected "view"
+// The triphthong iêu requires circumflex on E. When typing "view":
+// - "iew" has no circumflex on E and horn on U → invalid Vietnamese
+// - Should NOT transform w→ư when result is invalid
+// =============================================================================
+
+#[test]
+fn bug145_view_should_not_transform() {
+    // Without auto_restore: "view" should stay as "view" (w not transformed)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "view");
+    println!("'view' -> '{}' (expected: 'view')", result);
+    assert_eq!(result, "view", "'view' should stay as 'view', not 'vieư'");
+
+    // With auto_restore and space: should also be "view "
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "view ");
+    println!(
+        "[auto_restore] 'view ' -> '{}' (expected: 'view ')",
+        result2
+    );
+    assert_eq!(
+        result2, "view ",
+        "'view ' with auto_restore should be 'view '"
+    );
+}
+
+// =============================================================================
+// BUG: "derde " → "để " (circumflex + hỏi combined)
+// In Telex: d=initial, e=vowel, r=hỏi, d=stroke, e=circumflex
+// The second 'e' should add circumflex to existing ẻ → ể
+// =============================================================================
+
+#[test]
+fn bug_derde_to_de_hoi() {
+    // Debug: step by step
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    let mut screen = String::new();
+    let inputs = ['d', 'e', 'r', 'd', 'e', ' '];
+
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("\nFinal: 'derde ' -> '{}' (expected: 'để ')", screen);
+    assert_eq!(
+        screen, "để ",
+        "'derde ' with auto_restore should produce 'để '"
+    );
+}
+
+// =============================================================================
+// ISSUE #146: "tóm" → "toms" (tone mark not applied)
+// In Telex: "toms" should produce "tóm" (s = sắc tone on 'o')
+// =============================================================================
+
+#[test]
+fn issue146_tom_s_should_produce_tom_sac() {
+    // "toms" in Telex should produce "tóm" (sắc tone on 'o')
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "toms");
+    println!("'toms' -> '{}' (expected: 'tóm')", result);
+    assert_eq!(result, "tóm", "'toms' should produce 'tóm', not 'toms'");
+
+    // Also test with space
+    let mut e2 = Engine::new();
+    let result2 = type_word(&mut e2, "toms ");
+    println!("'toms ' -> '{}' (expected: 'tóm ')", result2);
+    assert_eq!(
+        result2, "tóm ",
+        "'toms ' should produce 'tóm ', not 'toms '"
+    );
+
+    // Test similar patterns
+    telex(&[
+        ("toms", "tóm"), // Issue #146
+        ("moms", "móm"), // Similar pattern
+        ("boms", "bóm"), // Similar pattern
+        ("coms", "cóm"), // Similar pattern
+        ("doms", "dóm"), // Similar pattern
+        ("noms", "nóm"), // Similar pattern
+    ]);
+}
+
+// =============================================================================
+// BUG: "nesue " → "nếu " (delayed circumflex with tone before vowel)
+// In Telex: n=initial, e=vowel, s=sắc on 'e', u=vowel, e=circumflex on first 'e'
+// Pattern: typing 's' (sắc) then 'ue' should form "nếu" (if) not "néue"
+// =============================================================================
+
+#[test]
+fn bug_nesue_to_neu_circumflex() {
+    use gonhanh_core::engine::Action;
+    use gonhanh_core::utils::telex_auto_restore;
+
+    // Debug: step by step
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    let mut screen = String::new();
+    let inputs = ['n', 'e', 's', 'u', 'e', ' '];
+
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("\nFinal: 'nesue ' -> '{}' (expected: 'nếu ')", screen);
+
+    // Now test with telex_auto_restore helper
+    telex_auto_restore(&[("nesue ", "nếu ")]);
+}
+
+#[test]
+fn test_neus_tone_position() {
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    let mut screen = String::new();
+    let inputs = ['n', 'e', 'u', 's'];
+
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("\nFinal: 'neus' -> '{}' (expected: 'néu')", screen);
+    assert_eq!(screen, "néu", "'neus' should produce 'néu' (tone on e)");
+}
+
+// =============================================================================
+// ISSUE #162: "o2o" → "oô", expected "o2o"
+// In Telex mode, numbers should NOT trigger VNI modifiers.
+// VNI mode: 2 = huyền mark, 6 = circumflex
+// Telex mode: 2 should be just a regular character
+// =============================================================================
+
+#[test]
+fn issue162_o2o_should_not_transform_in_telex() {
+    // Telex mode is default (method = 0)
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "o2o");
+    println!("'o2o' -> '{}' (expected: 'o2o')", result);
+    assert_eq!(
+        result, "o2o",
+        "'o2o' in Telex mode should stay as 'o2o', not 'oô'"
+    );
+
+    // Additional test cases with numbers in Telex mode
+    telex_auto_restore(&[
+        ("o2o", "o2o"),       // Issue #162
+        ("a2a", "a2a"),       // Similar pattern
+        ("e2e", "e2e"),       // Similar pattern
+        ("o6o", "o6o"),       // '6' should also not trigger circumflex in Telex
+        ("a1a", "a1a"),       // '1' should not trigger sắc in Telex
+        ("123", "123"),       // Pure numbers should pass through
+        ("a1b2c3", "a1b2c3"), // Mixed alphanumeric
+    ]);
+
+    // VNI mode: numbers ARE modifiers
+    // "o2o" should produce "òo" (2=huyền mark, then 'o' added after)
+    vni(&[
+        ("o2o", "òo"), // Issue #162 - VNI mode: huyền on first o, then second o
+        ("a2a", "àa"), // Similar pattern
+        ("e2e", "èe"), // Similar pattern
+        ("o6o", "ôo"), // 6 = circumflex on first o, then second o
+        ("a1a", "áa"), // 1 = sắc on first a, then second a
+    ]);
+}
+
+// Debug test for VNI o2o
+#[test]
+fn debug_vni_o2o() {
+    use gonhanh_core::data::keys;
+
+    let mut e = Engine::new();
+    e.set_method(1); // VNI
+
+    // Step-by-step debugging
+    println!("\n=== VNI o2o Debug ===");
+
+    // Step 1: Type 'o'
+    let r1 = e.on_key(keys::O, false, false);
+    println!(
+        "After 'o': action={}, backspace={}, count={}",
+        r1.action, r1.backspace, r1.count
+    );
+
+    // Step 2: Type '2' (huyền mark)
+    let r2 = e.on_key(keys::N2, false, false);
+    println!(
+        "After '2': action={}, backspace={}, count={}, chars={:?}",
+        r2.action,
+        r2.backspace,
+        r2.count,
+        (0..r2.count as usize)
+            .filter_map(|i| char::from_u32(r2.chars[i]))
+            .collect::<Vec<_>>()
+    );
+
+    // Step 3: Type 'o'
+    let r3 = e.on_key(keys::O, false, false);
+    println!(
+        "After 2nd 'o': action={}, backspace={}, count={}, chars={:?}",
+        r3.action,
+        r3.backspace,
+        r3.count,
+        (0..r3.count as usize)
+            .filter_map(|i| char::from_u32(r3.chars[i]))
+            .collect::<Vec<_>>()
+    );
+
+    // Test type_word result
+    e.clear();
+    let result = type_word(&mut e, "o2o");
+    println!("type_word('o2o') = '{}' (expected: 'òo')", result);
+
+    // FIXED: VNI "o2o" now correctly produces "òo"
+    // The issue was in reposition_tone_if_needed() - it was incorrectly moving the
+    // mark from position 0 to position 1 because "oo" is not in TONE_FIRST_PATTERNS
+    // or TONE_SECOND_PATTERNS, so find_tone_position returned position 1 by default.
+    //
+    // The fix adds a check to skip repositioning for identical doubled vowels
+    // like "oo", "aa", "ee" which are NOT valid Vietnamese diphthongs.
+    assert_eq!(result, "òo", "VNI 'o2o' should produce 'òo'");
+}
+
+// =============================================================================
+// BUG: "desp" → "dép" (tone mark before final consonant)
+// In Telex: d=initial, e=vowel, s=sắc on 'e', p=final consonant
+// Pattern: "dép" (Vietnamese for slippers) is valid Vietnamese
+// =============================================================================
+
+#[test]
+fn bug_desp_to_dep_sac() {
+    // "desp" in Telex should produce "dép" (sắc tone on 'e')
+    // Previously blocked by foreign word pattern check (D+E → describe/design)
+    telex(&[
+        ("desp", "dép"),   // dép - slippers
+        ("desp ", "dép "), // with space
+    ]);
+}
+
+// =============================================================================
+// Issue #150: Control key should clear buffer (break rhythm)
+// https://github.com/user/gonhanh/issues/150
+//
+// EVKey behavior: Z-A-[Control]-L-O-R → "zalỏ"
+// Current: Z-A-[Control]-L-O-R → "zaloo" (Control doesn't break)
+//
+// Root cause: Platform layers don't call clear() on Control keydown.
+// Fix: Platform layers should call ime_clear() when Control is pressed alone.
+// =============================================================================
+
+#[test]
+fn issue150_control_clears_buffer_for_rhythm_break() {
+    let mut e = Engine::new();
+
+    // Type "za"
+    type_word(&mut e, "za");
+
+    // Simulate Control keypress by calling clear()
+    // (Platform layer should call ime_clear() on Control keydown)
+    e.clear();
+
+    // Type "lor" - should start fresh, "r" applies tone to "lo" → "lỏ"
+    let result = type_word(&mut e, "lor");
+    assert_eq!(
+        result, "lỏ",
+        "After buffer clear, 'lor' should produce 'lỏ'"
+    );
+}
+
+#[test]
+fn issue150_without_control_buffer_continues() {
+    let mut e = Engine::new();
+
+    // Type "zalor" continuously without Control break
+    let result = type_word(&mut e, "zalor");
+
+    // "zalor" is not valid Vietnamese, "r" can't apply tone at this position
+    // Should remain as raw or partial transform
+    println!("'zalor' without break -> '{}'", result);
+
+    // The key point: without clear(), the result is different from "za" + clear + "lor"
+    assert_ne!(
+        result, "lỏ",
+        "Without buffer clear, result should differ from 'lỏ'"
+    );
+}
+
+// =============================================================================
+// Issue #159: Bracket shortcuts ] → ư, [ → ơ (Telex mode)
+// https://github.com/user/gonhanh/issues/159
+//
+// Allow users to type bracket keys as shortcuts for common horn vowels:
+// - ] → ư (right bracket → U with horn)
+// - [ → ơ (left bracket → O with horn)
+// =============================================================================
+
+#[test]
+fn issue159_bracket_as_vowel() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    e.set_bracket_shortcut(true); // Enable feature (default OFF)
+
+    // Test ] → ư at word start
+    let result = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(result.action, 1, "']' should send output");
+    assert_eq!(
+        result.chars[0], 'ư' as u32,
+        "']' at word start should produce 'ư'"
+    );
+
+    e.clear();
+
+    // Test [ → ơ at word start
+    let result = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result.action, 1, "'[' should send output");
+    assert_eq!(
+        result.chars[0], 'ơ' as u32,
+        "'[' at word start should produce 'ơ'"
+    );
+
+    e.clear();
+
+    // Test t] → tư (after consonant)
+    e.on_key(keys::T, false, false);
+    let result = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(result.action, 1, "'t]' should send output");
+    assert_eq!(result.chars[0], 'ư' as u32, "'t]' should produce 'tư'");
+
+    e.clear();
+
+    // Test t[ → tơ (after consonant)
+    e.on_key(keys::T, false, false);
+    let result = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result.action, 1, "'t[' should send output");
+    assert_eq!(result.chars[0], 'ơ' as u32, "'t[' should produce 'tơ'");
+}
+
+#[test]
+fn issue159_bracket_with_marks() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    e.set_bracket_shortcut(true); // Enable feature (default OFF)
+
+    // Test t]s → tứ (ư with sắc)
+    e.on_key(keys::T, false, false);
+    e.on_key(keys::RBRACKET, false, false);
+    let _result = e.on_key(keys::S, false, false);
+    // Note: result shows only the change, full buffer is "tứ"
+    println!("t]s -> buffer contains tứ");
+
+    e.clear();
+
+    // Test t[f → tờ (ơ with huyền)
+    e.on_key(keys::T, false, false);
+    e.on_key(keys::LBRACKET, false, false);
+    let _result = e.on_key(keys::F, false, false);
+    println!("t[f -> buffer contains tờ");
+}
+
+#[test]
+fn issue159_bracket_disabled() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    // Default is OFF, so bracket should pass through
+    let result = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(
+        result.action, 0,
+        "']' with feature disabled should pass through"
+    );
+
+    e.clear();
+
+    // Enable then disable
+    e.set_bracket_shortcut(true);
+    e.set_bracket_shortcut(false);
+    let result = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(
+        result.action, 0,
+        "'[' with feature disabled should pass through"
+    );
+}
+
+#[test]
+fn issue159_bracket_revert() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    e.set_bracket_shortcut(true); // Enable feature (default OFF)
+
+    // Test ]] → ] (double bracket reverts)
+    let result1 = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(result1.action, 1, "First ']' should produce output");
+    assert_eq!(result1.chars[0], 'ư' as u32, "First ']' should produce 'ư'");
+
+    let result2 = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(result2.action, 1, "Second ']' should revert");
+    assert_eq!(
+        result2.chars[0], ']' as u32,
+        "Second ']' should revert to ']'"
+    );
+
+    e.clear();
+
+    // Test [[ → [ (double bracket reverts)
+    let result1 = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result1.action, 1, "First '[' should produce output");
+    assert_eq!(result1.chars[0], 'ơ' as u32, "First '[' should produce 'ơ'");
+
+    let result2 = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result2.action, 1, "Second '[' should revert");
+    assert_eq!(
+        result2.chars[0], '[' as u32,
+        "Second '[' should revert to '['"
+    );
+
+    e.clear();
+
+    // Test t]] → t] (revert after consonant)
+    e.on_key(keys::T, false, false);
+    e.on_key(keys::RBRACKET, false, false); // tư
+    let result = e.on_key(keys::RBRACKET, false, false); // revert to t]
+    assert_eq!(result.action, 1, "Second ']' should revert");
+    assert_eq!(result.chars[0], ']' as u32, "t]] should revert to t]");
+}
+
+// =============================================================================
+// ISSUE #200: "khoảng " → "khoan " (tone mark lost on space)
+// https://github.com/user/gonhanh/issues/200
+//
+// User reports: typing "khoảng" + space becomes "khoan"
+// Expected: "khoảng " should stay as "khoảng "
+// =============================================================================
+
+#[test]
+fn issue200_khoang_loses_tone_on_space() {
+    use gonhanh_core::engine::Action;
+
+    // Test without auto_restore
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "khoangr ");
+    println!("'khoangr ' -> '{}' (expected: 'khoảng ')", result);
+    assert_eq!(
+        result, "khoảng ",
+        "'khoangr ' should produce 'khoảng ', not 'khoan '"
+    );
+
+    // Test with auto_restore enabled
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "khoangr ");
+    println!(
+        "[auto_restore] 'khoangr ' -> '{}' (expected: 'khoảng ')",
+        result2
+    );
+    assert_eq!(
+        result2, "khoảng ",
+        "'khoangr ' with auto_restore should produce 'khoảng '"
+    );
+
+    // Debug step-by-step
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen = String::new();
+    let inputs = ['k', 'h', 'o', 'a', 'n', 'g', 'r', ' '];
+
+    println!("\n=== Step-by-step debug ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+    println!("Final screen: '{}'", screen);
+}
+
+// =============================================================================
+// ISSUE #197: Need to press tone key twice for mark removal after backspace
+// https://github.com/user/gonhanh/issues/197
+//
+// Steps to reproduce:
+// 1. Type "serv" → "sẻv"
+// 2. Backspace → "sẻ"
+// 3. Type "r" → should become "ser" but needs 2 presses
+//
+// Another example:
+// 1. Type "caos" → "cáo"
+// 2. Type "s" again → should restore "caos" but doesn't work
+// =============================================================================
+
+#[test]
+fn issue197_mark_removal_after_backspace() {
+    use gonhanh_core::engine::Action;
+
+    // Test case 1: serv → backspace → ser
+    let mut e = Engine::new();
+    let mut screen = String::new();
+
+    println!("\n=== Issue #197 Test: serv + backspace + r ===");
+
+    // Type "serv" → should become "sẻv"
+    for c in ['s', 'e', 'r', 'v'] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+    println!("After 'serv': screen='{}'", screen);
+    assert_eq!(screen, "sẻv", "'serv' should produce 'sẻv'");
+
+    // Backspace → should be "sẻ"
+    let key = gonhanh_core::utils::char_to_key('<'); // '<' = DELETE
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+    } else {
+        screen.pop();
+    }
+    println!("After backspace: screen='{}'", screen);
+    assert_eq!(screen, "sẻ", "After backspace should be 'sẻ'");
+
+    // Type "r" → should become "ser" (mark removed)
+    let key = gonhanh_core::utils::char_to_key('r');
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+        println!(
+            "After 'r': backspace={}, output='{}', screen='{}'",
+            r.backspace,
+            (0..r.count as usize)
+                .filter_map(|i| char::from_u32(r.chars[i]))
+                .collect::<String>(),
+            screen
+        );
+    } else {
+        screen.push('r');
+        println!("After 'r': passthrough, screen='{}'", screen);
+    }
+
+    assert_eq!(
+        screen, "ser",
+        "'serv' + backspace + 'r' should produce 'ser', not '{}'",
+        screen
+    );
+}
+
+#[test]
+fn issue197_caos_double_s_restore() {
+    use gonhanh_core::engine::Action;
+
+    // Test case 2: caos → s → should restore
+    let mut e = Engine::new();
+    let mut screen = String::new();
+
+    println!("\n=== Issue #197 Test: caos + s ===");
+
+    // Type "caos" → should become "cáo"
+    for c in ['c', 'a', 'o', 's'] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+        } else {
+            screen.push(c);
+        }
+    }
+    println!("After 'caos': screen='{}'", screen);
+    assert_eq!(screen, "cáo", "'caos' should produce 'cáo'");
+
+    // Type another "s" → should restore to "caos"
+    let key = gonhanh_core::utils::char_to_key('s');
+    let r = e.on_key(key, false, false);
+    if r.action == Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        for i in 0..r.count as usize {
+            if let Some(ch) = char::from_u32(r.chars[i]) {
+                screen.push(ch);
+            }
+        }
+        println!(
+            "After 2nd 's': backspace={}, output='{}', screen='{}'",
+            r.backspace,
+            (0..r.count as usize)
+                .filter_map(|i| char::from_u32(r.chars[i]))
+                .collect::<String>(),
+            screen
+        );
+    } else {
+        screen.push('s');
+        println!("After 2nd 's': passthrough, screen='{}'", screen);
+    }
+
+    assert_eq!(
+        screen, "caos",
+        "'caos' + 's' should restore to 'caos', not '{}'",
+        screen
+    );
+}
+
+#[test]
+fn issue159_bracket_continuous_typing() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Engine;
+
+    let mut e = Engine::new();
+    e.set_bracket_shortcut(true); // Enable feature (default OFF)
+
+    // Test h][ → hươ (continuous bracket typing)
+    e.on_key(keys::H, false, false);
+    let result1 = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(result1.action, 1, "']' after 'h' should produce output");
+    assert_eq!(result1.chars[0], 'ư' as u32, "h] should produce 'hư'");
+
+    let result2 = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result2.action, 1, "'[' after 'hư' should produce output");
+    assert_eq!(result2.chars[0], 'ơ' as u32, "h][ should produce 'hươ'");
+
+    e.clear();
+
+    // Test ][ → ươ (both brackets at word start)
+    let result1 = e.on_key(keys::RBRACKET, false, false);
+    assert_eq!(
+        result1.chars[0], 'ư' as u32,
+        "'] at start should produce 'ư'"
+    );
+
+    let result2 = e.on_key(keys::LBRACKET, false, false);
+    assert_eq!(result2.action, 1, "'[' after 'ư' should produce output");
+    assert_eq!(result2.chars[0], 'ơ' as u32, "][ should produce 'ươ'");
+}
+
+// =============================================================================
+// ISSUE #211: Extended vowel patterns - "asaaa" should produce "áaaa"
+// When typing extended vowels for emphasis in casual messaging,
+// the mark should stay on the first vowel and not jump around.
+// Example: "quá" + more 'a's should produce "quáa", "quáaa", etc.
+// =============================================================================
+
+#[test]
+fn issue211_extended_vowel_patterns() {
+    // Extended vowels with sắc tone
+    telex(&[
+        ("as", "á"),      // base case
+        ("asa", "ấ"),     // circumflex + mark
+        ("asaa", "áa"),   // revert circumflex, keep mark, add 'a'
+        ("asaaa", "áaa"), // mark stays on first 'a'
+        ("asaaaa", "áaaa"),
+    ]);
+
+    // Extended vowels with hỏi tone
+    telex(&[("ar", "ả"), ("ara", "ẩ"), ("araa", "ảa"), ("araaa", "ảaa")]);
+
+    // Extended vowels with "qu" initial
+    telex(&[
+        ("quas", "quá"),
+        ("quasa", "quấ"),
+        ("quasaa", "quáa"), // mark stays on first 'a' after 'qu'
+        ("quasaaa", "quáaa"),
+    ]);
+
+    // Extended vowels with "gi" initial - mark stays on first 'i'
+    telex(&[
+        ("gir", "gỉ"),
+        ("giri", "gỉi"), // mark stays on first 'i'
+        ("girii", "gỉii"),
+        ("gis", "gí"),
+        ("gisi", "gíi"),
+    ]);
+}
+
+// =============================================================================
+// ISSUE #230: Alternating pattern V-M-V-M (Therere → There)
+// https://github.com/khaphanspace/gonhanh.org/issues/230
+//
+// Core bug: "Therere" typed → should output "There" (second "re" reverts first)
+// Note: Simple "there" → "thể" is VALID Vietnamese, so it is NOT restored.
+// This is by design - only invalid Vietnamese buffers trigger restore.
+// =============================================================================
+
+#[test]
+fn issue230_there_space_duplicates_chars() {
+    use gonhanh_core::engine::Action;
+
+    // Test without auto_restore - "there" transforms to "thể"
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "there ");
+    println!("[no auto_restore] 'there ' -> '{}'", result);
+    assert_eq!(
+        result, "thể ",
+        "Without auto_restore, 'there' transforms to 'thể'"
+    );
+
+    // Test with auto_restore - "thể" is VALID VN, so no restore happens
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let result2 = type_word(&mut e2, "there ");
+    println!(
+        "[auto_restore] 'there ' -> '{}' (thể is valid VN, keep)",
+        result2
+    );
+    assert_eq!(
+        result2, "thể ",
+        "'there ' produces 'thể ' - valid VN word, no restore"
+    );
+
+    // Debug step-by-step
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen = String::new();
+    let inputs = ['t', 'h', 'e', 'r', 'e', ' '];
+
+    println!("\n=== Issue #230 Step-by-step debug ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+    println!("Final screen: '{}' (expected: 'there ')", screen);
+}
+
+#[test]
+fn issue230_there_variants() {
+    // Test similar patterns. Note: "there" and "here" produce valid Vietnamese
+    // words (thể, hể), so they are NOT restored. Only "where" restores because
+    // "whể" is structurally invalid Vietnamese (wh is not a valid consonant).
+    telex_auto_restore(&[
+        ("there ", "thể "),   // Valid VN → keep Vietnamese
+        ("There ", "Thể "),   // Valid VN → keep Vietnamese
+        ("where ", "where "), // Invalid VN (wh) → restore to English
+        ("here ", "hể "),     // Valid VN → keep Vietnamese
+    ]);
+}
+
+#[test]
+fn issue230_debug_revert_difference() {
+    use gonhanh_core::engine::Action;
+
+    // Debug why "caoss" works but "herere" doesn't
+
+    println!("\n=== Debug: caoss (works) ===");
+    let mut e1 = Engine::new();
+    e1.set_english_auto_restore(true);
+    let mut screen1 = String::new();
+    for c in ['c', 'a', 'o', 's', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e1.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen1.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen1.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen1
+            );
+        } else {
+            screen1.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen1);
+        }
+    }
+    println!("Final caoss: '{}'", screen1);
+
+    println!("\n=== Debug: herere (fails) ===");
+    let mut e2 = Engine::new();
+    e2.set_english_auto_restore(true);
+    let mut screen2 = String::new();
+    for c in ['h', 'e', 'r', 'e', 'r', 'e', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e2.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen2.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen2.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen2
+            );
+        } else {
+            screen2.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen2);
+        }
+    }
+    println!("Final herere: '{}'", screen2);
+
+    println!("\n=== Debug: laww (works) ===");
+    let mut e3 = Engine::new();
+    e3.set_english_auto_restore(true);
+    let mut screen3 = String::new();
+    for c in ['l', 'a', 'w', 'w', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e3.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen3.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen3.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen3
+            );
+        } else {
+            screen3.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen3);
+        }
+    }
+    println!("Final laww: '{}'", screen3);
+
+    println!("\n=== Debug: therr (consecutive rr) ===");
+    let mut e4 = Engine::new();
+    e4.set_english_auto_restore(true);
+    let mut screen4 = String::new();
+    for c in ['t', 'h', 'e', 'r', 'r', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e4.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen4.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen4.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen4
+            );
+        } else {
+            screen4.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen4);
+        }
+    }
+    println!(
+        "Final therr: '{}' (expected: 'ther ' if consecutive rr works)",
+        screen4
+    );
+
+    println!("\n=== Debug: herer (single r revert then r) ===");
+    let mut e5 = Engine::new();
+    e5.set_english_auto_restore(true);
+    let mut screen5 = String::new();
+    for c in ['h', 'e', 'r', 'e', 'r', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e5.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen5.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen5.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen5
+            );
+        } else {
+            screen5.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen5);
+        }
+    }
+    println!("Final herer: '{}'", screen5);
+
+    println!("\n=== Debug: lists (s-t-s pattern) ===");
+    let mut e6 = Engine::new();
+    e6.set_english_auto_restore(true);
+    let mut screen6 = String::new();
+    for c in ['l', 'i', 's', 't', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e6.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen6.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen6.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen6
+            );
+        } else {
+            screen6.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen6);
+        }
+    }
+    println!(
+        "Final lists: '{}' (expected: 'list ' - s-t-s is like consecutive ss?)",
+        screen6
+    );
+
+    println!("\n=== Debug: miss (consecutive ss after vowel) ===");
+    let mut e7 = Engine::new();
+    e7.set_english_auto_restore(true);
+    let mut screen7 = String::new();
+    for c in ['m', 'i', 's', 's', ' '] {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let r = e7.on_key(key, false, false);
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen7.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen7.push(ch);
+                }
+            }
+            println!(
+                "'{}': bs={}, out='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen7
+            );
+        } else {
+            screen7.push(c);
+            println!("'{}': passthrough, screen='{}'", c, screen7);
+        }
+    }
+    println!("Final miss: '{}' (expected: 'mis ')", screen7);
+}
+
+#[test]
+fn issue230_therere_exact_input() {
+    use gonhanh_core::engine::Action;
+
+    // Exact user input from issue: T-h-e-r-e-r-e (7 chars)
+    // User reports: displays "there", then space → "Therere"
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    let mut screen = String::new();
+    let inputs = ['T', 'h', 'e', 'r', 'e', 'r', 'e', ' '];
+
+    println!("\n=== Issue #230 Exact Input: Therere ===");
+    for c in inputs {
+        let key = gonhanh_core::utils::char_to_key(c);
+        let caps = c.is_uppercase();
+        let r = e.on_key(key, caps, false);
+
+        if r.action == Action::Send as u8 {
+            for _ in 0..r.backspace {
+                screen.pop();
+            }
+            for i in 0..r.count as usize {
+                if let Some(ch) = char::from_u32(r.chars[i]) {
+                    screen.push(ch);
+                }
+            }
+            println!(
+                "Key '{}': backspace={}, output='{}', screen='{}'",
+                c,
+                r.backspace,
+                (0..r.count as usize)
+                    .filter_map(|i| char::from_u32(r.chars[i]))
+                    .collect::<String>(),
+                screen
+            );
+        } else {
+            screen.push(c);
+            println!("Key '{}': passthrough, screen='{}'", c, screen);
+        }
+    }
+
+    println!("Final: 'Therere ' -> '{}' (expected: 'There ')", screen);
+
+    // BUG: Current behavior restores raw input "Therere " instead of displayed "There "
+    //
+    // Analysis:
+    // - User typed 7 chars: T-h-e-r-e-r-e
+    // - Screen showed 5 chars: "There" (Vietnamese transforms collapsed rr→r)
+    // - User saw "There", was happy, pressed space
+    // - Auto-restore outputs "Therere" (raw input) - WRONG!
+    //
+    // Expected behavior:
+    // - If displayed buffer is valid English word → keep it (no restore)
+    // - If displayed buffer is Vietnamese → restore to raw input
+    //
+    // "There" is valid English, so it should stay as "There "
+    assert_eq!(
+        screen, "There ",
+        "BUG: Should keep displayed 'There ', not restore to raw 'Therere '"
+    );
+}
+
+// =============================================================================
+// ISSUE #230 Extended Cases: Auto-restore decision matrix
+// =============================================================================
+
+#[test]
+fn issue230_case_analysis() {
+    use gonhanh_core::utils::type_word;
+
+    // Helper to test with auto_restore enabled
+    let test = |input: &str, expected: &str, description: &str| {
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+        let result = type_word(&mut e, input);
+        println!(
+            "[{}] '{}' -> '{}' (expected: '{}')",
+            description, input, result, expected
+        );
+        (result, expected.to_string(), description.to_string())
+    };
+
+    let cases = vec![
+        // Case 1: Raw=EN(long), Displayed=EN(short) - both valid English
+        // User typed extra chars that got collapsed, displayed is valid EN
+        // Expected: Keep displayed (user saw it and was happy)
+        test("Therere ", "There ", "Raw=Therere, Disp=There, both EN"),
+        // Case 2: Raw=EN, Displayed=VN - thể is VALID Vietnamese
+        // Expected: Keep Vietnamese (buffer valid VN → no restore)
+        test("there ", "thể ", "Raw=there, Disp=thể, VN valid"),
+        // Case 3: No transform - raw = displayed
+        // Expected: Keep as-is
+        test("hello ", "hello ", "Raw=Disp=hello, no change"),
+        // Case 4: Vietnamese word - no restore needed
+        // Expected: Keep Vietnamese
+        test("không ", "không ", "Vietnamese word, keep VN"),
+        // Case 5: "view" → "vieư" - invalid VN, restore to EN
+        test("view ", "view ", "Raw=view, Disp=vieư, restore EN"),
+        // Case 6: Uppercase - "THERE" → "THỂ" (valid VN, keep)
+        test("THERE ", "THỂ ", "Uppercase THERE"),
+        // Case 7: TRICKY - "theme" → "thêm" (both valid!)
+        // "theme" is English, "thêm" is Vietnamese (means "add")
+        // Current design: "thêm" is valid VN → keep VN
+        // This is a known limitation - words valid in both languages
+        test("theme ", "thêm ", "theme→thêm, BOTH valid, keep VN"),
+        // Case 8: Longer word - "wherever"
+        test("wherever ", "wherever ", "Long word wherever"),
+        // Case 9: Incomplete word - "happ" (not complete English)
+        // Raw is partial English, display might be VN-ish
+        test("happ ", "happ ", "Partial word happ"),
+        // Case 10: "here" → "hể" - valid VN, keep Vietnamese
+        test("here ", "hể ", "here→hể (VN valid)"),
+        // Case 11: "where" - common English word
+        test("where ", "where ", "Common word where"),
+        // Case 12: Mixed case "ThErE" → "ThỂ" - valid VN, keep Vietnamese
+        test("ThErE ", "ThỂ ", "Mixed case ThErE→ThỂ"),
+        // === REVERT CASES ===
+        // When user types double modifier (rr, ss, ff, etc.) it reverts the mark
+
+        // Case 13: "herere" - hẻ → hể → her (revert) → here
+        // Displayed: "here", Raw: "herere"
+        test("herere ", "here ", "herere→here (revert)"),
+        // Case 14: "serese" - different modifiers (r then s), no revert happens
+        // No alternating pattern (r≠s), transforms don't revert
+        test("serese ", "serese ", "serese (no revert, r≠s)"),
+        // Case 15: "theref" - thể → thểf? or revert?
+        // Testing tone revert: adding 'f' after 'r' mark
+        // The tone is changed mid-word (r then f): "thề" is a valid syllable, so it stays Vietnamese
+        test("theref ", "thề ", "theref (f after r)"),
+        // Case 16: "therer" - thể → ther (r reverts) → therr?
+        // The second r does not cancel a tone that a later vowel moved: the letters stay as typed
+        test("therer ", "therer ", "therer (r after thể)"),
+        // Case 17: "herer" - hể → her (revert) → herr?
+        test("herer ", "her ", "herer→her (double r)"),
+        // Case 18: "aree" - vowel doubling (ee), not mark revert
+        // Different pattern than V-M-V-M, no alternating revert
+        test("aree ", "aree ", "aree (ee vowel, no revert)"),
+        // Case 19: "caoss" - cáo → caos (ss reverts)
+        test("caoss ", "caos ", "caoss→caos (ss revert)"),
+        // Case 20: "laww" - law → lă → law (ww reverts)
+        test("laww ", "law ", "laww→law (ww revert)"),
+    ];
+
+    // Print summary table
+    println!("\n=== Issue #230 Case Analysis Summary ===");
+    println!(
+        "{:<12} {:<15} {:<15} {:<6}",
+        "Input", "Expected", "Actual", "Pass?"
+    );
+    println!("{}", "-".repeat(50));
+
+    let mut failures = Vec::new();
+    for (actual, expected, desc) in &cases {
+        let pass = actual == expected;
+        println!(
+            "{:<12} {:<15} {:<15} {}",
+            desc.split(',').next().unwrap_or("?"),
+            expected,
+            actual,
+            if pass { "✓" } else { "✗" }
+        );
+        if !pass {
+            failures.push((desc.clone(), expected.clone(), actual.clone()));
+        }
+    }
+
+    if !failures.is_empty() {
+        println!("\n=== Failures ===");
+        for (desc, expected, actual) in &failures {
+            println!("FAIL: {} - expected '{}', got '{}'", desc, expected, actual);
+        }
+        panic!("{} test cases failed", failures.len());
+    }
+}
+
+// =============================================================================
+// BUG: "would" with single 'w' causes extra backspace (deletes previous line)
+// When typing "would" starting with single 'w':
+// - w → ư (buffer: [Ư])
+// - o → ơ (buffer: [Ư, Ơ], screen: "ươ")
+// - u → u (buffer: [Ư, Ơ, U], screen: "ươu")
+// - l → triggers foreign word detection, should backspace 3, not 4
+//
+// Root cause: revert_w_as_vowel_transforms used rebuild_from instead of
+// rebuild_from_after_insert. The new char (l) was already in buffer but not
+// yet on screen, so backspace count was 1 too high.
+// =============================================================================
+
+#[test]
+fn bug_would_backspace_count() {
+    use gonhanh_core::data::keys;
+    use gonhanh_core::engine::Action;
+
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+
+    // Step by step to verify backspace count at each step
+    // w → ư
+    let r = e.on_key(keys::W, false, false);
+    assert_eq!(r.action, Action::Send as u8, "w should transform to ư");
+    assert_eq!(r.backspace, 0, "w→ư: no backspace needed");
+
+    // o → ơ (forms ươ compound)
+    let r = e.on_key(keys::O, false, false);
+    assert_eq!(r.action, Action::Send as u8, "o should transform to ơ");
+    assert_eq!(r.backspace, 0, "w+o: no backspace (appending ơ)");
+
+    // u → passthrough
+    let _r = e.on_key(keys::U, false, false);
+    // u might pass through or transform - just verify no crash
+
+    // l → triggers foreign word revert
+    // At this point: screen has "ươu" (3 chars), buffer has [Ư, Ơ, U]
+    // Adding L should detect foreign word and revert to "woul"
+    // Backspace should be 3 (to delete "ươu"), not 4
+    let r = e.on_key(keys::L, false, false);
+    assert_eq!(r.action, Action::Send as u8, "l should trigger revert");
+    assert_eq!(r.backspace, 3, "BUG FIX: l should backspace 3 (ươu), not 4");
+
+    // Verify output is "woul"
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    assert_eq!(output, "woul", "Output should be 'woul' after revert");
+}
+
+#[test]
+fn bug_would_full_word() {
+    // Full "would " typing test
+    telex_auto_restore(&[("would ", "would ")]);
+}
+
+// =============================================================================
+// BUG: "sess" → "sess." instead of "ses."
+// In auto restore mode, typing "sess." should give "ses." (ss reverts sắc mark)
+// "sess" is a rare word so user likely wants to cancel mark, not type "sess"
+// But "sass", "bass", "boss", "miss" etc. should still restore to English
+// =============================================================================
+
+#[test]
+fn bug_sess_auto_restore() {
+    // Test: sess + space → ses (ss reverts sắc mark)
+    // But sass should still restore to sass (common English word)
+    telex_auto_restore(&[
+        ("sess ", "ses "),
+        ("sess.", "ses."),
+        ("sass ", "sass "), // common word, should restore
+        ("sass.", "sass."),
+        ("hiss ", "his "), // hiss → his (exception)
+    ]);
+}
+
+// =============================================================================
+// BUG: "dataad" → "đata", expected "datad"
+// After circumflex revert (dât → data), buffer [D,A,T,A] falsely matches
+// has_circumflex_trigger_pattern in try_stroke, causing final 'd' to apply
+// stroke on initial 'd'.
+// Fix: Skip circumflex trigger pattern when had_circumflex_revert is true.
+// =============================================================================
+
+#[test]
+fn bug_dataad_false_stroke_after_circumflex_revert() {
+    telex(&[
+        ("dataad", "datad"), // aa revert + d should NOT stroke
+        ("dduotoj", "đuột"), // legitimate stroke still works
+    ]);
+}
+
+// =============================================================================
+// BUG: "duow" + space + backspace + "c" → "duơc", expected "dươc"
+// After committing "duơ" with space and restoring via backspace,
+// pending_u_horn_pos is lost. Typing final consonant should apply horn to 'u'.
+// =============================================================================
+
+#[test]
+fn bug_duow_restore_horn() {
+    // "duow " commits "duơ ", backspace restores "duơ", then "c" should produce "dươc"
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duow <c");
+    println!("'duow <c' -> '{}' (expected: 'dươc')", result);
+    assert_eq!(
+        result, "dươc",
+        "'duow' + space + backspace + 'c' should produce 'dươc'"
+    );
+}
+
+// =============================================================================
+// BUG: "ddu." + backspace + "f" → "đuf", expected "đù"
+// After committing "đu" with period and deleting period via backspace,
+// the buffer should be restored so "f" applies huyền to "u".
+// =============================================================================
+
+#[test]
+fn bug_ddu_break_backspace_tone() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "ddu.<f");
+    println!("'ddu.<f' -> '{}' (expected: 'đù')", result);
+    assert_eq!(
+        result, "đù",
+        "'ddu' + '.' + backspace + 'f' should produce 'đù'"
+    );
+}
+
+// =============================================================================
+// BUG: "dduow." + backspace + "c" → "đuơc", expected "đươc"
+// After committing "đươ" with period and deleting period via backspace,
+// the buffer should be restored with pending_u_horn_pos so "c" completes "đươc".
+// =============================================================================
+
+#[test]
+fn bug_dduow_break_backspace_final() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "dduow.<c");
+    println!("'dduow.<c' -> '{}' (expected: 'đươc')", result);
+    assert_eq!(
+        result, "đươc",
+        "'dduow' + '.' + backspace + 'c' should produce 'đươc'"
+    );
+}
+
+// =============================================================================
+// BUG: "duow;;" + backspace×2 + "c" → "dưc", expected "dươc"
+// When multiple break chars follow a word, each should count as one "space"
+// for backspace-after-break restore. Without this, the second backspace
+// deletes from the restored buffer instead of undoing the second break char.
+// =============================================================================
+
+#[test]
+fn bug_duow_double_break_backspace_horn() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duow;;<<c");
+    println!("'duow;;<<c' -> '{}' (expected: 'dươc')", result);
+    assert_eq!(
+        result, "dươc",
+        "'duow' + ';;' + backspace×2 + 'c' should produce 'dươc'"
+    );
+}
+
+// =============================================================================
+// BUG: "dduowc" + space + ";" + backspace×2 + "j" → "đươcj", expected "được"
+// After committing "đươc" with space, break key ";" counts as another
+// separator. Both backspaces undo separators, restoring "đươc", then "j"
+// applies nặng mark → "được".
+// =============================================================================
+
+#[test]
+fn bug_dduowc_restore_backspace_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "dduowc ;<<j");
+    println!("'dduowc ;<<j' -> '{}' (expected: 'được')", result);
+    assert_eq!(
+        result, "được",
+        "'dduowc' + space + ';' + backspace×2 + 'j' should produce 'được'"
+    );
+}
+
+// =============================================================================
+// BUG: "dươc vẫn " + backspace×5 + "j" → "dươcj", expected "dược"
+// Multi-word chained restore: after restoring "vẫn" and deleting it fully,
+// the next backspace should restore the previous word "dươc" from history.
+// =============================================================================
+
+#[test]
+fn bug_multiword_chained_restore_mark() {
+    let mut e = Engine::new();
+    let result = type_word(&mut e, "duowc vaaxn <<<<<j");
+    println!("'duowc vaaxn <<<<<j' -> '{}' (expected: 'dược')", result);
+    assert_eq!(
+        result, "dược",
+        "'duowc' + space + 'vaaxn' + space + bs×5 + 'j' should produce 'dược'"
+    );
+}
+
+// =============================================================================
+// Issue #363: Shortcut √√ → ✅ không hoạt động khi bấm dấu cách
+// https://github.com/khaphanspace/gonhanh.org/issues/363
+// Sequence: User cài đặt gõ tắt √√ → ✅
+//   1. Bấm Option+V → √ (on_key_with_char, key=V, ch='√')
+//   2. Bấm Option+V → √√
+//   3. Bấm Space → expected: ✅
+//   Actual: không thay thế
+// =============================================================================
+
+#[test]
+fn issue363_sqrt_sqrt_space_replaces_checkmark() {
+    // Exact user flow: Option+V, Option+V, Space
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    // Step 1: Option+V → √
+    let r1 = e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ should pass through");
+
+    // Step 2: Option+V → √√
+    let r2 = e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    assert_eq!(
+        r2.action, 0,
+        "Second √ should pass through (word boundary shortcut)"
+    );
+
+    // Step 3: Space → should trigger √√ → ✅
+    let r3 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(r3.action, 1, "Space after √√ should trigger shortcut → ✅");
+    assert_eq!(r3.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r3.count as usize)
+        .filter_map(|i| char::from_u32(r3.chars[i]))
+        .collect();
+    assert_eq!(output, "✅ ", "Should output ✅ followed by space");
+}
+
+#[test]
+fn issue363_sqrt_sqrt_enter_replaces_checkmark() {
+    // Same flow but with Enter instead of Space
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    e.on_key_with_char(keys::V, false, false, false, Some('√'));
+    e.on_key_with_char(keys::V, false, false, false, Some('√'));
+
+    let r = e.on_key(keys::RETURN, false, false);
+    assert_eq!(r.action, 1, "Enter after √√ should trigger shortcut");
+    assert_eq!(r.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r.count as usize)
+        .filter_map(|i| char::from_u32(r.chars[i]))
+        .collect();
+    assert_eq!(
+        output, "✅",
+        "Should output ✅ (no trailing space for Enter)"
+    );
+}
+
+// NOTE: prefix + word boundary shortcut (≈ç√√ + space) not supported —
+// word boundary uses exact match, not suffix. This is expected behavior.
+
+#[test]
+fn issue363_ctrl_true_still_accumulates_shortcut() {
+    // Platform passes ctrl=true for Option+key to bypass Telex/VNI transforms,
+    // but on_key_with_char should still accumulate ch for shortcut matching.
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::new("√√", "✅"));
+
+    // Simulate platform calling with ctrl=true (Option+V on macOS)
+    let r1 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ should accumulate, not trigger");
+
+    let r2 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(
+        r2.action, 0,
+        "Second √ accumulates (word boundary, needs space)"
+    );
+
+    // Space triggers word boundary shortcut
+    let r3 = e.on_key(keys::SPACE, false, false);
+    assert_eq!(
+        r3.action, 1,
+        "Space should trigger √√ → ✅ even with ctrl=true"
+    );
+    assert_eq!(r3.backspace, 2, "Should backspace 2 chars (√√)");
+
+    let output: String = (0..r3.count as usize)
+        .filter_map(|i| char::from_u32(r3.chars[i]))
+        .collect();
+    assert_eq!(output, "✅ ");
+}
+
+#[test]
+fn issue363_ctrl_true_immediate_shortcut() {
+    // Immediate shortcut should also work with ctrl=true
+    let mut e = Engine::new();
+    e.shortcuts_mut().add(Shortcut::immediate("√√", "✅"));
+
+    let r1 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r1.action, 0, "First √ accumulates");
+
+    let r2 = e.on_key_with_char(keys::V, false, /*ctrl=*/ true, false, Some('√'));
+    assert_eq!(r2.action, 1, "Second √ triggers immediate shortcut");
+
+    let output: String = (0..r2.count as usize)
+        .filter_map(|i| char::from_u32(r2.chars[i]))
+        .collect();
+    assert_eq!(output, "✅");
+}
+
+// =============================================================================
+// BUG: "dayddr" -> "đảy", expected "daydr"
+// After a stroke revert (dayd → đay → dayd via ddd-style revert), the user has
+// explicitly rejected đ. A subsequent tone-mark key must NOT resurrect the
+// stroke via the delayed-stroke pattern (dods → đó) in try_mark.
+// =============================================================================
+
+#[test]
+fn bug_dayddr_expect_daydr() {
+    telex(&[
+        // All tone-mark keys after stroke revert must stay literal
+        ("dayddr", "daydr"),
+        ("daydds", "dayds"),
+        ("dayddf", "daydf"),
+        ("dayddx", "daydx"),
+        ("dayddj", "daydj"),
+        // Delayed stroke without revert still works
+        ("dods", "đó"),
+        ("dodf", "đò"),
+    ]);
+}
+
+// =============================================================================
+// BUG: "chucwsc" -> expect "chứcc" (auto-restore ON)
+// Typing "chức" then an extra final 'c' yields buffer "chứcc". That buffer is
+// invalid Vietnamese only because of the doubled final consonant, so the loose
+// English check wrongly restored the raw keystrokes "chucwsc". Telex never emits
+// a doubled final consonant on its own, so the duplicate is intentional Vietnamese.
+// (Product decision: keep the Vietnamese buffer for this pattern.)
+// =============================================================================
+
+#[test]
+fn bug_chucwsc_expect_chucc() {
+    telex_auto_restore(&[("chucwsc", "chứcc"), ("chucwsc ", "chứcc ")]);
+}

@@ -2,18 +2,18 @@
 
 > Thuật toán xác định chuỗi ký tự có phải âm tiết tiếng Việt hợp lệ hay không.
 
-**Liên quan**: [vietnamese-language-system.md](./vietnamese-language-system.md) | [core-engine-algorithm.md](./core-engine-algorithm.md)
+**Liên quan**: [vietnamese-language-system.md](./vietnamese-language-system.md) | [core-engine-algorithm.md](./core-engine-algorithm.md) | [core-architecture.md](./core-architecture.md)
 
 ---
 
 ## 1. Mục đích
 
 ```
-Validation xảy ra TRƯỚC khi transform:
+Mỗi cách đọc của chuỗi phím được validate; cách đọc không thể thành tiếng Việt bị loại:
 
-"duoc" + j → VALID   → transform → "được" ✓
-"claus" + s → INVALID → giữ nguyên → "clauss" ✓
-"http" + s → INVALID → giữ nguyên → "https" ✓
+"duocwj" → "dươc" VALID   → "dược" ✓
+"claus"  → "clau" + s INVALID → giữ nguyên "claus" ✓
+"https"  → INVALID → giữ nguyên "https" ✓
 ```
 
 Bảo vệ: code (`function`, `const`), tên riêng (`John`, `Claude`), từ mượn (`pizza`), URL/email.
@@ -48,27 +48,21 @@ C₂ = Final consonant (âm cuối)       - optional
 
 ### 3.1 Phụ âm đầu (C₁)
 
-```rust
-// 16 phụ âm đơn
-VALID_INITIALS_1: [b, c, d, g, h, k, l, m, n, p, q, r, s, t, v, x]
-
-// 11 phụ âm đôi (kr cho tên dân tộc: Krông)
-VALID_INITIALS_2: [ch, gh, gi, kh, kr, ng, nh, ph, qu, th, tr]
-
-// 1 phụ âm ba: ngh
+```
+16 phụ âm đơn:  b c d đ g h k l m n p q r s t v x
+11 phụ âm đôi:  ch gh gi kh ng nh ph qu th tr  (+ kr cho tên dân tộc: Krông)
+ 1 phụ âm ba:   ngh
+Chữ vay mượn f j w z chỉ được nhận khi bật tuỳ chọn phụ âm ngoại (foreign_initials).
 ```
 
 ### 3.2 Âm cuối (C₂)
 
-```rust
-// 10 âm cuối đơn (gồm bán nguyên âm + k cho tên dân tộc)
-VALID_FINALS_1: [c, k, m, n, p, t, i, y, o, u]
-
-// 3 âm cuối đôi
-VALID_FINALS_2: [ch, ng, nh]
+```
+Âm cuối phụ âm:   c ch m n ng nh p t  (+ k cho tên dân tộc: Đắk Lắk)
+Bán nguyên âm:    i y o u  (thuộc nucleus, ví dụ "ai", "ao", "uy")
 ```
 
-> **Lưu ý**: `k` được hỗ trợ cho tên riêng từ ngôn ngữ dân tộc thiểu số (Đắk Lắk, Đắk Nông).
+> **Lưu ý**: `k` được hỗ trợ cho tên riêng từ ngôn ngữ dân tộc thiểu số (Đắk Lắk, Đắk Nông); tên riêng nằm trong `names.dic`.
 
 ### 3.3 Quy tắc chính tả
 
@@ -81,192 +75,85 @@ VALID_FINALS_2: [ch, ng, nh]
 | `gh` | a, o, u | → `g` |
 | `ngh` | a, o, u | → `ng` |
 
-### 3.4 Valid Vowel Pairs (Inclusion Approach)
+### 3.4 Nucleus × coda (sinh từ từ điển)
 
-```rust
-// Valid vowel combinations in Vietnamese
-VALID_VOWEL_PAIRS: [
-    // Standard Vietnamese diphthongs (direction matters!)
-    [A, I], [A, O], [A, U], [A, Y],  // ai, ao, au, ay
-    [E, I], [E, O], [E, U],          // ei (Telex), eo, êu
-    [I, A], [I, E], [I, U],          // ia, iê, iu
-    [O, A], [O, E], [O, I],          // oa, oe, oi/ôi/ơi
-    [U, A], [U, E], [U, I], [U, O], [U, Y], [U, U],  // ua/ưa, uê, ui/ưi, uo/uô/ươ, uy, ưu
-    [Y, E],                          // yê
-    // Telex intermediate states (for delayed transformations)
-    [A, A], [E, E], [O, O],          // aa→â, ee→ê, oo→ô toggle
-]
-// Note: [O, U] (như "ou" trong "you") KHÔNG có trong list → Invalid
+Nguyên âm hợp lệ và coda nào đi được với nó **không gõ tay**: `scripts/gen/phonology_tables.py` đọc `vi.dic` (và `names.dic` cho tên riêng) rồi sinh `core/src/phonology/tables.rs` (`NUCLEUS_CODAS`, `NUCLEUS_INDEX`, `NAMES`). Mỗi dòng cho một nucleus: tập coda nó nhận (`OPEN`, `C`, `CH`, `M`, `N`, `NG`, `NH`, `P`, `T`, `K`).
+
+```
+Nucleus hợp lệ gồm nguyên âm đơn, đôi (ai, ao, au, iê, oa, uô, ươ, ...) và ba (oai, uyê, ươi, ...);
+danh sách đầy đủ nằm trong tables.rs.
+
+Không có trong ma trận → Invalid:
+  "ea"  → search, teacher, beach, real
+  "ou"  → you, our, house, about, would
+  "yo"  → yoke, York, beyond
 ```
 
-**Tại sao dùng Inclusion thay vì Exclusion?**
-
-| Aspect | Inclusion (valid patterns) | Exclusion (invalid patterns) |
-|--------|---------------------------|------------------------------|
-| Coverage | Toàn diện - bắt tất cả invalid | Chỉ bắt patterns được list |
-| Maintenance | Cần thêm Telex intermediate | Dễ miss edge cases |
-| Risk | False negative (cần thêm Telex states) | False positive (miss invalid) |
-
-**Lưu ý:** Danh sách bao gồm cả Telex intermediate states như `[E, I]`, `[A, A]`, `[E, E]`, `[O, O]` để hỗ trợ các pattern như "eie" → "êi" và "aaaa" → "aâ".
-
-**Invalid patterns (for reference):**
-- `ea` → sea, beach, teacher, search
-- `ou` → you, our, house, about, would
-- `yo` → yoke, York, your, beyond
+Sửa từ điển rồi chạy lại script để cập nhật bảng; `make gate` kiểm bảng còn mới (`--check`).
 
 ---
 
-## 4. Thuật toán Parse
+## 4. Tách âm tiết
 
-### 4.1 Syllable Structure
-
-```rust
-pub struct Syllable {
-    pub initial: Vec<usize>,    // indices trong buffer
-    pub glide: Option<usize>,   // index của âm đệm
-    pub vowel: Vec<usize>,      // indices nguyên âm
-    pub final_c: Vec<usize>,    // indices âm cuối
-}
-```
-
-### 4.2 Parse Algorithm
+`split(units)` trong `core/src/phonology/validity.rs` trả về (độ dài initial, đầu nucleus, cuối nucleus); phần còn lại là coda.
 
 ```
-parse(buffer_keys: &[u16]) -> Syllable
+1. Bỏ qua phụ âm đến nguyên âm đầu tiên
+   - Special case: gi + nguyên âm khác → gi là initial
+   - Special case: qu + nguyên âm → qu là initial
 
-1. Tìm vị trí nguyên âm đầu tiên
-   - Special case: gi + vowel → gi là initial
-   - Special case: qu + vowel → qu là initial
+2. Nucleus = dãy nguyên âm liên tiếp (âm đệm o/u thuộc nucleus)
 
-2. Xác định glide (âm đệm)
-   - o + (a, e) → o là glide
-   - u + (y, e) khi không phải qu → u là glide
-
-3. Thu thập nguyên âm liên tiếp
-
-4. Phần còn lại là final consonant
+3. Phần còn lại là coda
    - Try 2-char: ch, ng, nh
-   - Try 1-char: c, k, m, n, p, t, i, y, o, u
+   - Try 1-char: c, k, m, n, p, t
 ```
 
 ---
 
 ## 5. Validation Rules
 
-Engine chạy 6 rules tuần tự. Rule đầu tiên fail → trả về lỗi ngay.
+`phonology::validate(units, tone, opts)` trả về `Invalid | NamePrefix | Loose | Prefix | Complete`. Các bất biến (kiểm lần lượt):
 
-```rust
-const RULES: &[Rule] = &[
-    rule_has_vowel,           // Rule 1
-    rule_valid_initial,       // Rule 2
-    rule_all_chars_parsed,    // Rule 3
-    rule_spelling,            // Rule 4
-    rule_valid_final,         // Rule 5
-    rule_valid_vowel_pattern, // Rule 6 (NEW)
-];
+```
+I1  Cấu trúc (C₁)(G)V(C₂) + thanh; qu/gi nuốt u/i; ≥ 1 nguyên âm; mọi chữ được dùng hết
+I2  Chính tả phụ âm đầu: c/k, g/gh, ng/ngh (bảng 3.3); initial phải nằm trong danh sách 3.1
+I3  Nucleus thuộc danh sách nguyên âm hợp lệ
+I4  Coda tắc (c, ch, p, t) chỉ nhận thanh sắc hoặc nặng
+I5  Ma trận nucleus × coda (3.4)
 ```
 
-### Rule 1: Has Vowel
+Kết quả:
 
-```rust
-// Phải có ít nhất 1 nguyên âm
-if syllable.vowel.is_empty() → NoVowel
-```
+| Kết quả | Ý nghĩa |
+|---------|---------|
+| `Invalid` | không cách nào gõ tiếp thành tiếng Việt |
+| `Prefix` | chưa xong nhưng còn đường hợp lệ (thiếu dấu, thiếu coda) |
+| `Complete` | âm tiết hoàn chỉnh |
+| `Loose` | chỉ khi bật Gõ tự do: vần đúng, phụ âm đầu ngoài tiếng Việt (`khphá`, `zị`) |
+| `NamePrefix` | đầu của tên riêng (`kô` của `kông`), giữ sống nhưng không tự hiện |
 
-### Rule 2: Valid Initial
-
-```rust
-// Phụ âm đầu phải thuộc danh sách hợp lệ
-match initial.len() {
-    1 → check VALID_INITIALS_1
-    2 → check VALID_INITIALS_2
-    3 → chỉ cho phép "ngh"
-    _ → InvalidInitial
-}
-```
-
-### Rule 3: All Chars Parsed
-
-```rust
-// Mọi ký tự phải được parse vào cấu trúc
-parsed_count = initial.len + glide(0|1) + vowel.len + final.len
-if parsed_count != buffer.len → InvalidFinal
-```
-
-### Rule 4: Spelling
-
-```rust
-// Kiểm tra quy tắc chính tả c/k, g/gh, ng/ngh
-for (consonant, invalid_vowels) in SPELLING_RULES {
-    if initial == consonant && first_vowel in invalid_vowels {
-        → InvalidSpelling
-    }
-}
-```
-
-### Rule 5: Valid Final
-
-```rust
-// Âm cuối phải thuộc danh sách hợp lệ
-match final.len() {
-    1 → check VALID_FINALS_1
-    2 → check VALID_FINALS_2
-    _ → InvalidFinal
-}
-```
-
-### Rule 6: Valid Vowel Pattern
-
-```rust
-// INCLUSION approach: Check vowel pairs phải thuộc VALID_VOWEL_PAIRS
-for pair in consecutive_vowel_pairs {
-    if pair NOT in VALID_VOWEL_PAIRS → InvalidVowelPattern
-}
-// Ví dụ: "you" có pair [O,U] → Invalid (không trong list)
-// Ví dụ: "sea" có pair [E,A] → Invalid (không trong list)
-// Ví dụ: "yeu" có pair [E,U] → Valid (trong list - êu)
-// Ví dụ: "eie" có pair [E,I] → Valid (trong list - Telex intermediate)
-```
+Tuỳ chọn (`Opts`): `foreign_initials`, `free`, `names`, `lenient`, `at_end`.
 
 ---
 
-## 6. Foreign Word Detection
+## 6. Nhận biết từ nước ngoài
 
-Ngoài validation, engine còn có hàm `is_foreign_word_pattern()` để detect foreign words:
+Không có hàm dò riêng cho từ nước ngoài: một từ nước ngoài thường không có cách đọc tiếng Việt hợp lệ, nên `validate` loại hết và chữ hiện như đã gõ. Từ vẫn còn một cách đọc hợp lệ được bảng restore ở dấu cách quyết định, dựa vào từ điển tiếng Anh (`EN`, `REF`) và `vi.dic` (xem [core-architecture.md](./core-architecture.md)).
 
-```rust
-pub fn is_foreign_word_pattern(buffer_keys: &[u16], modifier_key: u16) -> bool
-```
-
-**Patterns detected:**
-1. Invalid vowel patterns (ou, yo) trong buffer
-2. Consonant clusters sau finals: T+R, P+R, C+R (metric, spectrum)
-3. English prefix: "de" + 's' (describe, design)
-
-**Đặc biệt:** Skip check khi đã có horn transforms (ư, ơ, ươ) → user đang gõ tiếng Việt có chủ đích (vd: "rượu").
+**Đặc biệt:** có bằng chứng ý định tiếng Việt (đ, ư, ơ, ă) thì không trả về chữ thô (vd: "rượu", "đc").
 
 ---
 
 ## 7. API
 
 ```rust
-/// Validate và trả về kết quả chi tiết
-pub fn validate(buffer_keys: &[u16]) -> ValidationResult
+// core/src/phonology
+pub fn validate(units: &[Unit], tone: Tone, o: &Opts) -> Validity
+pub fn tone_index(units: &[Unit], modern: bool) -> Option<usize>
+pub fn nucleus_len(units: &[Unit]) -> usize
 
-/// Quick check
-pub fn is_valid(buffer_keys: &[u16]) -> bool
-
-/// Check foreign word pattern (for modifier skipping)
-pub fn is_foreign_word_pattern(buffer_keys: &[u16], modifier_key: u16) -> bool
-
-pub enum ValidationResult {
-    Valid,
-    InvalidInitial,
-    InvalidFinal,
-    InvalidSpelling,
-    InvalidVowelPattern,  // NEW
-    NoVowel,
-}
+pub enum Validity { Invalid, NamePrefix, Loose, Prefix, Complete }
 ```
 
 ---
@@ -310,14 +197,14 @@ exp, expect, test, claudeco, claus
 ### Invalid - Vowel Patterns (Inclusion Check)
 
 ```
-# Pairs NOT in VALID_VOWEL_PAIRS:
-search, teacher, beach, real           → "ea" pattern [E,A]
-you, your, house, about, would, south  → "ou" pattern [O,U]
-yoke, York, beyond                     → "yo" pattern [Y,O]
+# Nucleus không có trong ma trận:
+search, teacher, beach, real           → "ea"
+you, your, house, about, would, south  → "ou"
+yoke, York, beyond                     → "yo"
 
-# Other foreign word patterns (detected by is_foreign_word_pattern):
+# Coda hoặc cụm phụ âm ngoài tiếng Việt:
 metric, spectrum, matrix               → T+R, C+R clusters
-describe, design                       → "de" + 's' prefix
+describe, design                       → không có cách đọc hợp lệ
 ```
 
 ---
@@ -325,18 +212,15 @@ describe, design                       → "de" + 's' prefix
 ## 9. Integration với Engine
 
 ```
-on_key(key)
+Compose::push(phím)
 │
-├─ [is_modifier(key)?]
-│  │
-│  ├─ ★ VALIDATION: Trước khi transform
-│  │   └─ is_valid(buffer)?
-│  │       ├─ NO  → return NONE (không transform)
-│  │       └─ YES → tiếp tục transform
-│  │
-│  └─ Apply transformation
+├─ parse.extend: mỗi phím là chữ hoặc dấu → các cách đọc con
 │
-└─ [is_letter(key)?] → push to buffer
+├─ ★ VALIDATION: phonology::validate trên từng cách đọc
+│   ├─ Invalid  → loại khỏi beam
+│   └─ còn lại → xếp hạng Complete > Prefix > Loose > NamePrefix
+│
+└─ Hiển thị cách đọc tốt nhất; không còn cách đọc nào → chữ như đã gõ
 ```
 
 ---
@@ -400,26 +284,15 @@ offline → ofline     → nên là "offline"
 
 ## Changelog
 
+- **2026-10**: Cập nhật theo `phonology::validate`
+  - Bảng nucleus × coda sinh từ từ điển thay cho danh sách cặp nguyên âm viết tay
+  - Bỏ các hàm kiểm tra cũ; nhận biết từ nước ngoài dựa vào beam + bảng restore
+
 - **2025-12-31**: Thêm Auto-Restore Rules section
   - Rule 10.1: `-ing` + tone = invalid Vietnamese
   - Rule 10.2: Uncommon single-vowel words (ò, ì) restore
   - Rule 10.3: Circumflex without final (sê, tê) restore
   - Rule 10.4: Double-f preservation (off, offline)
-
-- **2025-12-17**: Chuyển sang Inclusion approach với VALID_VOWEL_PAIRS
-  - Thay đổi từ Exclusion (INVALID_VOWEL_PATTERNS) sang Inclusion (VALID_VOWEL_PAIRS)
-  - Thêm ~30 valid vowel pairs dựa trên Vietnamese phonology matrix
-  - Thêm Telex intermediate states: [E,I], [A,A], [E,E], [O,O]
-  - Fix "search" → "search" (không transform vì "ea" không valid)
-  - Fix "teacher", "beach", "real" - tất cả foreign words với "ea"
-  - Cập nhật `rule_valid_vowel_pattern` và `is_foreign_word_pattern()`
-
-- **2025-12-16**: Thêm Rule 6 (Vowel Pattern Validation)
-  - Thêm `INVALID_VOWEL_PATTERNS` (ou, yo) vào constants
-  - Thêm `rule_valid_vowel_pattern` - Rule 6
-  - Thêm `is_foreign_word_pattern()` cho foreign word detection
-  - Thêm `InvalidVowelPattern` vào ValidationResult
-  - Fix issue #15: "metric" không còn bị transform thành "mẻtic"
 
 - **2025-12-11**: Viết lại document theo code thực tế
   - Cập nhật Syllable struct với `Vec<usize>` và `glide` field

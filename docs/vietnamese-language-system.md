@@ -686,9 +686,9 @@ Không phải mọi nguyên âm đều kết hợp được với mọi âm cu�
 │  ├── ✓ anh, ênh, inh, ynh (anh, bênh, xinh)                   │
 │  └── ✗ ônh, ơnh, unh, ưnh                                      │
 │                                                                 │
-│  Âm cuối -ng: không sau e, ê                                   │
-│  ├── ✓ ang, ăng, âng, ong, ông, ơng, ung, ưng                 │
-│  └── ✗ eng, êng (dùng -nh thay: anh, ênh)                     │
+│  Âm cuối -ng: không sau ê đơn, không sau i (trừ vay mượn)      │
+│  ├── ✓ ang, ăng, âng, eng, ong, ông, ung, ưng (xẻng, keng)    │
+│  └── ✗ êng, ơng (dùng -nh thay: ênh; ơ không có -ng/-c)       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -714,7 +714,7 @@ INVALID PATTERNS - Cho Bộ gõ:
 ├── NGUYÊN ÂM + ÂM CUỐI KHÔNG HỢP LỆ:
 │   ├── ô/ơ/u/ư + ch: ôch, ơch, uch, ưch
 │   ├── ô/ơ/u/ư + nh: ônh, ơnh, unh, ưnh
-│   └── e/ê + ng: eng, êng
+│   └── ê + ng, ơ + ng, ơ + c (eng hợp lệ: xẻng, keng, leng)
 │
 └── TRƯỜNG HỢP ĐẶC BIỆT:
     ├── "p" đầu từ thuần Việt: rất hiếm
@@ -758,7 +758,7 @@ fn is_valid_vowel_final(vowel: &str, final_c: &str) -> bool {
     match final_c {
         "ch" => matches!(vowel, "a" | "ă" | "ê" | "i"),
         "nh" => matches!(vowel, "a" | "ă" | "ê" | "i" | "y"),
-        "ng" => !matches!(vowel, "e" | "ê"),  // e, ê dùng -nh
+        "ng" => !matches!(vowel, "ê" | "ơ"),  // ê dùng -nh; e + ng hợp lệ (xẻng); ơ + ng không tồn tại
         _ => true
     }
 }
@@ -1307,6 +1307,10 @@ Một số từ dân tộc thiểu số sử dụng K làm phụ âm cuối:
 ---
 
 ## Changelog
+
+- **2026-10-07**: Hiệu chỉnh §6.5.4 theo `vi.dic` (6.670 âm tiết, kiểm bằng `tests/suite/phonology_audit.rs`)
+  - `-ng` hợp lệ sau `e` đơn (17 từ: xẻng, keng, leng, kẻng, phèng…); không hợp lệ sau `ê` đơn, `ơ`
+  - `ơng`/`ơc` không tồn tại; nhân × coda lấy từ ma trận sinh từ từ điển (`core/src/phonology/tables.rs`)
 
 - **2025-12-21**: Bổ sung triphthongs và English auto-restore patterns
   - **Section 7.6.1-B**: Thêm 3 triphthongs mới (#41-43)

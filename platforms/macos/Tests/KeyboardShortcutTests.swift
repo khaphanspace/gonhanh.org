@@ -493,3 +493,24 @@ final class SecureInputRecoveryTests: XCTestCase {
         XCTAssertFalse(SecureInputPresentation.tooltip(holderName: nil).contains("("))
     }
 }
+
+// MARK: - Modifier combos pass through
+
+/// Command and Control combinations are never typing: the hook leaves them untouched so other
+/// apps' global hotkeys (MASShortcut, Carbon) and menu shortcuts keep working.
+final class ModifierBypassTests: XCTestCase {
+    func testCommandAndControlCombosBypass() {
+        XCTAssertTrue(isCommandOrControlCombo([.maskCommand]))
+        XCTAssertTrue(isCommandOrControlCombo([.maskCommand, .maskShift]))
+        XCTAssertTrue(isCommandOrControlCombo([.maskControl]))
+        XCTAssertTrue(isCommandOrControlCombo([.maskCommand, .maskAlternate, .maskShift]))
+    }
+
+    func testTypingIsNotBypassed() {
+        XCTAssertFalse(isCommandOrControlCombo([]))
+        XCTAssertFalse(isCommandOrControlCombo([.maskShift]))
+        XCTAssertFalse(isCommandOrControlCombo([.maskAlphaShift]))
+        // Option alone makes special characters (shortcut triggers), it is still typing
+        XCTAssertFalse(isCommandOrControlCombo([.maskAlternate]))
+    }
+}
