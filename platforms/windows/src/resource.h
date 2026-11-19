@@ -1,8 +1,8 @@
 #pragma once
 
-// App version (updated by build scripts)
+// App version: set by CMake from the release tag (GONHANH_VERSION); fallback for other builds
 #ifndef APP_VERSION_STRING
-#define APP_VERSION_STRING "1.0.112"
+#define APP_VERSION_STRING "0.0.0"
 #endif
 
 // Icons (IDI_APPICON=1 required for exe icon)

@@ -7,7 +7,7 @@
 │         macOS Application                │   │      Windows Application                 │
 │                                          │   │                                          │
 │  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
-│  │     SwiftUI Menu Bar           │     │   │  │   WPF System Tray UI           │     │
+│  │     SwiftUI Menu Bar           │     │   │  │   Win32 System Tray UI         │     │
 │  │  • Input method selector       │     │   │  │  • Input method selector       │     │
 │  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
 │  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │

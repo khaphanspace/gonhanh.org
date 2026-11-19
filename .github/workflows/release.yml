@@ -538,42 +538,29 @@ jobs:
           git push
 
   build-windows:
-    if: false  # Temporarily disabled
+    needs: build-macos
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Build Rust Core
-        run: |
-          cd core
-          cargo build --release --target x86_64-pc-windows-msvc
-          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
-                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
-
-      - name: Build WPF App
-        run: |
-          cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
-
-      - name: Package
-        run: |
-          cd platforms/windows
-          $V = "${{ github.ref_name }}".TrimStart('v')
-          Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
+      # Single native exe: C++ Win32 UI + Rust core (static lib), built with CMake + MSVC.
+      # The script picks the installed Visual Studio and packages publish/GoNhanh.exe;
+      # the version comes from the tag being released.
+      - name: Build and package
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Package
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-zip
-          path: platforms/windows/*.zip
+          name: GoNhanh-${{ github.ref_name }}-Windows-x64
+          path: platforms/windows/GoNhanh-*-win-x64.zip
+
+      - name: Add to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: platforms/windows/GoNhanh-*-win-x64.zip

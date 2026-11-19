@@ -66,6 +66,23 @@ target_link_libraries(gonhanh PRIVATE
     dwmapi uxtheme winhttp
 )
 
+# App version: from -DGONHANH_VERSION=x.y.z, else the latest release tag (vX.Y.Z), else 0.0.0
+set(GONHANH_VERSION "" CACHE STRING "App version shown in Settings and used by the update check")
+if(NOT GONHANH_VERSION)
+    execute_process(
+        COMMAND git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GONHANH_GIT_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    string(REGEX REPLACE "^v" "" GONHANH_VERSION "${GONHANH_GIT_TAG}")
+endif()
+if(NOT GONHANH_VERSION)
+    set(GONHANH_VERSION "0.0.0")
+endif()
+message(STATUS "GoNhanh version: ${GONHANH_VERSION}")
+target_compile_definitions(gonhanh PRIVATE APP_VERSION_STRING="${GONHANH_VERSION}")
+
 # Include directories
 target_include_directories(gonhanh PRIVATE
     ${CMAKE_SOURCE_DIR}/src

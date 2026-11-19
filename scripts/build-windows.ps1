@@ -59,7 +59,7 @@ if ($Clean) {
 
 # Get version from git tag
 try {
-    $GIT_TAG = git describe --tags --abbrev=0 2>$null
+    $GIT_TAG = git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*" 2>$null
     if (-not $GIT_TAG) { $GIT_TAG = "v0.0.0" }
 } catch {
     $GIT_TAG = "v0.0.0"
@@ -157,7 +157,8 @@ $cmakeArgs = @(
     "-S", $SourceDir,
     "-B", $LocalBuildDir,
     "-G", $Generator,
-    "-A", "x64"
+    "-A", "x64",
+    "-DGONHANH_VERSION=$VERSION"
 )
 
 if ($Debug) {
