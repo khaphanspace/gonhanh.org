@@ -29,12 +29,9 @@ Gõ Nhanh hoạt động hoàn toàn offline: không quảng cáo, không thu th
 
 ## Dòng lệnh (Vim, script)
 
-`bin\gonhanh.exe` (hoặc `bin\gn.exe`) điều khiển Gõ Nhanh đang chạy, cùng cú pháp với bản macOS/Linux và theo quy ước `im-select`, nên dùng được cho các plugin Vim tự chuyển bộ gõ khi đổi mode. Thêm thư mục `bin` vào `PATH`:
+`bin\gonhanh.exe` (hoặc `bin\gn.exe`) điều khiển Gõ Nhanh đang chạy, cùng cú pháp với bản macOS/Linux và theo quy ước `im-select`, nên dùng được cho các plugin Vim tự chuyển bộ gõ khi đổi mode.
 
-```powershell
-# Ví dụ Gõ Nhanh được giải nén vào C:\Tools\GoNhanh
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Tools\GoNhanh\bin", "User")
-```
+Để gõ `gn` ở mọi nơi: mở Cài đặt → **Hệ thống** → bật **Dòng lệnh gn**. Gõ Nhanh thêm thư mục `bin` vào `PATH` của tài khoản (tắt để gỡ ra), sau đó mở terminal mới là dùng được. Nếu chuyển Gõ Nhanh sang thư mục khác, tắt rồi bật lại mục này.
 
 | Lệnh | Kết quả |
 |------|---------|

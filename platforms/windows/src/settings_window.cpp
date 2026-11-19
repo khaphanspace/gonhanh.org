@@ -5,6 +5,7 @@
 #include "system_tray.h"
 #include "update_checker.h"
 #include "ime_state.h"
+#include "cli_path.h"
 #include <shellapi.h>
 #include <windowsx.h>
 #include "fluent_ui.h"
@@ -66,7 +67,8 @@ const wchar_t* kUrlContributors = L"https://github.com/khaphanspace/gonhanh.org/
 // ---------------------------------------------------------------------------
 // Settings page model
 // ---------------------------------------------------------------------------
-enum class RowKind { Toggle, Method, Hotkey, Shortcuts };
+// CliPath: a toggle backed by the user's PATH instead of a Settings field
+enum class RowKind { Toggle, Method, Hotkey, Shortcuts, CliPath };
 
 struct RowDef {
     RowKind kind;
@@ -100,6 +102,7 @@ const RowDef kRows[] = {
     { RowKind::Toggle,    L"Nhớ trạng thái theo app", L"Tự bật/tắt khi chuyển ứng dụng", &Settings::perApp, false },
     { RowKind::Toggle,    L"Âm thanh khi bật/tắt",    nullptr, &Settings::sound, false },
     { RowKind::Toggle,    L"Khởi động cùng Windows",  nullptr, &Settings::autoStart, false },
+    { RowKind::CliPath,   L"Dòng lệnh gn",            nullptr, nullptr, false },
     { RowKind::Toggle,    L"Tự kiểm tra bản mới",     L"Kết nối GitHub khi mở Cài đặt", &Settings::checkUpdates, false },
 };
 constexpr int kRowCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));
@@ -108,14 +111,33 @@ const GroupDef kGroups[] = {
     { L"Bộ gõ", 0, 5 },
     { L"Phím tắt", 5, 2 },
     { L"Quy tắc gõ", 7, 3 },
-    { L"Hệ thống", 10, 4 },
+    { L"Hệ thống", 10, 5 },
 };
 
+// `gn` on PATH: read from the registry when the window is shown or activated, not every frame
+struct CliRow {
+    CliPathState state = CliPathState::Missing;
+    bool available = false;  // bin\ with the CLI exists next to GoNhanh.exe
+    bool on = false;         // a Gõ Nhanh CLI folder is in the user's PATH
+};
+CliRow g_cliPath;
+
+void ReadCliPathState() {
+    g_cliPath.state = GetCliPathState();
+    g_cliPath.available = g_cliPath.state != CliPathState::Missing;
+    g_cliPath.on = g_cliPath.state == CliPathState::On || g_cliPath.state == CliPathState::OtherCopy;
+}
+
+bool RowIsToggle(const RowDef& row) {
+    return row.kind == RowKind::Toggle || row.kind == RowKind::CliPath;
+}
+
 bool RowHasSubtitle(const RowDef& row) {
-    return row.subtitle != nullptr || row.kind == RowKind::Shortcuts;
+    return row.subtitle != nullptr || row.kind == RowKind::Shortcuts || row.kind == RowKind::CliPath;
 }
 
 bool RowClickable(const RowDef& row) {
+    if (row.kind == RowKind::CliPath) return g_cliPath.available;
     return row.kind == RowKind::Toggle || row.kind == RowKind::Shortcuts;
 }
 
@@ -133,6 +155,7 @@ int ContentHeightLogical() {
 
 bool ToggleValue(int row) {
     const RowDef& def = kRows[row];
+    if (def.kind == RowKind::CliPath) return g_cliPath.on;
     bool value = Settings::Instance().*(def.field);
     return def.inverted ? !value : value;
 }
@@ -161,6 +184,7 @@ void SettingsWindow::Show() {
 
     scrollPos_ = 0;
     hover_ = {};
+    ReadCliPathState();
     SyncToggleAnim(true);
     Layout();
     InvalidateRect(hwnd_, nullptr, FALSE);
@@ -332,7 +356,7 @@ bool SettingsWindow::ScrollbarGeometry(RECT& track, RECT& thumb) const {
 bool SettingsWindow::SyncToggleAnim(bool snap) {
     bool moving = false;
     for (int i = 0; i < kRowCount; i++) {
-        if (kRows[i].kind != RowKind::Toggle) continue;
+        if (!RowIsToggle(kRows[i])) continue;
         float target = ToggleValue(i) ? 1.0f : 0.0f;
         float& p = toggleAnim_[i];
         if (snap) {
@@ -552,6 +576,13 @@ void SettingsWindow::PaintSettings() {
             if (def.kind == RowKind::Shortcuts) {
                 auto [enabled, total] = Settings::Instance().GetShortcutsCount();
                 subtitle = std::to_wstring(enabled) + L"/" + std::to_wstring(total) + L" đang bật";
+            } else if (def.kind == RowKind::CliPath) {
+                switch (g_cliPath.state) {
+                    case CliPathState::Missing: subtitle = L"Không thấy bin\\gn.exe cạnh app"; break;
+                    case CliPathState::Off: subtitle = L"Dùng gn vi, gn en trong terminal"; break;
+                    case CliPathState::On: subtitle = L"Đã thêm vào PATH, mở terminal mới"; break;
+                    case CliPathState::OtherCopy: subtitle = L"PATH đang trỏ tới bản Gõ Nhanh khác"; break;
+                }
             } else if (def.subtitle) {
                 subtitle = def.subtitle;
             }
@@ -569,7 +600,10 @@ void SettingsWindow::PaintSettings() {
             int controlRight = row.right - S(kRowPadX);
             switch (def.kind) {
                 case RowKind::Toggle:
-                    DrawToggle(controlRight - S(40), midY - S(10), scale, toggleAnim_[i], rowHovered, rowPressed);
+                case RowKind::CliPath:
+                    if (RowClickable(def)) {
+                        DrawToggle(controlRight - S(40), midY - S(10), scale, toggleAnim_[i], rowHovered, rowPressed);
+                    }
                     break;
                 case RowKind::Method: {
                     RECT segs[2] = { segmentRects_[0], segmentRects_[1] };
@@ -679,6 +713,11 @@ void SettingsWindow::Activate(const HitResult& hit) {
         case Hit::Row:
             if (kRows[hit.index].kind == RowKind::Toggle) {
                 ToggleRow(hit.index);
+            } else if (kRows[hit.index].kind == RowKind::CliPath) {
+                // Pointing at another copy counts as on: the click removes it; the next one adds this copy
+                SetCliOnPath(!g_cliPath.on);
+                ReadCliPathState();  // Shows the real result, also if the registry write failed
+                Refresh();
             } else if (kRows[hit.index].kind == RowKind::Shortcuts) {
                 ShortcutsDialog::Instance().Show(hwnd_);
             }
@@ -859,7 +898,8 @@ LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
         case WM_ACTIVATE:
             if (LOWORD(wParam) != WA_INACTIVE) {
-                // Settings may have changed elsewhere (Ctrl+Space, tray menu, shortcuts dialog)
+                // Settings may have changed elsewhere (Ctrl+Space, tray menu, shortcuts dialog, PATH)
+                ReadCliPathState();
                 w->SyncToggleAnim(true);
                 InvalidateRect(hwnd, nullptr, FALSE);
             }

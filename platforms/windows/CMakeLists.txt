@@ -37,6 +37,7 @@ set(GONHANH_SOURCES
     src/system_tray.cpp
     src/settings_window.cpp
     src/ime_state.cpp
+    src/cli_path.cpp
     src/fluent_ui.cpp
     src/shortcuts_dialog.cpp
     src/app_compat.cpp

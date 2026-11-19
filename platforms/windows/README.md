@@ -15,7 +15,8 @@ install) with a C++20 Win32 front end and the shared Rust engine linked in as a 
 - **Single instance**: launching again opens Settings of the running instance
 - **Command line** (`bin\gonhanh.exe`, `bin\gn.exe`): `gonhanh` prints `vi`/`en`, `gonhanh vi|en`
   switches, plus `on`/`off`/`toggle`/`telex`/`vni`/`status`. Same commands as macOS/Linux
-  (`im-select` convention) for Vim mode switching; see [docs/install-windows.md](../../docs/install-windows.md)
+  (`im-select` convention) for Vim mode switching; see [docs/install-windows.md](../../docs/install-windows.md).
+  Settings → "Dòng lệnh gn" adds/removes `bin\` in the user's PATH (`cli_path.cpp`)
 - Per-monitor DPI aware, auto-start option, toggle sound
 
 ## Performance
