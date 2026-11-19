@@ -111,10 +111,26 @@ if (-not (Test-Path $LocalBuildDir)) {
     New-Item -ItemType Directory -Path $LocalBuildDir -Force | Out-Null
 }
 
+# Pick the newest installed Visual Studio (with C++ tools) as the CMake generator
+$VsGenerators = @{ "18" = "Visual Studio 18 2026"; "17" = "Visual Studio 17 2022" }
+$Generator = $null
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+if (Test-Path $vswhere) {
+    $vsVersion = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
+    if ($vsVersion) {
+        $Generator = $VsGenerators[($vsVersion -split '\.')[0]]
+    }
+}
+if (-not $Generator) {
+    Write-Host "Error: Visual Studio 2022 or 2026 with C++ build tools not found"
+    exit 1
+}
+Write-Host "  Generator: $Generator"
+
 $cmakeArgs = @(
     "-S", $SourceDir,
     "-B", $LocalBuildDir,
-    "-G", "Visual Studio 17 2022",
+    "-G", $Generator,
     "-A", "x64"
 )
 
