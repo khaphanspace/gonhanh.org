@@ -24,6 +24,7 @@ enum class Command : WPARAM {
     Toggle = 4,
     Telex = 5,   // switch to Telex and turn Vietnamese on
     Vni = 6,     // switch to VNI and turn Vietnamese on
+    Quit = 7,    // exit the app (replies first, then leaves its message loop)
 };
 
 // LRESULT bits. kOk is always set when the app handled the request, so 0 means

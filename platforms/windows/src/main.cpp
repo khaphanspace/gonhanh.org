@@ -109,6 +109,7 @@ static LRESULT HandleControlCommand(WPARAM command, LPARAM version) {
         case Command::Toggle: gonhanh::ToggleVietnamese(); break;
         case Command::Telex: setMethod(0); break;
         case Command::Vni: setMethod(1); break;
+        case Command::Quit: PostQuitMessage(0); break;  // Same as tray → Thoát, after this reply
         default: return 0;
     }
 

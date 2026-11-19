@@ -40,7 +40,15 @@ Gõ Nhanh hoạt động hoàn toàn offline: không quảng cáo, không thu th
 | `gonhanh on` / `off` / `toggle` | Bật / tắt / đảo trạng thái, in dòng trạng thái |
 | `gonhanh telex` / `vni` | Đổi kiểu gõ và bật tiếng Việt |
 | `gonhanh status` | Ví dụ `● BẬT │ telex │ gonhanh` |
+| `gonhanh start` / `quit` | Mở Gõ Nhanh (đợi đến khi sẵn sàng, nên dùng được `gn start; gn vi`) / thoát Gõ Nhanh |
+| `gonhanh completion` | In script gợi ý lệnh khi bấm `Tab` trong PowerShell |
 | `gonhanh version` / `help` | Phiên bản / trợ giúp |
+
+**Gợi ý lệnh bằng Tab (PowerShell):** thêm dòng sau vào `$PROFILE` (mở bằng `notepad $PROFILE`), rồi mở terminal mới. Gõ `gn ` rồi bấm `Tab` để lần lượt hiện các lệnh (`gn t` + `Tab` → `toggle`, `telex`):
+
+```powershell
+gn completion | Out-String | Invoke-Expression
+```
 
 Lệnh trả mã thoát `0` khi thành công, `1` kèm thông báo lỗi nếu Gõ Nhanh chưa chạy hoặc lệnh sai. Riêng `gn en` vẫn thành công khi Gõ Nhanh chưa chạy (lúc đó gõ phím vốn đã là tiếng Anh), nên Vim không báo lỗi mỗi lần nhấn `Esc`. Mỗi lệnh mất khoảng 10 ms. Lệnh `vi`/`en` không làm gì (không phát âm thanh) nếu trạng thái đã đúng. Dòng lệnh vẫn dùng được khi Gõ Nhanh chạy với quyền Administrator.
 

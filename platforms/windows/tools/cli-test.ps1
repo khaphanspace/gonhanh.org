@@ -86,6 +86,7 @@ try {
     Check "en -> ok (already English)" @("en") 0 ""
     Check "off -> error"       @("off") 1 "" "chưa chạy"
     Check "status -> error"    @("status") 1 "" "chưa chạy"
+    Check "quit -> ok (nothing to quit)" @("quit") 0 "Gõ Nhanh chưa chạy."
     Check "unknown command"    @("bogus") 1 "" "Lệnh không hợp lệ: bogus"
     Check "too many arguments" @("vi", "en") 1 "" "Lệnh không hợp lệ: vi en"
     $v = (Invoke-Cli $Cli @("version")).Out
@@ -93,14 +94,36 @@ try {
     if ($v -match '^Gõ Nhanh v\d+\.\d+\.\d+$') { Write-Host "  ok    version format ($v)" }
     else { $script:failures++; Write-Host "  FAIL  version format: '$v'" -ForegroundColor Red }
 
-    Write-Host "Starting $App"
-    $testApp = Start-Process -FilePath $App -PassThru
-    $ready = $false
-    for ($i = 0; $i -lt 100; $i++) {
-        if ((Invoke-Cli $Cli @()).Code -eq 0) { $ready = $true; break }
-        Start-Sleep -Milliseconds 100
+    # Tab completion: load the script into a clean PowerShell and ask it to complete
+    $script:checks++
+    $completion = Invoke-Cli $Cli @("completion")
+    $probe = Join-Path ([IO.Path]::GetTempPath()) "gonhanh-completion-test.ps1"
+    @"
+`$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+& '$Cli' completion | Out-String | Invoke-Expression
+`$r = TabExpansion2 -inputScript 'gn t' -cursorColumn 4
+(`$r.CompletionMatches | ForEach-Object CompletionText) -join ','
+`$r = TabExpansion2 -inputScript 'gonhanh.exe ' -cursorColumn 12
+`$r.CompletionMatches.Count
+(`$r.CompletionMatches | Where-Object CompletionText -eq 'vi').ToolTip
+"@ | Out-File $probe -Encoding utf8
+    $tab = Invoke-Cli "powershell.exe" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $probe)
+    Remove-Item $probe -ErrorAction SilentlyContinue
+    $tabLines = $tab.Out -split "`r?`n"
+    $ascii = $completion.Out -notmatch '[^\x00-\x7F]'
+    if ($completion.Code -eq 0 -and $ascii -and $tabLines[0] -eq "toggle,telex" -and [int]$tabLines[1] -ge 12 -and
+        $tabLines[2] -eq "Bật gõ tiếng Việt (im lặng, dùng cho Vim/script)") {
+        Write-Host "  ok    completion (gn t<Tab> -> $($tabLines[0]); $($tabLines[1]) commands; Vietnamese tooltips)"
+    } else {
+        $script:failures++
+        Write-Host "  FAIL  completion: ascii=$ascii exit=$($completion.Code) out='$($tab.Out)' err='$($tab.Err.Trim())'" -ForegroundColor Red
     }
-    if (-not $ready) { throw "GoNhanh did not answer within 10 s" }
+
+    Write-Host "Starting with gn start:"
+    Check "start"           @("start") 0 "Đã mở Gõ Nhanh."
+    $testApp = $true
+    Check "start again"     @("start") 0 "Gõ Nhanh đang chạy."
 
     Write-Host "With GoNhanh running:"
     if ($null -eq $originalEnabled) {
@@ -130,6 +153,16 @@ try {
     for ($i = 0; $i -lt 20; $i++) { $null = Invoke-Cli $Gn @("en") }
     $sw.Stop()
     Write-Host ("  info  {0:N1} ms per call (process start included)" -f ($sw.Elapsed.TotalMilliseconds / 20))
+
+    # Put the starting state back while the app still runs, then close it with gn quit
+    if ($null -ne $originalEnabled) {
+        $null = Invoke-Cli $Cli @($originalMethod)
+        if (-not $originalEnabled) { $null = Invoke-Cli $Cli @("en") }
+        $originalEnabled = $null
+    }
+    Check "quit"            @("quit") 0 "Đã thoát Gõ Nhanh."
+    Check "get after quit"  @() 1 "" "chưa chạy"
+    $testApp = $null
 }
 finally {
     # Put back the user's mode and method, then the GoNhanh they had running
