@@ -28,6 +28,7 @@ public:
     bool autoCapitalize = false;
     bool freeTone = false;
     bool allowForeignConsonants = false;
+    bool checkUpdates = false;  // Off by default: the app makes no network requests unless enabled
 
     // Shortcuts list
     std::vector<Shortcut> shortcuts;

@@ -200,9 +200,8 @@ void SystemTray::ShowMenu() {
 
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    // Settings, About, Exit
+    // Settings (app info and links live in its sidebar), Exit
     AppendMenuW(menu, MF_STRING, IDM_SETTINGS, L"C\x00E0i \x0111\x1EB7t...");
-    AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"Gi\x1EDBi thi\x1EC7u");
 
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 

@@ -6,7 +6,6 @@
 #include "system_tray.h"
 #include "settings.h"
 #include "settings_window.h"
-#include "about_dialog.h"
 #include "app_compat.h"
 #include "per_app.h"
 #include "utils.h"
@@ -116,10 +115,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
                 case IDM_SETTINGS:
                     gonhanh::SettingsWindow::Instance().Show();
-                    break;
-
-                case IDM_ABOUT:
-                    gonhanh::AboutDialog::Instance().Show();
                     break;
 
                 case IDM_EXIT:

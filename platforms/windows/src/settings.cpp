@@ -18,73 +18,60 @@ void Settings::Load() {
         return;  // Use defaults
     }
 
-    auto readDword = [&](const wchar_t* name, DWORD& value) {
-        DWORD size = sizeof(DWORD);
-        RegQueryValueExW(key, name, nullptr, nullptr, (LPBYTE)&value, &size);
+    // A missing value keeps the field's default (declared in settings.h)
+    auto readBool = [&](const wchar_t* name, bool& field) {
+        DWORD value = 0;
+        DWORD size = sizeof(value);
+        if (RegQueryValueExW(key, name, nullptr, nullptr, reinterpret_cast<LPBYTE>(&value), &size) == ERROR_SUCCESS) {
+            field = (value != 0);
+        }
     };
 
-    DWORD temp = 1;  // Default: enabled
-    readDword(L"Enabled", temp);
-    enabled = (temp != 0);
-
-    readDword(L"Method", temp);
-    method = static_cast<uint8_t>(temp);
-
-    readDword(L"SkipWShortcut", temp);
-    skipWShortcut = (temp != 0);
-
-    readDword(L"BracketShortcut", temp);
-    bracketShortcut = (temp != 0);
-
-    readDword(L"EscRestore", temp);
-    escRestore = (temp != 0);
-
-    readDword(L"AutoStart", temp);
-    autoStart = (temp != 0);
-
-    readDword(L"PerApp", temp);
-    perApp = (temp != 0);
-
-    readDword(L"AutoRestore", temp);
-    autoRestore = (temp != 0);
-
-    readDword(L"Sound", temp);
-    sound = (temp != 0);
-
-    readDword(L"ModernTone", temp);
-    modernTone = (temp != 0);
-
-    readDword(L"AutoCapitalize", temp);
-    autoCapitalize = (temp != 0);
-
-    readDword(L"FreeTone", temp);
-    freeTone = (temp != 0);
-
-    readDword(L"AllowForeignConsonants", temp);
-    allowForeignConsonants = (temp != 0);
-
-    // Load shortcuts from REG_MULTI_SZ
-    DWORD bufferSize = 0, type;
-    if (RegQueryValueExW(key, L"Shortcuts", nullptr, &type, nullptr, &bufferSize) == ERROR_SUCCESS
-        && type == REG_MULTI_SZ && bufferSize > sizeof(wchar_t)) {
-        std::vector<wchar_t> buffer(bufferSize / sizeof(wchar_t));
-        if (RegQueryValueExW(key, L"Shortcuts", nullptr, nullptr, (LPBYTE)buffer.data(), &bufferSize) == ERROR_SUCCESS) {
-            shortcuts.clear();
-            const wchar_t* ptr = buffer.data();
-            const wchar_t* end = buffer.data() + buffer.size();
-            while (ptr < end && *ptr) {
-                std::wstring trigger = ptr;
-                ptr += trigger.length() + 1;
-                if (ptr < end && *ptr) {
-                    std::wstring replacement = ptr;
-                    ptr += replacement.length() + 1;
-                    shortcuts.push_back({trigger, replacement, true});
-                } else {
-                    break;
-                }
-            }
-        }
+    readBool(L"Enabled", enabled);
+    DWORD methodValue = method;
+    DWORD size = sizeof(methodValue);
+    if (RegQueryValueExW(key, L"Method", nullptr, nullptr, reinterpret_cast<LPBYTE>(&methodValue), &size) == ERROR_SUCCESS) {
+        method = methodValue == 1 ? 1 : 0;
     }
+    readBool(L"SkipWShortcut", skipWShortcut);
+    readBool(L"BracketShortcut", bracketShortcut);
+    readBool(L"EscRestore", escRestore);
+    readBool(L"AutoStart", autoStart);
+    readBool(L"PerApp", perApp);
+    readBool(L"AutoRestore", autoRestore);
+    readBool(L"Sound", sound);
+    readBool(L"ModernTone", modernTone);
+    readBool(L"AutoCapitalize", autoCapitalize);
+    readBool(L"FreeTone", freeTone);
+    readBool(L"AllowForeignConsonants", allowForeignConsonants);
+    readBool(L"CheckUpdates", checkUpdates);
+
+    // Shortcuts: REG_MULTI_SZ of "trigger\0replacement\0" pairs. Enabled ones live in
+    // "Shortcuts" (original format), disabled ones in "ShortcutsDisabled".
+    auto readPairs = [&](const wchar_t* name, bool enabledFlag) {
+        DWORD bufferSize = 0, type = 0;
+        if (RegQueryValueExW(key, name, nullptr, &type, nullptr, &bufferSize) != ERROR_SUCCESS ||
+            type != REG_MULTI_SZ || bufferSize <= sizeof(wchar_t)) {
+            return;
+        }
+        std::vector<wchar_t> buffer(bufferSize / sizeof(wchar_t) + 1, L'\0');
+        if (RegQueryValueExW(key, name, nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer.data()), &bufferSize) != ERROR_SUCCESS) {
+            return;
+        }
+        const wchar_t* ptr = buffer.data();
+        const wchar_t* end = buffer.data() + buffer.size();
+        while (ptr < end && *ptr) {
+            std::wstring trigger = ptr;
+            ptr += trigger.length() + 1;
+            if (ptr >= end || !*ptr) break;
+            std::wstring replacement = ptr;
+            ptr += replacement.length() + 1;
+            shortcuts.push_back({ trigger, replacement, enabledFlag });
+        }
+    };
+    shortcuts.clear();
+    readPairs(L"Shortcuts", true);
+    readPairs(L"ShortcutsDisabled", false);
 
     RegCloseKey(key);
 }
@@ -113,19 +100,24 @@ void Settings::Save() {
     writeDword(L"AutoCapitalize", autoCapitalize ? 1 : 0);
     writeDword(L"FreeTone", freeTone ? 1 : 0);
     writeDword(L"AllowForeignConsonants", allowForeignConsonants ? 1 : 0);
+    writeDword(L"CheckUpdates", checkUpdates ? 1 : 0);
 
-    // Save shortcuts as REG_MULTI_SZ
-    std::wstring multiSz;
-    for (const auto& shortcut : shortcuts) {
-        if (shortcut.enabled) {
-            multiSz += shortcut.trigger + L'\0';
-            multiSz += shortcut.replacement + L'\0';
+    // Save shortcuts as REG_MULTI_SZ: enabled and disabled in separate values, so turning a
+    // shortcut off no longer deletes it (and older builds still read "Shortcuts" unchanged)
+    auto writePairs = [&](const wchar_t* name, bool enabledFlag) {
+        std::wstring multiSz;
+        for (const auto& shortcut : shortcuts) {
+            if (shortcut.enabled == enabledFlag) {
+                multiSz += shortcut.trigger + L'\0';
+                multiSz += shortcut.replacement + L'\0';
+            }
         }
-    }
-    multiSz += L'\0';
-    RegSetValueExW(key, L"Shortcuts", 0, REG_MULTI_SZ,
-                   (const BYTE*)multiSz.c_str(),
-                   static_cast<DWORD>((multiSz.length() + 1) * sizeof(wchar_t)));
+        multiSz += L'\0';
+        RegSetValueExW(key, name, 0, REG_MULTI_SZ, reinterpret_cast<const BYTE*>(multiSz.c_str()),
+                       static_cast<DWORD>((multiSz.length() + 1) * sizeof(wchar_t)));
+    };
+    writePairs(L"Shortcuts", true);
+    writePairs(L"ShortcutsDisabled", false);
     RegCloseKey(key);
 
     // Handle auto-start
