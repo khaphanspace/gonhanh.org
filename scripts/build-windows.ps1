@@ -196,6 +196,13 @@ if (Test-Path $ExeSource) {
     Copy-Item $ExeSource "$PublishDir\GoNhanh.exe" -Force
 }
 
+# Command line tool (gonhanh.exe + gn.exe) goes to publish\bin: add that folder to PATH
+$CliSource = "$LocalBuildDir\$buildType\bin"
+if (Test-Path "$CliSource\gonhanh.exe") {
+    New-Item -ItemType Directory -Path "$PublishDir\bin" -Force | Out-Null
+    Copy-Item "$CliSource\gonhanh.exe", "$CliSource\gn.exe" "$PublishDir\bin\" -Force
+}
+
 Write-Host ""
 Write-Host "Build complete!"
 Write-Host "Output: platforms/windows/publish/GoNhanh.exe"
@@ -209,7 +216,9 @@ if ($Package) {
     Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
 
     if (Test-Path "$PublishDir\GoNhanh.exe") {
-        Compress-Archive -Path "$PublishDir\GoNhanh.exe" -DestinationPath $ZipPath -Force
+        $items = @("$PublishDir\GoNhanh.exe")
+        if (Test-Path "$PublishDir\bin") { $items += "$PublishDir\bin" }
+        Compress-Archive -Path $items -DestinationPath $ZipPath -Force
         Write-Host "Package: platforms/windows/$ZipName"
     }
 }

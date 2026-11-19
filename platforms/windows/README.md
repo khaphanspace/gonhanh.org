@@ -13,6 +13,9 @@ install) with a C++20 Win32 front end and the shared Rust engine linked in as a 
   system accent color live; tray menu follows the theme
 - **Offline by default**: no network access unless "Tự kiểm tra bản mới" is turned on
 - **Single instance**: launching again opens Settings of the running instance
+- **Command line** (`bin\gonhanh.exe`, `bin\gn.exe`): `gonhanh` prints `vi`/`en`, `gonhanh vi|en`
+  switches, plus `on`/`off`/`toggle`/`telex`/`vni`/`status`. Same commands as macOS/Linux
+  (`im-select` convention) for Vim mode switching; see [docs/install-windows.md](../../docs/install-windows.md)
 - Per-monitor DPI aware, auto-start option, toggle sound
 
 ## Performance
@@ -59,6 +62,15 @@ The low-level hook must return fast (Windows silently removes hooks that keep ex
 the hook. Apps that need paced input (terminals, VS Code/Electron; see `app_compat.cpp`) are served
 by a worker thread; while it is busy, the hook swallows later key events and replays them after the
 paced output so the app still receives keys in typing order.
+
+The CLI (`cli/gonhanh_cli.cpp`, ~135 KB console exe) finds the app's hidden message-only window
+and sends one `SendMessageTimeout` (`control_protocol.h`): wParam is the command, the LRESULT carries
+the resulting state. The app applies it on its UI thread through `ime_state`, the same path as the
+tray and Ctrl+Space, so per-app mode, sound and the tray icon stay in sync. Round trip ~0.03 ms;
+~12 ms per call including process start. It lives in `bin\` because file names are case-insensitive:
+`gonhanh.exe` next to `GoNhanh.exe` would be the app itself. The app allows the message through UIPI
+(`ChangeWindowMessageFilterEx`), so the CLI still works when GoNhanh runs as administrator.
+`tools/cli-test.ps1` tests every command against the built app (run by CI).
 
 DirectWrite, WinHTTP, comdlg32 and dwmapi are delay-loaded, so they are only mapped when
 a window or the update check needs them; render resources are released and the working set trimmed

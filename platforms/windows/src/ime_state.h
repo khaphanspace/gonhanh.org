@@ -11,6 +11,9 @@ namespace gonhanh {
 void SetVietnameseEnabled(bool enabled);
 void ToggleVietnamese();
 
+// Switch the input method (0 = Telex, 1 = VNI): saves it and updates the engine, tray and UI.
+void SetInputMethod(int method);
+
 // Push the current Settings::enabled value to the engine, hook, tray and UI without saving.
 // Used at startup and after per-app mode switches state on app change.
 void SyncEnabledState();

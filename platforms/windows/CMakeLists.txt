@@ -128,6 +128,25 @@ if(MSVC)
     target_link_options(gonhanh PRIVATE /LTCG /OPT:REF /OPT:ICF)
 endif()
 
+# Command line tool `gonhanh` / `gn` (issue #433): a tiny console exe that talks to the running
+# app. It goes to bin/ because Windows file names are case-insensitive: next to GoNhanh.exe,
+# gonhanh.exe would be the app itself.
+add_executable(gonhanh-cli cli/gonhanh_cli.cpp)
+set_target_properties(gonhanh-cli PROPERTIES
+    OUTPUT_NAME gonhanh
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>/bin"
+)
+target_include_directories(gonhanh-cli PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(gonhanh-cli PRIVATE UNICODE _UNICODE APP_VERSION_STRING="${GONHANH_VERSION}")
+target_link_libraries(gonhanh-cli PRIVATE user32)
+if(MSVC)
+    target_compile_options(gonhanh-cli PRIVATE /utf-8 /O1 /GL)
+    target_link_options(gonhanh-cli PRIVATE /LTCG /OPT:REF /OPT:ICF)
+endif()
+add_custom_command(TARGET gonhanh-cli POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:gonhanh-cli> $<TARGET_FILE_DIR:gonhanh-cli>/gn.exe
+)
+
 # Memory: the IME lives in the tray, the UI is opened rarely. Load the UI/network DLLs only
 # when the Settings/Shortcuts windows or the update check actually need them.
 if(MSVC)

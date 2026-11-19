@@ -5,7 +5,7 @@
 ## Cài đặt
 
 1. Tải `GoNhanh-<phiên bản>-win-x64.zip` tại [Releases](https://github.com/khaphanspace/gonhanh.org/releases).
-2. Giải nén và chạy `GoNhanh.exe`. Không cần cài thêm runtime nào; chỉ một file ~2 MB.
+2. Giải nén và chạy `GoNhanh.exe` (~2 MB, không cần cài thêm runtime nào). Thư mục `bin` chứa công cụ [dòng lệnh](#dòng-lệnh-vim-script), không bắt buộc.
 3. Icon ⚡ xuất hiện ở khay hệ thống (góc phải taskbar). Bấm mũi tên **^** nếu không thấy, có thể kéo icon ra taskbar để luôn hiển thị.
 
 > File chưa được ký số nên lần đầu Windows SmartScreen có thể cảnh báo: chọn **More info → Run anyway**.
@@ -26,6 +26,46 @@ Muốn Gõ Nhanh tự chạy khi mở máy: mở Cài đặt → bật **Khởi 
 ### Quyền riêng tư
 
 Gõ Nhanh hoạt động hoàn toàn offline: không quảng cáo, không thu thập dữ liệu. Ứng dụng chỉ kết nối GitHub để kiểm tra bản mới nếu bạn tự bật **Tự kiểm tra bản mới** trong Cài đặt (mặc định tắt).
+
+## Dòng lệnh (Vim, script)
+
+`bin\gonhanh.exe` (hoặc `bin\gn.exe`) điều khiển Gõ Nhanh đang chạy, cùng cú pháp với bản macOS/Linux và theo quy ước `im-select`, nên dùng được cho các plugin Vim tự chuyển bộ gõ khi đổi mode. Thêm thư mục `bin` vào `PATH`:
+
+```powershell
+# Ví dụ Gõ Nhanh được giải nén vào C:\Tools\GoNhanh
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Tools\GoNhanh\bin", "User")
+```
+
+| Lệnh | Kết quả |
+|------|---------|
+| `gonhanh` | In trạng thái hiện tại: `vi` hoặc `en` |
+| `gonhanh vi` / `gonhanh en` | Bật / tắt tiếng Việt, không in gì (dùng cho Vim/script) |
+| `gonhanh on` / `off` / `toggle` | Bật / tắt / đảo trạng thái, in dòng trạng thái |
+| `gonhanh telex` / `vni` | Đổi kiểu gõ và bật tiếng Việt |
+| `gonhanh status` | Ví dụ `● BẬT │ telex │ gonhanh` |
+| `gonhanh version` / `help` | Phiên bản / trợ giúp |
+
+Lệnh trả mã thoát `0` khi thành công, `1` kèm thông báo lỗi nếu Gõ Nhanh chưa chạy hoặc lệnh sai. Riêng `gn en` vẫn thành công khi Gõ Nhanh chưa chạy (lúc đó gõ phím vốn đã là tiếng Anh), nên Vim không báo lỗi mỗi lần nhấn `Esc`. Mỗi lệnh mất khoảng 10 ms. Lệnh `vi`/`en` không làm gì (không phát âm thanh) nếu trạng thái đã đúng. Dòng lệnh vẫn dùng được khi Gõ Nhanh chạy với quyền Administrator.
+
+**Neovim** ([im-select.nvim](https://github.com/keaising/im-select.nvim)):
+
+```lua
+require("im_select").setup({
+  default_command = "gonhanh",
+  default_im_select = "en",
+})
+```
+
+**VS Code** (VSCodeVim, `settings.json`):
+
+```json
+"vim.autoSwitchInputMethod.enable": true,
+"vim.autoSwitchInputMethod.defaultIM": "en",
+"vim.autoSwitchInputMethod.obtainIMCmd": "gonhanh",
+"vim.autoSwitchInputMethod.switchIMCmd": "gonhanh {im}"
+```
+
+**Obsidian** (Vim Motions → Input method switching): IM binary path là đường dẫn tới `gonhanh.exe`, *Obtain IM arguments* để trống, *Switch IM arguments* là `{im}`, *Normal mode IM* là `en`.
 
 ## Quy tắc gõ
 

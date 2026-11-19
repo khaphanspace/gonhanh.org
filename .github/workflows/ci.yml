@@ -100,6 +100,10 @@ jobs:
           "GoNhanh.exe: {0:N2} MB" -f ($exe.Length / 1MB)
           if ($exe.Length -gt 5MB) { throw "GoNhanh.exe is larger than 5 MB" }
 
+      - name: Test CLI against the app
+        shell: pwsh
+        run: ./platforms/windows/tools/cli-test.ps1
+
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:

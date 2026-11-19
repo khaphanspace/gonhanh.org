@@ -35,4 +35,13 @@ void ToggleVietnamese() {
     SetVietnameseEnabled(!Settings::Instance().enabled);
 }
 
+void SetInputMethod(int method) {
+    auto& settings = Settings::Instance();
+    settings.method = static_cast<uint8_t>(method == 1 ? 1 : 0);
+    settings.Save();
+    settings.ApplyToEngine();
+    SystemTray::Instance().UpdateIcon();
+    SettingsWindow::Instance().Refresh();
+}
+
 } // namespace gonhanh

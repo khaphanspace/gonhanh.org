@@ -12,8 +12,9 @@
 #include "debug_console.h"
 #include "resource.h"
 #include "ime_state.h"
+#include "control_protocol.h"
 
-static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
+static const wchar_t* WINDOW_CLASS = gonhanh::control::kWindowClass;
 static HWINEVENTHOOK g_foregroundHook = nullptr;
 static HWINEVENTHOOK g_focusHook = nullptr;
 
@@ -85,8 +86,43 @@ void CALLBACK WinEventProc(
     }
 }
 
+// Request from the `gonhanh` / `gn` CLI (control_protocol.h). Vim plugins call `vi` / `en` on
+// every mode change, so a command that wouldn't change anything does nothing: no registry write,
+// no toggle sound.
+static LRESULT HandleControlCommand(WPARAM command, LPARAM version) {
+    using gonhanh::control::Command;
+    if (version != gonhanh::control::kProtocolVersion) return 0;
+
+    auto& settings = gonhanh::Settings::Instance();
+    auto setEnabled = [&](bool on) {
+        if (settings.enabled != on) gonhanh::SetVietnameseEnabled(on);
+    };
+    auto setMethod = [&](int method) {
+        if (settings.method != method) gonhanh::SetInputMethod(method);
+        setEnabled(true);
+    };
+
+    switch (static_cast<Command>(command)) {
+        case Command::Get: break;
+        case Command::Vi: setEnabled(true); break;
+        case Command::En: setEnabled(false); break;
+        case Command::Toggle: gonhanh::ToggleVietnamese(); break;
+        case Command::Telex: setMethod(0); break;
+        case Command::Vni: setMethod(1); break;
+        default: return 0;
+    }
+
+    LRESULT result = gonhanh::control::kOk;
+    if (settings.enabled) result |= gonhanh::control::kEnabled;
+    if (settings.method == 1) result |= gonhanh::control::kMethodVni;
+    return result;
+}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+        case gonhanh::control::kMessage:
+            return HandleControlCommand(wParam, lParam);
+
         case WM_TRAYICON:
             gonhanh::SystemTray::Instance().HandleMessage(wParam, lParam);
             return 0;
@@ -96,9 +132,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_COMMAND: {
-            auto& settings = gonhanh::Settings::Instance();
-            auto& tray = gonhanh::SystemTray::Instance();
-
             switch (LOWORD(wParam)) {
                 case IDM_ENABLE:
                     gonhanh::ToggleVietnamese();
@@ -106,11 +139,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
                 case IDM_TELEX:
                 case IDM_VNI:
-                    settings.method = (LOWORD(wParam) == IDM_TELEX) ? 0 : 1;
-                    settings.Save();
-                    settings.ApplyToEngine();
-                    tray.UpdateIcon();
-                    gonhanh::SettingsWindow::Instance().Refresh();
+                    gonhanh::SetInputMethod(LOWORD(wParam) == IDM_TELEX ? 0 : 1);
                     break;
 
                 case IDM_SETTINGS:
@@ -207,6 +236,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         MessageBoxW(NULL, L"Failed to create message window", L"Error", MB_ICONERROR);
         return 1;
     }
+
+    // When GoNhanh runs as administrator (to type into elevated apps), UIPI drops messages from
+    // the non-elevated `gonhanh` CLI. Let the control message through; it only switches modes.
+    ChangeWindowMessageFilterEx(hwnd, gonhanh::control::kMessage, MSGFLT_ALLOW, nullptr);
 
     // Set up event hooks for app switching and focus change detection
     // Use separate hooks since EVENT_SYSTEM_FOREGROUND and EVENT_OBJECT_FOCUS are not contiguous
