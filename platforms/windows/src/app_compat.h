@@ -14,9 +14,9 @@ enum class InjectionMethod : uint8_t {
 
 // Timing configuration for injection
 struct InjectionTiming {
-    uint32_t backspaceDelayUs = 200;   // Delay after each backspace
-    uint32_t waitDelayUs = 800;        // Delay before sending text
-    uint32_t textDelayUs = 500;        // Delay between text characters
+    uint32_t backspaceDelayUs = 0;     // Delay after each backspace (0 = no pacing)
+    uint32_t waitDelayUs = 0;          // Delay before sending text
+    uint32_t textDelayUs = 0;          // Delay between text characters
 };
 
 // Detection result with method and timing

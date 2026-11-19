@@ -11,6 +11,8 @@ public:
     void Show();
     void Hide();
     bool IsVisible() const { return visible_; }
+    // Re-read settings into the controls after a change made elsewhere (tray, Ctrl+Space)
+    void Refresh();
 
 private:
     SettingsWindow() = default;

@@ -100,6 +100,15 @@ void PerAppMode::SetAppState(const std::wstring& appName, bool enabled) {
     Save();
 }
 
+void PerAppMode::SetCurrentAppState(bool enabled) {
+    EnterCriticalSection(&lock_);
+    std::wstring app = currentApp_;
+    LeaveCriticalSection(&lock_);
+    if (!app.empty()) {
+        SetAppState(app, enabled);
+    }
+}
+
 void PerAppMode::SwitchToApp(const std::wstring& appName) {
     if (appName.empty() || appName == currentApp_) return;
 

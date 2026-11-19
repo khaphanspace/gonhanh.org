@@ -74,6 +74,13 @@ void SettingsWindow::Show() {
     SetTimer(hwnd_, 1, 500, nullptr);  // Check every 500ms
 }
 
+void SettingsWindow::Refresh() {
+    if (hwnd_ && visible_) {
+        LoadSettings();
+        InvalidateRect(hwnd_, nullptr, FALSE);
+    }
+}
+
 void SettingsWindow::Hide() {
     if (hwnd_) {
         KillTimer(hwnd_, 1);

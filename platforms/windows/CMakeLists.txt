@@ -35,6 +35,7 @@ set(GONHANH_SOURCES
     src/rust_bridge.cpp
     src/settings.cpp
     src/system_tray.cpp
+    src/ime_state.cpp
     src/settings_window.cpp
     src/shortcuts_dialog.cpp
     src/about_dialog.cpp

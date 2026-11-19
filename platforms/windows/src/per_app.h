@@ -21,6 +21,9 @@ public:
     // Set IME enabled state for current app
     void SetAppState(const std::wstring& appName, bool enabled);
 
+    // Remember the given state for the app currently in the foreground
+    void SetCurrentAppState(bool enabled);
+
     // Switch to app's saved state
     void SwitchToApp(const std::wstring& appName);
 

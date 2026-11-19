@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <oleacc.h>  // For OBJID_WINDOW, OBJID_CLIENT constants
+#include <commctrl.h>
 #include "rust_bridge.h"
 #include "keyboard_hook.h"
 #include "system_tray.h"
@@ -11,10 +12,24 @@
 #include "utils.h"
 #include "debug_console.h"
 #include "resource.h"
+#include "ime_state.h"
 
 static const wchar_t* WINDOW_CLASS = L"GoNhanhHidden";
 static HWINEVENTHOOK g_foregroundHook = nullptr;
 static HWINEVENTHOOK g_focusHook = nullptr;
+
+// Taskbar, notification area and its overflow flyout
+static bool IsTaskbarWindow(HWND hwnd) {
+    HWND root = hwnd ? GetAncestor(hwnd, GA_ROOT) : nullptr;
+    if (!root) return false;
+    wchar_t cls[64] = {};
+    GetClassNameW(root, cls, 64);
+    return wcscmp(cls, L"Shell_TrayWnd") == 0 ||
+           wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
+           wcscmp(cls, L"NotifyIconOverflowWindow") == 0 ||
+           wcscmp(cls, L"TopLevelWindowForOverflowXamlIsland") == 0 ||
+           wcscmp(cls, L"XamlExplorerHostIslandWindow") == 0;
+}
 
 // Event-driven foreground app and focus change detection
 void CALLBACK WinEventProc(
@@ -33,11 +48,18 @@ void CALLBACK WinEventProc(
         ime_clear_all();
         appCompat.ClearDetectionCache();
 
+        // Clicking the tray icon or taskbar makes Explorer's taskbar the foreground window.
+        // Treating that as an app switch would apply (and record) the toggle to explorer.exe
+        // instead of the app the user is typing in, so ignore taskbar/tray surfaces.
         auto& settings = gonhanh::Settings::Instance();
-        if (settings.perApp) {
+        if (settings.perApp && !IsTaskbarWindow(hwnd)) {
             std::wstring appName = appCompat.GetForegroundAppName();
             if (!appName.empty()) {
+                bool before = settings.enabled;
                 gonhanh::PerAppMode::Instance().SwitchToApp(appName);
+                if (settings.enabled != before) {
+                    gonhanh::SyncEnabledState();
+                }
             }
         }
     } else if (event == EVENT_OBJECT_FOCUS) {
@@ -56,30 +78,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             gonhanh::SystemTray::Instance().HandleMessage(wParam, lParam);
             return 0;
 
+        case WM_TOGGLE_IME:
+            gonhanh::ToggleVietnamese();
+            return 0;
+
         case WM_COMMAND: {
             auto& settings = gonhanh::Settings::Instance();
             auto& tray = gonhanh::SystemTray::Instance();
 
             switch (LOWORD(wParam)) {
                 case IDM_ENABLE:
-                    settings.enabled = !settings.enabled;
-                    settings.Save();
-                    tray.UpdateIcon();
-                    if (settings.sound) {
-                        gonhanh::PlayToggleSound();
-                    }
+                    gonhanh::ToggleVietnamese();
                     break;
 
                 case IDM_TELEX:
-                    settings.method = 0;
-                    settings.Save();
-                    tray.UpdateIcon();
-                    break;
-
                 case IDM_VNI:
-                    settings.method = 1;
+                    settings.method = (LOWORD(wParam) == IDM_TELEX) ? 0 : 1;
                     settings.Save();
+                    settings.ApplyToEngine();
                     tray.UpdateIcon();
+                    gonhanh::SettingsWindow::Instance().Refresh();
                     break;
 
                 case IDM_SETTINGS:
@@ -113,6 +131,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     console.Create();
     console.Log(L"[STARTUP] GoNhanh starting...");
 #endif
+
+    // Single instance: a second keyboard hook would process every keystroke twice.
+    // Launching again (Start menu, autostart + manual) just opens the running instance's Settings.
+    HANDLE instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\GoNhanh.SingleInstance");
+    if (instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        HWND running = FindWindowExW(HWND_MESSAGE, nullptr, WINDOW_CLASS, nullptr);
+        if (running) {
+            AllowSetForegroundWindow(ASFW_ANY);  // Let it bring Settings to the front
+            PostMessageW(running, WM_COMMAND, IDM_SETTINGS, 0);
+        }
+        CloseHandle(instanceMutex);
+        return 0;
+    }
 
     // Initialize COM for common controls
     INITCOMMONCONTROLSEX icc = {};
@@ -188,6 +219,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         MessageBoxW(NULL, L"Failed to install keyboard hook", L"Error", MB_ICONERROR);
         return 1;
     }
+    hook.SetNotifyWindow(hwnd);  // Ctrl+Space -> WM_TOGGLE_IME
 
     // Create system tray icon
     auto& tray = gonhanh::SystemTray::Instance();
@@ -196,6 +228,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         MessageBoxW(NULL, L"Failed to create system tray icon", L"Error", MB_ICONERROR);
         return 1;
     }
+
+    // Start with the hook, engine and tray icon all reflecting the saved state
+    gonhanh::SyncEnabledState();
+
+    // Startup work (registry, icons, engine init) is done; give those pages back while idle
+    gonhanh::TrimWorkingSet();
 
     gonhanh::LogInfo(L"GoNhanh started successfully");
 
