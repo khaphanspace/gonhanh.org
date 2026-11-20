@@ -12,81 +12,110 @@ Settings& Settings::Instance() {
     return instance;
 }
 
+// HKCU\...\Run\GoNhanh: this exe (quoted) when auto-start is on, removed when off. Only
+// written when it differs, so calling it at every startup costs a registry read.
+static void UpdateRunEntry(const wchar_t* runKeyPath, bool autoStart) {
+    HKEY runKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, runKeyPath, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &runKey) != ERROR_SUCCESS) {
+        return;
+    }
+    if (autoStart) {
+        wchar_t exePath[MAX_PATH];
+        DWORD n = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        if (n > 0 && n < MAX_PATH) {
+            std::wstring quoted = L"\"" + std::wstring(exePath, n) + L"\"";
+            wchar_t current[MAX_PATH + 3] = {};
+            DWORD size = sizeof(current) - sizeof(wchar_t);  // keep a terminator
+            DWORD type = 0;
+            bool same = RegQueryValueExW(runKey, L"GoNhanh", nullptr, &type, reinterpret_cast<LPBYTE>(current),
+                                         &size) == ERROR_SUCCESS &&
+                        type == REG_SZ && _wcsicmp(current, quoted.c_str()) == 0;
+            if (!same) {
+                RegSetValueExW(runKey, L"GoNhanh", 0, REG_SZ, reinterpret_cast<const BYTE*>(quoted.c_str()),
+                               static_cast<DWORD>((quoted.length() + 1) * sizeof(wchar_t)));
+            }
+        }
+    } else {
+        RegDeleteValueW(runKey, L"GoNhanh");
+    }
+    RegCloseKey(runKey);
+}
+
 void Settings::Load() {
     HKEY key;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_KEY, 0, KEY_READ, &key) != ERROR_SUCCESS) {
         return;  // Use defaults
     }
 
-    auto readDword = [&](const wchar_t* name, DWORD& value) {
-        DWORD size = sizeof(DWORD);
-        RegQueryValueExW(key, name, nullptr, nullptr, (LPBYTE)&value, &size);
+    // A missing value keeps the field's default (declared in settings.h)
+    auto readBool = [&](const wchar_t* name, bool& field) {
+        DWORD value = 0;
+        DWORD size = sizeof(value);
+        if (RegQueryValueExW(key, name, nullptr, nullptr, reinterpret_cast<LPBYTE>(&value), &size) == ERROR_SUCCESS) {
+            field = (value != 0);
+        }
     };
 
-    DWORD temp = 1;  // Default: enabled
-    readDword(L"Enabled", temp);
-    enabled = (temp != 0);
-
-    readDword(L"Method", temp);
-    method = static_cast<uint8_t>(temp);
-
-    readDword(L"SkipWShortcut", temp);
-    skipWShortcut = (temp != 0);
-
-    readDword(L"BracketShortcut", temp);
-    bracketShortcut = (temp != 0);
-
-    readDword(L"EscRestore", temp);
-    escRestore = (temp != 0);
-
-    readDword(L"AutoStart", temp);
-    autoStart = (temp != 0);
-
-    readDword(L"PerApp", temp);
-    perApp = (temp != 0);
-
-    readDword(L"AutoRestore", temp);
-    autoRestore = (temp != 0);
-
-    readDword(L"Sound", temp);
-    sound = (temp != 0);
-
-    readDword(L"ModernTone", temp);
-    modernTone = (temp != 0);
-
-    readDword(L"AutoCapitalize", temp);
-    autoCapitalize = (temp != 0);
-
-    readDword(L"FreeTone", temp);
-    freeTone = (temp != 0);
-
-    readDword(L"AllowForeignConsonants", temp);
-    allowForeignConsonants = (temp != 0);
-
-    // Load shortcuts from REG_MULTI_SZ
-    DWORD bufferSize = 0, type;
-    if (RegQueryValueExW(key, L"Shortcuts", nullptr, &type, nullptr, &bufferSize) == ERROR_SUCCESS
-        && type == REG_MULTI_SZ && bufferSize > sizeof(wchar_t)) {
-        std::vector<wchar_t> buffer(bufferSize / sizeof(wchar_t));
-        if (RegQueryValueExW(key, L"Shortcuts", nullptr, nullptr, (LPBYTE)buffer.data(), &bufferSize) == ERROR_SUCCESS) {
-            shortcuts.clear();
-            const wchar_t* ptr = buffer.data();
-            const wchar_t* end = buffer.data() + buffer.size();
-            while (ptr < end && *ptr) {
-                std::wstring trigger = ptr;
-                ptr += trigger.length() + 1;
-                if (ptr < end && *ptr) {
-                    std::wstring replacement = ptr;
-                    ptr += replacement.length() + 1;
-                    shortcuts.push_back({trigger, replacement, true});
-                } else {
-                    break;
-                }
-            }
+    readBool(L"Enabled", enabled);
+    DWORD methodValue = method;
+    DWORD size = sizeof(methodValue);
+    if (RegQueryValueExW(key, L"Method", nullptr, nullptr, reinterpret_cast<LPBYTE>(&methodValue), &size) == ERROR_SUCCESS) {
+        method = methodValue == 1 ? 1 : 0;
+    } else {
+        // The former WPF app stored it as "InputMethod" (same 0 = Telex, 1 = VNI); the next
+        // Save() writes "Method", so a VNI user keeps VNI after upgrading
+        size = sizeof(methodValue);
+        if (RegQueryValueExW(key, L"InputMethod", nullptr, nullptr, reinterpret_cast<LPBYTE>(&methodValue), &size) == ERROR_SUCCESS) {
+            method = methodValue == 1 ? 1 : 0;
         }
     }
+    readBool(L"SkipWShortcut", skipWShortcut);
+    readBool(L"BracketShortcut", bracketShortcut);
+    readBool(L"EscRestore", escRestore);
+    readBool(L"AutoStart", autoStart);
+    readBool(L"PerApp", perApp);
+    readBool(L"AutoRestore", autoRestore);
+    readBool(L"Sound", sound);
+    readBool(L"ModernTone", modernTone);
+    readBool(L"AutoCapitalize", autoCapitalize);
+    readBool(L"FreeTone", freeTone);
+    readBool(L"AllowForeignConsonants", allowForeignConsonants);
+    readBool(L"CheckUpdates", checkUpdates);
+
+    // Shortcuts: REG_MULTI_SZ of "trigger\0replacement\0" pairs. Enabled ones live in
+    // "Shortcuts" (original format), disabled ones in "ShortcutsDisabled".
+    auto readPairs = [&](const wchar_t* name, bool enabledFlag) {
+        DWORD bufferSize = 0, type = 0;
+        if (RegQueryValueExW(key, name, nullptr, &type, nullptr, &bufferSize) != ERROR_SUCCESS ||
+            type != REG_MULTI_SZ || bufferSize <= sizeof(wchar_t)) {
+            return;
+        }
+        std::vector<wchar_t> buffer(bufferSize / sizeof(wchar_t) + 1, L'\0');
+        if (RegQueryValueExW(key, name, nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer.data()), &bufferSize) != ERROR_SUCCESS) {
+            return;
+        }
+        const wchar_t* ptr = buffer.data();
+        const wchar_t* end = buffer.data() + buffer.size();
+        while (ptr < end && *ptr) {
+            std::wstring trigger = ptr;
+            ptr += trigger.length() + 1;
+            if (ptr >= end || !*ptr) break;
+            std::wstring replacement = ptr;
+            ptr += replacement.length() + 1;
+            shortcuts.push_back({ trigger, replacement, enabledFlag });
+        }
+    };
+    shortcuts.clear();
+    readPairs(L"Shortcuts", true);
+    readPairs(L"ShortcutsDisabled", false);
 
     RegCloseKey(key);
+
+    // Auto-start points at the exe that last saved settings. After moving GoNhanh (or replacing
+    // the former WPF app in another folder), point it at this exe so the next sign-in starts it.
+    if (autoStart) {
+        UpdateRunEntry(REG_RUN_KEY, true);
+    }
 }
 
 void Settings::Save() {
@@ -113,37 +142,28 @@ void Settings::Save() {
     writeDword(L"AutoCapitalize", autoCapitalize ? 1 : 0);
     writeDword(L"FreeTone", freeTone ? 1 : 0);
     writeDword(L"AllowForeignConsonants", allowForeignConsonants ? 1 : 0);
+    writeDword(L"CheckUpdates", checkUpdates ? 1 : 0);
 
-    // Save shortcuts as REG_MULTI_SZ
-    std::wstring multiSz;
-    for (const auto& shortcut : shortcuts) {
-        if (shortcut.enabled) {
-            multiSz += shortcut.trigger + L'\0';
-            multiSz += shortcut.replacement + L'\0';
+    // Save shortcuts as REG_MULTI_SZ: enabled and disabled in separate values, so turning a
+    // shortcut off no longer deletes it (and older builds still read "Shortcuts" unchanged)
+    auto writePairs = [&](const wchar_t* name, bool enabledFlag) {
+        std::wstring multiSz;
+        for (const auto& shortcut : shortcuts) {
+            if (shortcut.enabled == enabledFlag) {
+                multiSz += shortcut.trigger + L'\0';
+                multiSz += shortcut.replacement + L'\0';
+            }
         }
-    }
-    multiSz += L'\0';
-    RegSetValueExW(key, L"Shortcuts", 0, REG_MULTI_SZ,
-                   (const BYTE*)multiSz.c_str(),
-                   static_cast<DWORD>((multiSz.length() + 1) * sizeof(wchar_t)));
+        multiSz += L'\0';
+        RegSetValueExW(key, name, 0, REG_MULTI_SZ, reinterpret_cast<const BYTE*>(multiSz.c_str()),
+                       static_cast<DWORD>((multiSz.length() + 1) * sizeof(wchar_t)));
+    };
+    writePairs(L"Shortcuts", true);
+    writePairs(L"ShortcutsDisabled", false);
     RegCloseKey(key);
 
     // Handle auto-start
-    HKEY runKey;
-    if (RegOpenKeyExW(HKEY_CURRENT_USER, REG_RUN_KEY, 0, KEY_WRITE, &runKey) == ERROR_SUCCESS) {
-        if (autoStart) {
-            wchar_t exePath[MAX_PATH];
-            if (GetModuleFileNameW(nullptr, exePath, MAX_PATH) > 0) {
-                std::wstring quotedPath = L"\"" + std::wstring(exePath) + L"\"";
-                RegSetValueExW(runKey, L"GoNhanh", 0, REG_SZ,
-                              (const BYTE*)quotedPath.c_str(),
-                              static_cast<DWORD>((quotedPath.length() + 1) * sizeof(wchar_t)));
-            }
-        } else {
-            RegDeleteValueW(runKey, L"GoNhanh");
-        }
-        RegCloseKey(runKey);
-    }
+    UpdateRunEntry(REG_RUN_KEY, autoStart);
 
     // Apply to engine
     ApplyToEngine();
@@ -164,7 +184,9 @@ void Settings::ApplyToEngine() {
     // Clear and re-add all shortcuts
     ime_clear_shortcuts();
     for (const auto& shortcut : shortcuts) {
-        if (shortcut.enabled) {
+        // A trigger longer than the engine's 8-bit backspace count would wrap and leave the
+        // trigger on screen (only possible with entries saved by older builds)
+        if (shortcut.enabled && CodePointCount(shortcut.trigger) <= kMaxEngineTrigger) {
             std::string trigger = Utf16ToUtf8(shortcut.trigger);
             std::string replacement = Utf16ToUtf8(shortcut.replacement);
             // Validate UTF-8 conversion succeeded

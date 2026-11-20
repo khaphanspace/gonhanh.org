@@ -57,12 +57,17 @@ if ($Clean) {
     Write-Host ""
 }
 
-# Get version from git tag
-try {
-    $GIT_TAG = git describe --tags --abbrev=0 2>$null
-    if (-not $GIT_TAG) { $GIT_TAG = "v0.0.0" }
-} catch {
-    $GIT_TAG = "v0.0.0"
+# Get version from git tag. The release workflow (tag push) uses that tag, prereleases included
+# (v1.2.3-pre.1, like the macOS/Linux jobs); other builds use the latest stable tag.
+if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -match '^v\d') {
+    $GIT_TAG = $env:GITHUB_REF_NAME
+} else {
+    try {
+        $GIT_TAG = git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*" 2>$null
+        if (-not $GIT_TAG) { $GIT_TAG = "v0.0.0" }
+    } catch {
+        $GIT_TAG = "v0.0.0"
+    }
 }
 $VERSION = $GIT_TAG -replace "^v", ""
 
@@ -111,11 +116,54 @@ if (-not (Test-Path $LocalBuildDir)) {
     New-Item -ItemType Directory -Path $LocalBuildDir -Force | Out-Null
 }
 
+# Pick the newest installed Visual Studio (with C++ tools) that this CMake has a generator for.
+# CMake older than 4.2 has no "Visual Studio 18 2026" generator, so fall back to VS 2022 then.
+$VsGenerators = [ordered]@{ "18" = "Visual Studio 18 2026"; "17" = "Visual Studio 17 2022" }
+$Generator = $null
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$installedMajors = @()
+if (Test-Path $vswhere) {
+    $installedMajors = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion |
+        ForEach-Object { ($_ -split '\.')[0] } | Sort-Object -Unique
+}
+$cmakeHelp = (cmake --help) -join "`n"
+foreach ($major in $VsGenerators.Keys) {
+    $gen = $VsGenerators[$major]
+    if ($installedMajors -contains $major -and $cmakeHelp.Contains($gen)) {
+        $Generator = $gen
+        break
+    }
+}
+if (-not $Generator) {
+    if ($installedMajors -contains "18") {
+        Write-Host "Error: Visual Studio 2026 found, but this CMake has no '$($VsGenerators['18'])' generator."
+        Write-Host "Update CMake to 4.2 or newer, or install Visual Studio 2022 with C++ build tools."
+    } else {
+        Write-Host "Error: Visual Studio 2022 or 2026 with C++ build tools not found"
+    }
+    exit 1
+}
+Write-Host "  Generator: $Generator"
+
+# A build dir configured with another generator makes CMake fail ("Does not match the generator
+# used previously"), e.g. after installing VS 2026. Drop the stale cache and reconfigure.
+$cacheFile = "$LocalBuildDir\CMakeCache.txt"
+if (Test-Path $cacheFile) {
+    $cachedGenerator = Select-String -Path $cacheFile -Pattern '^CMAKE_GENERATOR:INTERNAL=(.*)$' |
+        Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }
+    if ($cachedGenerator -and $cachedGenerator -ne $Generator) {
+        Write-Host "  Build dir was configured with '$cachedGenerator', reconfiguring"
+        Remove-Item $cacheFile -Force
+        Remove-Item "$LocalBuildDir\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $cmakeArgs = @(
     "-S", $SourceDir,
     "-B", $LocalBuildDir,
-    "-G", "Visual Studio 17 2022",
-    "-A", "x64"
+    "-G", $Generator,
+    "-A", "x64",
+    "-DGONHANH_VERSION=$VERSION"
 )
 
 if ($Debug) {
@@ -148,6 +196,13 @@ if (Test-Path $ExeSource) {
     Copy-Item $ExeSource "$PublishDir\GoNhanh.exe" -Force
 }
 
+# Command line tool (gonhanh.exe + gn.exe) goes to publish\bin: add that folder to PATH
+$CliSource = "$LocalBuildDir\$buildType\bin"
+if (Test-Path "$CliSource\gonhanh.exe") {
+    New-Item -ItemType Directory -Path "$PublishDir\bin" -Force | Out-Null
+    Copy-Item "$CliSource\gonhanh.exe", "$CliSource\gn.exe" "$PublishDir\bin\" -Force
+}
+
 Write-Host ""
 Write-Host "Build complete!"
 Write-Host "Output: platforms/windows/publish/GoNhanh.exe"
@@ -161,7 +216,9 @@ if ($Package) {
     Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
 
     if (Test-Path "$PublishDir\GoNhanh.exe") {
-        Compress-Archive -Path "$PublishDir\GoNhanh.exe" -DestinationPath $ZipPath -Force
+        $items = @("$PublishDir\GoNhanh.exe")
+        if (Test-Path "$PublishDir\bin") { $items += "$PublishDir\bin" }
+        Compress-Archive -Path $items -DestinationPath $ZipPath -Force
         Write-Host "Package: platforms/windows/$ZipName"
     }
 }

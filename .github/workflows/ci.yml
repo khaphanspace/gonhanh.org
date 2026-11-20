@@ -80,3 +80,32 @@ jobs:
           LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/core/target/release:$LD_LIBRARY_PATH" \
             ./rustbridge_test --gtest_color=yes
 
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Version comes from the latest release tag
+          fetch-tags: true
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Windows app
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Package
+
+      - name: Check binary
+        shell: pwsh
+        run: |
+          $exe = Get-Item platforms/windows/publish/GoNhanh.exe
+          "GoNhanh.exe: {0:N2} MB" -f ($exe.Length / 1MB)
+          if ($exe.Length -gt 5MB) { throw "GoNhanh.exe is larger than 5 MB" }
+
+      - name: Test CLI against the app
+        shell: pwsh
+        run: ./platforms/windows/tools/cli-test.ps1
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoNhanh-windows-x64
+          path: platforms/windows/GoNhanh-*-win-x64.zip
