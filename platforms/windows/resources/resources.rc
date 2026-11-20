@@ -1,3 +1,4 @@
+#pragma code_page(65001)
 #include <windows.h>
 #include <winver.h>
 #include "../src/resource.h"

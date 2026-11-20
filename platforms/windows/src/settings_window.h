@@ -34,6 +34,7 @@ private:
     HWND hwnd_ = nullptr;
     HWND cmbMethod_ = nullptr;
     bool visible_ = false;
+    HFONT hFont_ = nullptr;
 
     // Custom painted section positions
     int section2Y_ = 0;

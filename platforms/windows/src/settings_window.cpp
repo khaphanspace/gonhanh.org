@@ -48,6 +48,7 @@ SettingsWindow& SettingsWindow::Instance() {
 }
 
 SettingsWindow::~SettingsWindow() {
+    if (hFont_) { DeleteObject(hFont_); }
     if (hwnd_) {
         DestroyWindow(hwnd_);
     }
@@ -138,7 +139,8 @@ void SettingsWindow::CreateControls() {
 
     // Create DPI-scaled font
     int fontSize = Scale(13, dpi);
-    HFONT hFont = CreateFontW(-fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    if (hFont_) { DeleteObject(hFont_); }
+    hFont_ = CreateFontW(-fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 
@@ -165,7 +167,7 @@ void SettingsWindow::CreateControls() {
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
             labelX, y, labelWidth, rowHeight,
             hwnd_, NULL, hInst, NULL);
-        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont_, TRUE);
 
         HWND toggle = CreateToggleSwitch(hwnd_, toggleX, y + (rowHeight - Scale(20, dpi)) / 2, id, false);
         y += rowHeight;
@@ -186,13 +188,13 @@ void SettingsWindow::CreateControls() {
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
             labelX, y, Scale(150, dpi), rowHeight,
             hwnd_, NULL, hInst, NULL);
-        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont_, TRUE);
 
         cmbMethod_ = CreateWindowExW(0, L"COMBOBOX", NULL,
             WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
             comboX, y + (rowHeight - Scale(24, dpi)) / 2, comboWidth, Scale(200, dpi),
             hwnd_, (HMENU)IDC_CMB_METHOD, hInst, NULL);
-        SendMessage(cmbMethod_, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SendMessage(cmbMethod_, WM_SETFONT, (WPARAM)hFont_, TRUE);
         ComboBox_AddString(cmbMethod_, L"Telex");
         ComboBox_AddString(cmbMethod_, L"VNI");
         y += rowHeight;

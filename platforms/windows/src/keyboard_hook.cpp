@@ -233,6 +233,10 @@ static uint16_t VkToMacKeycode(DWORD vk) {
         case VK_ESCAPE: return 0x35;
         case VK_OEM_4: return 0x21;  // [ key
         case VK_OEM_6: return 0x1E;  // ] key
+        case VK_OEM_PERIOD: return 0x2F; // .
+        case VK_OEM_COMMA:  return 0x2B; // ,
+        case VK_OEM_2:      return 0x2C; // / ?
+        case '1':           return 0x12; // 1 !
         default: return 0xFF;  // Unknown
     }
 }
@@ -353,9 +357,12 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
     }
 
     // Get modifier states
-    bool caps = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+    // Rust engine uses `caps` for effective case (uppercase/lowercase).
+    // On Windows, we must XOR CapsLock with Shift to match macOS semantics.
+    bool capsLock = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
     bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+    bool caps = capsLock ^ shift;
 
     // Call Rust engine with RAII reentrancy guard
     ProcessingGuard guard(g_instance->processing_);
