@@ -1,3 +1,4 @@
+#pragma code_page(65001)  // Source is UTF-8 (Vietnamese captions)
 #include <windows.h>
 #include <winver.h>
 #include "../src/resource.h"

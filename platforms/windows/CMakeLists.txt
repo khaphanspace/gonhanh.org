@@ -79,6 +79,12 @@ if(MSVC)
     target_link_options(gonhanh PRIVATE /MANIFEST:NO)
 endif()
 
+# Sources are UTF-8 without BOM: without /utf-8, MSVC decodes them with the
+# system ANSI code page and every Vietnamese string literal becomes mojibake
+if(MSVC)
+    target_compile_options(gonhanh PRIVATE /utf-8)
+endif()
+
 # Size optimization
 if(MSVC)
     target_compile_options(gonhanh PRIVATE /O1 /GL)
