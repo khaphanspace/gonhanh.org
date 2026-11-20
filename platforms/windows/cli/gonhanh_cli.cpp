@@ -173,16 +173,24 @@ int Start() {
     // time: a window that exists but doesn't answer makes each Send() take its 1 s timeout.
     const ULONGLONG deadline = GetTickCount64() + 10000;
     int result = -1;
+    bool duplicate = false;  // ours exited cleanly: another instance (autostart, a click) won
     while (result < 0) {
         std::wstring error;
         bool notRunning = false;
         if (Send(Command::Get, &error, &notRunning)) {
             result = 0;
+        } else if (duplicate) {
+            // That instance may still be starting up: keep waiting for its window
+            if (GetTickCount64() >= deadline) result = Fail(L"Gõ Nhanh không phản hồi sau 10 giây.");
+            else Sleep(50);
         } else if (WaitForSingleObject(pi.hProcess, 50) == WAIT_OBJECT_0) {
             DWORD code = 0;
             GetExitCodeProcess(pi.hProcess, &code);
-            // Exit code 0 right away: another instance won the single-instance race
-            result = code == 0 && FindApp() ? 0 : Fail(L"Gõ Nhanh thoát ngay sau khi mở.");
+            if (code == 0) {
+                duplicate = true;
+            } else {
+                result = Fail(L"Gõ Nhanh thoát ngay sau khi mở.");
+            }
         } else if (GetTickCount64() >= deadline) {
             result = Fail(L"Gõ Nhanh không phản hồi sau 10 giây.");
         }
