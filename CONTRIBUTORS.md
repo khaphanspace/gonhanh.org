@@ -223,6 +223,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/vinhhd227">
+        <img src="https://avatars.githubusercontent.com/u/109668266?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>vinhhd227</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/ducfilan">
         <img src="https://avatars.githubusercontent.com/u/1677524?v=4" width="50" style="border-radius:50%"/><br/>
         <b>ducfilan</b>
@@ -232,12 +238,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       <a href="https://github.com/m0n99">
         <img src="https://avatars.githubusercontent.com/u/62840357?v=4" width="50" style="border-radius:50%"/><br/>
         <b>m0n99</b>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/vinhhd227">
-        <img src="https://avatars.githubusercontent.com/u/109668266?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>vinhhd227</b>
       </a>
     </td>
     <td align="center">
