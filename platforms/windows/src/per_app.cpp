@@ -109,6 +109,13 @@ void PerAppMode::SetCurrentAppState(bool enabled) {
     }
 }
 
+void PerAppMode::TrackApp(const std::wstring& appName) {
+    if (appName.empty()) return;
+    EnterCriticalSection(&lock_);
+    currentApp_ = appName;
+    LeaveCriticalSection(&lock_);
+}
+
 void PerAppMode::SwitchToApp(const std::wstring& appName) {
     if (appName.empty() || appName == currentApp_) return;
 

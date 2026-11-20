@@ -54,9 +54,12 @@ void CALLBACK WinEventProc(
         // Treating that as an app switch would apply (and record) the toggle to explorer.exe
         // instead of the app the user is typing in, so ignore taskbar/tray surfaces.
         auto& settings = gonhanh::Settings::Instance();
-        if (settings.perApp && !IsTaskbarWindow(hwnd)) {
+        if (!IsTaskbarWindow(hwnd)) {
             std::wstring appName = appCompat.GetForegroundAppName();
-            if (!appName.empty()) {
+            if (!settings.perApp) {
+                // Still track the app, so turning per-app mode on later saves toggles for it
+                gonhanh::PerAppMode::Instance().TrackApp(appName);
+            } else if (!appName.empty()) {
                 bool before = settings.enabled;
                 gonhanh::PerAppMode::Instance().SwitchToApp(appName);
                 if (settings.enabled != before) {
@@ -147,7 +150,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     // Launching again (Start menu, autostart + manual) just opens the running instance's Settings.
     HANDLE instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\GoNhanh.SingleInstance");
     if (instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-        HWND running = FindWindowExW(HWND_MESSAGE, nullptr, WINDOW_CLASS, nullptr);
+        // The first instance may still be starting up (engine, settings) and not have created
+        // its window yet: wait a little for it instead of silently doing nothing
+        HWND running = nullptr;
+        for (int i = 0; i < 50 && !running; ++i) {
+            running = FindWindowExW(HWND_MESSAGE, nullptr, WINDOW_CLASS, nullptr);
+            if (!running) Sleep(100);
+        }
         if (running) {
             AllowSetForegroundWindow(ASFW_ANY);  // Let it bring Settings to the front
             PostMessageW(running, WM_COMMAND, IDM_SETTINGS, 0);
@@ -242,6 +251,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
 
     // Start with the hook, engine and tray icon all reflecting the saved state
     gonhanh::SyncEnabledState();
+
+    // The app already in the foreground gets no foreground event until the user switches away:
+    // remember it now so a toggle made before that is saved for it (per-app mode)
+    if (!IsTaskbarWindow(GetForegroundWindow())) {
+        gonhanh::PerAppMode::Instance().TrackApp(gonhanh::AppCompat::Instance().GetForegroundAppName());
+    }
 
     // Startup work (registry, icons, engine init) is done; give those pages back while idle
     gonhanh::TrimWorkingSet();

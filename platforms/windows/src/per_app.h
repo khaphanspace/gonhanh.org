@@ -27,6 +27,10 @@ public:
     // Switch to app's saved state
     void SwitchToApp(const std::wstring& appName);
 
+    // Remember which app is in the foreground without changing the state: at startup, and on
+    // app switches while per-app mode is off, so a later toggle is saved for the right app
+    void TrackApp(const std::wstring& appName);
+
 private:
     PerAppMode();
     ~PerAppMode();
