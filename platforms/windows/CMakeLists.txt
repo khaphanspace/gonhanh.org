@@ -35,6 +35,7 @@ set(GONHANH_SOURCES
     src/rust_bridge.cpp
     src/settings.cpp
     src/system_tray.cpp
+    src/ime_state.cpp
     src/settings_window.cpp
     src/shortcuts_dialog.cpp
     src/about_dialog.cpp
@@ -77,6 +78,12 @@ target_compile_definitions(gonhanh PRIVATE UNICODE _UNICODE)
 # Disable auto-generated manifest (we provide our own in resources.rc)
 if(MSVC)
     target_link_options(gonhanh PRIVATE /MANIFEST:NO)
+endif()
+
+# Sources are UTF-8 without BOM: without /utf-8, MSVC decodes them with the
+# system ANSI code page and every Vietnamese string literal becomes mojibake
+if(MSVC)
+    target_compile_options(gonhanh PRIVATE /utf-8)
 endif()
 
 # Size optimization

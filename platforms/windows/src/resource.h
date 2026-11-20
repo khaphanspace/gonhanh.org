@@ -51,3 +51,4 @@
 
 // Messages
 #define WM_TRAYICON         (WM_USER + 1)
+#define WM_TOGGLE_IME       (WM_USER + 2)   // Posted by the keyboard hook on Ctrl+Space
