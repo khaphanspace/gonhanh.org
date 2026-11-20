@@ -21,8 +21,15 @@ public:
     // Set IME enabled state for current app
     void SetAppState(const std::wstring& appName, bool enabled);
 
+    // Remember the given state for the app currently in the foreground
+    void SetCurrentAppState(bool enabled);
+
     // Switch to app's saved state
     void SwitchToApp(const std::wstring& appName);
+
+    // Remember which app is in the foreground without changing the state: at startup, and on
+    // app switches while per-app mode is off, so a later toggle is saved for the right app
+    void TrackApp(const std::wstring& appName);
 
 private:
     PerAppMode();

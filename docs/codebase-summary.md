@@ -64,7 +64,7 @@ gonhanh.org/
 │   │   ├── dmg-resources/       # DMG installer background + resources
 │   │   └── Tests/               # Swift unit tests (LaunchAtLoginTests.swift)
 │   │
-│   ├── windows/                 # Production: WPF/.NET 8 app (~1400 LOC)
+│   ├── windows/                 # Win32 C++20 app, Direct2D UI (CMake + Corrosion)
 │   │   ├── App.xaml.cs          # Application entry point + setup
 │   │   ├── Core/
 │   │   │   ├── RustBridge.cs    # FFI bridge to Rust engine
@@ -371,7 +371,7 @@ Maps X11/Wayland keysyms to internal keycode representation for compatibility wi
 ### Cross-Platform Port (Windows/Linux)
 1. **Core** (core/src/): Already platform-agnostic ✓
 2. **Platform wrapper**:
-   - Windows: `platforms/windows/` (WPF + P/Invoke) - DONE
+   - Windows: `platforms/windows/` (Win32 C++ + Rust static lib) - Beta
    - Linux: `platforms/linux/` (Qt + FFI) - TODO
 3. **Build automation**: Add scripts pattern
 4. **Testing**: Adapt platform-specific tests

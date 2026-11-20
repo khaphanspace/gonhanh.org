@@ -2,7 +2,7 @@
 
 ## Project Vision
 
-Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS and Windows with a platform-agnostic Rust core. It enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, native UI (SwiftUI on macOS, WPF on Windows), and validation-first transformation pipeline for Vietnamese phonology.
+Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS and Windows with a platform-agnostic Rust core. It enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, native UI (SwiftUI on macOS, Win32/Direct2D on Windows), and validation-first transformation pipeline for Vietnamese phonology.
 
 ## Product Goals
 
@@ -89,7 +89,7 @@ User Keystroke (CGEventTap/SetWindowsHookEx)
         ↓
    Result (action, backspace count, output chars)
         ↓
-   Platform UI (SwiftUI on macOS, WPF on Windows - Send text or pass through)
+   Platform UI (SwiftUI on macOS, Win32 on Windows - Send text or pass through)
 ```
 
 ## Success Metrics
@@ -115,9 +115,9 @@ User Keystroke (CGEventTap/SetWindowsHookEx)
 
 ### Phase 2: Cross-Platform (Windows Complete, Linux In Progress)
 
-**Windows 10/11 (Complete - Production Ready)**
+**Windows 10/11 (Beta)**
 - SetWindowsHookEx keyboard hook
-- WPF/.NET 8 UI with system tray
+- Win32 C++ UI (Direct2D, Fluent/Mica) with system tray
 - Registry-based settings persistence
 - Feature parity with macOS version
 - Compiled DLL shared with macOS core

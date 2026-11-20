@@ -59,4 +59,6 @@ obj/
 plans/
 CLAUDE.md
 platforms/windows/build/
+platforms/windows/publish/
+platforms/windows/GoNhanh-*-win-x64.zip
 repomix-output.xml
