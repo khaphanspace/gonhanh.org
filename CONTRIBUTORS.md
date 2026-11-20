@@ -223,15 +223,15 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/m0n99">
-        <img src="https://avatars.githubusercontent.com/u/62840357?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>m0n99</b>
-      </a>
-    </td>
-    <td align="center">
       <a href="https://github.com/apps/chatgpt-codex-connector">
         <img src="https://avatars.githubusercontent.com/in/1144995?v=4" width="50" style="border-radius:50%"/><br/>
         <b>chatgpt-codex-connector[bot]</b>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/m0n99">
+        <img src="https://avatars.githubusercontent.com/u/62840357?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>m0n99</b>
       </a>
     </td>
     <td align="center">
