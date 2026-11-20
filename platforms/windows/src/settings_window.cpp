@@ -3,6 +3,7 @@
 #include "settings.h"
 #include "shortcuts_dialog.h"
 #include "about_dialog.h"
+#include "ime_state.h"
 #include <shellapi.h>
 #include "modern_ui.h"
 #include "update_checker.h"
@@ -322,8 +323,8 @@ void SettingsWindow::LoadSettings() {
 void SettingsWindow::SaveSettings() {
     auto& settings = Settings::Instance();
 
-    settings.enabled = GetToggleState(toggleEnabled);
-    settings.method = static_cast<uint8_t>(ComboBox_GetCurSel(cmbMethod_));
+    bool wantEnabled = GetToggleState(toggleEnabled);
+    settings.method =static_cast<uint8_t>(ComboBox_GetCurSel(cmbMethod_));
     settings.skipWShortcut = !GetToggleState(toggleWShortcut);
     settings.bracketShortcut = GetToggleState(toggleBracket);
     settings.autoRestore = GetToggleState(toggleAutoRestore);
@@ -336,6 +337,12 @@ void SettingsWindow::SaveSettings() {
 
     settings.Save();
     settings.ApplyToEngine();
+
+    // The Vietnamese switch goes through ime_state so the hook, tray icon and per-app memory
+    // follow it too (writing settings.enabled alone left the hook bypassing input).
+    if (wantEnabled != settings.enabled) {
+        SetVietnameseEnabled(wantEnabled);
+    }
 }
 
 void SettingsWindow::PaintSidebar(HDC hdc) {

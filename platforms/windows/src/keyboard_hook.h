@@ -37,6 +37,9 @@ public:
     // Swallowed-but-not-yet-replayed Caps Lock presses (to keep the Caps state the engine sees right)
     int PendingCapsToggles() const { return pendingCaps_.load(std::memory_order_acquire); }
 
+    // Drop queued and in-progress text output (foreground window changed). Replayed keys stay.
+    void CancelPendingText();
+
     void Shutdown();
 
 private:
@@ -52,6 +55,7 @@ private:
         std::vector<uint32_t> chars;
         InjectionMethod method = InjectionMethod::Fast;
         InjectionTiming timing;
+        uint32_t generation = 0;  // Dropped when it no longer matches generation_
         // Key replay
         KBDLLHOOKSTRUCT key = {};
         bool keyUp = false;
@@ -75,6 +79,7 @@ private:
     bool stopping_ = false;
     std::atomic<int> pending_{0};
     std::atomic<int> pendingCaps_{0};
+    std::atomic<uint32_t> generation_{0};
 };
 
 class KeyboardHook {

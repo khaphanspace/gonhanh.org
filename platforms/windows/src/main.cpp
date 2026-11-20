@@ -44,7 +44,9 @@ void CALLBACK WinEventProc(
     auto& appCompat = gonhanh::AppCompat::Instance();
 
     if (event == EVENT_SYSTEM_FOREGROUND) {
-        // App switch - clear buffer and detection cache
+        // App switch - clear buffer and detection cache, drop paced text still meant for the
+        // previous window (the rest of it would be typed into the new one)
+        gonhanh::TextInjector::Instance().CancelPendingText();
         ime_clear_all();
         appCompat.ClearDetectionCache();
 

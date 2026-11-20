@@ -126,7 +126,7 @@ void TextInjector::WaitMicroseconds(uint32_t us) {
 }
 
 void TextInjector::Inject(int backspaceCount, const uint32_t* chars, uint8_t charCount) {
-    if (backspaceCount < 0 || backspaceCount > 32) return;
+    if (backspaceCount < 0) return;  // Engine sends up to 255 (u8), e.g. long shortcut triggers
     DetectionResult detection = AppCompat::Instance().GetInjectionMethod();
 
     if (!Busy() && !NeedsPacing(detection)) {
@@ -145,7 +145,12 @@ void TextInjector::Inject(int backspaceCount, const uint32_t* chars, uint8_t cha
     job.chars.assign(chars, chars + charCount);
     job.method = detection.method;
     job.timing = detection.timing;
+    job.generation = generation_.load(std::memory_order_acquire);
     Enqueue(std::move(job));
+}
+
+void TextInjector::CancelPendingText() {
+    generation_.fetch_add(1, std::memory_order_acq_rel);
 }
 
 void TextInjector::ReplayKey(const KBDLLHOOKSTRUCT& key, bool keyUp) {
@@ -203,6 +208,11 @@ void TextInjector::Run(const Job& job) {
         return;
     }
 
+    // Text for a window that lost the foreground is dropped, also midway through a paced job:
+    // SendInput goes to whatever window is in front now.
+    auto cancelled = [&] { return generation_.load(std::memory_order_acquire) != job.generation; };
+    if (cancelled()) return;
+
     const InjectionTiming& t = job.timing;
     if (job.backspaces > 0) {
         if (job.method == InjectionMethod::Selection) {
@@ -213,12 +223,14 @@ void TextInjector::Run(const Job& job) {
             Send(inputs);
         } else {
             for (int i = 0; i < job.backspaces; ++i) {
+                if (cancelled()) return;
                 AppendBackspaces(inputs, 1);
                 Send(inputs);
                 if (i + 1 < job.backspaces) WaitMicroseconds(t.backspaceDelayUs);
             }
         }
         WaitMicroseconds(t.waitDelayUs);
+        if (cancelled()) return;
     }
 
     if (t.textDelayUs == 0) {
@@ -226,6 +238,7 @@ void TextInjector::Run(const Job& job) {
         Send(inputs);
     } else {
         for (size_t i = 0; i < job.chars.size(); ++i) {
+            if (cancelled()) return;
             AppendText(inputs, &job.chars[i], 1);
             Send(inputs);
             if (i + 1 < job.chars.size()) WaitMicroseconds(t.textDelayUs);
@@ -313,8 +326,11 @@ void KeyboardHook::Uninstall() {
     if (hook_) {
         UnhookWindowsHookEx(hook_);
         hook_ = nullptr;
+        // Flush queued input, stop the worker. Only when a hook was installed: ~KeyboardHook
+        // calls Uninstall() again at static destruction, after the TextInjector (constructed
+        // later, so destroyed earlier) is gone.
+        TextInjector::Instance().Shutdown();
     }
-    TextInjector::Instance().Shutdown();  // Flush queued input, stop the worker
 }
 
 void KeyboardHook::TrackModifiers(const KBDLLHOOKSTRUCT& kb, bool keyDown) {
