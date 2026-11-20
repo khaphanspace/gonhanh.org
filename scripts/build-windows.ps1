@@ -111,21 +111,47 @@ if (-not (Test-Path $LocalBuildDir)) {
     New-Item -ItemType Directory -Path $LocalBuildDir -Force | Out-Null
 }
 
-# Pick the newest installed Visual Studio (with C++ tools) as the CMake generator
-$VsGenerators = @{ "18" = "Visual Studio 18 2026"; "17" = "Visual Studio 17 2022" }
+# Pick the newest installed Visual Studio (with C++ tools) that this CMake has a generator for.
+# CMake older than 4.2 has no "Visual Studio 18 2026" generator, so fall back to VS 2022 then.
+$VsGenerators = [ordered]@{ "18" = "Visual Studio 18 2026"; "17" = "Visual Studio 17 2022" }
 $Generator = $null
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$installedMajors = @()
 if (Test-Path $vswhere) {
-    $vsVersion = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
-    if ($vsVersion) {
-        $Generator = $VsGenerators[($vsVersion -split '\.')[0]]
+    $installedMajors = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion |
+        ForEach-Object { ($_ -split '\.')[0] } | Sort-Object -Unique
+}
+$cmakeHelp = (cmake --help) -join "`n"
+foreach ($major in $VsGenerators.Keys) {
+    $gen = $VsGenerators[$major]
+    if ($installedMajors -contains $major -and $cmakeHelp.Contains($gen)) {
+        $Generator = $gen
+        break
     }
 }
 if (-not $Generator) {
-    Write-Host "Error: Visual Studio 2022 or 2026 with C++ build tools not found"
+    if ($installedMajors -contains "18") {
+        Write-Host "Error: Visual Studio 2026 found, but this CMake has no '$($VsGenerators['18'])' generator."
+        Write-Host "Update CMake to 4.2 or newer, or install Visual Studio 2022 with C++ build tools."
+    } else {
+        Write-Host "Error: Visual Studio 2022 or 2026 with C++ build tools not found"
+    }
     exit 1
 }
 Write-Host "  Generator: $Generator"
+
+# A build dir configured with another generator makes CMake fail ("Does not match the generator
+# used previously"), e.g. after installing VS 2026. Drop the stale cache and reconfigure.
+$cacheFile = "$LocalBuildDir\CMakeCache.txt"
+if (Test-Path $cacheFile) {
+    $cachedGenerator = Select-String -Path $cacheFile -Pattern '^CMAKE_GENERATOR:INTERNAL=(.*)$' |
+        Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }
+    if ($cachedGenerator -and $cachedGenerator -ne $Generator) {
+        Write-Host "  Build dir was configured with '$cachedGenerator', reconfiguring"
+        Remove-Item $cacheFile -Force
+        Remove-Item "$LocalBuildDir\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 
 $cmakeArgs = @(
     "-S", $SourceDir,
