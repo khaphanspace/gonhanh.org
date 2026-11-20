@@ -333,6 +333,10 @@ bool KeyboardHook::Install() {
     if (GetAsyncKeyState(VK_RSHIFT) & 0x8000) modifiers_ |= kRShift;
     if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) modifiers_ |= kLCtrl;
     if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) modifiers_ |= kRCtrl;
+    if (GetAsyncKeyState(VK_LMENU) & 0x8000) modifiers_ |= kLAlt;
+    if (GetAsyncKeyState(VK_RMENU) & 0x8000) modifiers_ |= kRAlt;
+    if (GetAsyncKeyState(VK_LWIN) & 0x8000) modifiers_ |= kLWin;
+    if (GetAsyncKeyState(VK_RWIN) & 0x8000) modifiers_ |= kRWin;
 
     hook_ = SetWindowsHookEx(
         WH_KEYBOARD_LL,
@@ -362,6 +366,10 @@ void KeyboardHook::TrackModifiers(const KBDLLHOOKSTRUCT& kb, bool keyDown) {
         case VK_RSHIFT: bit = kRShift; break;
         case VK_LCONTROL: bit = kLCtrl; break;
         case VK_RCONTROL: bit = kRCtrl; break;
+        case VK_LMENU: bit = kLAlt; break;
+        case VK_RMENU: bit = kRAlt; break;
+        case VK_LWIN: bit = kLWin; break;
+        case VK_RWIN: bit = kRWin; break;
         default: return;
     }
     if (keyDown) {
@@ -478,7 +486,9 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
     // Modifier states. Caps Lock presses still waiting in the replay queue haven't toggled
     // the system state yet, so account for them.
     bool caps = ((GetKeyState(VK_CAPITAL) & 0x0001) != 0) != ((injector.PendingCapsToggles() & 1) != 0);
-    bool ctrl = g_instance->CtrlDown();
+    // Ctrl, Alt (Alt+S, menus) and Win (Win+S) combinations bypass the engine, which then
+    // clears its word: "a" then Alt+S must not become "á" and swallow the app's shortcut
+    bool ctrl = g_instance->ShortcutModifierDown() || (kb->flags & LLKHF_ALTDOWN) != 0;
     bool shift = g_instance->ShiftDown();
 
     // Call Rust engine with RAII reentrancy guard

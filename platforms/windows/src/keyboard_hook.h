@@ -110,10 +110,17 @@ private:
 
     // Modifier state tracked from the hook's own event stream (bit per physical key).
     // GetKeyState/GetAsyncKeyState lag behind events that the hook swallows and replays later.
-    enum : uint8_t { kLShift = 1, kRShift = 2, kLCtrl = 4, kRCtrl = 8 };
+    enum : uint8_t {
+        kLShift = 1, kRShift = 2, kLCtrl = 4, kRCtrl = 8,
+        kLAlt = 16, kRAlt = 32, kLWin = 64, kRWin = 128,
+    };
     uint8_t modifiers_ = 0;
     bool ShiftDown() const { return (modifiers_ & (kLShift | kRShift)) != 0; }
     bool CtrlDown() const { return (modifiers_ & (kLCtrl | kRCtrl)) != 0; }
+    // Ctrl, Alt or Win held: a shortcut for the app or Windows, never Vietnamese input
+    bool ShortcutModifierDown() const {
+        return (modifiers_ & (kLCtrl | kRCtrl | kLAlt | kRAlt | kLWin | kRWin)) != 0;
+    }
 
     // Word tracking for restore functionality
     std::wstring lastWord_;
