@@ -217,15 +217,15 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 <table>
   <tr>
     <td align="center">
-      <a href="https://github.com/apps/chatgpt-codex-connector">
-        <img src="https://avatars.githubusercontent.com/in/1144995?v=4" width="50" style="border-radius:50%"/><br/>
-        <b>chatgpt-codex-connector[bot]</b>
-      </a>
-    </td>
-    <td align="center">
       <a href="https://github.com/vinhhd227">
         <img src="https://avatars.githubusercontent.com/u/109668266?v=4" width="50" style="border-radius:50%"/><br/>
         <b>vinhhd227</b>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/apps/chatgpt-codex-connector">
+        <img src="https://avatars.githubusercontent.com/in/1144995?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>chatgpt-codex-connector[bot]</b>
       </a>
     </td>
     <td align="center">
