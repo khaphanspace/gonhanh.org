@@ -57,12 +57,17 @@ if ($Clean) {
     Write-Host ""
 }
 
-# Get version from git tag
-try {
-    $GIT_TAG = git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*" 2>$null
-    if (-not $GIT_TAG) { $GIT_TAG = "v0.0.0" }
-} catch {
-    $GIT_TAG = "v0.0.0"
+# Get version from git tag. The release workflow (tag push) uses that tag, prereleases included
+# (v1.2.3-pre.1, like the macOS/Linux jobs); other builds use the latest stable tag.
+if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -match '^v\d') {
+    $GIT_TAG = $env:GITHUB_REF_NAME
+} else {
+    try {
+        $GIT_TAG = git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*" 2>$null
+        if (-not $GIT_TAG) { $GIT_TAG = "v0.0.0" }
+    } catch {
+        $GIT_TAG = "v0.0.0"
+    }
 }
 $VERSION = $GIT_TAG -replace "^v", ""
 

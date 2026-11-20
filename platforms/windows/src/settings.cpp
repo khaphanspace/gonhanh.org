@@ -32,6 +32,13 @@ void Settings::Load() {
     DWORD size = sizeof(methodValue);
     if (RegQueryValueExW(key, L"Method", nullptr, nullptr, reinterpret_cast<LPBYTE>(&methodValue), &size) == ERROR_SUCCESS) {
         method = methodValue == 1 ? 1 : 0;
+    } else {
+        // The former WPF app stored it as "InputMethod" (same 0 = Telex, 1 = VNI); the next
+        // Save() writes "Method", so a VNI user keeps VNI after upgrading
+        size = sizeof(methodValue);
+        if (RegQueryValueExW(key, L"InputMethod", nullptr, nullptr, reinterpret_cast<LPBYTE>(&methodValue), &size) == ERROR_SUCCESS) {
+            method = methodValue == 1 ? 1 : 0;
+        }
     }
     readBool(L"SkipWShortcut", skipWShortcut);
     readBool(L"BracketShortcut", bracketShortcut);
