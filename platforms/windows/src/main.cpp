@@ -149,7 +149,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     // Single instance: a second keyboard hook would process every keystroke twice.
     // Launching again (Start menu, autostart + manual) just opens the running instance's Settings.
     HANDLE instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\GoNhanh.SingleInstance");
-    if (instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+    const DWORD mutexError = GetLastError();
+    // ERROR_ACCESS_DENIED: the mutex exists but was created by an instance running as
+    // administrator, which this (normal) process may not open. It is still a running instance.
+    const bool alreadyRunning = instanceMutex ? mutexError == ERROR_ALREADY_EXISTS
+                                              : mutexError == ERROR_ACCESS_DENIED;
+    if (alreadyRunning) {
         // The first instance may still be starting up (engine, settings) and not have created
         // its window yet: wait a little for it instead of silently doing nothing
         HWND running = nullptr;
@@ -159,9 +164,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         }
         if (running) {
             AllowSetForegroundWindow(ASFW_ANY);  // Let it bring Settings to the front
-            PostMessageW(running, WM_COMMAND, IDM_SETTINGS, 0);
+            PostMessageW(running, WM_COMMAND, IDM_SETTINGS, 0);  // dropped by UIPI if it's elevated
         }
-        CloseHandle(instanceMutex);
+        if (instanceMutex) CloseHandle(instanceMutex);
         return 0;
     }
 
