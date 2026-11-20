@@ -117,20 +117,23 @@ void PerAppMode::TrackApp(const std::wstring& appName) {
 }
 
 void PerAppMode::SwitchToApp(const std::wstring& appName) {
-    if (appName.empty() || appName == currentApp_) return;
+    if (appName.empty()) return;
 
     // Thread-safe state update
     EnterCriticalSection(&lock_);
 
     currentApp_ = appName;
 
-    // Get app-specific state
+    // Apply the app's saved state, also when it is already the current app: it may have been
+    // tracked while per-app mode was off (TrackApp), so its own state was never applied
     bool appEnabled = GetAppState(appName);
 
     // Update global state (this affects keyboard hook behavior)
     auto& settings = Settings::Instance();
-    settings.enabled = appEnabled;
-    settings.ApplyToEngine();
+    if (settings.enabled != appEnabled) {
+        settings.enabled = appEnabled;
+        settings.ApplyToEngine();
+    }
 
     LeaveCriticalSection(&lock_);
 }

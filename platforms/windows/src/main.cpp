@@ -253,9 +253,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     gonhanh::SyncEnabledState();
 
     // The app already in the foreground gets no foreground event until the user switches away:
-    // remember it now so a toggle made before that is saved for it (per-app mode)
+    // with per-app mode on, apply its saved state now; either way remember it, so a toggle made
+    // before the next switch is saved for it
     if (!IsTaskbarWindow(GetForegroundWindow())) {
-        gonhanh::PerAppMode::Instance().TrackApp(gonhanh::AppCompat::Instance().GetForegroundAppName());
+        std::wstring appName = gonhanh::AppCompat::Instance().GetForegroundAppName();
+        if (settings.perApp && !appName.empty()) {
+            bool before = settings.enabled;
+            gonhanh::PerAppMode::Instance().SwitchToApp(appName);
+            if (settings.enabled != before) gonhanh::SyncEnabledState();
+        } else {
+            gonhanh::PerAppMode::Instance().TrackApp(appName);
+        }
     }
 
     // Startup work (registry, icons, engine init) is done; give those pages back while idle
