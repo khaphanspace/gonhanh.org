@@ -4,6 +4,12 @@
 #ifndef APP_VERSION_STRING
 #define APP_VERSION_STRING "0.0.0"
 #endif
+#ifndef APP_VERSION_MAJOR
+#define APP_VERSION_MAJOR 0
+#define APP_VERSION_MINOR 0
+#define APP_VERSION_PATCH 0
+#define APP_VERSION_BUILD 0
+#endif
 
 // Icons (IDI_APPICON=1 required for exe icon)
 #define IDI_APPICON         1

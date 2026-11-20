@@ -22,8 +22,8 @@ END
 
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
+FILEVERSION APP_VERSION_MAJOR,APP_VERSION_MINOR,APP_VERSION_PATCH,APP_VERSION_BUILD
+PRODUCTVERSION APP_VERSION_MAJOR,APP_VERSION_MINOR,APP_VERSION_PATCH,APP_VERSION_BUILD
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
@@ -31,8 +31,8 @@ BEGIN
         BEGIN
             VALUE "FileDescription", "Go Nhanh - Vietnamese IME"
             VALUE "ProductName", "Go Nhanh"
-            VALUE "FileVersion", "1.0.0"
-            VALUE "ProductVersion", "1.0.0"
+            VALUE "FileVersion", APP_VERSION_STRING
+            VALUE "ProductVersion", APP_VERSION_STRING
             VALUE "CompanyName", "GoNhanh"
             VALUE "LegalCopyright", "GPL-3.0-or-later"
             VALUE "OriginalFilename", "GoNhanh.exe"
