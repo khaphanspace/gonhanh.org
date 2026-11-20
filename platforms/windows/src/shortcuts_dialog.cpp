@@ -151,8 +151,9 @@ void ShortcutsDialog::CreateEdits() {
     replacementEdit_ = CreateWindowExW(0, L"EDIT", nullptr, style, 0, 0, 0, 0, hwnd_, nullptr, hInst, nullptr);
     SendMessageW(triggerEdit_, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Từ viết tắt"));
     SendMessageW(replacementEdit_, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Thay thế bằng"));
-    SendMessageW(triggerEdit_, EM_SETLIMITTEXT, 64, 0);
-    SendMessageW(replacementEdit_, EM_SETLIMITTEXT, 1024, 0);
+    SendMessageW(triggerEdit_, EM_SETLIMITTEXT, kMaxShortcutTrigger, 0);
+    // UTF-16 units: at most kMaxShortcutReplacement code points, the most the engine can type
+    SendMessageW(replacementEdit_, EM_SETLIMITTEXT, kMaxShortcutReplacement, 0);
     SetWindowSubclass(triggerEdit_, EditProc, kEditSubclassId, reinterpret_cast<DWORD_PTR>(this));
     SetWindowSubclass(replacementEdit_, EditProc, kEditSubclassId, reinterpret_cast<DWORD_PTR>(this));
 }
@@ -451,6 +452,16 @@ void ShortcutsDialog::Submit() {
         SetStatus(L"Hãy nhập nội dung thay thế", true);
         return;
     }
+    if (CodePointCount(trigger) > kMaxShortcutTrigger) {
+        SetFocus(triggerEdit_);
+        SetStatus(L"Từ viết tắt tối đa " + std::to_wstring(kMaxShortcutTrigger) + L" ký tự", true);
+        return;
+    }
+    if (CodePointCount(replacement) > kMaxShortcutReplacement) {
+        SetFocus(replacementEdit_);
+        SetStatus(L"Nội dung thay thế tối đa " + std::to_wstring(kMaxShortcutReplacement) + L" ký tự", true);
+        return;
+    }
 
     auto& list = List();
     int existing = -1;
@@ -565,6 +576,7 @@ void ShortcutsDialog::ImportShortcuts() {
     // Merged into the current list: existing triggers are updated, new ones appended.
     auto& list = List();
     int imported = 0;
+    int tooLong = 0;
     std::wistringstream stream(content);
     std::wstring line;
     while (std::getline(stream, line)) {
@@ -574,6 +586,12 @@ void ShortcutsDialog::ImportShortcuts() {
         std::wstring trigger = Trim(line.substr(0, pos));
         std::wstring replacement = Trim(line.substr(pos + 1));
         if (trigger.empty() || replacement.empty() || trigger[0] == L';') continue;
+        // Same limits as the editor: the engine can't erase or type more
+        if (CodePointCount(trigger) > kMaxShortcutTrigger ||
+            CodePointCount(replacement) > kMaxShortcutReplacement) {
+            tooLong++;
+            continue;
+        }
 
         auto it = std::find_if(list.begin(), list.end(), [&](const Shortcut& s) { return s.trigger == trigger; });
         if (it != list.end()) {
@@ -587,9 +605,14 @@ void ShortcutsDialog::ImportShortcuts() {
 
     CancelEdit();
     Commit();
-    SetStatus(imported ? L"Đã nhập " + std::to_wstring(imported) + L" từ viết tắt"
-                       : L"Không tìm thấy từ viết tắt nào trong file",
-              imported == 0);
+    std::wstring status = imported ? L"Đã nhập " + std::to_wstring(imported) + L" từ viết tắt"
+                                   : L"Không tìm thấy từ viết tắt nào trong file";
+    if (tooLong) {
+        status += L", bỏ qua " + std::to_wstring(tooLong) + L" dòng quá dài (tối đa " +
+                  std::to_wstring(kMaxShortcutTrigger) + L"/" +
+                  std::to_wstring(kMaxShortcutReplacement) + L" ký tự)";
+    }
+    SetStatus(status, imported == 0);
 }
 
 void ShortcutsDialog::ExportShortcuts() {

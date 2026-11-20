@@ -156,7 +156,9 @@ void Settings::ApplyToEngine() {
     // Clear and re-add all shortcuts
     ime_clear_shortcuts();
     for (const auto& shortcut : shortcuts) {
-        if (shortcut.enabled) {
+        // A trigger longer than the engine's 8-bit backspace count would wrap and leave the
+        // trigger on screen (only possible with entries saved by older builds)
+        if (shortcut.enabled && CodePointCount(shortcut.trigger) <= kMaxEngineTrigger) {
             std::string trigger = Utf16ToUtf8(shortcut.trigger);
             std::string replacement = Utf16ToUtf8(shortcut.replacement);
             // Validate UTF-8 conversion succeeded
