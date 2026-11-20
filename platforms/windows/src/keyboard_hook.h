@@ -37,7 +37,8 @@ public:
     // Swallowed-but-not-yet-replayed Caps Lock presses (to keep the Caps state the engine sees right)
     int PendingCapsToggles() const { return pendingCaps_.load(std::memory_order_acquire); }
 
-    // Drop queued and in-progress text output (foreground window changed). Replayed keys stay.
+    // Focus moved: drop queued and in-progress text output, and key presses queued before now
+    // (key-ups, modifiers and lock keys are still replayed so nothing stays stuck down).
     void CancelPendingText();
 
     void Shutdown();

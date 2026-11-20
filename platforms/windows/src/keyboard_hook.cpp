@@ -18,6 +18,20 @@ static const bool g_acceptForeignInjected = [] {
     return GetEnvironmentVariableW(L"GONHANH_TEST_INPUT", value, 4) > 0 && value[0] == L'1';
 }();
 
+// Modifier and lock keys: they type nothing, so a replayed press is never dropped
+static bool IsStateKey(DWORD vk) {
+    switch (vk) {
+        case VK_SHIFT: case VK_LSHIFT: case VK_RSHIFT:
+        case VK_CONTROL: case VK_LCONTROL: case VK_RCONTROL:
+        case VK_MENU: case VK_LMENU: case VK_RMENU:
+        case VK_LWIN: case VK_RWIN:
+        case VK_CAPITAL: case VK_NUMLOCK: case VK_SCROLL:
+            return true;
+        default:
+            return false;
+    }
+}
+
 // RAII guard for reentrancy protection
 class ProcessingGuard {
     bool& flag_;
@@ -158,6 +172,7 @@ void TextInjector::ReplayKey(const KBDLLHOOKSTRUCT& key, bool keyUp) {
     job.kind = Job::Kind::Key;
     job.key = key;
     job.keyUp = keyUp;
+    job.generation = generation_.load(std::memory_order_acquire);
     if (key.vkCode == VK_CAPITAL && !keyUp) {
         pendingCaps_.fetch_add(1, std::memory_order_acq_rel);
     }
@@ -197,6 +212,13 @@ void TextInjector::Run(const Job& job) {
     std::vector<INPUT> inputs;
 
     if (job.kind == Job::Kind::Key) {
+        // A key pressed before focus moved was meant for the previous field or app: drop it
+        // rather than type it (or send Enter) into the new one. Key-ups, modifiers and lock
+        // keys still go through so no key stays stuck down and the lock state matches.
+        if (!job.keyUp && !IsStateKey(job.key.vkCode) &&
+            generation_.load(std::memory_order_acquire) != job.generation) {
+            return;
+        }
         INPUT in = {};
         in.type = INPUT_KEYBOARD;
         in.ki.wVk = static_cast<WORD>(job.key.vkCode);
