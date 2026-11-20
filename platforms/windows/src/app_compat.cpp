@@ -121,21 +121,25 @@ DetectionResult AppCompat::DetectInjectionMethod(const std::wstring& appName) {
         c = towlower(c);
     }
 
-    // Terminals: need slow injection (8000/25000/8000 µs)
-    if (lower == L"windowsterminal.exe" ||
-        lower == L"cmd.exe" ||
-        lower == L"powershell.exe" ||
-        lower == L"pwsh.exe" ||
-        lower == L"conhost.exe") {
-        return DetectionResult(InjectionMethod::Slow, 8000, 25000, 8000);
-    }
-
-    // VSCode-based editors: need slow injection
-    if (lower == L"code.exe" ||
-        lower == L"cursor.exe" ||
-        lower == L"code - insiders.exe" ||
-        lower == L"windsurf.exe") {
-        return DetectionResult(InjectionMethod::Slow, 8000, 25000, 8000);
+    // Terminals and editors with a terminal-style input path: they read keystrokes
+    // per frame, so a single burst of backspaces + text drops or reorders characters
+    // (diacritics lost, issue #362). Pace them (8000/25000/8000 µs).
+    static const wchar_t* const kPacedApps[] = {
+        // Console hosts and shells
+        L"windowsterminal.exe", L"openconsole.exe", L"conhost.exe",
+        L"cmd.exe", L"powershell.exe", L"pwsh.exe",
+        // GPU-rendered terminals
+        L"warp.exe", L"wezterm-gui.exe", L"alacritty.exe", L"rio.exe",
+        // Other terminal emulators (mintty = Git Bash / MSYS2 / Cygwin)
+        L"mintty.exe", L"conemu.exe", L"conemu64.exe",
+        L"tabby.exe", L"hyper.exe", L"termius.exe",
+        // VS Code-based editors (xterm.js / Monaco)
+        L"code.exe", L"code - insiders.exe", L"cursor.exe", L"windsurf.exe",
+    };
+    for (const wchar_t* app : kPacedApps) {
+        if (lower == app) {
+            return DetectionResult(InjectionMethod::Slow, 8000, 25000, 8000);
+        }
     }
 
     // Electron chat apps: medium slow
@@ -154,13 +158,13 @@ DetectionResult AppCompat::DetectInjectionMethod(const std::wstring& appName) {
         lower == L"firefox.exe" ||
         lower == L"brave.exe" ||
         lower == L"opera.exe") {
-        // For browsers, use slightly slower timing
+        // Browsers handle a single burst of input in order
         // Address bar detection would require UI Automation
-        return DetectionResult(InjectionMethod::Fast, 500, 1500, 800);
+        return DetectionResult(InjectionMethod::Fast, 0, 0, 0);
     }
 
-    // Default: fast injection (200/800/500 µs)
-    return DetectionResult(InjectionMethod::Fast, 200, 800, 500);
+    // Default: one unpaced burst, sent straight from the hook (sub-millisecond)
+    return DetectionResult(InjectionMethod::Fast, 0, 0, 0);
 }
 
 } // namespace gonhanh

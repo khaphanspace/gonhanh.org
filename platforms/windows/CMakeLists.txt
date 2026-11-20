@@ -36,13 +36,13 @@ set(GONHANH_SOURCES
     src/settings.cpp
     src/system_tray.cpp
     src/settings_window.cpp
+    src/ime_state.cpp
+    src/fluent_ui.cpp
     src/shortcuts_dialog.cpp
-    src/about_dialog.cpp
     src/app_compat.cpp
     src/per_app.cpp
     src/utils.cpp
     src/debug_console.cpp
-    src/modern_ui.cpp
     src/update_checker.cpp
     resources/resources.rc
 )
@@ -63,7 +63,7 @@ target_link_libraries(gonhanh PRIVATE
     gonhanh_core
     ws2_32 userenv bcrypt advapi32
     user32 shell32 gdi32 comctl32 psapi
-    dwmapi gdiplus uxtheme winhttp
+    dwmapi uxtheme winhttp
 )
 
 # Include directories
@@ -79,8 +79,26 @@ if(MSVC)
     target_link_options(gonhanh PRIVATE /MANIFEST:NO)
 endif()
 
+# Sources are UTF-8 without BOM: without /utf-8, MSVC decodes them with the
+# system ANSI code page and every Vietnamese string literal becomes mojibake
+if(MSVC)
+    target_compile_options(gonhanh PRIVATE /utf-8)
+endif()
+
 # Size optimization
 if(MSVC)
     target_compile_options(gonhanh PRIVATE /O1 /GL)
     target_link_options(gonhanh PRIVATE /LTCG /OPT:REF /OPT:ICF)
+endif()
+
+# Memory: the IME lives in the tray, the UI is opened rarely. Load the UI/network DLLs only
+# when the Settings/Shortcuts windows or the update check actually need them.
+if(MSVC)
+    target_link_libraries(gonhanh PRIVATE delayimp)
+    target_link_options(gonhanh PRIVATE
+        /DELAYLOAD:dwrite.dll
+        /DELAYLOAD:winhttp.dll
+        /DELAYLOAD:comdlg32.dll
+        /DELAYLOAD:dwmapi.dll
+    )
 endif()
