@@ -39,12 +39,14 @@ function Invoke-Cli([string]$exe, [string[]]$cliArgs) {
     [pscustomobject]@{ Code = $p.ExitCode; Out = $out.TrimEnd("`r", "`n"); Err = $err }
 }
 
-# Check exit code, exact stdout (or $null to skip) and optionally a stderr substring
+# Check exit code, exact stdout (or $null to skip) and optionally a stderr substring.
+# A command expected to succeed must print nothing to stderr.
 function Check([string]$name, [string[]]$cliArgs, [int]$code, $out, [string]$errLike = $null, [string]$exe = $Cli) {
     $script:checks++
     $r = Invoke-Cli $exe $cliArgs
     $ok = $r.Code -eq $code -and ($null -eq $out -or $r.Out -ceq $out) -and
-          (-not $errLike -or $r.Err -like "*$errLike*")
+          (-not $errLike -or $r.Err -like "*$errLike*") -and
+          ($code -ne 0 -or $errLike -or $r.Err.Trim() -eq "")
     if ($ok) {
         Write-Host "  ok    $name"
     } else {

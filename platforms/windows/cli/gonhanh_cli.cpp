@@ -169,21 +169,22 @@ int Start() {
     }
     CloseHandle(pi.hThread);
 
-    // Return once it answers, so `gn start && gn vi` works
-    int result = Fail(L"Gõ Nhanh không phản hồi sau 10 giây.");
-    for (int i = 0; i < 200; ++i) {
+    // Return once it answers, so `gn start && gn vi` works. The wait is bounded by wall-clock
+    // time: a window that exists but doesn't answer makes each Send() take its 1 s timeout.
+    const ULONGLONG deadline = GetTickCount64() + 10000;
+    int result = -1;
+    while (result < 0) {
         std::wstring error;
         bool notRunning = false;
         if (Send(Command::Get, &error, &notRunning)) {
             result = 0;
-            break;
-        }
-        if (WaitForSingleObject(pi.hProcess, 50) == WAIT_OBJECT_0) {
+        } else if (WaitForSingleObject(pi.hProcess, 50) == WAIT_OBJECT_0) {
             DWORD code = 0;
             GetExitCodeProcess(pi.hProcess, &code);
             // Exit code 0 right away: another instance won the single-instance race
             result = code == 0 && FindApp() ? 0 : Fail(L"Gõ Nhanh thoát ngay sau khi mở.");
-            break;
+        } else if (GetTickCount64() >= deadline) {
+            result = Fail(L"Gõ Nhanh không phản hồi sau 10 giây.");
         }
     }
     CloseHandle(pi.hProcess);
