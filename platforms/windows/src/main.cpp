@@ -68,6 +68,15 @@ void CALLBACK WinEventProc(
         // Focus change within app - clear buffer to start fresh in new field
         // Only clear if focus is on a window (idObject == OBJID_WINDOW or client)
         if (idObject == OBJID_WINDOW || idObject == OBJID_CLIENT) {
+            // Focus moved to another control (e.g. another field in the same app): drop paced
+            // text still meant for the previous one. Only when the focused window changes:
+            // Chromium/Electron apps and terminals also fire focus events for the same window
+            // (in-page elements, popups), which must not cut text short.
+            static HWND lastFocus = nullptr;
+            if (hwnd != lastFocus) {
+                if (lastFocus) gonhanh::TextInjector::Instance().CancelPendingText();
+                lastFocus = hwnd;
+            }
             ime_clear_all();
             appCompat.ClearDetectionCache();
         }
