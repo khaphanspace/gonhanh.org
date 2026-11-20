@@ -291,6 +291,19 @@ pub extern "C" fn ime_allow_foreign_consonants(enabled: bool) {
     }
 }
 
+/// Enable or disable Morse code output mode.
+///
+/// When enabled, Vietnamese text is converted to Morse code when space is pressed.
+/// Telex/VNI input methods continue to work normally for composing text.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_morse_mode(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_morse_mode(enabled);
+    }
+}
+
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation).
@@ -911,6 +924,92 @@ mod tests {
 
         unsafe { ime_free(r4) };
         ime_clear_shortcuts();
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_morse_mode_ffi_basic() {
+        ime_init();
+        ime_method(0); // Telex
+        ime_morse_mode(true);
+
+        // Type "hi" + space → Morse output
+        let r1 = ime_key(keys::H, false, false);
+        assert!(!r1.is_null());
+        unsafe { ime_free(r1) };
+
+        let r2 = ime_key(keys::I, false, false);
+        assert!(!r2.is_null());
+        unsafe { ime_free(r2) };
+
+        let r3 = ime_key(keys::SPACE, false, false);
+        assert!(!r3.is_null());
+        let result = unsafe { &*r3 };
+        assert_eq!(result.action, engine::Action::Send as u8, "Morse mode should send on space");
+        assert!(result.count > 0, "Should have Morse output chars");
+        assert!(result.backspace > 0, "Should backspace the original word");
+
+        // Verify output contains Unicode Morse characters
+        let output: String = (0..result.count as usize)
+            .filter_map(|i| char::from_u32(result.chars[i]))
+            .collect();
+        assert!(output.contains('\u{00B7}') || output.contains('\u{2014}'), "Should contain Morse dots or dashes");
+
+        unsafe { ime_free(r3) };
+        ime_morse_mode(false);
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_morse_mode_off_no_change() {
+        ime_init();
+        ime_method(0);
+        ime_morse_mode(false);
+
+        // Type "hi" + space → normal behavior (no Send action)
+        let r1 = ime_key(keys::H, false, false);
+        unsafe { ime_free(r1) };
+        let r2 = ime_key(keys::I, false, false);
+        unsafe { ime_free(r2) };
+
+        let r3 = ime_key(keys::SPACE, false, false);
+        assert!(!r3.is_null());
+        let result = unsafe { &*r3 };
+        // Normal mode: space passes through (Action::None)
+        assert_eq!(result.action, engine::Action::None as u8, "Morse OFF should not modify space behavior");
+        unsafe { ime_free(r3) };
+        ime_clear();
+    }
+
+    #[test]
+    #[serial]
+    fn test_morse_mode_with_vietnamese() {
+        ime_init();
+        ime_method(0); // Telex
+        ime_morse_mode(true);
+
+        // Type "as" (a + sắc → á) + space → Morse of "á"
+        let r1 = ime_key(keys::A, false, false);
+        unsafe { ime_free(r1) };
+        let r2 = ime_key(keys::S, false, false);
+        unsafe { ime_free(r2) };
+
+        let r3 = ime_key(keys::SPACE, false, false);
+        assert!(!r3.is_null());
+        let result = unsafe { &*r3 };
+        assert_eq!(result.action, engine::Action::Send as u8, "Should send Morse for Vietnamese char");
+        assert!(result.count > 0);
+
+        let output: String = (0..result.count as usize)
+            .filter_map(|i| char::from_u32(result.chars[i]))
+            .collect();
+        // Should have base 'a' morse + space + tone morse + trailing space
+        assert!(output.len() > 3, "Vietnamese Morse output should be longer than just base char");
+
+        unsafe { ime_free(r3) };
+        ime_morse_mode(false);
         ime_clear();
     }
 }
