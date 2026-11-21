@@ -271,8 +271,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -290,8 +290,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -307,8 +307,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -324,8 +324,8 @@ mod test_utils {
                 for _ in 0..r.backspace {
                     screen.pop();
                 }
-                for i in 0..r.count as usize {
-                    if let Some(ch) = char::from_u32(r.chars[i]) {
+                for &cp in r.chars.iter().take(r.count as usize) {
+                    if let Some(ch) = char::from_u32(cp) {
                         screen.push(ch);
                     }
                 }
@@ -451,8 +451,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -469,8 +469,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -484,8 +484,8 @@ mod test_utils {
                     for _ in 0..r.backspace {
                         screen.pop();
                     }
-                    for i in 0..r.count as usize {
-                        if let Some(ch) = char::from_u32(r.chars[i]) {
+                    for &cp in r.chars.iter().take(r.count as usize) {
+                        if let Some(ch) = char::from_u32(cp) {
                             screen.push(ch);
                         }
                     }
@@ -500,8 +500,8 @@ mod test_utils {
                 for _ in 0..r.backspace {
                     screen.pop();
                 }
-                for i in 0..r.count as usize {
-                    if let Some(ch) = char::from_u32(r.chars[i]) {
+                for &cp in r.chars.iter().take(r.count as usize) {
+                    if let Some(ch) = char::from_u32(cp) {
                         screen.push(ch);
                     }
                 }
