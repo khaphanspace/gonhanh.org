@@ -1,44 +1,15 @@
 #include "settings.h"
 #include "rust_bridge.h"
+#include "autostart.h"
 #include <windows.h>
 
 namespace gonhanh {
 
 const wchar_t* Settings::REG_KEY = L"Software\\GoNhanh";
-const wchar_t* Settings::REG_RUN_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
 Settings& Settings::Instance() {
     static Settings instance;
     return instance;
-}
-
-// HKCU\...\Run\GoNhanh: this exe (quoted) when auto-start is on, removed when off. Only
-// written when it differs, so calling it at every startup costs a registry read.
-static void UpdateRunEntry(const wchar_t* runKeyPath, bool autoStart) {
-    HKEY runKey;
-    if (RegOpenKeyExW(HKEY_CURRENT_USER, runKeyPath, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &runKey) != ERROR_SUCCESS) {
-        return;
-    }
-    if (autoStart) {
-        wchar_t exePath[MAX_PATH];
-        DWORD n = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-        if (n > 0 && n < MAX_PATH) {
-            std::wstring quoted = L"\"" + std::wstring(exePath, n) + L"\"";
-            wchar_t current[MAX_PATH + 3] = {};
-            DWORD size = sizeof(current) - sizeof(wchar_t);  // keep a terminator
-            DWORD type = 0;
-            bool same = RegQueryValueExW(runKey, L"GoNhanh", nullptr, &type, reinterpret_cast<LPBYTE>(current),
-                                         &size) == ERROR_SUCCESS &&
-                        type == REG_SZ && _wcsicmp(current, quoted.c_str()) == 0;
-            if (!same) {
-                RegSetValueExW(runKey, L"GoNhanh", 0, REG_SZ, reinterpret_cast<const BYTE*>(quoted.c_str()),
-                               static_cast<DWORD>((quoted.length() + 1) * sizeof(wchar_t)));
-            }
-        }
-    } else {
-        RegDeleteValueW(runKey, L"GoNhanh");
-    }
-    RegCloseKey(runKey);
 }
 
 void Settings::Load() {
@@ -110,12 +81,8 @@ void Settings::Load() {
     readPairs(L"ShortcutsDisabled", false);
 
     RegCloseKey(key);
-
-    // Auto-start points at the exe that last saved settings. After moving GoNhanh (or replacing
-    // the former WPF app in another folder), point it at this exe so the next sign-in starts it.
-    if (autoStart) {
-        UpdateRunEntry(REG_RUN_KEY, true);
-    }
+    // Auto-start is refreshed by WinMain once the app is up (SetAutoStart), not here: checking
+    // the logon task takes a Task Scheduler round trip
 }
 
 void Settings::Save() {
@@ -162,8 +129,8 @@ void Settings::Save() {
     writePairs(L"ShortcutsDisabled", false);
     RegCloseKey(key);
 
-    // Handle auto-start
-    UpdateRunEntry(REG_RUN_KEY, autoStart);
+    // Auto-start: logon task (Run entry as fallback); does nothing unless the setting changed
+    SetAutoStart(autoStart);
 
     // Apply to engine
     ApplyToEngine();

@@ -18,7 +18,11 @@ install) with a C++20 Win32 front end and the shared Rust engine linked in as a 
   (PowerShell Tab completion). Same commands as macOS/Linux
   (`im-select` convention) for Vim mode switching; see [docs/install-windows.md](../../docs/install-windows.md).
   Settings → "Dòng lệnh gn" adds/removes `bin\` in the user's PATH (`cli_path.cpp`)
-- Per-monitor DPI aware, auto-start option, toggle sound
+- **Starts first at sign-in**: auto-start is a Task Scheduler logon task (`autostart.cpp`), not a
+  `Run` entry, which Explorer starts one after another after every other startup app. The app runs
+  at high CPU priority so the keyboard hook keeps up when the machine is busy, and re-adds its tray
+  icon when the taskbar appears after it or Explorer restarts (`TaskbarCreated`)
+- Per-monitor DPI aware, toggle sound
 
 ## Performance
 

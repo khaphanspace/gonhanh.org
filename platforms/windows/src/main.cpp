@@ -13,8 +13,14 @@
 #include "resource.h"
 #include "ime_state.h"
 #include "control_protocol.h"
+#include "autostart.h"
 
 static const wchar_t* WINDOW_CLASS = gonhanh::control::kWindowClass;
+static HWND g_msgWindow = nullptr;
+// Broadcast by Explorer when the taskbar is created: at sign-in (GoNhanh may start first) and
+// after Explorer restarts, which drops every tray icon
+static UINT g_taskbarCreatedMsg = 0;
+static const UINT_PTR kTrayRetryTimer = 1;
 static HWINEVENTHOOK g_foregroundHook = nullptr;
 static HWINEVENTHOOK g_focusHook = nullptr;
 
@@ -120,7 +126,18 @@ static LRESULT HandleControlCommand(WPARAM command, LPARAM version) {
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (g_taskbarCreatedMsg && msg == g_taskbarCreatedMsg) {
+        if (gonhanh::SystemTray::Instance().Readd()) KillTimer(g_msgWindow, kTrayRetryTimer);
+        return 0;
+    }
     switch (msg) {
+        case WM_TIMER:
+            // The tray icon couldn't be added at startup: retry until the taskbar takes it
+            if (wParam == kTrayRetryTimer && gonhanh::SystemTray::Instance().Readd()) {
+                KillTimer(hwnd, kTrayRetryTimer);
+            }
+            return 0;
+
         case gonhanh::control::kMessage:
             return HandleControlCommand(wParam, lParam);
 
@@ -195,6 +212,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         return 0;
     }
 
+    // Every keystroke waits for the keyboard hook. When the machine is busy (builds, games),
+    // a normal-priority hook can miss Windows' hook timeout, so keys lag or skip the engine.
+    // GoNhanh is idle between keys (a few µs per key), so high priority costs other apps nothing.
+    // Not REALTIME: that would outrank the input and disk threads of the system itself.
+    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+
     // Initialize COM for common controls
     INITCOMMONCONTROLSEX icc = {};
     icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
@@ -238,6 +261,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
         return 1;
     }
 
+    g_msgWindow = hwnd;
+
+    // Message-only windows get no broadcasts: a hidden top-level window listens for TaskbarCreated
+    g_taskbarCreatedMsg = RegisterWindowMessageW(L"TaskbarCreated");
+    WNDCLASSEX watchClass = {};
+    watchClass.cbSize = sizeof(WNDCLASSEX);
+    watchClass.lpfnWndProc = WindowProc;
+    watchClass.hInstance = hInstance;
+    watchClass.lpszClassName = L"GoNhanhTaskbarWatch";
+    RegisterClassEx(&watchClass);
+    HWND watch = CreateWindowEx(WS_EX_TOOLWINDOW, watchClass.lpszClassName, L"", WS_POPUP, 0, 0, 0, 0,
+                                nullptr, nullptr, hInstance, nullptr);
+    if (watch && g_taskbarCreatedMsg) {
+        ChangeWindowMessageFilterEx(watch, g_taskbarCreatedMsg, MSGFLT_ALLOW, nullptr);  // when elevated
+    }
+
     // When GoNhanh runs as administrator (to type into elevated apps), UIPI drops messages from
     // the non-elevated `gonhanh` CLI. Let the control message through; it only switches modes.
     ChangeWindowMessageFilterEx(hwnd, gonhanh::control::kMessage, MSGFLT_ALLOW, nullptr);
@@ -278,9 +317,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
     // Create system tray icon
     auto& tray = gonhanh::SystemTray::Instance();
     if (!tray.Create(hwnd)) {
-        gonhanh::LogError(L"Failed to create system tray icon");
-        MessageBoxW(NULL, L"Failed to create system tray icon", L"Error", MB_ICONERROR);
-        return 1;
+        // Usually no taskbar yet (started at sign-in before Explorer). Keep typing working and
+        // add the icon on TaskbarCreated, or on this timer if that broadcast was missed.
+        gonhanh::LogError(L"System tray icon not added yet; retrying");
+        SetTimer(hwnd, kTrayRetryTimer, 2000, nullptr);
     }
 
     // Start with the hook, engine and tray icon all reflecting the saved state
@@ -299,6 +339,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrev, LPSTR cmdLine, int nSho
             gonhanh::PerAppMode::Instance().TrackApp(appName);
         }
     }
+
+    // Auto-start: make sure the logon task exists and runs this exe (GoNhanh may have moved, or an
+    // earlier version left a Run entry). Runs on a background thread.
+    if (settings.autoStart) gonhanh::SetAutoStart(true);
 
     // Startup work (registry, icons, engine init) is done; give those pages back while idle
     gonhanh::TrimWorkingSet();

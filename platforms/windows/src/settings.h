@@ -61,7 +61,6 @@ public:
 private:
     Settings() = default;
     static const wchar_t* REG_KEY;
-    static const wchar_t* REG_RUN_KEY;
 };
 
 } // namespace gonhanh

@@ -127,21 +127,31 @@ bool SystemTray::Create(HWND hwnd) {
     // Set tooltip
     wcscpy_s(nid_.szTip, L"G\x00F5 Nhanh - B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t");
 
-    // Add to system tray (fallback without GUID if it fails)
-    if (Shell_NotifyIconW(NIM_ADD, &nid_)) {
-        created_ = true;
-        UpdateIcon();
-        return true;
-    }
-    // Fallback: some systems reject NIF_GUID, retry without it
-    nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid_.guidItem = {};
-    if (Shell_NotifyIconW(NIM_ADD, &nid_)) {
-        created_ = true;
-        UpdateIcon();
-        return true;
+    return Add();
+}
+
+bool SystemTray::Add() {
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        // MODIFY: the icon is already there (TaskbarCreated also follows a DPI change)
+        if (Shell_NotifyIconW(NIM_ADD, &nid_) || Shell_NotifyIconW(NIM_MODIFY, &nid_)) {
+            created_ = true;
+            UpdateIcon();
+            return true;
+        }
+        // No taskbar yet (started at sign-in before Explorer): keep the GUID, the caller retries
+        // when the taskbar appears
+        if (!FindWindowW(L"Shell_TrayWnd", nullptr) || !(nid_.uFlags & NIF_GUID)) break;
+        // Some systems reject NIF_GUID (e.g. the GUID is registered to another exe path): retry without it
+        nid_.uFlags &= ~NIF_GUID;
+        nid_.guidItem = {};
     }
     return false;
+}
+
+bool SystemTray::Readd() {
+    if (!hwnd_) return false;
+    created_ = false;
+    return Add();
 }
 
 void SystemTray::Destroy() {

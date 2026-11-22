@@ -10,7 +10,7 @@
 
 > File chưa được ký số nên lần đầu Windows SmartScreen có thể cảnh báo: chọn **More info → Run anyway**.
 
-Muốn Gõ Nhanh tự chạy khi mở máy: mở Cài đặt → bật **Khởi động cùng Windows**.
+Muốn Gõ Nhanh tự chạy khi mở máy: mở Cài đặt → bật **Khởi động cùng Windows**. Gõ Nhanh tạo một tác vụ trong Task Scheduler (tên `GoNhanh autostart …`) chạy ngay khi đăng nhập, nên có bộ gõ trước các ứng dụng khởi động khác thay vì phải đợi chúng lần lượt chạy xong. Nếu chuyển Gõ Nhanh sang thư mục khác, chỉ cần mở bản mới một lần là tác vụ được cập nhật.
 
 ## Sử dụng
 

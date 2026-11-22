@@ -38,6 +38,7 @@ set(GONHANH_SOURCES
     src/settings_window.cpp
     src/ime_state.cpp
     src/cli_path.cpp
+    src/autostart.cpp
     src/fluent_ui.cpp
     src/shortcuts_dialog.cpp
     src/app_compat.cpp
@@ -65,6 +66,7 @@ target_link_libraries(gonhanh PRIVATE
     ws2_32 userenv bcrypt advapi32
     user32 shell32 gdi32 comctl32 psapi
     dwmapi uxtheme winhttp
+    ole32 oleaut32 taskschd
 )
 
 # App version: from -DGONHANH_VERSION=x.y.z, else the latest release tag (vX.Y.Z), else 0.0.0
