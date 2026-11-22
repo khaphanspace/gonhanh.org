@@ -1,8 +1,14 @@
 #pragma once
 
-// App version (updated by build scripts)
+// App version: set by CMake from the release tag (GONHANH_VERSION); fallback for other builds
 #ifndef APP_VERSION_STRING
-#define APP_VERSION_STRING "1.0.112"
+#define APP_VERSION_STRING "0.0.0"
+#endif
+#ifndef APP_VERSION_MAJOR
+#define APP_VERSION_MAJOR 0
+#define APP_VERSION_MINOR 0
+#define APP_VERSION_PATCH 0
+#define APP_VERSION_BUILD 0
 #endif
 
 // Icons (IDI_APPICON=1 required for exe icon)
@@ -18,7 +24,6 @@
 #define IDM_TELEX           202
 #define IDM_VNI             203
 #define IDM_SETTINGS        204
-#define IDM_ABOUT           205
 #define IDM_EXIT            206
 
 // Settings window controls
@@ -38,16 +43,10 @@
 #define IDC_BTN_APPLY       314
 #define IDC_CHK_FOREIGN     315
 
-// Shortcuts dialog
-#define IDC_SHORTCUTS_LIST  401
-#define IDC_BTN_ADD         402
-#define IDC_BTN_IMPORT      403
-#define IDC_BTN_EXPORT      404
 
 // Dialog IDs
 #define IDD_SETTINGS        501
-#define IDD_SHORTCUTS       502
-#define IDD_ABOUT           503
 
 // Messages
 #define WM_TRAYICON         (WM_USER + 1)
+#define WM_TOGGLE_IME       (WM_USER + 2)   // Posted by the keyboard hook on Ctrl+Space

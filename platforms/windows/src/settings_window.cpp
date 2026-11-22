@@ -2,925 +2,963 @@
 #include "resource.h"
 #include "settings.h"
 #include "shortcuts_dialog.h"
-#include "about_dialog.h"
-#include <shellapi.h>
-#include "modern_ui.h"
+#include "system_tray.h"
 #include "update_checker.h"
+#include "ime_state.h"
+#include "cli_path.h"
+#include <shellapi.h>
 #include <windowsx.h>
-#include <commctrl.h>
-#include <sstream>
+#include "fluent_ui.h"
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <string>
+#include <vector>
 
-#pragma comment(lib, "comctl32.lib")
 
 namespace gonhanh {
 
-using namespace ui;
+namespace {
 
-// Base window dimensions (at 100% / 96 DPI)
-static const int BASE_WINDOW_WIDTH = 680;
-static const int BASE_WINDOW_HEIGHT = 520;
-static const int BASE_SIDEBAR_WIDTH = 180;
-static const int BASE_CONTENT_PADDING = 24;
-static const int BASE_ROW_HEIGHT = 36;
-static const int BASE_TOGGLE_WIDTH = 44;
-static const int BASE_TOGGLE_HEIGHT = 20;
+using namespace fluent;
 
-// Sidebar tab IDs
-static const int TAB_SETTINGS = 0;
-static const int TAB_ABOUT = 1;
-static int currentTab = TAB_SETTINGS;
+// ---------------------------------------------------------------------------
+// Layout constants (logical pixels at 96 DPI)
+// ---------------------------------------------------------------------------
+constexpr int kClientW = 780;
+constexpr int kMinClientH = 480;  // Otherwise the height fits the content (ContentHeightLogical)
+constexpr int kSidebarW = 264;
+constexpr int kPagePadX = 24;
+constexpr int kPagePadTop = 4;      // The (invisible) title bar already spaces the top
+constexpr int kPagePadBottom = 20;
+constexpr int kGroupGap = 12;
+constexpr int kRowH = 42;
+constexpr int kRowSubH = 52;
+constexpr int kCardRadius = 6;
+constexpr int kRowPadX = 18;
+constexpr int kScrollHitW = 14;
 
-// Toggle switch handles
-static HWND toggleEnabled = nullptr;
-static HWND toggleWShortcut = nullptr;
-static HWND toggleBracket = nullptr;
-static HWND toggleAutoRestore = nullptr;
-static HWND toggleAutoStart = nullptr;
-static HWND togglePerApp = nullptr;
-static HWND toggleSound = nullptr;
-static HWND toggleModern = nullptr;
-static HWND toggleCapitalize = nullptr;
-static HWND toggleForeignConsonants = nullptr;
+constexpr UINT_PTR kTimerUpdate = 1;
+constexpr UINT_PTR kTimerAnim = 2;
+constexpr float kAnimStep = 16.0f / 140.0f;  // ~140 ms toggle slide at 60 fps
 
+
+// Segoe Fluent Icons (Windows 11) / Segoe MDL2 Assets (Windows 10) glyphs
+constexpr wchar_t kIcoChevron = 0xE76C;
+constexpr wchar_t kIcoHeartFill = 0xEB52;
+constexpr wchar_t kIcoBug = 0xEBE8;
+
+// GitHub mark (Octicons "mark-github", 16x16 viewBox, MIT License, github.com/primer/octicons)
+const char* kGitHubMark =
+    "M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 "
+    "0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 "
+    "0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 "
+    "1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55"
+    "-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67"
+    ".01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z";
+
+const wchar_t* kUrlSponsor = L"https://github.com/sponsors/khaphanspace";
+const wchar_t* kUrlIssues = L"https://github.com/khaphanspace/gonhanh.org/issues";
+const wchar_t* kUrlRepo = L"https://github.com/khaphanspace/gonhanh.org";
+const wchar_t* kUrlReleases = L"https://github.com/khaphanspace/gonhanh.org/releases";
+const wchar_t* kUrlAuthor = L"https://www.linkedin.com/in/khaphanspace";
+const wchar_t* kUrlContributors = L"https://github.com/khaphanspace/gonhanh.org/blob/main/CONTRIBUTORS.md";
+
+// ---------------------------------------------------------------------------
+// Settings page model
+// ---------------------------------------------------------------------------
+// CliPath: a toggle backed by the user's PATH instead of a Settings field
+enum class RowKind { Toggle, Method, Hotkey, Shortcuts, CliPath };
+
+struct RowDef {
+    RowKind kind;
+    const wchar_t* title;
+    const wchar_t* subtitle;     // Static subtitle, may be nullptr
+    bool Settings::* field;      // Toggle rows only
+    bool inverted;               // Toggle shows !field
+};
+
+struct GroupDef {
+    const wchar_t* title;
+    int first;
+    int count;
+};
+
+const RowDef kRows[] = {
+    // Bộ gõ
+    { RowKind::Toggle,    L"Bộ gõ tiếng Việt",        nullptr, &Settings::enabled, false },
+    { RowKind::Method,    L"Kiểu gõ",                 nullptr, nullptr, false },
+    { RowKind::Toggle,    L"Gõ W thành Ư",            nullptr, &Settings::skipWShortcut, true },
+    { RowKind::Toggle,    L"Gõ [ ] thành Ơ Ư",        nullptr, &Settings::bracketShortcut, false },
+    { RowKind::Toggle,    L"Tự khôi phục tiếng Anh",  nullptr, &Settings::autoRestore, false },
+    // Phím tắt
+    { RowKind::Hotkey,    L"Bật/tắt tiếng Việt",      nullptr, nullptr, false },
+    { RowKind::Shortcuts, L"Bảng gõ tắt",             nullptr, nullptr, false },
+    // Quy tắc gõ
+    { RowKind::Toggle,    L"Đặt dấu kiểu mới",        L"oà thay vì òa, uý thay vì úy", &Settings::modernTone, false },
+    { RowKind::Toggle,    L"Cho phép phụ âm ngoại",   L"z, w, j, f làm phụ âm đầu", &Settings::allowForeignConsonants, false },
+    { RowKind::Toggle,    L"Tự viết hoa đầu câu",     nullptr, &Settings::autoCapitalize, false },
+    // Hệ thống
+    { RowKind::Toggle,    L"Nhớ trạng thái theo app", L"Tự bật/tắt khi chuyển ứng dụng", &Settings::perApp, false },
+    { RowKind::Toggle,    L"Âm thanh khi bật/tắt",    nullptr, &Settings::sound, false },
+    { RowKind::Toggle,    L"Khởi động cùng Windows",  nullptr, &Settings::autoStart, false },
+    { RowKind::CliPath,   L"Dòng lệnh gn",            nullptr, nullptr, false },
+    { RowKind::Toggle,    L"Tự kiểm tra bản mới",     L"Kết nối GitHub khi mở Cài đặt", &Settings::checkUpdates, false },
+};
+constexpr int kRowCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));
+
+const GroupDef kGroups[] = {
+    { L"Bộ gõ", 0, 5 },
+    { L"Phím tắt", 5, 2 },
+    { L"Quy tắc gõ", 7, 3 },
+    { L"Hệ thống", 10, 5 },
+};
+
+// `gn` on PATH: read from the registry when the window is shown or activated, not every frame
+struct CliRow {
+    CliPathState state = CliPathState::Missing;
+    bool available = false;  // bin\ with the CLI exists next to GoNhanh.exe
+    bool on = false;         // a Gõ Nhanh CLI folder is in the user's PATH
+};
+CliRow g_cliPath;
+
+void ReadCliPathState() {
+    g_cliPath.state = GetCliPathState();
+    g_cliPath.available = g_cliPath.state != CliPathState::Missing;
+    g_cliPath.on = g_cliPath.state == CliPathState::On || g_cliPath.state == CliPathState::OtherCopy;
+}
+
+bool RowIsToggle(const RowDef& row) {
+    return row.kind == RowKind::Toggle || row.kind == RowKind::CliPath;
+}
+
+bool RowHasSubtitle(const RowDef& row) {
+    return row.subtitle != nullptr || row.kind == RowKind::Shortcuts || row.kind == RowKind::CliPath;
+}
+
+bool RowClickable(const RowDef& row) {
+    if (row.kind == RowKind::CliPath) return g_cliPath.available;
+    return row.kind == RowKind::Toggle || row.kind == RowKind::Shortcuts;
+}
+
+// Height of the settings page in logical px (all groups, no scrolling needed)
+int ContentHeightLogical() {
+    int h = kPagePadTop + kPagePadBottom - kGroupGap;
+    for (const auto& group : kGroups) {
+        for (int i = group.first; i < group.first + group.count; i++) {
+            h += RowHasSubtitle(kRows[i]) ? kRowSubH : kRowH;
+        }
+        h += kGroupGap;
+    }
+    return h;
+}
+
+bool ToggleValue(int row) {
+    const RowDef& def = kRows[row];
+    if (def.kind == RowKind::CliPath) return g_cliPath.on;
+    bool value = Settings::Instance().*(def.field);
+    return def.inverted ? !value : value;
+}
+
+}  // namespace
+
+// ===========================================================================
+// Window lifecycle
+// ===========================================================================
 SettingsWindow& SettingsWindow::Instance() {
     static SettingsWindow instance;
     return instance;
 }
 
 SettingsWindow::~SettingsWindow() {
-    if (hwnd_) {
-        DestroyWindow(hwnd_);
-    }
+    if (hwnd_) DestroyWindow(hwnd_);
+}
+
+int SettingsWindow::S(int logical) const {
+    return MulDiv(logical, static_cast<int>(dpi_), 96);
 }
 
 void SettingsWindow::Show() {
-    if (!hwnd_) {
-        Create();
-    } else {
-        // Reset scroll position when re-showing
-        if (scrollPos_ != 0) {
-            ScrollContent(0);
-        }
-    }
-    LoadSettings();
+    if (!hwnd_) Create();
+    if (!hwnd_) return;
+
+    scrollPos_ = 0;
+    hover_ = {};
+    ReadCliPathState();
+    SyncToggleAnim(true);
+    Layout();
+    InvalidateRect(hwnd_, nullptr, FALSE);
+
     ShowWindow(hwnd_, SW_SHOW);
     SetForegroundWindow(hwnd_);
     visible_ = true;
 
-    // Trigger update check in background
-    UpdateChecker::Instance().CheckAsync();
+    // Update check is opt-in: without it the app never touches the network
+    if (Settings::Instance().checkUpdates) {
+        StartUpdateCheck();
+    }
+}
 
-    // Set timer to refresh version badge when update check completes
-    SetTimer(hwnd_, 1, 500, nullptr);  // Check every 500ms
+void SettingsWindow::StartUpdateCheck() {
+    // Runs in the background; poll so the sidebar badge refreshes when it completes
+    UpdateChecker::Instance().CheckAsync();
+    SetTimer(hwnd_, kTimerUpdate, 500, nullptr);
 }
 
 void SettingsWindow::Hide() {
     if (hwnd_) {
-        KillTimer(hwnd_, 1);
+        KillTimer(hwnd_, kTimerUpdate);
+        KillTimer(hwnd_, kTimerAnim);
         ShowWindow(hwnd_, SW_HIDE);
         visible_ = false;
+        if (!ShortcutsDialog::Instance().IsVisible()) {
+            DestroyIfHidden();
+        }
     }
 }
 
+void SettingsWindow::DestroyIfHidden() {
+    // Destroying (not just hiding) also frees the per-window DWM, theme and text-input state:
+    // after closing, the app is back to its idle footprint. Show() recreates the window.
+    // The Shortcuts window is owned by this one and goes with it.
+    if (hwnd_ && !visible_) {
+        DestroyWindow(hwnd_);
+    }
+    ReleaseRenderResources();
+}
+
 void SettingsWindow::Create() {
-    // Initialize common controls
-    INITCOMMONCONTROLSEX icex = { sizeof(icex), ICC_STANDARD_CLASSES };
-    InitCommonControlsEx(&icex);
+    if (!InitRenderer()) return;
+    HINSTANCE hInst = GetModuleHandle(nullptr);
 
-    HINSTANCE hInst = GetModuleHandle(NULL);
-    InitGdiPlus();
-    RegisterToggleSwitchClass(hInst);
-
-    // Register window class
     WNDCLASSEXW wc = { sizeof(wc) };
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
     wc.lpszClassName = L"GoNhanhSettingsWindow";
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.hbrBackground = nullptr;  // Fully custom painted
     wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(IDI_APP_LOGO));
     wc.hIconSm = LoadIconW(hInst, MAKEINTRESOURCEW(IDI_APP_LOGO));
     RegisterClassExW(&wc);
 
-    // Get DPI scale from primary monitor
-    HDC hdc = GetDC(NULL);
-    float dpiScale = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0f;
-    ReleaseDC(NULL, hdc);
+    // Size for the monitor under the cursor
+    POINT cursor;
+    GetCursorPos(&cursor);
+    HMONITOR monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfoW(monitor, &mi);
+    dpi_ = GetDpiForSystem();
 
-    int windowWidth = Scale(BASE_WINDOW_WIDTH, dpiScale);
-    int windowHeight = Scale(BASE_WINDOW_HEIGHT, dpiScale);
+    // Close button only: without WS_MINIMIZEBOX Windows also drops the (disabled) maximize button
+    const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    const DWORD exStyle = WS_EX_APPWINDOW;
+    // Tall enough to show every setting without scrolling, but never taller than the screen
+    const RECT& work = mi.rcWork;
+    auto clientHeight = [&] {
+        RECT frame = { 0, 0, 0, 0 };
+        AdjustWindowRectExForDpi(&frame, style, FALSE, exStyle, dpi_);
+        int available = (work.bottom - work.top) - (frame.bottom - frame.top) - S(24);
+        return (std::max)(S(kMinClientH), (std::min)(S(ContentHeightLogical()), available));
+    };
+    RECT rc = { 0, 0, S(kClientW), clientHeight() };
+    AdjustWindowRectExForDpi(&rc, style, FALSE, exStyle, dpi_);
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+    int x = work.left + (work.right - work.left - width) / 2;
+    int y = work.top + (work.bottom - work.top - height) / 2;
 
-    // Calculate center position
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-    int x = (screenWidth - windowWidth) / 2;
-    int y = (screenHeight - windowHeight) / 2;
-
-    // Create window with vertical scrollbar
-    hwnd_ = CreateWindowExW(
-        WS_EX_APPWINDOW,
-        L"GoNhanhSettingsWindow",
-        L"G\x00F5 Nhanh - C\x00E0i \x0111\x1EB7t",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VSCROLL,
-        x, y, windowWidth, windowHeight,
-        NULL, NULL, GetModuleHandle(NULL), this
-    );
-
+    hwnd_ = CreateWindowExW(exStyle, L"GoNhanhSettingsWindow", L"Gõ Nhanh - Cài đặt", style,
+                            x, y, width, height, nullptr, nullptr, hInst, this);
     if (!hwnd_) return;
 
-    CreateControls();
-    UpdateScrollInfo();
-}
-
-void SettingsWindow::CreateControls() {
-    HINSTANCE hInst = GetModuleHandle(NULL);
-    float dpi = GetDpiScale(hwnd_);
-
-    // Create DPI-scaled font
-    int fontSize = Scale(13, dpi);
-    HFONT hFont = CreateFontW(-fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-
-    int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
-    int contentPadding = Scale(20, dpi);
-    int rowHeight = Scale(36, dpi);       // Compact rows for toggle items
-    int sectionPadding = Scale(16, dpi);
-
-    // Content area dimensions
-    int contentX = sidebarWidth + contentPadding;
-    int contentRight = Scale(BASE_WINDOW_WIDTH, dpi) - contentPadding - Scale(16, dpi);
-    int contentWidth = contentRight - contentX;
-    int toggleWidth = Scale(44, dpi);
-
-    int y = Scale(16, dpi);
-
-    // Helper lambda - creates label + toggle, toggle aligned right
-    auto createToggleRow = [&](const wchar_t* text, int id, int sectionX, int sectionWidth) -> HWND {
-        int labelX = sectionX + sectionPadding;
-        int toggleX = sectionX + sectionWidth - sectionPadding - toggleWidth;
-        int labelWidth = toggleX - labelX - Scale(10, dpi);
-
-        HWND lbl = CreateWindowExW(0, L"STATIC", text,
-            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
-            labelX, y, labelWidth, rowHeight,
-            hwnd_, NULL, hInst, NULL);
-        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-        HWND toggle = CreateToggleSwitch(hwnd_, toggleX, y + (rowHeight - Scale(20, dpi)) / 2, id, false);
-        y += rowHeight;
-        return toggle;
-    };
-
-    // === Section 1: Input Method (5 rows - match macOS) ===
-    int section1Y = y;
-    toggleEnabled = createToggleRow(L"B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t", IDC_CHK_ENABLED, contentX, contentWidth);
-
-    // "Kiểu gõ" row with combobox on right
-    {
-        int labelX = contentX + sectionPadding;
-        int comboWidth = Scale(100, dpi);
-        int comboX = contentX + contentWidth - sectionPadding - comboWidth;
-
-        HWND lbl = CreateWindowExW(0, L"STATIC", L"Ki\x1EC3u g\x00F5",
-            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
-            labelX, y, Scale(150, dpi), rowHeight,
-            hwnd_, NULL, hInst, NULL);
-        SendMessage(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-        cmbMethod_ = CreateWindowExW(0, L"COMBOBOX", NULL,
-            WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-            comboX, y + (rowHeight - Scale(24, dpi)) / 2, comboWidth, Scale(200, dpi),
-            hwnd_, (HMENU)IDC_CMB_METHOD, hInst, NULL);
-        SendMessage(cmbMethod_, WM_SETFONT, (WPARAM)hFont, TRUE);
-        ComboBox_AddString(cmbMethod_, L"Telex");
-        ComboBox_AddString(cmbMethod_, L"VNI");
-        y += rowHeight;
+    // The window may land on a monitor with a different DPI than the system DPI
+    UINT actualDpi = GetDpiForWindow(hwnd_);
+    if (actualDpi != dpi_) {
+        dpi_ = actualDpi;
+        rc = { 0, 0, S(kClientW), clientHeight() };
+        AdjustWindowRectExForDpi(&rc, style, FALSE, exStyle, dpi_);
+        SetWindowPos(hwnd_, nullptr, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
+                     SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
-    toggleWShortcut = createToggleRow(L"G\x00F5 W th\x00E0nh \x01AF", IDC_CHK_W_SHORTCUT, contentX, contentWidth);
-    toggleBracket = createToggleRow(L"G\x00F5 ] th\x00E0nh \x01AF, [ th\x00E0nh \x01A0", IDC_CHK_BRACKET, contentX, contentWidth);
-    toggleAutoRestore = createToggleRow(L"T\x1EF1 kh\x00F4i ph\x1EE5" L"c ti\x1EBFng Anh", IDC_CHK_AUTORESTORE, contentX, contentWidth);
-
-    // Divider after section 1
-    dividerY1_ = y;
-    y += Scale(2, dpi);  // Thin divider space
-
-    // === Section 2: Shortcuts (2 rows with subtitle - taller than toggle rows) ===
-    int subtitleRowHeight = Scale(50, dpi);
-    section2Y_ = y;
-    y += subtitleRowHeight * 2;
-
-    // Divider after section 2 (painted by PaintContent)
-    dividerY2_ = y;
-    y += Scale(2, dpi);
-
-    // === Section 3: Typing Rules (2 rows) ===
-    toggleModern = createToggleRow(L"\x0110\x1EB7t d\x1EA5u ki\x1EC3u m\x1EDBi", IDC_CHK_MODERN, contentX, contentWidth);
-    toggleForeignConsonants = createToggleRow(L"Cho ph\x00E9p ph\x1EE5 \x00E2m ngo\x1EA1i", IDC_CHK_FOREIGN, contentX, contentWidth);
-
-    // Divider after section 3
-    dividerY3_ = y;
-    y += Scale(2, dpi);
-
-    // === Section 4: Advanced (4 rows) ===
-    toggleCapitalize = createToggleRow(L"T\x1EF1 vi\x1EBFt hoa \x0111\x1EA7u c\x00E2u", IDC_CHK_CAPITALIZE, contentX, contentWidth);
-    togglePerApp = createToggleRow(L"Nh\x1EDB tr\x1EA1ng th\x00E1i theo app", IDC_CHK_PERAPP, contentX, contentWidth);
-    toggleSound = createToggleRow(L"\x00C2m thanh khi b\x1EADt/t\x1EAFt", IDC_CHK_SOUND, contentX, contentWidth);
-    toggleAutoStart = createToggleRow(L"Kh\x1EDFi \x0111\x1ED9ng c\x00F9ng h\x1EC7 th\x1ED1ng", IDC_CHK_AUTOSTART, contentX, contentWidth);
-
-    // Store total content height for scrolling
-    contentHeight_ = y + Scale(20, dpi);
-
-    // Collect all child controls for scrolling
-    contentControls_.clear();
-    EnumChildWindows(hwnd_, [](HWND child, LPARAM lParam) -> BOOL {
-        auto* controls = reinterpret_cast<std::vector<HWND>*>(lParam);
-        controls->push_back(child);
-        return TRUE;
-    }, reinterpret_cast<LPARAM>(&contentControls_));
+    toggleAnim_.assign(kRowCount, 0.0f);
+    RegisterThemeWindow(hwnd_);  // Follow accent / light-dark changes live
+    ApplyWindowTheme();
+    Layout();
 }
 
-void SettingsWindow::UpdateScrollInfo() {
-    RECT clientRect;
-    GetClientRect(hwnd_, &clientRect);
-    int viewHeight = clientRect.bottom;
-
-    SCROLLINFO si = { sizeof(si) };
-    si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-    si.nMin = 0;
-    si.nMax = contentHeight_;
-    si.nPage = viewHeight;
-    si.nPos = scrollPos_;
-    SetScrollInfo(hwnd_, SB_VERT, &si, TRUE);
-
-    // Show/hide scrollbar based on content
-    ShowScrollBar(hwnd_, SB_VERT, contentHeight_ > viewHeight);
+void SettingsWindow::ApplyWindowTheme() {
+    // Mica behind title bar + client (Windows 11 22H2+), clean title bar
+    mica_ = ConfigureWindowFrame(hwnd_, true);
 }
 
-void SettingsWindow::ScrollContent(int newPos) {
-    RECT clientRect;
-    GetClientRect(hwnd_, &clientRect);
-    int viewHeight = clientRect.bottom;
-    int maxScroll = max(0, contentHeight_ - viewHeight);
-
-    // Clamp scroll position
-    newPos = max(0, min(newPos, maxScroll));
-    if (newPos == scrollPos_) return;
-
-    int delta = scrollPos_ - newPos;
-    scrollPos_ = newPos;
-
-    // Move all child controls
-    for (HWND child : contentControls_) {
-        RECT rc;
-        GetWindowRect(child, &rc);
-        MapWindowPoints(HWND_DESKTOP, hwnd_, (LPPOINT)&rc, 2);
-        SetWindowPos(child, NULL, rc.left, rc.top + delta, 0, 0,
-                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-
-    // Update custom painted positions
-    section2Y_ += delta;
-    dividerY1_ += delta;
-    dividerY2_ += delta;
-    dividerY3_ += delta;
-
-    // Update scrollbar
-    SCROLLINFO si = { sizeof(si) };
-    si.fMask = SIF_POS;
-    si.nPos = scrollPos_;
-    SetScrollInfo(hwnd_, SB_VERT, &si, TRUE);
-
-    // Repaint
-    InvalidateRect(hwnd_, NULL, TRUE);
-}
-
-void SettingsWindow::LoadSettings() {
-    auto& settings = Settings::Instance();
-
-    SetToggleState(toggleEnabled, settings.enabled);
-    ComboBox_SetCurSel(cmbMethod_, settings.method);
-    SetToggleState(toggleWShortcut, !settings.skipWShortcut);
-    SetToggleState(toggleBracket, settings.bracketShortcut);
-    SetToggleState(toggleAutoRestore, settings.autoRestore);
-    SetToggleState(toggleModern, settings.modernTone);
-    SetToggleState(toggleForeignConsonants, settings.allowForeignConsonants);
-    SetToggleState(toggleCapitalize, settings.autoCapitalize);
-    SetToggleState(togglePerApp, settings.perApp);
-    SetToggleState(toggleSound, settings.sound);
-    SetToggleState(toggleAutoStart, settings.autoStart);
-}
-
-void SettingsWindow::SaveSettings() {
-    auto& settings = Settings::Instance();
-
-    settings.enabled = GetToggleState(toggleEnabled);
-    settings.method = static_cast<uint8_t>(ComboBox_GetCurSel(cmbMethod_));
-    settings.skipWShortcut = !GetToggleState(toggleWShortcut);
-    settings.bracketShortcut = GetToggleState(toggleBracket);
-    settings.autoRestore = GetToggleState(toggleAutoRestore);
-    settings.modernTone = GetToggleState(toggleModern);
-    settings.allowForeignConsonants = GetToggleState(toggleForeignConsonants);
-    settings.autoCapitalize = GetToggleState(toggleCapitalize);
-    settings.perApp = GetToggleState(togglePerApp);
-    settings.sound = GetToggleState(toggleSound);
-    settings.autoStart = GetToggleState(toggleAutoStart);
-
-    settings.Save();
-    settings.ApplyToEngine();
-}
-
-void SettingsWindow::PaintSidebar(HDC hdc) {
-    const Theme& theme = GetTheme();
-    float dpi = GetDpiScale(hwnd_);
-
-    RECT clientRect;
-    GetClientRect(hwnd_, &clientRect);
-
-    int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
-
-    // Fill entire window with content background first
-    HBRUSH contentBrush = CreateSolidBrush(theme.windowBg);
-    FillRect(hdc, &clientRect, contentBrush);
-    DeleteObject(contentBrush);
-
-    // Sidebar background
-    RECT sidebarRect = { 0, 0, sidebarWidth, clientRect.bottom };
-    HBRUSH sidebarBrush = CreateSolidBrush(theme.sidebarBg);
-    FillRect(hdc, &sidebarRect, sidebarBrush);
-    DeleteObject(sidebarBrush);
-
-    // Logo from PNG resource
-    int logoSize = Scale(72, dpi);
-    int logoX = (sidebarWidth - logoSize) / 2;
-    int logoY = Scale(30, dpi);
-    DrawPngFromResource(hdc, IDR_LOGO_PNG, logoX, logoY, logoSize, logoSize);
-
-    // App name (font size in points, not scaled - DrawText handles DPI)
-    RECT nameRect = { 0, logoY + logoSize + Scale(12, dpi), sidebarWidth, logoY + logoSize + Scale(34, dpi) };
-    DrawText(hdc, L"G\x00F5 Nhanh", nameRect, theme.textPrimary, 15, true, DT_CENTER | DT_VCENTER);
-
-    // Version with update badge
-    int versionY = logoY + logoSize + Scale(36, dpi);
-    auto& checker = UpdateChecker::Instance();
-    UpdateStatus status = checker.GetStatus();
-
-    // Build version string: "v1.0.112"
-    std::wstring versionStr = L"v";
-    versionStr += GetAppVersion();
-
-    if (status == UpdateStatus::UpToDate) {
-        // Show version + green checkmark + "Mới nhất"
-        int checkmarkSize = Scale(12, dpi);
-        int totalWidth = Scale(100, dpi);  // Approximate width
-
-        // Measure version text width
-        HFONT hFont = CreateFontW(-MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
-            0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
-        SIZE verSize;
-        GetTextExtentPoint32W(hdc, versionStr.c_str(), (int)versionStr.length(), &verSize);
-        SelectObject(hdc, oldFont);
-        DeleteObject(hFont);
-
-        int startX = (sidebarWidth - verSize.cx - checkmarkSize - Scale(50, dpi)) / 2;
-
-        // Draw version text
-        RECT verRect = { startX, versionY, startX + verSize.cx + Scale(4, dpi), versionY + Scale(16, dpi) };
-        DrawText(hdc, versionStr.c_str(), verRect, theme.textTertiary, 10, false, DT_LEFT | DT_VCENTER);
-
-        // Draw green checkmark circle
-        int checkX = startX + verSize.cx + Scale(6, dpi);
-        int checkY = versionY + Scale(2, dpi);
-        DrawCheckmarkCircle(hdc, checkX, checkY, checkmarkSize, RGB(34, 197, 94));
-
-        // Draw "Mới nhất" text
-        RECT badgeRect = { checkX + checkmarkSize + Scale(4, dpi), versionY,
-                          sidebarWidth, versionY + Scale(16, dpi) };
-        DrawText(hdc, L"M\x1EDBi nh\x1EA5t", badgeRect, RGB(34, 197, 94), 10, false, DT_LEFT | DT_VCENTER);
-    } else {
-        // Just show version centered
-        RECT versionRect = { 0, versionY, sidebarWidth, versionY + Scale(16, dpi) };
-        DrawText(hdc, versionStr.c_str(), versionRect, theme.textTertiary, 10, false, DT_CENTER | DT_VCENTER);
-    }
-
-    // Navigation tabs at BOTTOM (like macOS)
-    int tabHeight = Scale(36, dpi);
-    int tabPadding = Scale(12, dpi);
-    int tabY = clientRect.bottom - Scale(100, dpi);
-    int iconSize = Scale(16, dpi);
-    int iconPadding = Scale(8, dpi);
-
-    // "Cài đặt" tab (Settings) with gear icon
-    tabSettingsRect_ = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
-    COLORREF tabColor = (currentTab == TAB_SETTINGS) ? theme.textPrimary : theme.textSecondary;
-
-    if (currentTab == TAB_SETTINGS) {
-        // Highlight bar on left
-        RECT barRect = { tabPadding, tabY + Scale(8, dpi), tabPadding + Scale(3, dpi), tabY + tabHeight - Scale(8, dpi) };
-        DrawRoundedRect(hdc, barRect, Scale(2, dpi), RGB(0, 120, 212), RGB(0, 120, 212));
-    }
-
-    // Draw gear icon
-    int iconX = tabPadding + Scale(16, dpi);
-    int iconY = tabY + (tabHeight - iconSize) / 2;
-    DrawGearIcon(hdc, iconX, iconY, iconSize, tabColor);
-
-    // Draw tab text with offset for icon
-    RECT textSettingsRect = { iconX + iconSize + iconPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
-    DrawText(hdc, L"C\x00E0i \x0111\x1EB7t", textSettingsRect, tabColor, 12,
-             currentTab == TAB_SETTINGS, DT_LEFT | DT_VCENTER);
-
-    // "Giới thiệu" tab (About) with bolt icon
-    tabY += tabHeight + Scale(4, dpi);
-    tabAboutRect_ = { tabPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
-    tabColor = (currentTab == TAB_ABOUT) ? theme.textPrimary : theme.textSecondary;
-
-    if (currentTab == TAB_ABOUT) {
-        RECT barRect = { tabPadding, tabY + Scale(8, dpi), tabPadding + Scale(3, dpi), tabY + tabHeight - Scale(8, dpi) };
-        DrawRoundedRect(hdc, barRect, Scale(2, dpi), RGB(0, 120, 212), RGB(0, 120, 212));
-    }
-
-    // Draw bolt icon
-    iconY = tabY + (tabHeight - iconSize) / 2;
-    DrawBoltIcon(hdc, iconX, iconY, iconSize, tabColor);
-
-    // Draw tab text with offset for icon
-    RECT textAboutRect = { iconX + iconSize + iconPadding, tabY, sidebarWidth - tabPadding, tabY + tabHeight };
-    DrawText(hdc, L"Gi\x1EDBi thi\x1EC7u", textAboutRect, tabColor, 12,
-             currentTab == TAB_ABOUT, DT_LEFT | DT_VCENTER);
-}
-
-void SettingsWindow::PaintContent(HDC hdc) {
-    const Theme& theme = GetTheme();
-    float dpi = GetDpiScale(hwnd_);
-
-    int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
-    int contentPadding = Scale(20, dpi);
-    int rowHeight = Scale(50, dpi);  // Subtitle rows: title + subtitle + padding
-    int sectionPadding = Scale(16, dpi);
-
-    int contentX = sidebarWidth + contentPadding;
-    int contentRight = Scale(BASE_WINDOW_WIDTH, dpi) - contentPadding - Scale(16, dpi);
-    int contentWidth = contentRight - contentX;
-    int labelX = contentX + sectionPadding;
-    int dividerWidth = contentWidth - sectionPadding * 2;
-
-    // Draw section dividers (thin lines at section boundaries)
-    DrawDivider(hdc, labelX, dividerY1_, dividerWidth, theme.textSecondary);
-    DrawDivider(hdc, labelX, dividerY3_, dividerWidth, theme.textSecondary);
-
-    // Use stored section2 Y position
-    int y = section2Y_;
-
-    // === Row 1: Phím tắt bật/tắt ===
-    int rowY = y;
-
-    // Title
-    RECT titleRect = { labelX, rowY + Scale(6, dpi), labelX + Scale(200, dpi), rowY + Scale(24, dpi) };
-    DrawText(hdc, L"Ph\x00EDm t\x1EAFt b\x1EADt/t\x1EAFt", titleRect, theme.textPrimary, 12, false, DT_LEFT | DT_VCENTER);
-
-    // Subtitle
-    RECT subtitleRect = { labelX, rowY + Scale(24, dpi), labelX + Scale(200, dpi), rowY + Scale(40, dpi) };
-    DrawText(hdc, L"Nh\x1EA5n \x0111\x1EC3 thay \x0111\x1ED5i", subtitleRect, theme.textTertiary, 10, false, DT_LEFT | DT_VCENTER);
-
-    // Keycaps on right: "^" + "Space"
-    int keycapY = rowY + Scale(12, dpi);
-    int keycapX = contentX + contentWidth - sectionPadding - Scale(90, dpi);
-    DrawKeycap(hdc, keycapX, keycapY, L"^", 10, dpi);
-    DrawKeycap(hdc, keycapX + Scale(32, dpi), keycapY, L"Space", 10, dpi);
-
-    // Move to next row
-    y += rowHeight;
-
-    // Divider
-    DrawDivider(hdc, labelX, y - Scale(2, dpi), contentWidth - sectionPadding * 2, theme.textSecondary);
-
-    // === Row 2: Bảng gõ tắt ===
-    rowY = y;
-
-    // Title
-    titleRect = { labelX, rowY + Scale(6, dpi), labelX + Scale(200, dpi), rowY + Scale(24, dpi) };
-    DrawText(hdc, L"B\x1EA3ng g\x00F5 t\x1EAFt", titleRect, theme.textPrimary, 12, false, DT_LEFT | DT_VCENTER);
-
-    // Subtitle: "X/Y đang bật"
-    auto& settings = Settings::Instance();
-    auto [enabled, total] = settings.GetShortcutsCount();
-    std::wstringstream ss;
-    ss << enabled << L"/" << total << L" \x0111" L"ang b\x1EADt";
-    std::wstring countStr = ss.str();
-
-    subtitleRect = { labelX, rowY + Scale(24, dpi), labelX + Scale(200, dpi), rowY + Scale(40, dpi) };
-    DrawText(hdc, countStr.c_str(), subtitleRect, theme.textTertiary, 10, false, DT_LEFT | DT_VCENTER);
-
-    // Chevron on right
-    int chevronSize = Scale(14, dpi);
-    int chevronX = contentX + contentWidth - sectionPadding - chevronSize;
-    int chevronY = rowY + Scale(14, dpi);
-    DrawChevronRight(hdc, chevronX, chevronY, chevronSize, theme.textTertiary);
-
-    // Store rect for click detection
-    shortcutsRowRect_ = {
-        labelX, rowY,
-        contentX + contentWidth - sectionPadding,
-        rowY + rowHeight
-    };
-
-    // Divider after row
-    y += rowHeight;
-    DrawDivider(hdc, labelX, y - Scale(2, dpi), contentWidth - sectionPadding * 2, theme.textSecondary);
-}
-
-void SettingsWindow::SwitchTab(int tab) {
-    currentTab = tab;
-
-    // Show/hide settings controls based on tab
-    bool showSettings = (tab == TAB_SETTINGS);
-    for (HWND child : contentControls_) {
-        ShowWindow(child, showSettings ? SW_SHOW : SW_HIDE);
-    }
-
-    // Also show/hide scrollbar
-    ShowScrollBar(hwnd_, SB_VERT, showSettings && contentHeight_ > 0);
-
-    InvalidateRect(hwnd_, NULL, TRUE);
-}
-
-void SettingsWindow::PaintAbout(HDC hdc) {
-    const Theme& theme = GetTheme();
-    float dpi = GetDpiScale(hwnd_);
-
-    int sidebarWidth = Scale(BASE_SIDEBAR_WIDTH, dpi);
-
-    RECT clientRect;
-    GetClientRect(hwnd_, &clientRect);
-
-    int contentLeft = sidebarWidth;
-    int contentRight = clientRect.right;
-    int contentCenterX = contentLeft + (contentRight - contentLeft) / 2;
-
-    // Vertically center content in available space
-    int totalContentHeight = Scale(320, dpi);
-    int y = max(Scale(30, dpi), (clientRect.bottom - totalContentHeight) / 2);
-
-    // Logo (80x80, centered)
-    int logoSize = Scale(80, dpi);
-    DrawPngFromResource(hdc, IDR_LOGO_PNG,
-        contentCenterX - logoSize / 2, y, logoSize, logoSize);
-    y += logoSize + Scale(16, dpi);
-
-    // App name - "Gõ Nhanh" bold 20pt
-    RECT nameRect = { contentLeft, y, contentRight, y + Scale(28, dpi) };
-    DrawText(hdc, L"G\x00F5 Nhanh", nameRect, theme.textPrimary, 20, true, DT_CENTER | DT_VCENTER);
-    y += Scale(32, dpi);
-
-    // Tagline - "Bộ gõ tiếng Việt nhanh và nhẹ" secondary 13pt
-    RECT tagRect = { contentLeft, y, contentRight, y + Scale(20, dpi) };
-    DrawText(hdc, L"B\x1ED9 g\x00F5 ti\x1EBFng Vi\x1EC7t nhanh v\x00E0 nh\x1EB9",
-             tagRect, theme.textSecondary, 13, false, DT_CENTER | DT_VCENTER);
-    y += Scale(24, dpi);
-
-    // Version - "Phiên bản v1.0.112" tertiary 12pt
-    std::wstring verStr = L"Phi\x00EAn b\x1EA3n v";
-    verStr += GetAppVersion();
-    RECT verRect = { contentLeft, y, contentRight, y + Scale(18, dpi) };
-    DrawText(hdc, verStr.c_str(), verRect, theme.textTertiary, 12, false, DT_CENTER | DT_VCENTER);
-    y += Scale(32, dpi);
-
-    // 3 link buttons: Ủng hộ, Báo lỗi, GitHub (rounded rect cards)
-    int btnWidth = Scale(80, dpi);
-    int btnHeight = Scale(56, dpi);
-    int btnGap = Scale(12, dpi);
-    int totalBtnWidth = btnWidth * 3 + btnGap * 2;
-    int btnStartX = contentCenterX - totalBtnWidth / 2;
-
-    const wchar_t* btnLabels[] = {
-        L"\x1EE6ng h\x1ED9",    // Ủng hộ
-        L"B\x00E1o l\x1ED7i",   // Báo lỗi
-        L"GitHub",
-    };
-
-    COLORREF cardBg = IsDarkMode() ? RGB(50, 50, 50) : RGB(240, 240, 240);
-    COLORREF cardBorder = IsDarkMode() ? RGB(70, 70, 70) : RGB(220, 220, 220);
-
-    // Segoe Fluent Icons (built-in Windows 10/11), fallback to Segoe MDL2 Assets
-    int iconFontSize = Scale(18, dpi);
-    HFONT hIconFont = CreateFontW(
-        -iconFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe Fluent Icons"
-    );
-    // Fallback for Windows 10 without Fluent Icons
-    if (!hIconFont) {
-        hIconFont = CreateFontW(
-            -iconFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe MDL2 Assets"
-        );
-    }
-
-    // Icon glyphs: Heart, Bug, DeveloperTools
-    const wchar_t* iconGlyphs[] = {
-        L"\xEB51",   // Heart (HeartFill)
-        L"\xEBE8",   // Bug
-        L"\xEC7A",   // DeveloperTools </>
-    };
-    COLORREF iconColors[] = {
-        RGB(236, 72, 153),   // Pink for heart
-        theme.textSecondary,
-        theme.textSecondary,
-    };
-
-    for (int i = 0; i < 3; i++) {
-        int bx = btnStartX + i * (btnWidth + btnGap);
-        RECT btnRect = { bx, y, bx + btnWidth, y + btnHeight };
-        DrawRoundedRect(hdc, btnRect, Scale(8, dpi), cardBg, cardBorder);
-
-        // Icon from Segoe Fluent Icons font
-        HFONT oldFont = (HFONT)SelectObject(hdc, hIconFont);
-        SetTextColor(hdc, iconColors[i]);
-        SetBkMode(hdc, TRANSPARENT);
-        RECT iconRect = { bx, y + Scale(8, dpi), bx + btnWidth, y + Scale(30, dpi) };
-        DrawTextW(hdc, iconGlyphs[i], 1, &iconRect, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
-        SelectObject(hdc, oldFont);
-
-        // Label below icon
-        RECT labelRect = { bx, y + Scale(30, dpi), bx + btnWidth, y + btnHeight - Scale(4, dpi) };
-        DrawText(hdc, btnLabels[i], labelRect, theme.textPrimary, 10, false, DT_CENTER | DT_VCENTER);
-    }
-
-    DeleteObject(hIconFont);
-
-    // Store button rects for click handling
-    aboutBtnRects_[0] = { btnStartX, y, btnStartX + btnWidth, y + btnHeight };
-    aboutBtnRects_[1] = { btnStartX + btnWidth + btnGap, y,
-                           btnStartX + btnWidth * 2 + btnGap, y + btnHeight };
-    aboutBtnRects_[2] = { btnStartX + btnWidth * 2 + btnGap * 2, y,
-                           btnStartX + btnWidth * 3 + btnGap * 2, y + btnHeight };
-
-    y += btnHeight + Scale(40, dpi);
-
-    // Footer: "Phát triển bởi [Kha Phan] và [Cộng đồng]" with blue links
-    {
-        int footerFontSize = 11;
-        int footerH = Scale(18, dpi);
-
-        // Create normal and underline fonts
-        int fontPx = -MulDiv(footerFontSize, GetDeviceCaps(hdc, LOGPIXELSY), 72);
-        HFONT hNormal = CreateFontW(fontPx, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        HFONT hLink = CreateFontW(fontPx, 0, 0, 0, FW_NORMAL, FALSE, TRUE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-
-        // Measure each segment to center the whole line
-        struct Seg { const wchar_t* text; bool isLink; };
-        Seg segs[] = {
-            { L"Ph\x00E1t tri\x1EC3n b\x1EDFi ", false },
-            { L"Kha Phan", true },
-            { L" v\x00E0 ", false },
-            { L"C\x1ED9ng \x0111\x1ED3ng", true },
-        };
-
-        // Measure total width
-        int totalW = 0;
-        SIZE sz;
-        for (auto& seg : segs) {
-            SelectObject(hdc, seg.isLink ? hLink : hNormal);
-            GetTextExtentPoint32W(hdc, seg.text, (int)wcslen(seg.text), &sz);
-            totalW += sz.cx;
+// ===========================================================================
+// Layout
+// ===========================================================================
+void SettingsWindow::Layout() {
+    if (!hwnd_) return;
+    int left = S(kSidebarW) + S(kPagePadX);
+    int right = ClientWidth(hwnd_) - S(kPagePadX);
+
+    rowRects_.assign(kRowCount, RECT{});
+
+    // No page title or group headings: groups are just cards separated by a gap (like macOS)
+    int y = S(kPagePadTop);
+    for (const auto& group : kGroups) {
+        for (int i = group.first; i < group.first + group.count; i++) {
+            int h = RowHasSubtitle(kRows[i]) ? S(kRowSubH) : S(kRowH);
+            rowRects_[i] = { left, y, right, y + h };
+            y += h;
         }
+        y += S(kGroupGap);
+    }
+    contentHeight_ = y - S(kGroupGap) + S(kPagePadBottom);
 
-        // Draw centered
-        int drawX = contentCenterX - totalW / 2;
-        int drawY = y;
-        SetBkMode(hdc, TRANSPARENT);
-        COLORREF linkColor = RGB(0, 102, 204);
+    // Telex | VNI segmented control, right-aligned in the "Kiểu gõ" row
+    for (int i = 0; i < kRowCount; i++) {
+        if (kRows[i].kind != RowKind::Method) continue;
+        const RECT& row = rowRects_[i];
+        int segW = S(72);
+        int segH = S(28);
+        int segRight = row.right - S(kRowPadX) - S(3);
+        int segTop = row.top + (row.bottom - row.top - segH) / 2;
+        segmentRects_[0] = { segRight - segW * 2, segTop, segRight - segW, segTop + segH };
+        segmentRects_[1] = { segRight - segW, segTop, segRight, segTop + segH };
+    }
 
-        for (auto& seg : segs) {
-            SelectObject(hdc, seg.isLink ? hLink : hNormal);
-            SetTextColor(hdc, seg.isLink ? linkColor : theme.textTertiary);
-            GetTextExtentPoint32W(hdc, seg.text, (int)wcslen(seg.text), &sz);
-            TextOutW(hdc, drawX, drawY, seg.text, (int)wcslen(seg.text));
+    ScrollTo(scrollPos_);  // Re-clamp
+}
 
-            // Store link rects for click handling
-            if (seg.isLink && seg.text[0] == 'K') {  // "Kha Phan"
-                authorLinkRect_ = { drawX, drawY, drawX + sz.cx, drawY + footerH };
-            } else if (seg.isLink) {  // "Cộng đồng"
-                communityLinkRect_ = { drawX, drawY, drawX + sz.cx, drawY + footerH };
+void SettingsWindow::ScrollTo(int pos) {
+    if (!hwnd_) return;
+    int maxScroll = (std::max)(0, contentHeight_ - ClientHeight(hwnd_));
+    pos = std::clamp(pos, 0, maxScroll);
+    if (pos != scrollPos_) {
+        scrollPos_ = pos;
+        InvalidateRect(hwnd_, nullptr, FALSE);
+    }
+}
+
+bool SettingsWindow::ScrollbarGeometry(RECT& track, RECT& thumb) const {
+    int viewH = ClientHeight(hwnd_);
+    if (contentHeight_ <= viewH) return false;
+
+    int clientW = ClientWidth(hwnd_);
+    track = { clientW - S(kScrollHitW), S(4), clientW, viewH - S(4) };
+    int trackH = track.bottom - track.top;
+    int thumbH = (std::max)(S(40), MulDiv(trackH, viewH, contentHeight_));
+    int maxScroll = contentHeight_ - viewH;
+    int thumbTop = track.top + MulDiv(trackH - thumbH, scrollPos_, maxScroll);
+    thumb = { track.left, thumbTop, track.right, thumbTop + thumbH };
+    return true;
+}
+
+bool SettingsWindow::SyncToggleAnim(bool snap) {
+    bool moving = false;
+    for (int i = 0; i < kRowCount; i++) {
+        if (!RowIsToggle(kRows[i])) continue;
+        float target = ToggleValue(i) ? 1.0f : 0.0f;
+        float& p = toggleAnim_[i];
+        if (snap) {
+            p = target;
+        } else if (p < target) {
+            p = (std::min)(target, p + kAnimStep);
+        } else if (p > target) {
+            p = (std::max)(target, p - kAnimStep);
+        }
+        if (p != target) moving = true;
+    }
+
+    // Telex/VNI selector pill
+    float methodTarget = Settings::Instance().method == 1 ? 1.0f : 0.0f;
+    if (snap) {
+        methodAnim_ = methodTarget;
+    } else if (methodAnim_ < methodTarget) {
+        methodAnim_ = (std::min)(methodTarget, methodAnim_ + kAnimStep);
+    } else if (methodAnim_ > methodTarget) {
+        methodAnim_ = (std::max)(methodTarget, methodAnim_ - kAnimStep);
+    }
+    if (methodAnim_ != methodTarget) moving = true;
+    return moving;
+}
+
+// ===========================================================================
+// Painting
+// ===========================================================================
+void SettingsWindow::Paint(HDC hdc) {
+    // Transparent clear lets Mica show through; solid base when Mica is unavailable
+    RenderBuffered(hwnd_, hdc, mica_ ? 0 : Pal().base, [this] {
+        PaintSidebar();
+        PaintSettings();
+    });
+}
+
+void SettingsWindow::PaintSidebar() {
+    const Palette& pal = Pal();
+    int sidebarW = S(kSidebarW);
+
+    // App header (logo, name, version, tagline) + links from the top; credits at the bottom
+    int centerX = sidebarW / 2;
+    int logo = S(72);
+    int y = S(kPagePadTop + 8);
+    DrawLogo({ centerX - logo / 2, y, centerX - logo / 2 + logo, y + logo });
+    y += logo + S(14);
+
+    DrawStr(L"Gõ Nhanh", { 0, y, sidebarW, y + S(28) },
+            Font(Face::Display, S(20), DWRITE_FONT_WEIGHT_SEMI_BOLD), pal.text, kCenter);
+    y += S(28) + S(10);
+
+    std::wstring version = L"v";
+    version += GetAppVersion();
+    IDWriteTextFormat* smallFont = Font(Face::Text, S(12));
+    int lineH = S(18);
+
+    UpdateStatus status = UpdateChecker::Instance().GetStatus();
+    bool upToDate = status == UpdateStatus::UpToDate;
+    bool available = status == UpdateStatus::Available;
+    const wchar_t* badge = available ? L"Có bản mới" : upToDate ? L"Mới nhất" : nullptr;
+
+    // Measure the whole line so it can be centered
+    int versionW = MeasureStr(version.c_str(), smallFont);
+    int checkW = upToDate ? S(12) : 0;
+    int badgeW = badge ? MeasureStr(badge, smallFont) : 0;
+    int gap = S(6);
+    int totalW = versionW + (badge ? gap + (checkW ? checkW + S(4) : 0) + badgeW : 0);
+    int x = centerX - totalW / 2;
+
+    DrawStr(version.c_str(), { x, y, x + versionW, y + lineH }, smallFont, pal.textTertiary);
+    x += versionW + gap;
+
+    updateBadgeRect_ = {};
+    if (upToDate) {
+        // Green filled check circle
+        DrawGlyph(0xEC61, { x, y, x + checkW, y + lineH }, Font(Face::Icon, S(12)), pal.success);
+        x += checkW + S(4);
+    }
+    if (badge) {
+        RECT badgeRect = { x, y, x + badgeW, y + lineH };
+        DrawStr(badge, badgeRect, smallFont, available ? pal.accent : pal.textTertiary);
+        if (available) {
+            updateBadgeRect_ = badgeRect;
+            if (hover_.kind == Hit::UpdateBadge) {
+                FillRectF({ badgeRect.left, badgeRect.bottom - S(2), badgeRect.right, badgeRect.bottom - S(1) },
+                          pal.accent);
+            }
+        }
+    }
+
+    y += lineH + S(6);
+
+    // Tagline
+    DrawStr(L"Bộ gõ tiếng Việt nhanh và nhẹ", { S(12), y, sidebarW - S(12), y + S(18) }, smallFont,
+            pal.textSecondary, kCenter);
+    y += S(18) + S(20);
+
+
+    // Credits pinned to the bottom: "Phát triển bởi [Kha Phan] và [Cộng đồng]" / "© 2026 · GPL-3.0"
+    struct Seg { const wchar_t* text; Hit link; };
+    const Seg credits[] = {
+        { L"Phát triển bởi ", Hit::None }, { L"Kha Phan", Hit::AuthorLink },
+        { L" và ", Hit::None }, { L"Cộng đồng", Hit::CommunityLink },
+    };
+    int creditH = S(18);
+    int bottom = ClientHeight(hwnd_) - S(20);
+    int creditsW = 0;
+    for (const auto& seg : credits) creditsW += MeasureStr(seg.text, smallFont);
+    // One line when it fits (it does at the default sidebar width); otherwise wrap after the author
+    bool oneLine = creditsW <= sidebarW - S(16);
+    int creditY = bottom - creditH * (oneLine ? 2 : 3);
+    // Links (formerly the About page): three tiles - Ủng hộ, Báo lỗi, GitHub - grouped with the
+    // credits at the bottom; app identity stays at the top
+    struct LinkTile { wchar_t glyph; const char* svg; const wchar_t* label; ARGB iconColor; };
+    const LinkTile tiles[] = {
+        { kIcoHeartFill, nullptr, L"Ủng hộ", pal.heart },
+        { kIcoBug, nullptr, L"Báo lỗi", pal.text },
+        { 0, kGitHubMark, L"GitHub", pal.text },
+    };
+    const int tileGap = S(8);
+    const int tileW = (sidebarW - S(16) * 2 - tileGap * 2) / 3;
+    const int tileH = S(66);
+    const int tilesY = creditY - S(16) - tileH;
+    int tileX = (sidebarW - (tileW * 3 + tileGap * 2)) / 2;
+    for (int i = 0; i < 3; i++) {
+        RECT tile = { tileX, tilesY, tileX + tileW, tilesY + tileH };
+        linkRects_[i] = tile;
+        bool hovered = hover_.kind == Hit::Link && hover_.index == i;
+        bool pressed = hovered && pressed_ == hover_;
+        FillRound(tile, static_cast<float>(S(kCardRadius)),
+                  pressed ? pal.cardPressed : hovered ? pal.cardHover : pal.card, pal.cardStroke);
+        RECT icon = { tile.left, tile.top + S(12), tile.right, tile.top + S(34) };
+        if (tiles[i].svg) {
+            RECT mark = { (tile.left + tile.right) / 2 - S(10), icon.top + S(1),
+                          (tile.left + tile.right) / 2 + S(10), icon.top + S(21) };
+            FillSvgPath(tiles[i].svg, 16.0f, mark, tiles[i].iconColor);
+        } else {
+            DrawGlyph(tiles[i].glyph, icon, Font(Face::Icon, S(20)), tiles[i].iconColor);
+        }
+        DrawStr(tiles[i].label, { tile.left, tile.top + S(38), tile.right, tile.bottom - S(8) },
+                Font(Face::Text, S(12)), hovered ? pal.text : pal.textSecondary, kCenter);
+        tileX += tileW + tileGap;
+    }
+
+    auto drawLine = [&](const Seg* segs, int count, int lineY) {
+        int total = 0;
+        for (int i = 0; i < count; i++) total += MeasureStr(segs[i].text, smallFont);
+        int x = centerX - total / 2;
+        for (int i = 0; i < count; i++) {
+            int w = MeasureStr(segs[i].text, smallFont);
+            RECT r = { x, lineY, x + w, lineY + creditH };
+            bool isLink = segs[i].link != Hit::None;
+            DrawStr(segs[i].text, r, smallFont, isLink ? pal.accent : pal.textTertiary);
+            if (isLink) {
+                (segs[i].link == Hit::AuthorLink ? authorLinkRect_ : communityLinkRect_) = r;
+                if (hover_.kind == segs[i].link) {
+                    FillRectF({ r.left, r.bottom - S(2), r.right, r.bottom - S(1) }, pal.accent);
+                }
+            }
+            x += w;
+        }
+    };
+    if (oneLine) {
+        drawLine(credits, 4, creditY);
+    } else {
+        const Seg line2[] = { { L"và ", Hit::None }, credits[3] };
+        drawLine(credits, 2, creditY);
+        drawLine(line2, 2, creditY + creditH);
+    }
+    DrawStr(L"© 2026 · GPL-3.0", { 0, bottom - creditH, sidebarW, bottom }, Font(Face::Text, S(11)),
+            pal.textTertiary, kCenter);
+}
+
+void SettingsWindow::PaintSettings() {
+    const Palette& pal = Pal();
+    float scale = dpi_ / 96.0f;
+    int left = S(kSidebarW) + S(kPagePadX);
+    int right = ClientWidth(hwnd_) - S(kPagePadX);
+    int viewH = ClientHeight(hwnd_);
+    int off = -scrollPos_;
+
+    IDWriteTextFormat* titleFont = Font(Face::Text, S(14));
+    IDWriteTextFormat* subFont = Font(Face::Text, S(12));
+    IDWriteTextFormat* smallIconFont = Font(Face::Icon, S(12));
+
+    for (size_t gi = 0; gi < std::size(kGroups); gi++) {
+        const GroupDef& group = kGroups[gi];
+        int last = group.first + group.count - 1;
+        RECT card = { left, rowRects_[group.first].top + off, right, rowRects_[last].bottom + off };
+        if (card.bottom < 0 || card.top > viewH) continue;
+
+        // Each row is filled separately (hovered rows use the hover fill) inside the card's
+        // rounded shape, then the card stroke is drawn on top.
+        float radius = static_cast<float>(S(kCardRadius));
+        PushClipRound(card, radius);
+
+        for (int i = group.first; i <= last; i++) {
+            const RowDef& def = kRows[i];
+            RECT row = rowRects_[i];
+            OffsetRect(&row, 0, off);
+
+            bool rowHovered = hover_.kind == Hit::Row && hover_.index == i;
+            bool rowPressed = rowHovered && pressed_ == hover_;
+            ARGB fill = pal.card;
+            if (rowHovered && RowClickable(def)) fill = rowPressed ? pal.cardPressed : pal.cardHover;
+            FillRectF(row, fill);
+
+            // Divider between rows, inset to the text column
+            if (i != group.first) {
+                FillRectF({ row.left + S(kRowPadX), row.top, row.right - S(kRowPadX), row.top + 1 }, pal.divider);
             }
 
-            drawX += sz.cx;
+            // Title + optional subtitle
+            int textLeft = row.left + S(kRowPadX);
+            int textRight = row.right - S(200);
+            std::wstring subtitle;
+            if (def.kind == RowKind::Shortcuts) {
+                auto [enabled, total] = Settings::Instance().GetShortcutsCount();
+                subtitle = std::to_wstring(enabled) + L"/" + std::to_wstring(total) + L" đang bật";
+            } else if (def.kind == RowKind::CliPath) {
+                switch (g_cliPath.state) {
+                    case CliPathState::Missing: subtitle = L"Không thấy bin\\gn.exe cạnh app"; break;
+                    case CliPathState::Off: subtitle = L"Dùng gn vi, gn en trong terminal"; break;
+                    case CliPathState::On: subtitle = L"Đã thêm vào PATH, mở terminal mới"; break;
+                    case CliPathState::OtherCopy: subtitle = L"PATH đang trỏ tới bản Gõ Nhanh khác"; break;
+                }
+            } else if (def.subtitle) {
+                subtitle = def.subtitle;
+            }
+            int midY = (row.top + row.bottom) / 2;
+            if (subtitle.empty()) {
+                DrawStr(def.title, { textLeft, row.top, textRight, row.bottom }, titleFont, pal.text);
+            } else {
+                DrawStr(def.title, { textLeft, midY - S(21), textRight, midY + S(1) }, titleFont, pal.text,
+                        kLeft, kBottom);
+                DrawStr(subtitle.c_str(), { textLeft, midY + S(1), textRight, midY + S(20) }, subFont,
+                        pal.textSecondary, kLeft, kTop);
+            }
+
+            // Right-hand control
+            int controlRight = row.right - S(kRowPadX);
+            switch (def.kind) {
+                case RowKind::Toggle:
+                case RowKind::CliPath:
+                    if (RowClickable(def)) {
+                        DrawToggle(controlRight - S(40), midY - S(10), scale, toggleAnim_[i], rowHovered, rowPressed);
+                    }
+                    break;
+                case RowKind::Method: {
+                    RECT segs[2] = { segmentRects_[0], segmentRects_[1] };
+                    OffsetRect(&segs[0], 0, off);
+                    OffsetRect(&segs[1], 0, off);
+                    RECT container = { segs[0].left - S(3), segs[0].top - S(3), segs[1].right + S(3), segs[1].bottom + S(3) };
+                    FillRound(container, static_cast<float>(S(6)), pal.toggleOffFill, pal.controlStroke);
+
+                    // Selection pill: inset inside its segment and slides between them
+                    float t = methodAnim_ * methodAnim_ * (3.0f - 2.0f * methodAnim_);  // Smoothstep
+                    float insetX = static_cast<float>(S(4));
+                    float insetY = static_cast<float>(S(2));
+                    float pillL = segs[0].left + (segs[1].left - segs[0].left) * t + insetX;
+                    float pillW = static_cast<float>(segs[0].right - segs[0].left) - insetX * 2.0f;
+                    if (hover_.kind == Hit::Segment && hover_.index != Settings::Instance().method) {
+                        RECT h = segs[hover_.index];
+                        InflateRect(&h, -S(4), -S(2));
+                        FillRound(h, static_cast<float>(S(4)), pal.controlFillHover);
+                    }
+                    RectF pill = { pillL, segs[0].top + insetY, pillL + pillW, segs[0].bottom - insetY };
+                    FillRound(pill, static_cast<float>(S(4)), pal.controlSelected, pal.controlStroke);
+
+                    const wchar_t* labels[] = { L"Telex", L"VNI" };
+                    int method = Settings::Instance().method;
+                    for (int s = 0; s < 2; s++) {
+                        bool selected = method == s;
+                        float closeness = s == 0 ? 1.0f - t : t;  // 1 when the pill sits on this segment
+                        DrawStr(labels[s], segs[s],
+                                Font(Face::Text, S(13), selected ? DWRITE_FONT_WEIGHT_SEMI_BOLD : DWRITE_FONT_WEIGHT_NORMAL),
+                                Lerp(pal.textSecondary, pal.text, closeness), kCenter);
+                    }
+                    break;
+                }
+                case RowKind::Hotkey: {
+                    const wchar_t* keys[] = { L"Space", L"Ctrl" };  // Laid out right-to-left
+                    IDWriteTextFormat* keyFont = Font(Face::Text, S(12), DWRITE_FONT_WEIGHT_SEMI_BOLD);
+                    int kx = controlRight;
+                    for (const wchar_t* key : keys) {
+                        int kw = MeasureStr(key, keyFont) + S(20);
+                        RECT cap = { kx - kw, midY - S(13), kx, midY + S(13) };
+                        FillRound(cap, static_cast<float>(S(4)), pal.controlFill, pal.controlStroke);
+                        DrawStr(key, cap, keyFont, pal.textSecondary, kCenter);
+                        kx -= kw + S(6);
+                    }
+                    break;
+                }
+                case RowKind::Shortcuts:
+                    DrawGlyph(kIcoChevron, { controlRight - S(16), row.top, controlRight, row.bottom },
+                              smallIconFont, pal.textSecondary);
+                    break;
+            }
         }
 
-        DeleteObject(hNormal);
-        DeleteObject(hLink);
+        PopClip();
+        // Card outline on top of the row fills
+        FillRound(card, radius, 0, pal.cardStroke);
     }
-    y += Scale(20, dpi);
 
-    // Copyright
-    RECT copyrightRect = { contentLeft, y, contentRight, y + Scale(16, dpi) };
-    DrawText(hdc, L"\x00A9 2026 G\x00F5 Nhanh. GPL-3.0 License.",
-             copyrightRect, theme.textTertiary, 10, false, DT_CENTER | DT_VCENTER);
+    // Overlay scrollbar (thin, widens on hover / drag)
+    RECT track, thumb;
+    if (ScrollbarGeometry(track, thumb)) {
+        bool active = draggingThumb_ || hover_.kind == Hit::Scrollbar;
+        int w = active ? S(6) : S(3);
+        RECT bar = { track.right - S(4) - w, thumb.top, track.right - S(4), thumb.bottom };
+        FillRound(bar, w / 2.0f, active ? pal.textSecondary : pal.textTertiary);
+    }
+}
+
+// ===========================================================================
+// Interaction
+// ===========================================================================
+SettingsWindow::HitResult SettingsWindow::HitTest(POINT pt) const {
+    HitResult r;
+
+    // Sidebar: update badge, links, credits
+    if (pt.x < S(kSidebarW)) {
+        if (PtInRect(&updateBadgeRect_, pt)) return { Hit::UpdateBadge, 0 };
+        for (int i = 0; i < 3; i++) {
+            if (PtInRect(&linkRects_[i], pt)) return { Hit::Link, i };
+        }
+        if (PtInRect(&authorLinkRect_, pt)) return { Hit::AuthorLink, 0 };
+        if (PtInRect(&communityLinkRect_, pt)) return { Hit::CommunityLink, 0 };
+        return r;
+    }
+
+    RECT track, thumb;
+    if (ScrollbarGeometry(track, thumb) && pt.x >= track.left) return { Hit::Scrollbar, 0 };
+
+    POINT content = { pt.x, pt.y + scrollPos_ };
+    for (int s = 0; s < 2; s++) {
+        RECT seg = segmentRects_[s];
+        InflateRect(&seg, S(2), S(3));
+        if (PtInRect(&seg, content)) return { Hit::Segment, s };
+    }
+    for (int i = 0; i < kRowCount; i++) {
+        if (PtInRect(&rowRects_[i], content)) {
+            if (RowClickable(kRows[i])) return { Hit::Row, i };
+            return r;
+        }
+    }
+    return r;
+}
+
+void SettingsWindow::Activate(const HitResult& hit) {
+    switch (hit.kind) {
+        case Hit::Segment: SetMethod(hit.index); break;
+        case Hit::Row:
+            if (kRows[hit.index].kind == RowKind::Toggle) {
+                ToggleRow(hit.index);
+            } else if (kRows[hit.index].kind == RowKind::CliPath) {
+                // Pointing at another copy counts as on: the click removes it; the next one adds this copy
+                SetCliOnPath(!g_cliPath.on);
+                ReadCliPathState();  // Shows the real result, also if the registry write failed
+                Refresh();
+            } else if (kRows[hit.index].kind == RowKind::Shortcuts) {
+                ShortcutsDialog::Instance().Show(hwnd_);
+            }
+            break;
+        case Hit::Link: {
+            const wchar_t* urls[] = { kUrlSponsor, kUrlIssues, kUrlRepo };
+            ShellExecuteW(nullptr, L"open", urls[hit.index], nullptr, nullptr, SW_SHOW);
+            break;
+        }
+        case Hit::AuthorLink: ShellExecuteW(nullptr, L"open", kUrlAuthor, nullptr, nullptr, SW_SHOW); break;
+        case Hit::CommunityLink: ShellExecuteW(nullptr, L"open", kUrlContributors, nullptr, nullptr, SW_SHOW); break;
+        case Hit::UpdateBadge: ShellExecuteW(nullptr, L"open", kUrlReleases, nullptr, nullptr, SW_SHOW); break;
+        default: break;
+    }
+}
+
+void SettingsWindow::ToggleRow(int row) {
+    const RowDef& def = kRows[row];
+    auto& settings = Settings::Instance();
+    if (def.field == &Settings::enabled) {
+        ToggleVietnamese();  // Keeps hook, tray icon and per-app memory in sync
+        return;              // (calls Refresh())
+    }
+    settings.*(def.field) = !(settings.*(def.field));
+    settings.Save();
+    settings.ApplyToEngine();
+    if (def.field == &Settings::checkUpdates && settings.checkUpdates) {
+        StartUpdateCheck();
+    }
+    Refresh();
+}
+
+void SettingsWindow::Refresh() {
+    if (!hwnd_ || !visible_) return;
+    SetTimer(hwnd_, kTimerAnim, 16, nullptr);
+    InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
+void SettingsWindow::SetMethod(int method) {
+    auto& settings = Settings::Instance();
+    if (settings.method == method) return;
+    settings.method = static_cast<uint8_t>(method);
+    settings.Save();
+    settings.ApplyToEngine();
+    SystemTray::Instance().UpdateIcon();
+    Refresh();
 }
 
 LRESULT CALLBACK SettingsWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    SettingsWindow* window = nullptr;
-
-    if (msg == WM_CREATE) {
-        CREATESTRUCT* cs = (CREATESTRUCT*)lParam;
-        window = (SettingsWindow*)cs->lpCreateParams;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
+    SettingsWindow* w = nullptr;
+    if (msg == WM_NCCREATE) {
+        auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
+        w = static_cast<SettingsWindow*>(cs->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(w));
     } else {
-        window = (SettingsWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+        w = reinterpret_cast<SettingsWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     }
+    if (!w) return DefWindowProcW(hwnd, msg, wParam, lParam);
 
     switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
+
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            if (window) {
-                window->PaintSidebar(hdc);
-                if (currentTab == TAB_SETTINGS) {
-                    window->PaintContent(hdc);
-                } else {
-                    window->PaintAbout(hdc);
-                }
-            }
+            w->Paint(hdc);
             EndPaint(hwnd, &ps);
             return 0;
         }
 
-        case WM_CTLCOLORSTATIC: {
-            HDC hdcStatic = (HDC)wParam;
-            const Theme& theme = GetTheme();
-            SetTextColor(hdcStatic, theme.textPrimary);
-            SetBkColor(hdcStatic, theme.windowBg);
-            // Recreate brush when theme changes (dark/light toggle)
-            static HBRUSH bgBrush = nullptr;
-            static COLORREF cachedBgColor = 0;
-            if (!bgBrush || cachedBgColor != theme.windowBg) {
-                if (bgBrush) DeleteObject(bgBrush);
-                bgBrush = CreateSolidBrush(theme.windowBg);
-                cachedBgColor = theme.windowBg;
+        case WM_MOUSEMOVE: {
+            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            if (!w->trackingMouse_) {
+                TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hwnd, 0 };
+                TrackMouseEvent(&tme);
+                w->trackingMouse_ = true;
             }
-            return (LRESULT)bgBrush;
-        }
-
-        case WM_CTLCOLORBTN: {
-            return (LRESULT)GetStockObject(NULL_BRUSH);
-        }
-
-        case WM_TOGGLE_CHANGED: {
-            // Toggle switch was clicked, save settings
-            if (window) window->SaveSettings();
+            if (w->draggingThumb_) {
+                RECT track, thumb;
+                if (w->ScrollbarGeometry(track, thumb)) {
+                    int trackRange = (track.bottom - track.top) - (thumb.bottom - thumb.top);
+                    int scrollRange = w->contentHeight_ - ClientHeight(hwnd);
+                    if (trackRange > 0) {
+                        w->ScrollTo(w->dragStartScroll_ + MulDiv(pt.y - w->dragStartY_, scrollRange, trackRange));
+                    }
+                }
+                return 0;
+            }
+            HitResult hit = w->HitTest(pt);
+            if (hit != w->hover_) {
+                w->hover_ = hit;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
             return 0;
         }
+
+        case WM_MOUSELEAVE:
+            w->trackingMouse_ = false;
+            if (w->hover_.kind != Hit::None && !w->draggingThumb_) {
+                w->hover_ = {};
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            return 0;
 
         case WM_LBUTTONDOWN: {
-            if (window) {
-                POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-
-                // Sidebar tab clicks
-                if (PtInRect(&window->tabSettingsRect_, pt)) {
-                    if (currentTab != TAB_SETTINGS) {
-                        window->SwitchTab(TAB_SETTINGS);
-                    }
-                    return 0;
+            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            HitResult hit = w->HitTest(pt);
+            if (hit.kind == Hit::Scrollbar) {
+                RECT track, thumb;
+                w->ScrollbarGeometry(track, thumb);
+                if (pt.y < thumb.top || pt.y >= thumb.bottom) {
+                    // Jump so the thumb centers on the click, then drag from there
+                    int trackRange = (track.bottom - track.top) - (thumb.bottom - thumb.top);
+                    int scrollRange = w->contentHeight_ - ClientHeight(hwnd);
+                    int thumbTop = pt.y - (thumb.bottom - thumb.top) / 2 - track.top;
+                    if (trackRange > 0) w->ScrollTo(MulDiv(thumbTop, scrollRange, trackRange));
                 }
-                if (PtInRect(&window->tabAboutRect_, pt)) {
-                    if (currentTab != TAB_ABOUT) {
-                        window->SwitchTab(TAB_ABOUT);
-                    }
-                    return 0;
-                }
-
-                // About tab: link button + footer link clicks
-                if (currentTab == TAB_ABOUT) {
-                    static const wchar_t* aboutUrls[] = {
-                        L"https://github.com/sponsors/khaphanspace",
-                        L"https://github.com/khaphanspace/gonhanh.org/issues",
-                        L"https://github.com/khaphanspace/gonhanh.org",
-                    };
-                    for (int i = 0; i < 3; i++) {
-                        if (PtInRect(&window->aboutBtnRects_[i], pt)) {
-                            ShellExecuteW(NULL, L"open", aboutUrls[i], NULL, NULL, SW_SHOW);
-                            return 0;
-                        }
-                    }
-                    // Footer author/community links
-                    if (PtInRect(&window->authorLinkRect_, pt)) {
-                        ShellExecuteW(NULL, L"open", L"https://www.linkedin.com/in/khaphanspace", NULL, NULL, SW_SHOW);
-                        return 0;
-                    }
-                    if (PtInRect(&window->communityLinkRect_, pt)) {
-                        ShellExecuteW(NULL, L"open", L"https://github.com/khaphanspace/gonhanh.org/blob/main/CONTRIBUTORS.md", NULL, NULL, SW_SHOW);
-                        return 0;
-                    }
-                }
-
-                // Content area: shortcuts row click (settings tab only)
-                if (currentTab == TAB_SETTINGS && PtInRect(&window->shortcutsRowRect_, pt)) {
-                    ShortcutsDialog::Instance().Show();
-                    InvalidateRect(hwnd, NULL, FALSE);
-                }
+                w->draggingThumb_ = true;
+                w->dragStartY_ = pt.y;
+                w->dragStartScroll_ = w->scrollPos_;
             }
+            w->pressed_ = hit;
+            SetCapture(hwnd);
+            InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
 
-        case WM_SETCURSOR: {
-            if (window && LOWORD(lParam) == HTCLIENT) {
-                POINT pt;
-                GetCursorPos(&pt);
-                ScreenToClient(hwnd, &pt);
-                bool isClickable = PtInRect(&window->shortcutsRowRect_, pt) ||
-                    PtInRect(&window->tabSettingsRect_, pt) ||
-                    PtInRect(&window->tabAboutRect_, pt);
-                // About tab buttons and footer links
-                if (currentTab == TAB_ABOUT) {
-                    for (int i = 0; i < 3; i++) {
-                        if (PtInRect(&window->aboutBtnRects_[i], pt)) {
-                            isClickable = true;
-                            break;
-                        }
-                    }
-                    if (PtInRect(&window->authorLinkRect_, pt) ||
-                        PtInRect(&window->communityLinkRect_, pt)) {
-                        isClickable = true;
-                    }
-                }
-                if (isClickable) {
-                    SetCursor(LoadCursor(NULL, IDC_HAND));
-                    return TRUE;
-                }
+        case WM_LBUTTONUP: {
+            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            HitResult pressed = w->pressed_;
+            bool wasDragging = w->draggingThumb_;
+            w->pressed_ = {};
+            w->draggingThumb_ = false;
+            ReleaseCapture();
+            HitResult hit = w->HitTest(pt);
+            w->hover_ = hit;
+            if (!wasDragging && pressed.kind != Hit::None && hit == pressed) {
+                w->Activate(hit);
+            }
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+
+        case WM_SETCURSOR:
+            if (LOWORD(lParam) == HTCLIENT) {
+                Hit k = w->hover_.kind;
+                bool hand = k != Hit::None && k != Hit::Scrollbar;
+                SetCursor(LoadCursor(nullptr, hand ? IDC_HAND : IDC_ARROW));
+                return TRUE;
             }
             break;
-        }
-
-        case WM_COMMAND: {
-            WORD id = LOWORD(wParam);
-            WORD code = HIWORD(wParam);
-
-            // Combobox change
-            if (code == CBN_SELCHANGE) {
-                if (window) window->SaveSettings();
-            }
-            return 0;
-        }
-
-        case WM_VSCROLL: {
-            if (window) {
-                SCROLLINFO si = { sizeof(si) };
-                si.fMask = SIF_ALL;
-                GetScrollInfo(hwnd, SB_VERT, &si);
-
-                int newPos = si.nPos;
-                switch (LOWORD(wParam)) {
-                    case SB_LINEUP:        newPos -= 30; break;
-                    case SB_LINEDOWN:      newPos += 30; break;
-                    case SB_PAGEUP:        newPos -= si.nPage; break;
-                    case SB_PAGEDOWN:      newPos += si.nPage; break;
-                    case SB_THUMBTRACK:    newPos = si.nTrackPos; break;
-                    case SB_THUMBPOSITION: newPos = si.nTrackPos; break;
-                }
-                window->ScrollContent(newPos);
-            }
-            return 0;
-        }
 
         case WM_MOUSEWHEEL: {
-            if (window) {
-                int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-                int scrollAmount = -delta / 4;  // Smooth scrolling
-                window->ScrollContent(window->scrollPos_ + scrollAmount);
-            }
+            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            w->ScrollTo(w->scrollPos_ - MulDiv(delta, w->S(72), WHEEL_DELTA));
+            // Refresh hover under the (now moved) content
+            POINT pt;
+            GetCursorPos(&pt);
+            ScreenToClient(hwnd, &pt);
+            w->hover_ = w->HitTest(pt);
             return 0;
         }
 
-        case WM_TIMER: {
-            if (wParam == 1) {
-                // Check if update status changed from Checking to something else
+        case WM_KEYDOWN: {
+            int page = ClientHeight(hwnd) - w->S(80);
+            switch (wParam) {
+                case VK_UP: w->ScrollTo(w->scrollPos_ - w->S(48)); break;
+                case VK_DOWN: w->ScrollTo(w->scrollPos_ + w->S(48)); break;
+                case VK_PRIOR: w->ScrollTo(w->scrollPos_ - page); break;
+                case VK_NEXT: w->ScrollTo(w->scrollPos_ + page); break;
+                case VK_HOME: w->ScrollTo(0); break;
+                case VK_END: w->ScrollTo(w->contentHeight_); break;
+            }
+            if (wParam == VK_ESCAPE) w->Hide();
+            return 0;
+        }
+
+        case WM_ACTIVATE:
+            if (LOWORD(wParam) != WA_INACTIVE) {
+                // Settings may have changed elsewhere (Ctrl+Space, tray menu, shortcuts dialog, PATH)
+                ReadCliPathState();
+                w->SyncToggleAnim(true);
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            break;
+
+        case WM_TIMER:
+            if (wParam == kTimerAnim) {
+                if (!w->SyncToggleAnim(false)) KillTimer(hwnd, kTimerAnim);
+                InvalidateRect(hwnd, nullptr, FALSE);
+            } else if (wParam == kTimerUpdate) {
                 UpdateStatus status = UpdateChecker::Instance().GetStatus();
                 if (status != UpdateStatus::Checking && status != UpdateStatus::Idle) {
-                    // Kill timer and repaint sidebar to show update badge
-                    KillTimer(hwnd, 1);
-                    InvalidateRect(hwnd, NULL, FALSE);
+                    KillTimer(hwnd, kTimerUpdate);
+                    InvalidateRect(hwnd, nullptr, FALSE);
                 }
             }
+            return 0;
+
+        case WM_SETTINGCHANGE:
+            if (lParam && wcscmp(reinterpret_cast<const wchar_t*>(lParam), L"ImmersiveColorSet") == 0) {
+                InvalidatePalette();
+                w->ApplyWindowTheme();
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            break;
+
+        case WM_DWMCOLORIZATIONCOLORCHANGED:
+        case WM_FLUENT_THEME_CHANGED:  // Accent / light-dark change from UISettings
+            InvalidatePalette();
+            w->ApplyWindowTheme();
+            InvalidateRect(hwnd, nullptr, FALSE);
+            break;
+
+        case WM_DPICHANGED: {
+            w->dpi_ = HIWORD(wParam);
+            ClearDpiCaches();
+            const RECT* suggested = reinterpret_cast<const RECT*>(lParam);
+            SetWindowPos(hwnd, nullptr, suggested->left, suggested->top,
+                         suggested->right - suggested->left, suggested->bottom - suggested->top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+            w->Layout();
+            InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
 
         case WM_CLOSE:
-            if (window) window->Hide();
+            w->Hide();
             return 0;
 
         case WM_DESTROY:
-            KillTimer(hwnd, 1);
-            ShutdownGdiPlus();
+            KillTimer(hwnd, kTimerUpdate);
+            KillTimer(hwnd, kTimerAnim);
+            UnregisterThemeWindow(hwnd);
+            w->hwnd_ = nullptr;
+            w->visible_ = false;
+            w->hover_ = {};
+            w->pressed_ = {};
+            w->trackingMouse_ = false;
+            w->draggingThumb_ = false;
             return 0;
     }
 

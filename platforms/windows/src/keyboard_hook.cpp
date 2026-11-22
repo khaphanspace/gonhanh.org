@@ -1,10 +1,36 @@
 #include "keyboard_hook.h"
 #include "rust_bridge.h"
 #include "app_compat.h"
+#include "resource.h"
 
 namespace gonhanh {
 
 static KeyboardHook* g_instance = nullptr;
+
+// Every event we inject carries this tag, so the hook can tell our own output apart
+// from keys injected by other software.
+constexpr ULONG_PTR kSelfInjectTag = 0x474E4B48;  // "GNKH"
+
+// Other software's injected keys are ignored, except in test mode (GONHANH_TEST_INPUT=1),
+// which lets a script type into apps at any speed (platforms/windows/tools/typing-test.ps1).
+static const bool g_acceptForeignInjected = [] {
+    wchar_t value[4] = {};
+    return GetEnvironmentVariableW(L"GONHANH_TEST_INPUT", value, 4) > 0 && value[0] == L'1';
+}();
+
+// Modifier and lock keys: they type nothing, so a replayed press is never dropped
+static bool IsStateKey(DWORD vk) {
+    switch (vk) {
+        case VK_SHIFT: case VK_LSHIFT: case VK_RSHIFT:
+        case VK_CONTROL: case VK_LCONTROL: case VK_RCONTROL:
+        case VK_MENU: case VK_LMENU: case VK_RMENU:
+        case VK_LWIN: case VK_RWIN:
+        case VK_CAPITAL: case VK_NUMLOCK: case VK_SCROLL:
+            return true;
+        default:
+            return false;
+    }
+}
 
 // RAII guard for reentrancy protection
 class ProcessingGuard {
@@ -14,190 +40,241 @@ public:
     ~ProcessingGuard() { flag_ = false; }
 };
 
-// RAII guard for CRITICAL_SECTION
-class CriticalSectionGuard {
-    CRITICAL_SECTION& cs_;
-public:
-    explicit CriticalSectionGuard(CRITICAL_SECTION& cs) : cs_(cs) { EnterCriticalSection(&cs_); }
-    ~CriticalSectionGuard() { LeaveCriticalSection(&cs_); }
-};
-
 // ============================================================================
 // TextInjector Implementation
 // ============================================================================
+
+namespace {
+
+INPUT KeyInput(WORD vk, DWORD flags) {
+    INPUT in = {};
+    in.type = INPUT_KEYBOARD;
+    in.ki.wVk = vk;
+    in.ki.dwFlags = flags;
+    return in;
+}
+
+INPUT UnicodeInput(WORD unit, DWORD flags) {
+    INPUT in = {};
+    in.type = INPUT_KEYBOARD;
+    in.ki.wScan = unit;
+    in.ki.dwFlags = KEYEVENTF_UNICODE | flags;
+    return in;
+}
+
+bool NeedsPacing(const DetectionResult& d) {
+    return d.method == InjectionMethod::Selection || d.timing.backspaceDelayUs || d.timing.waitDelayUs ||
+           d.timing.textDelayUs;
+}
+
+}  // namespace
 
 TextInjector& TextInjector::Instance() {
     static TextInjector instance;
     return instance;
 }
 
-TextInjector::TextInjector() {
-    InitializeCriticalSection(&cs_);
-}
-
 TextInjector::~TextInjector() {
-    DeleteCriticalSection(&cs_);
+    Shutdown();
 }
 
-void TextInjector::MicrosecondSleep(uint32_t us) {
-    if (us == 0) return;
-
-    // For delays under 1ms, use busy-wait with QueryPerformanceCounter
-    // Sleep(1) has ~15ms minimum granularity on Windows
-    if (us < 1000) {
-        LARGE_INTEGER freq, start, now;
-        QueryPerformanceFrequency(&freq);
-        QueryPerformanceCounter(&start);
-        double targetTicks = (double)us * freq.QuadPart / 1000000.0;
-        do {
-            QueryPerformanceCounter(&now);
-        } while ((now.QuadPart - start.QuadPart) < targetTicks);
-    } else {
-        // For larger delays, use Sleep (rounded up to ms)
-        Sleep((us + 999) / 1000);
-    }
-}
-
-void TextInjector::SendBackspaces(int count, uint32_t delayUs) {
-    if (count <= 0 || count > 32) return;
-
+void TextInjector::AppendBackspaces(std::vector<INPUT>& out, int count) {
     for (int i = 0; i < count; ++i) {
-        INPUT inputs[2] = {};
-        inputs[0].type = INPUT_KEYBOARD;
-        inputs[0].ki.wVk = VK_BACK;
-        inputs[1].type = INPUT_KEYBOARD;
-        inputs[1].ki.wVk = VK_BACK;
-        inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
-        SendInput(2, inputs, sizeof(INPUT));
+        out.push_back(KeyInput(VK_BACK, 0));
+        out.push_back(KeyInput(VK_BACK, KEYEVENTF_KEYUP));
+    }
+}
 
-        if (delayUs > 0 && i < count - 1) {
-            MicrosecondSleep(delayUs);
+void TextInjector::AppendSelectLeft(std::vector<INPUT>& out, int count) {
+    // Shift+Left selects the characters to replace (address bars: Backspace may navigate back)
+    out.push_back(KeyInput(VK_SHIFT, 0));
+    for (int i = 0; i < count; ++i) {
+        out.push_back(KeyInput(VK_LEFT, KEYEVENTF_EXTENDEDKEY));
+        out.push_back(KeyInput(VK_LEFT, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP));
+    }
+    out.push_back(KeyInput(VK_SHIFT, KEYEVENTF_KEYUP));
+}
+
+void TextInjector::AppendText(std::vector<INPUT>& out, const uint32_t* chars, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        uint32_t cp = chars[i];
+        if (cp <= 0xFFFF) {
+            out.push_back(UnicodeInput(static_cast<WORD>(cp), 0));
+            out.push_back(UnicodeInput(static_cast<WORD>(cp), KEYEVENTF_KEYUP));
+        } else {
+            // Supplementary plane: surrogate pair
+            cp -= 0x10000;
+            WORD high = static_cast<WORD>(0xD800 + (cp >> 10));
+            WORD low = static_cast<WORD>(0xDC00 + (cp & 0x3FF));
+            out.push_back(UnicodeInput(high, 0));
+            out.push_back(UnicodeInput(high, KEYEVENTF_KEYUP));
+            out.push_back(UnicodeInput(low, 0));
+            out.push_back(UnicodeInput(low, KEYEVENTF_KEYUP));
         }
     }
 }
 
-void TextInjector::SendUnicodeText(const uint32_t* chars, uint8_t count, uint32_t delayUs) {
-    for (uint8_t i = 0; i < count; ++i) {
-        uint32_t cp = chars[i];
-
-        if (cp <= 0xFFFF) {
-            // BMP codepoint - single UTF-16 unit
-            INPUT input = {};
-            input.type = INPUT_KEYBOARD;
-            input.ki.wVk = 0;
-            input.ki.wScan = static_cast<WORD>(cp);
-
-            input.ki.dwFlags = KEYEVENTF_UNICODE;
-            SendInput(1, &input, sizeof(INPUT));
-
-            input.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-            SendInput(1, &input, sizeof(INPUT));
-        } else {
-            // Supplementary plane - surrogate pair
-            cp -= 0x10000;
-            WORD high = 0xD800 + static_cast<WORD>(cp >> 10);
-            WORD low = 0xDC00 + static_cast<WORD>(cp & 0x3FF);
-
-            INPUT inputs[4] = {};
-            inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki.wScan = high;
-            inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
-
-            inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki.wScan = high;
-            inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-
-            inputs[2].type = INPUT_KEYBOARD;
-            inputs[2].ki.wScan = low;
-            inputs[2].ki.dwFlags = KEYEVENTF_UNICODE;
-
-            inputs[3].type = INPUT_KEYBOARD;
-            inputs[3].ki.wScan = low;
-            inputs[3].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-
-            SendInput(4, inputs, sizeof(INPUT));
-        }
-
-        if (delayUs > 0 && i < count - 1) {
-            MicrosecondSleep(delayUs);
-        }
+void TextInjector::Send(std::vector<INPUT>& inputs) {
+    if (!inputs.empty()) {
+        for (auto& in : inputs) in.ki.dwExtraInfo = kSelfInjectTag;
+        SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
+        inputs.clear();
     }
+}
+
+void TextInjector::WaitMicroseconds(uint32_t us) {
+    if (us == 0) return;
+    if (us >= 2000) {
+        Sleep(us / 1000);
+        return;
+    }
+    // Short waits: spin on the worker thread (Sleep has ~1-15 ms granularity)
+    LARGE_INTEGER freq, start, now;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+    const LONGLONG target = static_cast<LONGLONG>(us) * freq.QuadPart / 1000000;
+    do {
+        YieldProcessor();
+        QueryPerformanceCounter(&now);
+    } while (now.QuadPart - start.QuadPart < target);
 }
 
 void TextInjector::Inject(int backspaceCount, const uint32_t* chars, uint8_t charCount) {
-    CriticalSectionGuard lock(cs_);
+    if (backspaceCount < 0) return;  // Engine sends up to 255 (u8), e.g. long shortcut triggers
+    DetectionResult detection = AppCompat::Instance().GetInjectionMethod();
 
-    // Get injection method from app detection
-    auto detection = AppCompat::Instance().GetInjectionMethod();
+    if (!Busy() && !NeedsPacing(detection)) {
+        // Fast path: one atomic burst, sent before the hook returns (no thread hop, no waits)
+        std::vector<INPUT> inputs;
+        inputs.reserve(static_cast<size_t>(backspaceCount) * 2 + static_cast<size_t>(charCount) * 4);
+        AppendBackspaces(inputs, backspaceCount);
+        AppendText(inputs, chars, charCount);
+        Send(inputs);
+        return;
+    }
 
-    switch (detection.method) {
-        case InjectionMethod::Selection:
-            InjectViaSelection(backspaceCount, chars, charCount, detection.timing);
-            break;
-        case InjectionMethod::Slow:
-        case InjectionMethod::Fast:
-        default:
-            InjectViaBackspace(backspaceCount, chars, charCount, detection.timing);
-            break;
+    Job job;
+    job.kind = Job::Kind::Text;
+    job.backspaces = backspaceCount;
+    job.chars.assign(chars, chars + charCount);
+    job.method = detection.method;
+    job.timing = detection.timing;
+    job.generation = generation_.load(std::memory_order_acquire);
+    Enqueue(std::move(job));
+}
+
+void TextInjector::CancelPendingText() {
+    generation_.fetch_add(1, std::memory_order_acq_rel);
+}
+
+void TextInjector::ReplayKey(const KBDLLHOOKSTRUCT& key, bool keyUp) {
+    Job job;
+    job.kind = Job::Kind::Key;
+    job.key = key;
+    job.keyUp = keyUp;
+    job.generation = generation_.load(std::memory_order_acquire);
+    if (key.vkCode == VK_CAPITAL && !keyUp) {
+        pendingCaps_.fetch_add(1, std::memory_order_acq_rel);
+    }
+    Enqueue(std::move(job));
+}
+
+void TextInjector::Enqueue(Job job) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopping_) return;
+    if (!worker_.joinable()) {
+        worker_ = std::thread(&TextInjector::WorkerLoop, this);
+    }
+    pending_.fetch_add(1, std::memory_order_acq_rel);
+    queue_.push_back(std::move(job));
+    cv_.notify_one();
+}
+
+void TextInjector::WorkerLoop() {
+    for (;;) {
+        Job job;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            cv_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
+            if (stopping_ && queue_.empty()) return;
+            job = std::move(queue_.front());
+            queue_.pop_front();
+        }
+        Run(job);
+        if (job.kind == Job::Kind::Key && job.key.vkCode == VK_CAPITAL && !job.keyUp) {
+            pendingCaps_.fetch_sub(1, std::memory_order_acq_rel);
+        }
+        pending_.fetch_sub(1, std::memory_order_acq_rel);
     }
 }
 
-void TextInjector::InjectViaBackspace(int backspaceCount, const uint32_t* chars, uint8_t charCount,
-                                       const InjectionTiming& timing) {
-    // Send backspaces with per-backspace delay
-    if (backspaceCount > 0) {
-        SendBackspaces(backspaceCount, timing.backspaceDelayUs);
-        MicrosecondSleep(timing.waitDelayUs);
+void TextInjector::Run(const Job& job) {
+    std::vector<INPUT> inputs;
+
+    if (job.kind == Job::Kind::Key) {
+        // A key pressed before focus moved was meant for the previous field or app: drop it
+        // rather than type it (or send Enter) into the new one. Key-ups, modifiers and lock
+        // keys still go through so no key stays stuck down and the lock state matches.
+        if (!job.keyUp && !IsStateKey(job.key.vkCode) &&
+            generation_.load(std::memory_order_acquire) != job.generation) {
+            return;
+        }
+        INPUT in = {};
+        in.type = INPUT_KEYBOARD;
+        in.ki.wVk = static_cast<WORD>(job.key.vkCode);
+        in.ki.wScan = static_cast<WORD>(job.key.scanCode);
+        in.ki.dwFlags = (job.keyUp ? KEYEVENTF_KEYUP : 0) |
+                        ((job.key.flags & LLKHF_EXTENDED) ? KEYEVENTF_EXTENDEDKEY : 0);
+        inputs.push_back(in);
+        Send(inputs);
+        return;
     }
 
-    // Send text with per-character delay
-    if (charCount > 0) {
-        SendUnicodeText(chars, charCount, timing.textDelayUs);
-    }
-}
+    // Text for a window that lost the foreground is dropped, also midway through a paced job:
+    // SendInput goes to whatever window is in front now.
+    auto cancelled = [&] { return generation_.load(std::memory_order_acquire) != job.generation; };
+    if (cancelled()) return;
 
-void TextInjector::InjectViaSelection(int backspaceCount, const uint32_t* chars, uint8_t charCount,
-                                       const InjectionTiming& timing) {
-    // Selection method: use Shift+Left to select characters, then type to replace
-    // This works better in address bars where backspace may navigate back
-
-    if (backspaceCount > 0) {
-        // Send Shift+Left 'backspaceCount' times to select text
-        for (int i = 0; i < backspaceCount; ++i) {
-            INPUT inputs[4] = {};
-
-            // Shift down
-            inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki.wVk = VK_SHIFT;
-
-            // Left down
-            inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki.wVk = VK_LEFT;
-
-            // Left up
-            inputs[2].type = INPUT_KEYBOARD;
-            inputs[2].ki.wVk = VK_LEFT;
-            inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-
-            // Shift up
-            inputs[3].type = INPUT_KEYBOARD;
-            inputs[3].ki.wVk = VK_SHIFT;
-            inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
-
-            SendInput(4, inputs, sizeof(INPUT));
-
-            if (i < backspaceCount - 1) {
-                MicrosecondSleep(timing.backspaceDelayUs);
+    const InjectionTiming& t = job.timing;
+    if (job.backspaces > 0) {
+        if (job.method == InjectionMethod::Selection) {
+            AppendSelectLeft(inputs, job.backspaces);
+            Send(inputs);
+        } else if (t.backspaceDelayUs == 0) {
+            AppendBackspaces(inputs, job.backspaces);
+            Send(inputs);
+        } else {
+            for (int i = 0; i < job.backspaces; ++i) {
+                if (cancelled()) return;
+                AppendBackspaces(inputs, 1);
+                Send(inputs);
+                if (i + 1 < job.backspaces) WaitMicroseconds(t.backspaceDelayUs);
             }
         }
-
-        MicrosecondSleep(timing.waitDelayUs);
+        WaitMicroseconds(t.waitDelayUs);
+        if (cancelled()) return;
     }
 
-    // Type replacement text (will replace selection)
-    if (charCount > 0) {
-        SendUnicodeText(chars, charCount, timing.textDelayUs);
+    if (t.textDelayUs == 0) {
+        AppendText(inputs, job.chars.data(), job.chars.size());
+        Send(inputs);
+    } else {
+        for (size_t i = 0; i < job.chars.size(); ++i) {
+            if (cancelled()) return;
+            AppendText(inputs, &job.chars[i], 1);
+            Send(inputs);
+            if (i + 1 < job.chars.size()) WaitMicroseconds(t.textDelayUs);
+        }
     }
+}
+
+void TextInjector::Shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        stopping_ = true;
+    }
+    cv_.notify_all();
+    if (worker_.joinable()) worker_.join();
 }
 
 // ============================================================================
@@ -251,6 +328,16 @@ KeyboardHook::~KeyboardHook() {
 bool KeyboardHook::Install() {
     if (hook_) return true;
 
+    modifiers_ = 0;
+    if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) modifiers_ |= kLShift;
+    if (GetAsyncKeyState(VK_RSHIFT) & 0x8000) modifiers_ |= kRShift;
+    if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) modifiers_ |= kLCtrl;
+    if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) modifiers_ |= kRCtrl;
+    if (GetAsyncKeyState(VK_LMENU) & 0x8000) modifiers_ |= kLAlt;
+    if (GetAsyncKeyState(VK_RMENU) & 0x8000) modifiers_ |= kRAlt;
+    if (GetAsyncKeyState(VK_LWIN) & 0x8000) modifiers_ |= kLWin;
+    if (GetAsyncKeyState(VK_RWIN) & 0x8000) modifiers_ |= kRWin;
+
     hook_ = SetWindowsHookEx(
         WH_KEYBOARD_LL,
         LowLevelKeyboardProc,
@@ -265,6 +352,30 @@ void KeyboardHook::Uninstall() {
     if (hook_) {
         UnhookWindowsHookEx(hook_);
         hook_ = nullptr;
+        // Flush queued input, stop the worker. Only when a hook was installed: ~KeyboardHook
+        // calls Uninstall() again at static destruction, after the TextInjector (constructed
+        // later, so destroyed earlier) is gone.
+        TextInjector::Instance().Shutdown();
+    }
+}
+
+void KeyboardHook::TrackModifiers(const KBDLLHOOKSTRUCT& kb, bool keyDown) {
+    uint8_t bit = 0;
+    switch (kb.vkCode) {
+        case VK_LSHIFT: bit = kLShift; break;
+        case VK_RSHIFT: bit = kRShift; break;
+        case VK_LCONTROL: bit = kLCtrl; break;
+        case VK_RCONTROL: bit = kRCtrl; break;
+        case VK_LMENU: bit = kLAlt; break;
+        case VK_RMENU: bit = kRAlt; break;
+        case VK_LWIN: bit = kLWin; break;
+        case VK_RWIN: bit = kRWin; break;
+        default: return;
+    }
+    if (keyDown) {
+        modifiers_ |= bit;
+    } else {
+        modifiers_ &= static_cast<uint8_t>(~bit);
     }
 }
 
@@ -284,32 +395,52 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
 
     auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
 
-    // Ignore injected events to prevent infinite loops
-    if (kb->flags & LLKHF_INJECTED) {
+    // Ignore injected events: always our own output and replays (prevents loops), and other
+    // software's unless test mode is on
+    if (!g_instance ||
+        ((kb->flags & LLKHF_INJECTED) && (kb->dwExtraInfo == kSelfInjectTag || !g_acceptForeignInjected))) {
         return CallNextHookEx(NULL, nCode, wParam, lParam);
     }
 
-    // Only process key down events
-    if (wParam != WM_KEYDOWN && wParam != WM_SYSKEYDOWN) {
+    const bool keyDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
+    g_instance->TrackModifiers(*kb, keyDown);
+
+    // Every key the engine doesn't transform goes through here. While paced output for a slow
+    // app is still being sent, later keys must not overtake it: queue them for replay instead.
+    TextInjector& injector = TextInjector::Instance();
+    auto passThrough = [&]() -> LRESULT {
+        if (injector.Busy()) {
+            injector.ReplayKey(*kb, !keyDown);
+            return 1;
+        }
         return CallNextHookEx(NULL, nCode, wParam, lParam);
+    };
+
+    // Only key down events are processed by the engine
+    if (!keyDown) {
+        return passThrough();
     }
 
     // Handle Ctrl+Space toggle (check BEFORE enabled check)
-    if (kb->vkCode == VK_SPACE && (GetKeyState(VK_CONTROL) & 0x8000)) {
-        if (g_instance) {
+    if (kb->vkCode == VK_SPACE && g_instance->CtrlDown()) {
+        // Let the main loop do the switch (saves settings, updates tray/UI);
+        // keep the low-level hook callback itself fast
+        if (g_instance->notifyHwnd_) {
+            PostMessageW(g_instance->notifyHwnd_, WM_TOGGLE_IME, 0, 0);
+        } else {
             g_instance->Toggle();
         }
         return 1;  // Suppress key
     }
 
     // Pass through if disabled
-    if (!g_instance || !g_instance->enabled_) {
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
+    if (!g_instance->enabled_) {
+        return passThrough();
     }
 
     // Reentrancy guard
     if (g_instance->processing_) {
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
+        return passThrough();
     }
 
     // Word tracking for restore functionality
@@ -349,25 +480,28 @@ LRESULT CALLBACK KeyboardHook::LowLevelKeyboardProc(int nCode, WPARAM wParam, LP
     // Convert VK to macOS keycode
     uint16_t keycode = VkToMacKeycode(kb->vkCode);
     if (keycode == 0xFF) {
-        return CallNextHookEx(NULL, nCode, wParam, lParam);  // Unknown key
+        return passThrough();  // Unknown key
     }
 
-    // Get modifier states
-    bool caps = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
-    bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-    bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+    // Modifier states. Caps Lock presses still waiting in the replay queue haven't toggled
+    // the system state yet, so account for them.
+    bool caps = ((GetKeyState(VK_CAPITAL) & 0x0001) != 0) != ((injector.PendingCapsToggles() & 1) != 0);
+    // Ctrl, Alt (Alt+S, menus) and Win (Win+S) combinations bypass the engine, which then
+    // clears its word: "a" then Alt+S must not become "á" and swallow the app's shortcut
+    bool ctrl = g_instance->ShortcutModifierDown() || (kb->flags & LLKHF_ALTDOWN) != 0;
+    bool shift = g_instance->ShiftDown();
 
     // Call Rust engine with RAII reentrancy guard
     ProcessingGuard guard(g_instance->processing_);
     ImeResultGuard result(ime_key_ext(keycode, caps, ctrl, shift));
 
     if (!result) {
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
+        return passThrough();
     }
 
     // Check if engine wants to transform
     if (result->action == 0) {  // Pass through
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
+        return passThrough();
     }
 
     // Log transform for debugging

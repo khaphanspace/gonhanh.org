@@ -12,6 +12,22 @@ struct Shortcut {
     bool enabled = true;
 };
 
+// Shortcut length limits, in code points. The engine erases the trigger with an 8-bit
+// backspace count and returns at most 255 characters (core MAX_REPLACEMENT_LEN), so longer
+// text would leave the trigger on screen or be cut short. The editor allows 64 for triggers.
+constexpr size_t kMaxShortcutTrigger = 64;
+constexpr size_t kMaxEngineTrigger = 255;
+constexpr size_t kMaxShortcutReplacement = 255;
+
+// Number of code points (a surrogate pair counts once)
+inline size_t CodePointCount(const std::wstring& s) {
+    size_t n = 0;
+    for (wchar_t c : s) {
+        if (c < 0xDC00 || c > 0xDFFF) n++;
+    }
+    return n;
+}
+
 class Settings {
 public:
     // Feature flags (match macOS defaults)
@@ -28,6 +44,7 @@ public:
     bool autoCapitalize = false;
     bool freeTone = false;
     bool allowForeignConsonants = false;
+    bool checkUpdates = false;  // Off by default: the app makes no network requests unless enabled
 
     // Shortcuts list
     std::vector<Shortcut> shortcuts;
@@ -44,7 +61,6 @@ public:
 private:
     Settings() = default;
     static const wchar_t* REG_KEY;
-    static const wchar_t* REG_RUN_KEY;
 };
 
 } // namespace gonhanh

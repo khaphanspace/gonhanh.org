@@ -1,53 +1,50 @@
-# GoNhanh Windows Development Setup Script
+# GoNhanh Windows Development Setup Check
 # Run: powershell -ExecutionPolicy Bypass -File scripts/setup/windows.ps1
+#
+# The Windows app is one native exe: C++ Win32 UI + Rust core (static lib), built with
+# CMake + MSVC. This script checks the toolchain and prints how to install what's missing.
 
 Write-Host "GoNhanh Windows Setup" -ForegroundColor Cyan
 Write-Host "=====================" -ForegroundColor Cyan
+$missing = 0
 
-# Check Rust installation
-Write-Host "`nChecking Rust installation..." -ForegroundColor Yellow
+# Rust (MSVC toolchain)
+Write-Host "`nRust..." -ForegroundColor Yellow
 if (Get-Command rustc -ErrorAction SilentlyContinue) {
-    $rustVersion = rustc --version
-    Write-Host "Rust installed: $rustVersion" -ForegroundColor Green
+    Write-Host "  $(rustc --version)" -ForegroundColor Green
 } else {
-    Write-Host "Rust not found. Please install from https://rustup.rs" -ForegroundColor Red
-    exit 1
+    Write-Host "  Not found. Install: winget install Rustlang.Rustup" -ForegroundColor Red
+    $missing++
 }
 
-# Add Windows targets
-Write-Host "`nAdding Windows targets..." -ForegroundColor Yellow
-
-$targets = @(
-    "x86_64-pc-windows-msvc",    # 64-bit Windows (primary)
-    "i686-pc-windows-msvc",       # 32-bit Windows (optional)
-    "aarch64-pc-windows-msvc"     # ARM64 Windows (optional)
-)
-
-foreach ($target in $targets) {
-    Write-Host "Adding target: $target"
-    rustup target add $target
-}
-
-# Check .NET SDK
-Write-Host "`nChecking .NET SDK..." -ForegroundColor Yellow
-if (Get-Command dotnet -ErrorAction SilentlyContinue) {
-    $dotnetVersion = dotnet --version
-    Write-Host ".NET SDK installed: $dotnetVersion" -ForegroundColor Green
+# CMake
+Write-Host "`nCMake (3.22+)..." -ForegroundColor Yellow
+if (Get-Command cmake -ErrorAction SilentlyContinue) {
+    Write-Host "  $((cmake --version | Select-Object -First 1))" -ForegroundColor Green
 } else {
-    Write-Host ".NET SDK not found. Please install .NET 8.0 SDK from https://dotnet.microsoft.com" -ForegroundColor Red
-    exit 1
+    Write-Host "  Not found. Install: winget install Kitware.CMake" -ForegroundColor Red
+    $missing++
 }
 
-# Check Visual Studio Build Tools
-Write-Host "`nChecking Visual Studio Build Tools..." -ForegroundColor Yellow
+# Visual Studio 2026 or 2022 with the C++ workload
+Write-Host "`nVisual Studio C++ build tools (2026 or 2022)..." -ForegroundColor Yellow
 $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsVersion = $null
 if (Test-Path $vsWhere) {
-    $vsPath = & $vsWhere -latest -property installationPath
-    Write-Host "Visual Studio found: $vsPath" -ForegroundColor Green
+    $vsVersion = & $vsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
+}
+if ($vsVersion) {
+    Write-Host "  Found version $vsVersion" -ForegroundColor Green
 } else {
-    Write-Host "Visual Studio not found. Rust MSVC target requires Visual Studio Build Tools." -ForegroundColor Yellow
-    Write-Host "Download from: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Yellow
+    Write-Host "  Not found. Install:" -ForegroundColor Red
+    Write-Host '  winget install Microsoft.VisualStudio.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"' -ForegroundColor Red
+    $missing++
 }
 
-Write-Host "`nSetup complete!" -ForegroundColor Green
-Write-Host "Run 'scripts/build/core-windows.ps1' to build the Rust core library." -ForegroundColor Cyan
+if ($missing -gt 0) {
+    Write-Host "`n$missing tool(s) missing. Open a new terminal after installing so PATH is updated." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`nAll set. Build with:" -ForegroundColor Green
+Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 [-Run] [-Debug] [-Package]" -ForegroundColor Cyan
