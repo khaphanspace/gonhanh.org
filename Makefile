@@ -27,6 +27,7 @@ help:
 	@echo "  lint        Check lint (clippy + swiftformat)"
 	@echo "  build       Build + auto-open app"
 	@echo "  build-linux Build Linux Fcitx5"
+	@echo "  build-windows Build Windows app"
 	@echo "  clean       Clean artifacts"
 	@echo ""
 	@echo "\033[1;32mDebug:\033[0m"
@@ -51,7 +52,7 @@ help:
 # Development
 # ============================================================================
 
-.PHONY: test format lint build build-linux clean all
+.PHONY: test format lint build build-linux build-windows clean all
 all: test build
 
 test:
@@ -77,10 +78,14 @@ build: format ## Build core + macos app
 build-linux: format
 	@cd platforms/linux && ./scripts/build.sh
 
+build-windows: ## Build Windows app
+	@powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
+
 clean: ## Clean build + settings
 	@cd core && cargo clean
 	@rm -rf platforms/macos/build
 	@rm -rf platforms/linux/build
+	@rm -rf platforms/windows/build
 	@defaults delete org.gonhanh.GoNhanh 2>/dev/null || true
 	@osascript -e 'tell application "System Events"' -e 'repeat with i from (count of every login item) to 1 by -1' -e 'set li to login item i' -e 'if name of li is "GoNhanh" and path of li contains "/build/" then delete login item i' -e 'end repeat' -e 'end tell' 2>/dev/null || true
 	@echo "✅ Cleaned build artifacts + settings + all login items"
