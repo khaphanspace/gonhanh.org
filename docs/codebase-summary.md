@@ -64,22 +64,18 @@ gonhanh.org/
 │   │   ├── dmg-resources/       # DMG installer background + resources
 │   │   └── Tests/               # Swift unit tests (LaunchAtLoginTests.swift)
 │   │
-│   ├── windows/                 # Production: WPF/.NET 8 app (~1400 LOC)
-│   │   ├── App.xaml.cs          # Application entry point + setup
-│   │   ├── Core/
-│   │   │   ├── RustBridge.cs    # FFI bridge to Rust engine
-│   │   │   ├── KeyboardHook.cs  # SetWindowsHookEx keyboard interception
-│   │   │   ├── KeyCodes.cs      # Windows virtual keycodes mapping
-│   │   │   └── TextSender.cs    # Text input simulation (SendInput)
-│   │   ├── Services/
-│   │   │   ├── SettingsService.cs # Registry-based settings persistence
-│   │   │   └── UpdateService.cs   # Windows update checker
-│   │   ├── Views/
-│   │   │   ├── TrayIcon.cs      # System tray icon UI + menu
-│   │   │   ├── OnboardingWindow.xaml.cs # Setup wizard
-│   │   │   ├── AboutWindow.xaml.cs      # About dialog
-│   │   │   └── SettingsWindow.xaml.cs   # Preferences window
-│   │   └── libgonhanh_core.dll  # Compiled Rust DLL
+│   ├── windows/                 # Production: Win32 shell in Rust (windows-sys), uses the core crate directly → one exe, no runtime
+│   │   ├── Cargo.toml           # Depends on gonhanh-core (path) + windows-sys; static CRT via .cargo/config.toml
+│   │   ├── build.rs             # Embeds icon, manifest, version info (GONHANH_VERSION)
+│   │   ├── src/
+│   │   │   ├── main.rs          # Entry point, single instance, message loop
+│   │   │   ├── controller.rs    # Key policy (shortcuts, buffer resets, per-app state); owns the core Engine
+│   │   │   ├── controller_tests.rs # Typing simulation against the real engine
+│   │   │   ├── keys.rs          # Windows VK → macOS keycode mapping
+│   │   │   ├── hotkey.rs, settings.rs # Shortcuts, registry + shortcuts file persistence
+│   │   │   ├── updater.rs, json.rs # GitHub release check + in-place update
+│   │   │   └── win/             # Win32: hook, send (SendInput), foreground, tray, settings_window, dialogs
+│   │   └── res/                 # Icon, manifest
 │   │
 │   └── linux/                   # Beta: Fcitx5 addon (~500 LOC)
 │       ├── src/
@@ -285,25 +281,19 @@ AppDelegate for NSApplication. First-run detection, MenuBarController initializa
 
 ### Windows Platform (platforms/windows/)
 
-#### `Core/RustBridge.cs` - FFI Bridge
-**Source**: `platforms/windows/Core/RustBridge.cs`
+Win32 shell written in Rust with `windows-sys`. It depends on the `gonhanh-core` crate directly (owns an `Engine`, no FFI) and links the CRT statically, so the app is one `GoNhanh.exe` with no runtime to install.
 
-P/Invoke signatures matching Rust FFI, UTF-32 interop, memory management.
+#### `src/controller.rs` - Key Policy
+Windows counterpart of macOS `keyboardCallback`: on/off and restore shortcuts, buffer resets (punctuation, arrows, Ctrl/Alt, clicks), engine calls, per-app on/off. Tested by `controller_tests.rs` (`cargo test`) against the real engine.
 
-#### `Core/KeyboardHook.cs` - Keyboard Interception
-**Source**: `platforms/windows/Core/KeyboardHook.cs`
+#### `src/win/hook.rs` - Keyboard Interception
+`WH_KEYBOARD_LL` + `WH_MOUSE_LL` hooks, modifier-only shortcut detection, skips own injected keys.
 
-SetWindowsHookEx for system-wide WH_KEYBOARD_LL hook, WM_KEYDOWN processing.
+#### `src/settings.rs` - Persistence
+Registry `HKCU\SOFTWARE\GoNhanh` + `%APPDATA%\GoNhanh\shortcuts.txt`.
 
-#### `Services/SettingsService.cs` - Registry Persistence
-**Source**: `platforms/windows/Services/SettingsService.cs`
-
-Stores user preferences, input method selection, enable/disable state.
-
-#### `Views/TrayIcon.cs` - System Tray UI
-**Source**: `platforms/windows/Views/TrayIcon.cs`
-
-NotifyIcon creation, context menu: Enable/Disable, Input Method, Settings, About.
+#### `src/win/tray.rs`, `src/win/settings_window.rs` - UI
+Tray icon + menu, 3-tab settings window, TaskDialog onboarding/about.
 
 ### Linux Platform (platforms/linux/)
 
@@ -371,7 +361,7 @@ Maps X11/Wayland keysyms to internal keycode representation for compatibility wi
 ### Cross-Platform Port (Windows/Linux)
 1. **Core** (core/src/): Already platform-agnostic ✓
 2. **Platform wrapper**:
-   - Windows: `platforms/windows/` (WPF + P/Invoke) - DONE
+   - Windows: `platforms/windows/` (Rust + windows-sys, core crate used directly) - DONE
    - Linux: `platforms/linux/` (Qt + FFI) - TODO
 3. **Build automation**: Add scripts pattern
 4. **Testing**: Adapt platform-specific tests
@@ -396,8 +386,8 @@ RustBridge.swift (macOS)
   ├─→ lib.rs exports
   └─→ CGEventTap keyboard hook
 
-RustBridge.cs (Windows)
-  ├─→ libgonhanh_core.dll exports
+platforms/windows controller.rs (Windows)
+  ├─→ gonhanh_core::engine::Engine (same Rust build, no FFI)
   └─→ SetWindowsHookEx keyboard hook
 ```
 

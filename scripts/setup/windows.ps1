@@ -28,26 +28,17 @@ foreach ($target in $targets) {
     rustup target add $target
 }
 
-# Check .NET SDK
-Write-Host "`nChecking .NET SDK..." -ForegroundColor Yellow
-if (Get-Command dotnet -ErrorAction SilentlyContinue) {
-    $dotnetVersion = dotnet --version
-    Write-Host ".NET SDK installed: $dotnetVersion" -ForegroundColor Green
+# Check Visual Studio C++ tools (the Rust MSVC target needs the MSVC linker and rc.exe)
+Write-Host "`nChecking Visual Studio C++ tools..." -ForegroundColor Yellow
+$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsPath = if (Test-Path $vsWhere) { & $vsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath }
+if ($vsPath) {
+    Write-Host "Visual Studio C++ tools found: $vsPath" -ForegroundColor Green
 } else {
-    Write-Host ".NET SDK not found. Please install .NET 8.0 SDK from https://dotnet.microsoft.com" -ForegroundColor Red
+    Write-Host "Visual Studio C++ tools not found. Install Build Tools with 'Desktop development with C++':" -ForegroundColor Red
+    Write-Host "https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Red
     exit 1
 }
 
-# Check Visual Studio Build Tools
-Write-Host "`nChecking Visual Studio Build Tools..." -ForegroundColor Yellow
-$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-if (Test-Path $vsWhere) {
-    $vsPath = & $vsWhere -latest -property installationPath
-    Write-Host "Visual Studio found: $vsPath" -ForegroundColor Green
-} else {
-    Write-Host "Visual Studio not found. Rust MSVC target requires Visual Studio Build Tools." -ForegroundColor Yellow
-    Write-Host "Download from: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Yellow
-}
-
 Write-Host "`nSetup complete!" -ForegroundColor Green
-Write-Host "Run 'scripts/build/core-windows.ps1' to build the Rust core library." -ForegroundColor Cyan
+Write-Host "Build with (Git Bash): ./scripts/build/windows.sh" -ForegroundColor Cyan

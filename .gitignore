@@ -30,6 +30,8 @@ obj/
 *.exe
 *.dll
 *.pdb
+platforms/windows/publish/
+platforms/windows/*.zip
 
 # Build artifacts
 *.o

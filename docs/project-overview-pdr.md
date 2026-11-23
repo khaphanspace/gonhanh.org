@@ -2,7 +2,7 @@
 
 ## Project Vision
 
-Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS and Windows with a platform-agnostic Rust core. It enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, native UI (SwiftUI on macOS, WPF on Windows), and validation-first transformation pipeline for Vietnamese phonology.
+Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for macOS and Windows with a platform-agnostic Rust core. It enables fast, accurate Vietnamese text input with minimal system overhead. The project demonstrates production-grade system software design: Rust core for performance and safety, native UI (SwiftUI on macOS, Win32 via Rust on Windows), and validation-first transformation pipeline for Vietnamese phonology.
 
 ## Product Goals
 
@@ -67,7 +67,7 @@ Gõ Nhanh is a **high-performance Vietnamese input method engine** (IME) for mac
 ```
 User Keystroke (CGEventTap/SetWindowsHookEx)
         ↓
-   Platform Bridge (RustBridge.swift / RustBridge.cs)
+   Platform Bridge (RustBridge.swift on macOS; Windows uses the crate directly)
         ↓
    Rust Engine (ime_key) - Validation-First 7-Stage Pipeline
     ├─ Stage 1: Stroke Detection (đ/Đ)
@@ -89,7 +89,7 @@ User Keystroke (CGEventTap/SetWindowsHookEx)
         ↓
    Result (action, backspace count, output chars)
         ↓
-   Platform UI (SwiftUI on macOS, WPF on Windows - Send text or pass through)
+   Platform UI (SwiftUI on macOS, Win32 via Rust on Windows - Send text or pass through)
 ```
 
 ## Success Metrics
@@ -117,7 +117,7 @@ User Keystroke (CGEventTap/SetWindowsHookEx)
 
 **Windows 10/11 (Complete - Production Ready)**
 - SetWindowsHookEx keyboard hook
-- WPF/.NET 8 UI with system tray
+- Win32 UI in Rust with system tray (single exe, no runtime)
 - Registry-based settings persistence
 - Feature parity with macOS version
 - Compiled DLL shared with macOS core

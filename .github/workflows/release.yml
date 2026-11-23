@@ -539,6 +539,7 @@ jobs:
 
   build-windows:
     if: false  # Temporarily disabled
+    needs: build-macos
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -547,33 +548,23 @@ jobs:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: core
+          workspaces: platforms/windows
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Build Rust Core
-        run: |
-          cd core
-          cargo build --release --target x86_64-pc-windows-msvc
-          Copy-Item "target/x86_64-pc-windows-msvc/release/gonhanh_core.dll" `
-                    "../platforms/windows/GoNhanh/Native/gonhanh_core.dll"
-
-      - name: Build WPF App
-        run: |
-          cd platforms/windows/GoNhanh
-          dotnet publish -c Release -r win-x64 --self-contained false -o ../publish
-
-      - name: Package
-        run: |
-          cd platforms/windows
-          $V = "${{ github.ref_name }}".TrimStart('v')
-          Compress-Archive -Path publish/* -DestinationPath "GoNhanh-$V-win-x64.zip"
+      # Rust Win32 shell + core in one crate → one GoNhanh.exe, no runtime. Runs the tests too.
+      - name: Build, test, package
+        shell: bash
+        env:
+          GONHANH_VERSION: ${{ github.ref_name }}
+        run: ./scripts/build/windows.sh
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-zip
           path: platforms/windows/*.zip
+
+      # The in-app updater downloads *-win-x64.zip from the release
+      - name: Attach to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" (Get-ChildItem platforms/windows/*.zip).FullName --clobber

@@ -49,11 +49,14 @@
 **Yêu cầu:**
 - Windows 10/11
 - [Rust](https://rustup.rs/)
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) (C++ & .NET workload)
+- [Visual Studio 2022+ hoặc Build Tools](https://visualstudio.microsoft.com/downloads/) (workload "Desktop development with C++", cần cho linker MSVC)
 
-```powershell
+```bash
+# Git Bash
 git clone https://github.com/khaphanspace/gonhanh.org.git
-cd gonhanh.org/platforms/windows
-cargo build --release
+cd gonhanh.org
+./scripts/build/windows.sh
 ```
+
+Kết quả: `platforms/windows/publish/GoNhanh.exe` — một file duy nhất viết bằng Rust, không cần cài runtime. Script chạy luôn bộ test (`cargo test`).
 </details>

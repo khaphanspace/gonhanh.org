@@ -7,7 +7,7 @@
 │         macOS Application                │   │      Windows Application                 │
 │                                          │   │                                          │
 │  ┌────────────────────────────────┐     │   │  ┌────────────────────────────────┐     │
-│  │     SwiftUI Menu Bar           │     │   │  │   WPF System Tray UI           │     │
+│  │     SwiftUI Menu Bar           │     │   │  │   Win32 System Tray UI         │     │
 │  │  • Input method selector       │     │   │  │  • Input method selector       │     │
 │  │  • Enable/disable toggle       │     │   │  │  • Enable/disable toggle       │     │
 │  │  • Settings, About, Update     │     │   │  │  • Settings, About, Update     │     │
@@ -20,8 +20,8 @@
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 │               │                          │   │               │                          │
 │  ┌────────────▼────────────────────┐     │   │  ┌────────────▼────────────────────┐     │
-│  │    RustBridge (FFI Layer)       │     │   │  │   RustBridge.cs (P/Invoke)     │     │
-│  │  • C ABI function calls         │     │   │  │  • P/Invoke DLL function calls  │     │
+│  │    RustBridge (FFI Layer)       │     │   │  │   Engine (Rust crate, no FFI)   │     │
+│  │  • C ABI function calls         │     │   │  │  • direct Rust calls            │     │
 │  │  • Pointer safety handling      │     │   │  │  • UTF-32 interop               │     │
 │  └────────────┬────────────────────┘     │   │  └────────────┬────────────────────┘     │
 └───────────────┼──────────────────────────┘   └───────────────┼──────────────────────────┘

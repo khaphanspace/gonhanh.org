@@ -1,0 +1,49 @@
+[package]
+name = "gonhanh-windows"
+version = "0.0.0"  # real version comes from GONHANH_VERSION (git tag) at build time, see build.rs
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Gõ Nhanh for Windows: Win32 shell around the Rust core"
+publish = false
+
+[[bin]]
+name = "GoNhanh"
+path = "src/main.rs"
+
+[dependencies]
+gonhanh-core = { path = "../../core" }
+
+[dependencies.windows-sys]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
+    "Win32_Networking_WinInet",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_Dialogs",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+[build-dependencies]
+embed-resource = "3"
+
+[profile.release]
+opt-level = "z"     # same as core
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
