@@ -10,7 +10,15 @@ pub const INJECTED_MARKER: usize = 0x474E_4820;
 fn key(vk: u16, scan: u16, flags: KEYBD_EVENT_FLAGS) -> INPUT {
     INPUT {
         r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, wScan: scan, dwFlags: flags, time: 0, dwExtraInfo: INJECTED_MARKER } },
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: vk,
+                wScan: scan,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: INJECTED_MARKER,
+            },
+        },
     }
 }
 
@@ -43,9 +51,23 @@ pub fn send_text(text: &str, backspaces: usize, trailing_vk: u16) {
         prev = c;
     }
     if trailing_vk != 0 {
-        press(&mut inputs, trailing_vk, if keys::is_navigation(trailing_vk) { KEYEVENTF_EXTENDEDKEY } else { 0 });
+        press(
+            &mut inputs,
+            trailing_vk,
+            if keys::is_navigation(trailing_vk) {
+                KEYEVENTF_EXTENDEDKEY
+            } else {
+                0
+            },
+        );
     }
     if !inputs.is_empty() {
-        unsafe { SendInput(inputs.len() as u32, inputs.as_ptr(), std::mem::size_of::<INPUT>() as i32) };
+        unsafe {
+            SendInput(
+                inputs.len() as u32,
+                inputs.as_ptr(),
+                std::mem::size_of::<INPUT>() as i32,
+            )
+        };
     }
 }

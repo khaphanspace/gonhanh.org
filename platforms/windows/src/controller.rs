@@ -23,7 +23,12 @@ pub struct KeyEvent {
 
 impl KeyEvent {
     pub fn new(vk: u16, mods: u32, caps_lock: bool) -> Self {
-        KeyEvent { vk, mods, caps_lock, handled: false }
+        KeyEvent {
+            vk,
+            mods,
+            caps_lock,
+            handled: false,
+        }
     }
     fn shift(&self) -> bool {
         self.mods & MOD_SHIFT != 0
@@ -86,7 +91,11 @@ impl InputController {
         e.set_esc_restore(s.restore_shortcut_enabled);
         let table = e.shortcuts_mut();
         table.clear();
-        for item in s.shortcuts.iter().filter(|i| i.enabled && !i.key.is_empty() && !i.value.is_empty()) {
+        for item in s
+            .shortcuts
+            .iter()
+            .filter(|i| i.enabled && !i.key.is_empty() && !i.value.is_empty())
+        {
             // Symbol-only triggers ("->") fire immediately, words ("hcm") at word end — same rule as ime_add_shortcut
             table.add(if item.key.chars().all(|c| !c.is_alphabetic()) {
                 Shortcut::immediate(&item.key, &item.value)
@@ -98,7 +107,8 @@ impl InputController {
     }
 
     fn apply_auto_capitalize(&mut self) {
-        let on = self.settings.auto_capitalize && !self.settings.is_auto_capitalize_excluded(&self.current_app);
+        let on = self.settings.auto_capitalize
+            && !self.settings.is_auto_capitalize_excluded(&self.current_app);
         self.engine.set_auto_capitalize(on);
     }
 
@@ -150,7 +160,8 @@ impl InputController {
         // Per-app profile (advanced): always on / always off
         if let Some(&state) = self.settings.per_app_profiles.get(&app) {
             if state != 0 {
-                self.profile_saved_enabled.get_or_insert(self.settings.enabled);
+                self.profile_saved_enabled
+                    .get_or_insert(self.settings.enabled);
                 self.set_enabled_silently(state == 1);
                 return;
             }
@@ -182,7 +193,8 @@ impl InputController {
     pub fn on_modifiers_tapped(&mut self, mods: u32) {
         let s = &self.settings;
         if s.toggle_shortcut.matches_modifier_only(mods)
-            || (s.secondary_toggle_enabled && s.secondary_toggle_shortcut.matches_modifier_only(mods))
+            || (s.secondary_toggle_enabled
+                && s.secondary_toggle_shortcut.matches_modifier_only(mods))
         {
             self.toggle();
         } else if s.restore_shortcut_enabled && s.restore_shortcut.matches_modifier_only(mods) {
@@ -206,7 +218,9 @@ impl InputController {
 
         // On/off shortcut
         let s = &self.settings;
-        if s.toggle_shortcut.matches(vk, mods) || (s.secondary_toggle_enabled && s.secondary_toggle_shortcut.matches(vk, mods)) {
+        if s.toggle_shortcut.matches(vk, mods)
+            || (s.secondary_toggle_enabled && s.secondary_toggle_shortcut.matches(vk, mods))
+        {
             self.toggle();
             e.handled = true;
             return;
@@ -266,15 +280,25 @@ impl InputController {
             return None;
         };
         // Shift XOR CapsLock = uppercase (Shift+A with CapsLock on = lowercase), like Linux
-        let r = self.engine.on_key_ext(mac, shift != caps_lock, false, shift);
-        let text: String = r.chars[..r.count as usize].iter().filter(|&&c| c != 0).filter_map(|&c| char::from_u32(c)).collect();
+        let r = self
+            .engine
+            .on_key_ext(mac, shift != caps_lock, false, shift);
+        let text: String = r.chars[..r.count as usize]
+            .iter()
+            .filter(|&&c| c != 0)
+            .filter_map(|&c| char::from_u32(c))
+            .collect();
         if log::enabled() {
             log::write(&format!(
                 "key vk=0x{vk:02X} shift={shift} caps={caps_lock} → action={} bs={} flags={} text='{text}'",
                 r.action, r.backspace, r.flags
             ));
         }
-        (r.action == 1).then_some(Reply { text, backspace: r.backspace as usize, consumed: r.flags & FLAG_KEY_CONSUMED != 0 })
+        (r.action == 1).then_some(Reply {
+            text,
+            backspace: r.backspace as usize,
+            consumed: r.flags & FLAG_KEY_CONSUMED != 0,
+        })
     }
 
     /// Undo Vietnamese transforms of the current word (engine treats it as ESC). false = nothing to undo.

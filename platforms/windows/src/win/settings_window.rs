@@ -11,8 +11,12 @@ use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Controls::Dialogs::*;
 use windows_sys::Win32::UI::Controls::*;
-use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow, GetSystemMetricsForDpi};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, GetKeyState, SetFocus, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT};
+use windows_sys::Win32::UI::HiDpi::{
+    AdjustWindowRectExForDpi, GetDpiForWindow, GetSystemMetricsForDpi,
+};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    EnableWindow, GetKeyState, SetFocus, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+};
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
@@ -120,7 +124,12 @@ fn checked(id: i32) -> bool {
     send(ctl(id), BM_GETCHECK, 0, 0) == BST_CHECKED as isize
 }
 fn set_checked(id: i32, on: bool) {
-    send(ctl(id), BM_SETCHECK, if on { BST_CHECKED } else { BST_UNCHECKED } as usize, 0);
+    send(
+        ctl(id),
+        BM_SETCHECK,
+        if on { BST_CHECKED } else { BST_UNCHECKED } as usize,
+        0,
+    );
 }
 fn text(id: i32) -> String {
     let h = ctl(id);
@@ -144,7 +153,19 @@ fn message(text: &str) {
 // ---------------------------------------------------------------- control creation
 
 #[allow(clippy::too_many_arguments)]
-fn add(page: usize, class: &str, label: &str, style: u32, x: i32, y: i32, w: i32, h: i32, id: i32, font: usize, ex: u32) -> HWND {
+fn add(
+    page: usize,
+    class: &str,
+    label: &str,
+    style: u32,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    id: i32,
+    font: usize,
+    ex: u32,
+) -> HWND {
     let (c, l) = (wide(class), wide(label));
     unsafe {
         let hwnd = CreateWindowExW(
@@ -167,7 +188,19 @@ fn add(page: usize, class: &str, label: &str, style: u32, x: i32, y: i32, w: i32
     }
 }
 fn check(page: usize, id: i32, label: &str, x: i32, y: i32, w: i32) -> HWND {
-    add(page, "Button", label, BS_AUTOCHECKBOX as u32 | WS_TABSTOP, x, y, w, 22, id, 0, 0)
+    add(
+        page,
+        "Button",
+        label,
+        BS_AUTOCHECKBOX as u32 | WS_TABSTOP,
+        x,
+        y,
+        w,
+        22,
+        id,
+        0,
+        0,
+    )
 }
 fn label(page: usize, t: &str, x: i32, y: i32, w: i32, id: i32) -> HWND {
     add(page, "Static", t, SS_LEFT, x, y, w, 20, id, 0, 0)
@@ -181,11 +214,35 @@ fn header(page: usize, t: &str, y: i32) -> HWND {
     add(page, "Static", t, SS_LEFT, 16, y, 440, 20, 0, 1, 0)
 }
 fn button(page: usize, id: i32, t: &str, x: i32, y: i32, w: i32) -> HWND {
-    add(page, "Button", t, BS_PUSHBUTTON as u32 | WS_TABSTOP, x, y, w, 28, id, 0, 0)
+    add(
+        page,
+        "Button",
+        t,
+        BS_PUSHBUTTON as u32 | WS_TABSTOP,
+        x,
+        y,
+        w,
+        28,
+        id,
+        0,
+        0,
+    )
 }
 #[allow(clippy::too_many_arguments)]
 fn edit(page: usize, id: i32, x: i32, y: i32, w: i32, h: i32, style: u32, cue: &str) -> HWND {
-    let e = add(page, "Edit", "", style | WS_TABSTOP, x, y, w, h, id, 0, WS_EX_CLIENTEDGE);
+    let e = add(
+        page,
+        "Edit",
+        "",
+        style | WS_TABSTOP,
+        x,
+        y,
+        w,
+        h,
+        id,
+        0,
+        WS_EX_CLIENTEDGE,
+    );
     if !cue.is_empty() {
         let c = wide(cue);
         send(e, EM_SETCUEBANNER, 1, c.as_ptr() as isize);
@@ -247,7 +304,14 @@ fn finish_recording(rec: HWND, hk: Hotkey) {
     unsafe { PostMessageW(MAIN.get(), WM_APP_HOTKEY_SET, id as usize, 0) };
 }
 
-unsafe extern "system" fn recorder_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _: usize, _: usize) -> LRESULT {
+unsafe extern "system" fn recorder_proc(
+    h: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _: usize,
+    _: usize,
+) -> LRESULT {
     let recording = RECORDING.get() == h;
     if recording {
         match msg {
@@ -256,17 +320,35 @@ unsafe extern "system" fn recorder_proc(h: HWND, msg: u32, wparam: WPARAM, lpara
                 let vk = wparam as u16;
                 if keys::is_modifier(vk) {
                     PENDING_MODS.set(PENDING_MODS.get() | held_mods());
-                    let w = wide(&format!("{} ...", Hotkey { vk: 0, mods: PENDING_MODS.get() }));
+                    let w = wide(&format!(
+                        "{} ...",
+                        Hotkey {
+                            vk: 0,
+                            mods: PENDING_MODS.get()
+                        }
+                    ));
                     unsafe { SetWindowTextW(h, w.as_ptr()) };
                 } else {
-                    finish_recording(h, Hotkey { vk, mods: held_mods() });
+                    finish_recording(
+                        h,
+                        Hotkey {
+                            vk,
+                            mods: held_mods(),
+                        },
+                    );
                 }
                 return 0;
             }
             WM_KEYUP | WM_SYSKEYUP => {
                 // Modifiers released without another key: modifier-only shortcut (Ctrl+Shift)
                 if keys::is_modifier(wparam as u16) && PENDING_MODS.get() != 0 {
-                    finish_recording(h, Hotkey { vk: 0, mods: PENDING_MODS.get() });
+                    finish_recording(
+                        h,
+                        Hotkey {
+                            vk: 0,
+                            mods: PENDING_MODS.get(),
+                        },
+                    );
                 }
                 return 0;
             }
@@ -287,9 +369,31 @@ fn recorder(page: usize, id: i32, value: Hotkey, x: i32, y: i32) {
 // ---------------------------------------------------------------- lists
 
 #[allow(clippy::too_many_arguments)]
-fn list_view(page: usize, id: i32, x: i32, y: i32, w: i32, h: i32, columns: &[(&str, i32)], checkboxes: bool) -> HWND {
-    let lv = add(page, "SysListView32", "", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_TABSTOP | WS_BORDER, x, y, w, h, id, 0, 0);
-    let ex = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | if checkboxes { LVS_EX_CHECKBOXES } else { 0 };
+fn list_view(
+    page: usize,
+    id: i32,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    columns: &[(&str, i32)],
+    checkboxes: bool,
+) -> HWND {
+    let lv = add(
+        page,
+        "SysListView32",
+        "",
+        LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_TABSTOP | WS_BORDER,
+        x,
+        y,
+        w,
+        h,
+        id,
+        0,
+        0,
+    );
+    let ex =
+        LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | if checkboxes { LVS_EX_CHECKBOXES } else { 0 };
     send(lv, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, ex as isize);
 
     dark::style_list(lv);
@@ -297,7 +401,9 @@ fn list_view(page: usize, id: i32, x: i32, y: i32, w: i32, h: i32, columns: &[(&
         let t = wide(title);
         let cx = if *width < 0 {
             // last column fills the rest
-            s(w) - s(4) - send(lv, LVM_GETCOLUMNWIDTH, 0, 0) as i32 - unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, DPI.get()) }
+            s(w) - s(4)
+                - send(lv, LVM_GETCOLUMNWIDTH, 0, 0) as i32
+                - unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, DPI.get()) }
         } else {
             s(*width)
         };
@@ -335,7 +441,12 @@ fn lv_set_state(lv: HWND, row: usize, state: u32, mask: u32) {
 }
 
 fn lv_select(lv: HWND, row: usize) {
-    lv_set_state(lv, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+    lv_set_state(
+        lv,
+        row,
+        LVIS_SELECTED | LVIS_FOCUSED,
+        LVIS_SELECTED | LVIS_FOCUSED,
+    );
     send(lv, LVM_ENSUREVISIBLE, row, 0);
 }
 
@@ -359,13 +470,20 @@ fn selected_row(id: i32) -> Option<usize> {
 
 fn fill_shortcuts(select: Option<usize>) {
     let lv = ctl(ID_SHORTCUT_LIST);
-    let Some(items) = app::try_with(|c| c.settings.shortcuts.clone()) else { return };
+    let Some(items) = app::try_with(|c| c.settings.shortcuts.clone()) else {
+        return;
+    };
     LOADING.set(true);
     send(lv, LVM_DELETEALLITEMS, 0, 0);
     for (i, item) in items.iter().enumerate() {
         lv_insert(lv, i, &item.key);
         lv_set_text(lv, i, 1, &item.value.replace('\n', " ⏎ "));
-        lv_set_state(lv, i, (if item.enabled { 2 } else { 1 }) << 12, LVIS_STATEIMAGEMASK);
+        lv_set_state(
+            lv,
+            i,
+            (if item.enabled { 2 } else { 1 }) << 12,
+            LVIS_STATEIMAGEMASK,
+        );
     }
     if let Some(row) = select {
         lv_select(lv, row);
@@ -383,7 +501,9 @@ fn state_index(state: i32) -> usize {
 
 fn fill_profiles(select: Option<&str>) {
     let lv = ctl(ID_PROFILE_LIST);
-    let Some(profiles) = app::try_with(|c| c.settings.per_app_profiles.clone()) else { return };
+    let Some(profiles) = app::try_with(|c| c.settings.per_app_profiles.clone()) else {
+        return;
+    };
     LOADING.set(true);
     send(lv, LVM_DELETEALLITEMS, 0, 0);
     for (i, (app, state)) in profiles.iter().enumerate() {
@@ -410,10 +530,18 @@ fn update_dependent_controls() {
 /// Read every control into settings, save, and push to the engine
 fn commit() {
     let excluded = text(ID_AUTO_CAP_EXCLUDED).trim().to_string();
-    let (toggle, restore, secondary) = (hotkey(ID_TOGGLE_HOTKEY), hotkey(ID_RESTORE_HOTKEY), hotkey(ID_SECONDARY_HOTKEY));
+    let (toggle, restore, secondary) = (
+        hotkey(ID_TOGGLE_HOTKEY),
+        hotkey(ID_RESTORE_HOTKEY),
+        hotkey(ID_SECONDARY_HOTKEY),
+    );
     app::try_with(|c| {
         let st = &mut c.settings;
-        st.method = if checked(ID_VNI) { Method::Vni } else { Method::Telex };
+        st.method = if checked(ID_VNI) {
+            Method::Vni
+        } else {
+            Method::Telex
+        };
         st.auto_w_shortcut = checked(ID_AUTO_W);
         st.bracket_shortcut = checked(ID_BRACKET);
         st.english_auto_restore = checked(ID_ENGLISH);
@@ -479,7 +607,9 @@ fn file_dialog(save: bool) -> Option<String> {
         let name: Vec<u16> = "gonhanh-shortcuts.txt".encode_utf16().collect();
         path[..name.len()].copy_from_slice(&name);
     }
-    let filter: Vec<u16> = "Bảng gõ tắt (*.txt)\0*.txt\0Tất cả\0*.*\0\0".encode_utf16().collect();
+    let filter: Vec<u16> = "Bảng gõ tắt (*.txt)\0*.txt\0Tất cả\0*.*\0\0"
+        .encode_utf16()
+        .collect();
     let ext = wide("txt");
     let mut ofn: OPENFILENAMEW = unsafe { std::mem::zeroed() };
     ofn.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;
@@ -488,26 +618,44 @@ fn file_dialog(save: bool) -> Option<String> {
     ofn.lpstrFile = path.as_mut_ptr();
     ofn.nMaxFile = path.len() as u32;
     ofn.lpstrDefExt = ext.as_ptr();
-    ofn.Flags = if save { OFN_OVERWRITEPROMPT } else { OFN_FILEMUSTEXIST };
-    let ok = unsafe { if save { GetSaveFileNameW(&mut ofn) } else { GetOpenFileNameW(&mut ofn) } } != 0;
+    ofn.Flags = if save {
+        OFN_OVERWRITEPROMPT
+    } else {
+        OFN_FILEMUSTEXIST
+    };
+    let ok = unsafe {
+        if save {
+            GetSaveFileNameW(&mut ofn)
+        } else {
+            GetOpenFileNameW(&mut ofn)
+        }
+    } != 0;
     ok.then(|| from_wide(&path))
 }
 
 fn import_shortcuts() {
-    let Some(path) = file_dialog(false) else { return };
+    let Some(path) = file_dialog(false) else {
+        return;
+    };
     let Ok(bytes) = std::fs::read(&path) else {
         message("Không đọc được file.");
         return;
     };
-    let content = String::from_utf8_lossy(bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes)).into_owned();
-    let count = app::try_with(|c| settings::import_shortcuts(&content, &mut c.settings.shortcuts)).unwrap_or(0);
+    let content =
+        String::from_utf8_lossy(bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes)).into_owned();
+    let count = app::try_with(|c| settings::import_shortcuts(&content, &mut c.settings.shortcuts))
+        .unwrap_or(0);
     save_shortcuts(None);
     message(&format!("Đã nhập {count} mục gõ tắt."));
 }
 
 fn export_shortcuts() {
-    let Some(path) = file_dialog(true) else { return };
-    let Some(text) = app::try_with(|c| settings::export_shortcuts(&c.settings.shortcuts)) else { return };
+    let Some(path) = file_dialog(true) else {
+        return;
+    };
+    let Some(text) = app::try_with(|c| settings::export_shortcuts(&c.settings.shortcuts)) else {
+        return;
+    };
     if std::fs::write(&path, text).is_err() {
         message("Không ghi được file.");
     }
@@ -525,7 +673,10 @@ fn state_from_combo() -> i32 {
 
 unsafe extern "system" fn collect_app(w: HWND, apps: LPARAM) -> BOOL {
     unsafe {
-        if IsWindowVisible(w) == 0 || GetWindowTextLengthW(w) == 0 || GetWindowLongW(w, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW != 0 {
+        if IsWindowVisible(w) == 0
+            || GetWindowTextLengthW(w) == 0
+            || GetWindowLongW(w, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW != 0
+        {
             return 1;
         }
         if let Some(name) = foreground::process_name(w) {
@@ -570,7 +721,14 @@ fn add_profile() {
 /// Version and update status share one label: "GoNhanh v1.0.165 · Bạn đang dùng bản mới nhất."
 fn set_status(status: &str) {
     let version = format!("GoNhanh v{}", updater::VERSION);
-    set_text(ID_UPDATE_STATUS, &if status.is_empty() { version } else { format!("{version} · {status}") });
+    set_text(
+        ID_UPDATE_STATUS,
+        &if status.is_empty() {
+            version
+        } else {
+            format!("{version} · {status}")
+        },
+    );
 }
 
 fn run_update_step() {
@@ -580,17 +738,41 @@ fn run_update_step() {
     BUSY.set(true);
     enable(ID_UPDATE_BTN, false);
     let info = UPDATE.with(|u| u.borrow().clone());
-    set_status(if info.is_some() { "Đang tải bản cập nhật..." } else { "Đang kiểm tra..." });
+    set_status(if info.is_some() {
+        "Đang tải bản cập nhật..."
+    } else {
+        "Đang kiểm tra..."
+    });
     let hwnd = MAIN.get() as usize;
     std::thread::spawn(move || {
         let result = match &info {
             Some(i) => match updater::install(i) {
-                Ok(restart) => UpdateResult { install_step: true, info: info.clone(), restart, error: None },
-                Err(e) => UpdateResult { install_step: true, info: None, restart: false, error: Some(e) },
+                Ok(restart) => UpdateResult {
+                    install_step: true,
+                    info: info.clone(),
+                    restart,
+                    error: None,
+                },
+                Err(e) => UpdateResult {
+                    install_step: true,
+                    info: None,
+                    restart: false,
+                    error: Some(e),
+                },
             },
             None => match updater::check() {
-                Ok(found) => UpdateResult { install_step: false, info: found, restart: false, error: None },
-                Err(e) => UpdateResult { install_step: false, info: None, restart: false, error: Some(e) },
+                Ok(found) => UpdateResult {
+                    install_step: false,
+                    info: found,
+                    restart: false,
+                    error: None,
+                },
+                Err(e) => UpdateResult {
+                    install_step: false,
+                    info: None,
+                    restart: false,
+                    error: Some(e),
+                },
             },
         };
         let ptr = Box::into_raw(Box::new(result));
@@ -624,7 +806,10 @@ fn on_update_done(r: UpdateResult) {
             set_text(ID_UPDATE_BTN, &format!("Cập nhật lên v{}", info.version));
         }
         Some(info) => {
-            set_status(&format!("Có bản mới v{}. Bản này chưa có gói Windows tự cập nhật, sẽ mở trang tải về.", info.version));
+            set_status(&format!(
+                "Có bản mới v{}. Bản này chưa có gói Windows tự cập nhật, sẽ mở trang tải về.",
+                info.version
+            ));
             set_text(ID_UPDATE_BTN, "Mở trang tải về");
         }
     }
@@ -641,39 +826,145 @@ fn build_general(st: &settings::Settings) {
     recorder(0, ID_TOGGLE_HOTKEY, st.toggle_shortcut, 312, 8);
 
     header(0, "Kiểu gõ", 50);
-    add(0, "Button", "Telex", BS_AUTORADIOBUTTON as u32 | WS_GROUP | WS_TABSTOP, 112, 48, 80, 22, ID_TELEX, 0, 0);
-    add(0, "Button", "VNI", BS_AUTORADIOBUTTON as u32, 200, 48, 80, 22, ID_VNI, 0, 0);
+    add(
+        0,
+        "Button",
+        "Telex",
+        BS_AUTORADIOBUTTON as u32 | WS_GROUP | WS_TABSTOP,
+        112,
+        48,
+        80,
+        22,
+        ID_TELEX,
+        0,
+        0,
+    );
+    add(
+        0,
+        "Button",
+        "VNI",
+        BS_AUTORADIOBUTTON as u32,
+        200,
+        48,
+        80,
+        22,
+        ID_VNI,
+        0,
+        0,
+    );
     check(0, ID_AUTO_W, "Gõ W thành Ư", 32, 76, 200);
     check(0, ID_BRACKET, "Gõ [ ] thành Ơ Ư", 248, 76, 224);
-    check(0, ID_ENGLISH, "Tự khôi phục tiếng Anh (text → tẽt → text)", 32, 100, 440);
+    check(
+        0,
+        ID_ENGLISH,
+        "Tự khôi phục tiếng Anh (text → tẽt → text)",
+        32,
+        100,
+        440,
+    );
 
     header(0, "Chính tả", 138);
     check(0, ID_MODERN, "Dấu kiểu mới (oà, uý)", 16, 162, 224);
     check(0, ID_FOREIGN, "Phụ âm ngoại (z, w, j, f)", 248, 162, 224);
     check(0, ID_AUTO_CAP, "Tự viết hoa đầu câu", 16, 190, 170);
     label(0, "Trừ", 196, 193, 30, 0);
-    edit(0, ID_AUTO_CAP_EXCLUDED, 232, 188, 240, 24, ES_AUTOHSCROLL as u32, "code.exe, WindowsTerminal.exe");
+    edit(
+        0,
+        ID_AUTO_CAP_EXCLUDED,
+        232,
+        188,
+        240,
+        24,
+        ES_AUTOHSCROLL as u32,
+        "code.exe, WindowsTerminal.exe",
+    );
     check(0, ID_RESTORE, "Hoàn tác dấu vừa gõ", 16, 222, 280);
     recorder(0, ID_RESTORE_HOTKEY, st.restore_shortcut, 312, 218);
 
     header(0, "Hệ thống", 260);
-    check(0, ID_PER_APP, "Nhớ trạng thái bật/tắt theo từng ứng dụng", 16, 284, 456);
+    check(
+        0,
+        ID_PER_APP,
+        "Nhớ trạng thái bật/tắt theo từng ứng dụng",
+        16,
+        284,
+        456,
+    );
     check(0, ID_SOUND, "Âm thanh khi bật/tắt", 16, 308, 224);
     check(0, ID_AUTO_START, "Khởi động cùng Windows", 248, 308, 224);
 
-    add(0, "Static", "", SS_LEFT, 16, 344, 456, 1, ID_SEPARATOR, 0, 0);
-    add(0, "Static", "", SS_LEFT, 16, 360, 290, 34, ID_UPDATE_STATUS, 0, 0);
+    add(
+        0,
+        "Static",
+        "",
+        SS_LEFT,
+        16,
+        344,
+        456,
+        1,
+        ID_SEPARATOR,
+        0,
+        0,
+    );
+    add(
+        0,
+        "Static",
+        "",
+        SS_LEFT,
+        16,
+        360,
+        290,
+        34,
+        ID_UPDATE_STATUS,
+        0,
+        0,
+    );
     set_status("");
     button(0, ID_UPDATE_BTN, "Kiểm tra cập nhật", 312, 356, 160);
 }
 
 fn build_shortcuts() {
-    hint(1, "Gõ viết tắt rồi nhấn Space hoặc dấu câu để thay. Tích ô để bật, chọn dòng để sửa.", 16, 12, 456, 18, 0);
-    list_view(1, ID_SHORTCUT_LIST, 16, 36, 456, 224, &[("Viết tắt", 120), ("Nội dung", -1)], true);
+    hint(
+        1,
+        "Gõ viết tắt rồi nhấn Space hoặc dấu câu để thay. Tích ô để bật, chọn dòng để sửa.",
+        16,
+        12,
+        456,
+        18,
+        0,
+    );
+    list_view(
+        1,
+        ID_SHORTCUT_LIST,
+        16,
+        36,
+        456,
+        224,
+        &[("Viết tắt", 120), ("Nội dung", -1)],
+        true,
+    );
     label(1, "Viết tắt", 16, 275, 64, 0);
-    edit(1, ID_SHORTCUT_KEY, 84, 272, 160, 24, ES_AUTOHSCROLL as u32, "vd: hcm");
+    edit(
+        1,
+        ID_SHORTCUT_KEY,
+        84,
+        272,
+        160,
+        24,
+        ES_AUTOHSCROLL as u32,
+        "vd: hcm",
+    );
     label(1, "Nội dung", 16, 307, 64, 0);
-    edit(1, ID_SHORTCUT_VALUE, 84, 304, 388, 52, (ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN) as u32 | WS_VSCROLL, "");
+    edit(
+        1,
+        ID_SHORTCUT_VALUE,
+        84,
+        304,
+        388,
+        52,
+        (ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN) as u32 | WS_VSCROLL,
+        "",
+    );
     button(1, ID_SHORTCUT_SAVE, "Thêm / Cập nhật", 84, 366, 124);
     button(1, ID_SHORTCUT_DELETE, "Xoá", 214, 366, 70);
     button(1, ID_IMPORT, "Nhập từ file...", 316, 366, 76);
@@ -685,19 +976,72 @@ fn build_advanced(st: &settings::Settings) {
     check(2, ID_SECONDARY, "Phím tắt bật/tắt phụ", 16, 12, 280);
     recorder(2, ID_SECONDARY_HOTKEY, st.secondary_toggle_shortcut, 312, 8);
     check(2, ID_REMOTE, "Remote desktop", 16, 44, 150);
-    hint(2, "Gõ qua RustDesk, AnyDesk, TeamViewer, bàn phím ảo", 170, 47, 302, 18, 0);
+    hint(
+        2,
+        "Gõ qua RustDesk, AnyDesk, TeamViewer, bàn phím ảo",
+        170,
+        47,
+        302,
+        18,
+        0,
+    );
     check(2, ID_DEBUG_LOG, "Debug log", 16, 76, 100);
-    let path = add(2, "Static", &log::file_path().display().to_string(), SS_LEFT | SS_PATHELLIPSIS, 120, 79, 262, 18, 0, 2, 0);
+    let path = add(
+        2,
+        "Static",
+        &log::file_path().display().to_string(),
+        SS_LEFT | SS_PATHELLIPSIS,
+        120,
+        79,
+        262,
+        18,
+        0,
+        2,
+        0,
+    );
     GRAY.with(|g| g.borrow_mut().insert(path as usize));
     button(2, ID_OPEN_LOG, "Mở log", 392, 72, 80);
 
     header(2, "Tuỳ chỉnh theo ứng dụng", 116);
     hint(2, "Luôn bật hoặc luôn tắt tiếng Việt trong từng ứng dụng. “Tự động” = theo trạng thái đã nhớ.", 16, 140, 456, 18, 0);
-    list_view(2, ID_PROFILE_LIST, 16, 164, 456, 186, &[("Ứng dụng", 300), ("Tiếng Việt", -1)], false);
-    let picker = add(2, "ComboBox", "", (CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT) as u32 | WS_VSCROLL | WS_TABSTOP, 16, 362, 210, 240, ID_APP_PICKER, 0, 0);
+    list_view(
+        2,
+        ID_PROFILE_LIST,
+        16,
+        164,
+        456,
+        186,
+        &[("Ứng dụng", 300), ("Tiếng Việt", -1)],
+        false,
+    );
+    let picker = add(
+        2,
+        "ComboBox",
+        "",
+        (CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT) as u32 | WS_VSCROLL | WS_TABSTOP,
+        16,
+        362,
+        210,
+        240,
+        ID_APP_PICKER,
+        0,
+        0,
+    );
     let cue = wide("Chọn hoặc gõ tên .exe");
     send(picker, CB_SETCUEBANNER, 0, cue.as_ptr() as isize);
-    let state = add(2, "ComboBox", "", CBS_DROPDOWNLIST as u32 | WS_TABSTOP, 232, 362, 110, 200, ID_PROFILE_STATE, 0, 0);
+    let state = add(
+        2,
+        "ComboBox",
+        "",
+        CBS_DROPDOWNLIST as u32 | WS_TABSTOP,
+        232,
+        362,
+        110,
+        200,
+        ID_PROFILE_STATE,
+        0,
+        0,
+    );
     for n in STATE_NAMES {
         let w = wide(n);
         send(state, CB_ADDSTRING, 0, w.as_ptr() as isize);
@@ -709,7 +1053,9 @@ fn build_advanced(st: &settings::Settings) {
 }
 
 fn load_values() {
-    let Some(st) = app::try_with(|c| c.settings.clone()) else { return };
+    let Some(st) = app::try_with(|c| c.settings.clone()) else {
+        return;
+    };
     LOADING.set(true);
     set_checked(ID_ENABLED, st.enabled);
     set_checked(ID_TELEX, st.method == Method::Telex);
@@ -739,7 +1085,14 @@ fn show_page(index: usize) {
         unsafe { ShowWindow(*p, if i == index { SW_SHOW } else { SW_HIDE }) };
     }
     // Paint the whole page now: otherwise controls can stay blank until hovered
-    unsafe { RedrawWindow(pages[index], std::ptr::null(), null_mut(), RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW) };
+    unsafe {
+        RedrawWindow(
+            pages[index],
+            std::ptr::null(),
+            null_mut(),
+            RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW,
+        )
+    };
 }
 
 // ---------------------------------------------------------------- window procs
@@ -848,14 +1201,17 @@ fn on_notify(nm: &NMHDR) {
             });
         }
         if selected {
-            if let Some(item) = app::try_with(|c| c.settings.shortcuts.get(row).cloned()).flatten() {
+            if let Some(item) = app::try_with(|c| c.settings.shortcuts.get(row).cloned()).flatten()
+            {
                 set_text(ID_SHORTCUT_KEY, &item.key);
                 set_text(ID_SHORTCUT_VALUE, &item.value.replace('\n', "\r\n"));
             }
         }
     } else if id == ID_PROFILE_LIST && selected {
         let app_name = lv_text(nm.hwndFrom, row);
-        if let Some(state) = app::try_with(|c| c.settings.per_app_profiles.get(&app_name).copied()).flatten() {
+        if let Some(state) =
+            app::try_with(|c| c.settings.per_app_profiles.get(&app_name).copied()).flatten()
+        {
             send(ctl(ID_PROFILE_STATE), CB_SETCURSEL, state_index(state), 0);
         }
     }
@@ -863,7 +1219,12 @@ fn on_notify(nm: &NMHDR) {
 
 /// Window/page background in the palette color
 fn erase(h: HWND, dc: HDC) -> LRESULT {
-    let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+    let mut rc = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
     unsafe {
         GetClientRect(h, &mut rc);
         FillRect(dc, &rc, dark::bg_brush());
@@ -873,9 +1234,8 @@ fn erase(h: HWND, dc: HDC) -> LRESULT {
 
 unsafe extern "system" fn page_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
-        WM_COMMAND | WM_NOTIFY | WM_CTLCOLORSTATIC | WM_CTLCOLORBTN | WM_CTLCOLOREDIT | WM_CTLCOLORLISTBOX => unsafe {
-            SendMessageW(GetParent(h), msg, wparam, lparam)
-        },
+        WM_COMMAND | WM_NOTIFY | WM_CTLCOLORSTATIC | WM_CTLCOLORBTN | WM_CTLCOLOREDIT
+        | WM_CTLCOLORLISTBOX => unsafe { SendMessageW(GetParent(h), msg, wparam, lparam) },
         WM_ERASEBKGND => erase(h, wparam as HDC),
         _ => unsafe { DefWindowProcW(h, msg, wparam, lparam) },
     }
@@ -910,7 +1270,9 @@ unsafe extern "system" fn wnd_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LP
         },
         WM_ERASEBKGND => return erase(h, wparam as HDC),
         WM_APP_HOTKEY_SET => commit(),
-        WM_APP_UPDATE_DONE => on_update_done(*unsafe { Box::from_raw(lparam as *mut UpdateResult) }),
+        WM_APP_UPDATE_DONE => {
+            on_update_done(*unsafe { Box::from_raw(lparam as *mut UpdateResult) })
+        }
         WM_DPICHANGED => {
             // Rebuild at the new DPI where Windows suggests
             let r = unsafe { &*(lparam as *const RECT) };
@@ -954,14 +1316,29 @@ fn register_classes() {
 
 fn create(tab_index: usize) {
     register_classes();
-    let Some(st) = app::try_with(|c| c.settings.clone()) else { return };
+    let Some(st) = app::try_with(|c| c.settings.clone()) else {
+        return;
+    };
     unsafe {
         let instance = GetModuleHandleW(std::ptr::null());
         let style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
         let ex_style = WS_EX_CONTROLPARENT;
         let (mut x, mut y) = REOPEN_AT.take().unwrap_or((CW_USEDEFAULT, CW_USEDEFAULT));
         let (class, title) = (wide(MAIN_CLASS), wide("Cài đặt GoNhanh"));
-        let hwnd = CreateWindowExW(ex_style, class.as_ptr(), title.as_ptr(), style, x, y, 100, 100, null_mut(), null_mut(), instance, std::ptr::null());
+        let hwnd = CreateWindowExW(
+            ex_style,
+            class.as_ptr(),
+            title.as_ptr(),
+            style,
+            x,
+            y,
+            100,
+            100,
+            null_mut(),
+            null_mut(),
+            instance,
+            std::ptr::null(),
+        );
         if hwnd.is_null() {
             return;
         }
@@ -969,7 +1346,12 @@ fn create(tab_index: usize) {
         dark::begin(hwnd); // light or dark palette, dark title bar
         DPI.set(GetDpiForWindow(hwnd));
 
-        let mut rc = RECT { left: 0, top: 0, right: s(CLIENT_W), bottom: s(CLIENT_H) };
+        let mut rc = RECT {
+            left: 0,
+            top: 0,
+            right: s(CLIENT_W),
+            bottom: s(CLIENT_H),
+        };
         AdjustWindowRectExForDpi(&mut rc, style, 0, ex_style, DPI.get());
         let (w, h) = (rc.right - rc.left, rc.bottom - rc.top);
         if x == CW_USEDEFAULT {
@@ -985,11 +1367,20 @@ fn create(tab_index: usize) {
         SetWindowPos(hwnd, null_mut(), x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
 
         let dpi = DPI.get();
-        FONTS.set([ui_font(dpi, false, 0), ui_font(dpi, true, 1), ui_font(dpi, false, -1)]);
+        FONTS.set([
+            ui_font(dpi, false, 0),
+            ui_font(dpi, true, 1),
+            ui_font(dpi, false, -1),
+        ]);
 
         // Tab strip only: full width, equal tabs, edge to edge. Pages sit below it on the window
         // background (no inset tab pane = no box-in-a-box look).
-        let mut client = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        let mut client = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
         GetClientRect(hwnd, &mut client);
         let tab_class = wide("SysTabControl32");
         let empty = wide("");
@@ -1012,7 +1403,12 @@ fn create(tab_index: usize) {
         SendMessageW(tab, WM_SETFONT, FONTS.get()[0] as usize, 1);
         // A few px less than a third: the control adds its own edge, and overflow shows scroll arrows
         let item_w = (client.right - s(6)) / 3;
-        SendMessageW(tab, TCM_SETITEMSIZE, 0, ((s(30) as u32) << 16 | item_w as u32 & 0xFFFF) as isize);
+        SendMessageW(
+            tab,
+            TCM_SETITEMSIZE,
+            0,
+            ((s(30) as u32) << 16 | item_w as u32 & 0xFFFF) as isize,
+        );
         for (i, t) in PAGE_TITLES.iter().enumerate() {
             let w = wide(t);
             let mut item: TCITEMW = std::mem::zeroed();
@@ -1020,10 +1416,23 @@ fn create(tab_index: usize) {
             item.pszText = w.as_ptr() as *mut u16;
             SendMessageW(tab, TCM_INSERTITEMW, i, &item as *const _ as isize);
         }
-        let mut strip = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        let mut strip = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
         SendMessageW(tab, TCM_GETITEMRECT, 0, &mut strip as *mut _ as isize);
         let strip_h = strip.bottom + s(2); // tabs + the line under them
-        SetWindowPos(tab, null_mut(), 0, 0, client.right, strip_h, SWP_NOZORDER | SWP_NOMOVE);
+        SetWindowPos(
+            tab,
+            null_mut(),
+            0,
+            0,
+            client.right,
+            strip_h,
+            SWP_NOZORDER | SWP_NOMOVE,
+        );
 
         let page_class = wide(PAGE_CLASS);
         let mut pages = [null_mut(); 3];

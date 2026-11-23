@@ -27,7 +27,11 @@ pub struct ShortcutItem {
 
 impl ShortcutItem {
     pub fn new(key: &str, value: &str, enabled: bool) -> Self {
-        ShortcutItem { key: key.into(), value: value.into(), enabled }
+        ShortcutItem {
+            key: key.into(),
+            value: value.into(),
+            enabled,
+        }
     }
 }
 
@@ -117,7 +121,11 @@ impl Settings {
         let b = |name: &str, def: bool| reg::get_dword(KEY, name).map_or(def, |v| v == 1);
         let hk = |name: &str, def: Hotkey| reg::get_dword(KEY, name).map_or(def, Hotkey::from_int);
         let mut s = Settings {
-            method: if reg::get_dword(KEY, "InputMethod") == Some(1) { Method::Vni } else { Method::Telex },
+            method: if reg::get_dword(KEY, "InputMethod") == Some(1) {
+                Method::Vni
+            } else {
+                Method::Telex
+            },
             modern_tone: b("ModernTone", d.modern_tone),
             enabled: b("Enabled", d.enabled),
             first_run: b("FirstRun", d.first_run),
@@ -127,7 +135,8 @@ impl Settings {
             english_auto_restore: b("EnglishAutoRestore", d.english_auto_restore),
             allow_foreign_consonants: b("AllowForeignConsonants", d.allow_foreign_consonants),
             auto_capitalize: b("AutoCapitalize", d.auto_capitalize),
-            auto_capitalize_excluded_apps: reg::get_string(KEY, "AutoCapitalizeExcludedApps").unwrap_or_default(),
+            auto_capitalize_excluded_apps: reg::get_string(KEY, "AutoCapitalizeExcludedApps")
+                .unwrap_or_default(),
             toggle_shortcut: hk("ToggleShortcut", d.toggle_shortcut),
             secondary_toggle_enabled: b("SecondaryToggleEnabled", d.secondary_toggle_enabled),
             secondary_toggle_shortcut: hk("SecondaryToggleShortcut", d.secondary_toggle_shortcut),
@@ -165,10 +174,16 @@ impl Settings {
             b("EnglishAutoRestore", self.english_auto_restore);
             b("AllowForeignConsonants", self.allow_foreign_consonants);
             b("AutoCapitalize", self.auto_capitalize);
-            k.set_string("AutoCapitalizeExcludedApps", &self.auto_capitalize_excluded_apps);
+            k.set_string(
+                "AutoCapitalizeExcludedApps",
+                &self.auto_capitalize_excluded_apps,
+            );
             k.set_dword("ToggleShortcut", self.toggle_shortcut.to_int());
             b("SecondaryToggleEnabled", self.secondary_toggle_enabled);
-            k.set_dword("SecondaryToggleShortcut", self.secondary_toggle_shortcut.to_int());
+            k.set_dword(
+                "SecondaryToggleShortcut",
+                self.secondary_toggle_shortcut.to_int(),
+            );
             b("RestoreShortcutEnabled", self.restore_shortcut_enabled);
             k.set_dword("RestoreShortcut", self.restore_shortcut.to_int());
             b("PerAppMode", self.per_app_mode);
@@ -199,7 +214,14 @@ impl Settings {
         let text: String = self
             .shortcuts
             .iter()
-            .map(|s| format!("{}\t{}\t{}\n", if s.enabled { 1 } else { 0 }, escape(&s.key), escape(&s.value)))
+            .map(|s| {
+                format!(
+                    "{}\t{}\t{}\n",
+                    if s.enabled { 1 } else { 0 },
+                    escape(&s.key),
+                    escape(&s.value)
+                )
+            })
             .collect();
         let _ = std::fs::create_dir_all(data_dir());
         if std::fs::write(shortcuts_file(), text).is_err() {
@@ -211,7 +233,9 @@ impl Settings {
         const RUN: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         if self.auto_start {
             let exe = std::env::current_exe().unwrap_or_default();
-            reg::with_key(RUN, |k| k.set_string("GoNhanh", &format!("\"{}\"", exe.display())));
+            reg::with_key(RUN, |k| {
+                k.set_string("GoNhanh", &format!("\"{}\"", exe.display()))
+            });
         } else {
             reg::delete_value(RUN, "GoNhanh");
         }
@@ -279,7 +303,11 @@ fn parse_shortcuts_file(text: &str) -> Vec<ShortcutItem> {
         .filter_map(|line| {
             let mut f = line.splitn(3, '\t');
             let (flag, key, value) = (f.next()?, f.next()?, f.next()?);
-            Some(ShortcutItem { key: unescape(key), value: unescape(value), enabled: flag == "1" })
+            Some(ShortcutItem {
+                key: unescape(key),
+                value: unescape(value),
+                enabled: flag == "1",
+            })
         })
         .collect()
 }
@@ -288,7 +316,11 @@ fn parse_shortcuts_file(text: &str) -> Vec<ShortcutItem> {
 pub fn export_shortcuts(items: &[ShortcutItem]) -> String {
     let mut out = String::from(";Gõ Nhanh - Bảng gõ tắt");
     for s in items.iter().filter(|s| !s.key.is_empty()) {
-        let value = s.value.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r");
+        let value = s
+            .value
+            .replace('\\', "\\\\")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r");
         out.push_str(&format!("\n{}:{}", s.key, value));
     }
     out
@@ -301,7 +333,9 @@ pub fn import_shortcuts(content: &str, into: &mut Vec<ShortcutItem>) -> usize {
         if line.is_empty() || line.starts_with(';') {
             continue;
         }
-        let Some((trigger, value)) = line.split_once(':') else { continue };
+        let Some((trigger, value)) = line.split_once(':') else {
+            continue;
+        };
         let trigger = trigger.trim();
         if trigger.is_empty() {
             continue;

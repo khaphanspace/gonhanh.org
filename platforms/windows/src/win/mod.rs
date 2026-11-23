@@ -20,7 +20,9 @@ use windows_sys::Win32::Networking::WinInet::*;
 use windows_sys::Win32::System::Diagnostics::Debug::OutputDebugStringW;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 use windows_sys::Win32::UI::HiDpi::SystemParametersInfoForDpi;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetKeyNameTextW, MapVirtualKeyW, MAPVK_VK_TO_VSC};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetKeyNameTextW, MapVirtualKeyW, MAPVK_VK_TO_VSC,
+};
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
@@ -61,16 +63,38 @@ pub fn key_name_text(vk: u16) -> Option<String> {
 /// Open a URL (or a file with its default app)
 pub fn open_url(url: &str) {
     let (verb, target) = (wide("open"), wide(url));
-    unsafe { ShellExecuteW(null_mut(), verb.as_ptr(), target.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) };
+    unsafe {
+        ShellExecuteW(
+            null_mut(),
+            verb.as_ptr(),
+            target.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
+    };
 }
 
 /// Short Windows "Speech On/Off" sounds, like macOS Tink/Pop
 pub fn play_toggle_sound(on: bool) {
     let dir = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
-    let file = format!("{dir}\\Media\\{}", if on { "Speech On.wav" } else { "Speech Off.wav" });
+    let file = format!(
+        "{dir}\\Media\\{}",
+        if on {
+            "Speech On.wav"
+        } else {
+            "Speech Off.wav"
+        }
+    );
     let w = wide(&file);
     // SND_NODEFAULT: silent if the file is missing (sound is cosmetic)
-    unsafe { PlaySoundW(w.as_ptr(), null_mut(), SND_FILENAME | SND_ASYNC | SND_NODEFAULT) };
+    unsafe {
+        PlaySoundW(
+            w.as_ptr(),
+            null_mut(),
+            SND_FILENAME | SND_ASYNC | SND_NODEFAULT,
+        )
+    };
 }
 
 /// HTTPS GET via WinINet (system proxy settings apply)
@@ -84,18 +108,39 @@ pub fn http_get(url: &str) -> Result<Vec<u8>, String> {
         }
     }
     let agent = wide("GoNhanh-Windows");
-    let net = Handle(unsafe { InternetOpenW(agent.as_ptr(), INTERNET_OPEN_TYPE_PRECONFIG, std::ptr::null(), std::ptr::null(), 0) });
+    let net = Handle(unsafe {
+        InternetOpenW(
+            agent.as_ptr(),
+            INTERNET_OPEN_TYPE_PRECONFIG,
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+        )
+    });
     if net.0.is_null() {
         return Err("Không mở được kết nối mạng".into());
     }
-    let (url_w, headers) = (wide(url), wide("Accept: application/vnd.github.v3+json\r\n"));
+    let (url_w, headers) = (
+        wide(url),
+        wide("Accept: application/vnd.github.v3+json\r\n"),
+    );
     let flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_SECURE;
-    let req = Handle(unsafe { InternetOpenUrlW(net.0, url_w.as_ptr(), headers.as_ptr(), u32::MAX, flags, 0) });
+    let req = Handle(unsafe {
+        InternetOpenUrlW(net.0, url_w.as_ptr(), headers.as_ptr(), u32::MAX, flags, 0)
+    });
     if req.0.is_null() {
         return Err("Không kết nối được tới GitHub".into());
     }
     let (mut status, mut size) = (0u32, 4u32);
-    unsafe { HttpQueryInfoW(req.0, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &mut status as *mut _ as _, &mut size, null_mut()) };
+    unsafe {
+        HttpQueryInfoW(
+            req.0,
+            HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+            &mut status as *mut _ as _,
+            &mut size,
+            null_mut(),
+        )
+    };
     if status != 200 {
         return Err(format!("GitHub trả lỗi {status}"));
     }
@@ -103,7 +148,9 @@ pub fn http_get(url: &str) -> Result<Vec<u8>, String> {
     let mut buf = vec![0u8; 16384];
     loop {
         let mut read = 0u32;
-        if unsafe { InternetReadFile(req.0, buf.as_mut_ptr() as _, buf.len() as u32, &mut read) } == 0 {
+        if unsafe { InternetReadFile(req.0, buf.as_mut_ptr() as _, buf.len() as u32, &mut read) }
+            == 0
+        {
             return Err("Tải dữ liệu bị gián đoạn".into());
         }
         if read == 0 {
@@ -125,7 +172,13 @@ pub fn ui_font(dpi: u32, bold: bool, point_delta: i32) -> HFONT {
     unsafe {
         let mut ncm: NONCLIENTMETRICSW = std::mem::zeroed();
         ncm.cbSize = std::mem::size_of::<NONCLIENTMETRICSW>() as u32;
-        SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, ncm.cbSize, &mut ncm as *mut _ as _, 0, dpi);
+        SystemParametersInfoForDpi(
+            SPI_GETNONCLIENTMETRICS,
+            ncm.cbSize,
+            &mut ncm as *mut _ as _,
+            0,
+            dpi,
+        );
         let mut lf = ncm.lfMessageFont;
         if point_delta != 0 {
             let points = -lf.lfHeight * 72 / dpi as i32 + point_delta;

@@ -9,9 +9,22 @@ use super::wide;
 use crate::settings::Method;
 use crate::updater::VERSION;
 
-unsafe extern "system" fn link_callback(_: HWND, msg: u32, _: WPARAM, lparam: LPARAM, _: isize) -> HRESULT {
+unsafe extern "system" fn link_callback(
+    _: HWND,
+    msg: u32,
+    _: WPARAM,
+    lparam: LPARAM,
+    _: isize,
+) -> HRESULT {
     if msg == TDN_HYPERLINK_CLICKED as u32 {
-        let url = unsafe { std::slice::from_raw_parts(lparam as *const u16, (0..).take_while(|&i| *(lparam as *const u16).add(i) != 0).count()) };
+        let url = unsafe {
+            std::slice::from_raw_parts(
+                lparam as *const u16,
+                (0..)
+                    .take_while(|&i| *(lparam as *const u16).add(i) != 0)
+                    .count(),
+            )
+        };
         super::open_url(&String::from_utf16_lossy(url));
     }
     0
@@ -26,8 +39,20 @@ pub fn run_onboarding(current: Method) -> Method {
     let telex = wide("Telex\naa → â   ow → ơ   dd → đ   s → sắc   f → huyền");
     let vni = wide("VNI\na6 → â   o7 → ơ   d9 → đ   1 → sắc   2 → huyền");
     let start = wide("Bắt đầu gõ tiếng Việt");
-    let radios = [TASKDIALOG_BUTTON { nButtonID: 100, pszButtonText: telex.as_ptr() }, TASKDIALOG_BUTTON { nButtonID: 101, pszButtonText: vni.as_ptr() }];
-    let buttons = [TASKDIALOG_BUTTON { nButtonID: 1, pszButtonText: start.as_ptr() }];
+    let radios = [
+        TASKDIALOG_BUTTON {
+            nButtonID: 100,
+            pszButtonText: telex.as_ptr(),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: 101,
+            pszButtonText: vni.as_ptr(),
+        },
+    ];
+    let buttons = [TASKDIALOG_BUTTON {
+        nButtonID: 1,
+        pszButtonText: start.as_ptr(),
+    }];
     let title = wide("Chào mừng đến GoNhanh");
     let main = wide("Bộ gõ tiếng Việt nhanh và nhẹ");
     let content = wide("Không quảng cáo, không theo dõi, miễn phí.\n\nBạn quen dùng kiểu gõ nào?");
@@ -53,7 +78,9 @@ pub fn run_onboarding(current: Method) -> Method {
     tdc.pszFooter = footer.as_ptr();
 
     let mut radio = 100i32;
-    let ok = unsafe { TaskDialogIndirect(&tdc, std::ptr::null_mut(), &mut radio, std::ptr::null_mut()) } >= 0;
+    let ok =
+        unsafe { TaskDialogIndirect(&tdc, std::ptr::null_mut(), &mut radio, std::ptr::null_mut()) }
+            >= 0;
     if ok && radio == 101 {
         Method::Vni
     } else if ok {
@@ -85,5 +112,12 @@ pub fn show_about(owner: HWND) {
     tdc.pszMainInstruction = main.as_ptr();
     tdc.pszContent = content.as_ptr();
     tdc.pfCallback = Some(link_callback);
-    unsafe { TaskDialogIndirect(&tdc, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) };
+    unsafe {
+        TaskDialogIndirect(
+            &tdc,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
 }

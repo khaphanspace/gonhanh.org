@@ -26,7 +26,8 @@ fn dib(w: i32, h: i32) -> (HBITMAP, *mut u32) {
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
     let mut bits = null_mut();
-    let bmp = unsafe { CreateDIBSection(null_mut(), &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0) };
+    let bmp =
+        unsafe { CreateDIBSection(null_mut(), &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0) };
     (bmp, bits as *mut u32)
 }
 
@@ -41,13 +42,39 @@ pub fn glyph_coverage(letter: &str, size: i32) -> Vec<u8> {
         let old = SelectObject(dc, bmp as HGDIOBJ);
         // em = icon size → cap height ≈ 70% of the icon, like the system indicator letters
         let face = wide("Segoe UI");
-        let font = CreateFontW(-size, 0, 0, 0, FW_SEMIBOLD as i32, 0, 0, 0, DEFAULT_CHARSET as u32, 0, 0, ANTIALIASED_QUALITY as u32, 0, face.as_ptr());
+        let font = CreateFontW(
+            -size,
+            0,
+            0,
+            0,
+            FW_SEMIBOLD as i32,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET as u32,
+            0,
+            0,
+            ANTIALIASED_QUALITY as u32,
+            0,
+            face.as_ptr(),
+        );
         let old_font = SelectObject(dc, font as HGDIOBJ);
         SetBkMode(dc, TRANSPARENT as i32);
         SetTextColor(dc, 0x00FF_FFFF); // white on black: any channel = coverage
-        let mut r = RECT { left: 0, top: 0, right: canvas, bottom: canvas };
+        let mut r = RECT {
+            left: 0,
+            top: 0,
+            right: canvas,
+            bottom: canvas,
+        };
         let text = wide(letter);
-        DrawTextW(dc, text.as_ptr(), -1, &mut r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        DrawTextW(
+            dc,
+            text.as_ptr(),
+            -1,
+            &mut r,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+        );
         GdiFlush();
         let px = std::slice::from_raw_parts(bits, (canvas * canvas) as usize);
         for (dst, src) in ink.iter_mut().zip(px) {
@@ -100,7 +127,13 @@ pub fn make(letter: &str, size: i32, rgb: u32) -> HICON {
             *p = (*a as u32) << 24 | (rgb & 0x00FF_FFFF); // BGRA in memory, straight alpha
         }
         let mask = CreateBitmap(size, size, 1, 1, null_mut()); // all 0: alpha decides
-        let ii = ICONINFO { fIcon: 1, xHotspot: 0, yHotspot: 0, hbmMask: mask, hbmColor: color };
+        let ii = ICONINFO {
+            fIcon: 1,
+            xHotspot: 0,
+            yHotspot: 0,
+            hbmMask: mask,
+            hbmColor: color,
+        };
         let icon = CreateIconIndirect(&ii);
         DeleteObject(color as HGDIOBJ);
         DeleteObject(mask as HGDIOBJ);
@@ -117,14 +150,24 @@ mod tests {
         for letter in ["V", "E"] {
             for size in [16, 20, 24, 32] {
                 let c = glyph_coverage(letter, size);
-                let rows: Vec<i32> = (0..size).filter(|y| (0..size).any(|x| c[(y * size + x) as usize] > 32)).collect();
-                let cols: Vec<i32> = (0..size).filter(|x| (0..size).any(|y| c[(y * size + x) as usize] > 32)).collect();
+                let rows: Vec<i32> = (0..size)
+                    .filter(|y| (0..size).any(|x| c[(y * size + x) as usize] > 32))
+                    .collect();
+                let cols: Vec<i32> = (0..size)
+                    .filter(|x| (0..size).any(|y| c[(y * size + x) as usize] > 32))
+                    .collect();
                 assert!(!rows.is_empty(), "{letter}@{size} has no ink");
                 let (top, bottom) = (rows[0], size - 1 - rows[rows.len() - 1]);
                 let (left, right) = (cols[0], size - 1 - cols[cols.len() - 1]);
-                assert!((top - bottom).abs() <= 1 && (left - right).abs() <= 1, "{letter}@{size} off-center: t{top} b{bottom} l{left} r{right}");
+                assert!(
+                    (top - bottom).abs() <= 1 && (left - right).abs() <= 1,
+                    "{letter}@{size} off-center: t{top} b{bottom} l{left} r{right}"
+                );
                 let height = rows.len() as i32;
-                assert!(height * 100 >= size * 55 && height * 100 <= size * 85, "{letter}@{size} height {height}");
+                assert!(
+                    height * 100 >= size * 55 && height * 100 <= size * 85,
+                    "{letter}@{size} height {height}"
+                );
             }
         }
     }

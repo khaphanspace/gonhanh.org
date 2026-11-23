@@ -13,7 +13,11 @@ fn main() {
 
     let mut parts: Vec<u32> = version.split('.').map(|p| p.parse().unwrap_or(0)).collect();
     parts.resize(4, 0);
-    let commas = parts.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+    let commas = parts
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
 
     let res = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("res");
     let path = |name: &str| res.join(name).display().to_string().replace('\\', "\\\\");
@@ -52,5 +56,7 @@ END
     );
     let out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("app.rc");
     fs::write(&out, rc).unwrap();
-    embed_resource::compile(&out, embed_resource::NONE).manifest_required().unwrap();
+    embed_resource::compile(&out, embed_resource::NONE)
+        .manifest_required()
+        .unwrap();
 }

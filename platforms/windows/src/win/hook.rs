@@ -5,7 +5,9 @@ use std::ptr::null_mut;
 
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, GetKeyState, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, GetKeyState, VK_CAPITAL, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use super::send::INJECTED_MARKER;
@@ -67,7 +69,9 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
     }
     let k = unsafe { &*(lparam as *const KBDLLHOOKSTRUCT) };
     // Our own injected keys always pass; other programs' only outside remote desktop mode
-    if k.dwExtraInfo == INJECTED_MARKER || (k.flags & LLKHF_INJECTED != 0 && !PROCESS_INJECTED.get()) {
+    if k.dwExtraInfo == INJECTED_MARKER
+        || (k.flags & LLKHF_INJECTED != 0 && !PROCESS_INJECTED.get())
+    {
         return next();
     }
 
@@ -105,7 +109,12 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
 }
 
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code >= 0 && matches!(wparam as u32, WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN) {
+    if code >= 0
+        && matches!(
+            wparam as u32,
+            WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN
+        )
+    {
         CHORD_DIRTY.set(true); // Ctrl+click is not a Ctrl tap
         app::try_with(|c| c.on_mouse_clicked());
     }
@@ -116,7 +125,12 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
 pub fn start() -> bool {
     unsafe {
         let module = GetModuleHandleW(std::ptr::null());
-        KEYBOARD.set(SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), module, 0));
+        KEYBOARD.set(SetWindowsHookExW(
+            WH_KEYBOARD_LL,
+            Some(keyboard_proc),
+            module,
+            0,
+        ));
         MOUSE.set(SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), module, 0)); // optional: only resets the buffer
     }
     !KEYBOARD.get().is_null()

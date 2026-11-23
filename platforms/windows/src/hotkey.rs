@@ -14,9 +14,18 @@ pub struct Hotkey {
 }
 
 impl Hotkey {
-    pub const DEFAULT_TOGGLE: Hotkey = Hotkey { vk: keys::SPACE, mods: MOD_CTRL };
-    pub const DEFAULT_SECONDARY_TOGGLE: Hotkey = Hotkey { vk: keys::SPACE, mods: MOD_CTRL | MOD_SHIFT };
-    pub const DEFAULT_RESTORE: Hotkey = Hotkey { vk: keys::ESCAPE, mods: 0 };
+    pub const DEFAULT_TOGGLE: Hotkey = Hotkey {
+        vk: keys::SPACE,
+        mods: MOD_CTRL,
+    };
+    pub const DEFAULT_SECONDARY_TOGGLE: Hotkey = Hotkey {
+        vk: keys::SPACE,
+        mods: MOD_CTRL | MOD_SHIFT,
+    };
+    pub const DEFAULT_RESTORE: Hotkey = Hotkey {
+        vk: keys::ESCAPE,
+        mods: 0,
+    };
 
     pub fn modifier_only(&self) -> bool {
         self.vk == 0
@@ -27,7 +36,10 @@ impl Hotkey {
         (self.mods << 16) | self.vk as u32
     }
     pub fn from_int(v: u32) -> Self {
-        Hotkey { vk: (v & 0xFFFF) as u16, mods: v >> 16 }
+        Hotkey {
+            vk: (v & 0xFFFF) as u16,
+            mods: v >> 16,
+        }
     }
 
     pub fn matches(&self, vk: u16, held: u32) -> bool {
@@ -41,7 +53,12 @@ impl Hotkey {
 impl std::fmt::Display for Hotkey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut parts: Vec<String> = Vec::new();
-        for (flag, name) in [(MOD_CTRL, "Ctrl"), (MOD_ALT, "Alt"), (MOD_SHIFT, "Shift"), (MOD_WIN, "Win")] {
+        for (flag, name) in [
+            (MOD_CTRL, "Ctrl"),
+            (MOD_ALT, "Alt"),
+            (MOD_SHIFT, "Shift"),
+            (MOD_WIN, "Win"),
+        ] {
             if self.mods & flag != 0 {
                 parts.push(name.into());
             }

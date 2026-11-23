@@ -25,7 +25,11 @@ pub fn write(message: &str) {
         return;
     }
     let (h, m, s, ms) = crate::win::local_time();
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(file_path()) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(file_path())
+    {
         let _ = writeln!(f, "{h:02}:{m:02}:{s:02}.{ms:03} {message}\r");
     }
 }

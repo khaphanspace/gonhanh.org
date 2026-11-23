@@ -38,7 +38,11 @@ thread_local! {
 /// white on a dark taskbar, black on a light one
 fn make_icon(on: bool) -> HICON {
     let size = unsafe { GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem()) };
-    let color = if icon::taskbar_is_light() { 0x00_0000 } else { 0xFF_FFFF };
+    let color = if icon::taskbar_is_light() {
+        0x00_0000
+    } else {
+        0xFF_FFFF
+    };
     icon::make(if on { "V" } else { "E" }, size, color)
 }
 
@@ -74,7 +78,9 @@ pub fn update() {
     if HWND_.get().is_null() {
         return;
     }
-    let Some((enabled, method)) = app::try_with(|c| (c.settings.enabled, c.settings.method)) else { return };
+    let Some((enabled, method)) = app::try_with(|c| (c.settings.enabled, c.settings.method)) else {
+        return;
+    };
     let old = ICON.replace(make_icon(enabled));
     if !old.is_null() {
         unsafe { DestroyIcon(old) };
@@ -82,8 +88,18 @@ pub fn update() {
     let mut nid = base_data();
     nid.uFlags = NIF_ICON | NIF_TIP | NIF_SHOWTIP;
     nid.hIcon = ICON.get();
-    let method = if method == Method::Telex { "Telex" } else { "VNI" };
-    copy_wide(&mut nid.szTip, &format!("GoNhanh [{method}] - {}", if enabled { "Bật" } else { "Tắt" }));
+    let method = if method == Method::Telex {
+        "Telex"
+    } else {
+        "VNI"
+    };
+    copy_wide(
+        &mut nid.szTip,
+        &format!(
+            "GoNhanh [{method}] - {}",
+            if enabled { "Bật" } else { "Tắt" }
+        ),
+    );
     unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
 }
 
@@ -97,13 +113,24 @@ fn notify_update(info: &updater::Info) {
     let mut nid = base_data();
     nid.uFlags = NIF_INFO;
     nid.dwInfoFlags = NIIF_INFO;
-    copy_wide(&mut nid.szInfoTitle, &format!("Có bản GoNhanh mới: v{}", info.version));
+    copy_wide(
+        &mut nid.szInfoTitle,
+        &format!("Có bản GoNhanh mới: v{}", info.version),
+    );
     copy_wide(&mut nid.szInfo, "Nhấn để cập nhật.");
     unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
 }
 
 fn show_menu() {
-    let Some((enabled, method, toggle)) = app::try_with(|c| (c.settings.enabled, c.settings.method, c.settings.toggle_shortcut)) else { return };
+    let Some((enabled, method, toggle)) = app::try_with(|c| {
+        (
+            c.settings.enabled,
+            c.settings.method,
+            c.settings.toggle_shortcut,
+        )
+    }) else {
+        return;
+    };
     unsafe {
         // Plain menu like Windows' own tray menus: no title row, no bold default item
         let menu = CreatePopupMenu();
@@ -113,11 +140,25 @@ fn show_menu() {
         };
         let separator = || AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
         let shortcut = toggle.to_string().replace(" + ", "+"); // menu accelerator style: Ctrl+Space
-        add(MF_STRING | if enabled { MF_CHECKED } else { 0 }, ID_TOGGLE, &format!("Gõ tiếng Việt\t{shortcut}"));
+        add(
+            MF_STRING | if enabled { MF_CHECKED } else { 0 },
+            ID_TOGGLE,
+            &format!("Gõ tiếng Việt\t{shortcut}"),
+        );
         separator();
         add(MF_STRING, ID_TELEX, "Telex");
         add(MF_STRING, ID_VNI, "VNI");
-        CheckMenuRadioItem(menu, ID_TELEX, ID_VNI, if method == Method::Telex { ID_TELEX } else { ID_VNI }, MF_BYCOMMAND);
+        CheckMenuRadioItem(
+            menu,
+            ID_TELEX,
+            ID_VNI,
+            if method == Method::Telex {
+                ID_TELEX
+            } else {
+                ID_VNI
+            },
+            MF_BYCOMMAND,
+        );
         separator();
         add(MF_STRING, ID_SETTINGS, "Cài đặt...");
         add(MF_STRING, ID_UPDATE, "Kiểm tra cập nhật...");
@@ -129,7 +170,14 @@ fn show_menu() {
         let mut pt = POINT { x: 0, y: 0 };
         GetCursorPos(&mut pt);
         SetForegroundWindow(HWND_.get()); // required so the menu closes when clicking elsewhere
-        let cmd = TrackPopupMenuEx(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, pt.x, pt.y, HWND_.get(), std::ptr::null()) as u32;
+        let cmd = TrackPopupMenuEx(
+            menu,
+            TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
+            pt.x,
+            pt.y,
+            HWND_.get(),
+            std::ptr::null(),
+        ) as u32;
         DestroyMenu(menu);
 
         match cmd {
@@ -138,7 +186,11 @@ fn show_menu() {
             }
             ID_TELEX | ID_VNI => {
                 app::try_with(|c| {
-                    c.settings.method = if cmd == ID_TELEX { Method::Telex } else { Method::Vni };
+                    c.settings.method = if cmd == ID_TELEX {
+                        Method::Telex
+                    } else {
+                        Method::Vni
+                    };
                     c.settings.save();
                 });
                 app::settings_changed();
@@ -154,7 +206,12 @@ fn show_menu() {
     }
 }
 
-unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match msg {
         WM_APP_TRAY => {
             match (lparam & 0xFFFF) as u32 {
@@ -162,7 +219,9 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     app::try_with(|c| c.toggle()); // click = toggle, like EVKey
                 }
                 WM_CONTEXTMENU => show_menu(),
-                NIN_BALLOONUSERCLICK if BALLOON_OPENS_UPDATE.with(|b| *b.borrow()) => settings_window::show(true),
+                NIN_BALLOONUSERCLICK if BALLOON_OPENS_UPDATE.with(|b| *b.borrow()) => {
+                    settings_window::show(true)
+                }
                 _ => {}
             }
             0
@@ -173,7 +232,9 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             0
         }
         // Light/dark switched: redraw the letter in the matching color, re-theme menus
-        WM_SETTINGCHANGE if unsafe { super::read_wide_z(lparam as *const u16, 64) } == "ImmersiveColorSet" => {
+        WM_SETTINGCHANGE
+            if unsafe { super::read_wide_z(lparam as *const u16, 64) } == "ImmersiveColorSet" =>
+        {
             theme::refresh();
             settings_window::theme_changed();
             update();
@@ -207,7 +268,20 @@ pub fn create() -> bool {
         RegisterClassW(&wc);
         // Hidden top-level window (not message-only: the popup menu needs SetForegroundWindow)
         let title = wide("GoNhanh");
-        let hwnd = CreateWindowExW(0, class.as_ptr(), title.as_ptr(), WS_OVERLAPPED, 0, 0, 0, 0, null_mut(), null_mut(), instance, std::ptr::null());
+        let hwnd = CreateWindowExW(
+            0,
+            class.as_ptr(),
+            title.as_ptr(),
+            WS_OVERLAPPED,
+            0,
+            0,
+            0,
+            0,
+            null_mut(),
+            null_mut(),
+            instance,
+            std::ptr::null(),
+        );
         if hwnd.is_null() {
             return false;
         }

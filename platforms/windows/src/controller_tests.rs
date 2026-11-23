@@ -30,10 +30,20 @@ fn printed(vk: u16, shift: bool) -> String {
         return if shift { c } else { c.to_ascii_lowercase() }.to_string();
     }
     if keys::is_number(vk) {
-        return if shift && vk == b'1' as u16 { "!".into() } else { (vk as u8 as char).to_string() };
+        return if shift && vk == b'1' as u16 {
+            "!".into()
+        } else {
+            (vk as u8 as char).to_string()
+        };
     }
     match vk {
-        keys::OEM_PERIOD => if shift { ">" } else { "." },
+        keys::OEM_PERIOD => {
+            if shift {
+                ">"
+            } else {
+                "."
+            }
+        }
         keys::OEM_COMMA => ",",
         keys::OEM_MINUS => "-",
         keys::OEM_6 => "]",
@@ -130,14 +140,34 @@ fn buffer_resets() {
 fn text_shortcuts() {
     assert_eq!(type_with("hcm ", hcm, false), "Hồ Chí Minh ");
     assert_eq!(type_with("hcm.", hcm, false), "Hồ Chí Minh.");
-    assert_eq!(type_with("-⇧.", |s| s.shortcuts.push(ShortcutItem::new("->", "→", true)), false), "→");
+    assert_eq!(
+        type_with(
+            "-⇧.",
+            |s| s.shortcuts.push(ShortcutItem::new("->", "→", true)),
+            false
+        ),
+        "→"
+    );
     // shortcuts keep working with Vietnamese off (Issue #129)
-    assert_eq!(type_with("hcm ", |s| { s.enabled = false; hcm(s) }, false), "Hồ Chí Minh ");
+    assert_eq!(
+        type_with(
+            "hcm ",
+            |s| {
+                s.enabled = false;
+                hcm(s)
+            },
+            false
+        ),
+        "Hồ Chí Minh "
+    );
 }
 
 #[test]
 fn options() {
-    assert_eq!(type_with("ok. ban", |s| s.auto_capitalize = true, false), "ok. Ban");
+    assert_eq!(
+        type_with("ok. ban", |s| s.auto_capitalize = true, false),
+        "ok. Ban"
+    );
     assert_eq!(type_keys("w"), "ư");
     assert_eq!(type_with("w", |s| s.auto_w_shortcut = false, false), "w");
     assert_eq!(type_with("]", |s| s.bracket_shortcut = true, false), "ư");
@@ -145,7 +175,10 @@ fn options() {
     assert_eq!(type_keys("hoaf"), "hoà");
     assert_eq!(type_with("hoaf", |s| s.modern_tone = false, false), "hòa");
     assert_eq!(type_keys("zas"), "zas");
-    assert_eq!(type_with("vieetj ", |s| s.enabled = false, false), "vieetj ");
+    assert_eq!(
+        type_with("vieetj ", |s| s.enabled = false, false),
+        "vieetj "
+    );
 }
 
 #[test]
@@ -162,7 +195,10 @@ fn esc_restore() {
     assert_eq!(type_with("vieetj ⎋", restore_on, false), "việt ⎋");
     let custom = |s: &mut Settings| {
         s.restore_shortcut_enabled = true;
-        s.restore_shortcut = Hotkey { vk: b'Z' as u16, mods: MOD_CTRL };
+        s.restore_shortcut = Hotkey {
+            vk: b'Z' as u16,
+            mods: MOD_CTRL,
+        };
     };
     assert_eq!(type_with("vieetj⎋", custom, false), "việt⎋");
     assert_eq!(type_keys("vieetj⎋"), "việt⎋");
@@ -176,8 +212,15 @@ fn non_latin_keyboard_passes_through() {
 #[test]
 fn hotkeys() {
     assert!(Hotkey::DEFAULT_TOGGLE.matches(keys::SPACE, MOD_CTRL));
-    assert!(Hotkey { vk: 0, mods: MOD_CTRL | MOD_SHIFT }.matches_modifier_only(MOD_CTRL | MOD_SHIFT));
-    assert_eq!(Hotkey::from_int(Hotkey::DEFAULT_SECONDARY_TOGGLE.to_int()).to_string(), "Ctrl + Shift + Space");
+    assert!(Hotkey {
+        vk: 0,
+        mods: MOD_CTRL | MOD_SHIFT
+    }
+    .matches_modifier_only(MOD_CTRL | MOD_SHIFT));
+    assert_eq!(
+        Hotkey::from_int(Hotkey::DEFAULT_SECONDARY_TOGGLE.to_int()).to_string(),
+        "Ctrl + Shift + Space"
+    );
 }
 
 #[test]
@@ -193,11 +236,23 @@ fn toggle_hotkey_switches_off_and_blocks_key() {
 #[test]
 fn shortcut_files() {
     let mut imported = Vec::new();
-    settings::import_shortcuts(&settings::export_shortcuts(&[ShortcutItem::new("dc", "dòng 1\ndòng 2", true)]), &mut imported);
-    assert_eq!(imported, vec![ShortcutItem::new("dc", "dòng 1\ndòng 2", true)]);
-    assert_eq!(settings::unescape(&settings::escape("a\\b\tc\r\nd")), "a\\b\tc\r\nd");
+    settings::import_shortcuts(
+        &settings::export_shortcuts(&[ShortcutItem::new("dc", "dòng 1\ndòng 2", true)]),
+        &mut imported,
+    );
+    assert_eq!(
+        imported,
+        vec![ShortcutItem::new("dc", "dòng 1\ndòng 2", true)]
+    );
+    assert_eq!(
+        settings::unescape(&settings::escape("a\\b\tc\r\nd")),
+        "a\\b\tc\r\nd"
+    );
     assert_eq!(settings::normalize_app(" Code "), "Code.exe");
-    let s = Settings { auto_capitalize_excluded_apps: "code.exe, WindowsTerminal".into(), ..Settings::default() };
+    let s = Settings {
+        auto_capitalize_excluded_apps: "code.exe, WindowsTerminal".into(),
+        ..Settings::default()
+    };
     assert!(s.is_auto_capitalize_excluded("windowsterminal.exe"));
 }
 

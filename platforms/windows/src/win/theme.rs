@@ -49,5 +49,8 @@ pub fn refresh() {
 
 /// Windows "app mode" is dark (Settings › Personalization › Colors › "Choose your default app mode")
 pub fn apps_dark() -> bool {
-    super::registry::get_dword(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme") == Some(0)
+    super::registry::get_dword(
+        r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+        "AppsUseLightTheme",
+    ) == Some(0)
 }

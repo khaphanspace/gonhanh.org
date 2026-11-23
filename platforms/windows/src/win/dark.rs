@@ -79,11 +79,24 @@ pub fn separator_brush() -> HBRUSH {
 pub fn begin(hwnd: HWND) {
     DARK.set(theme::apps_dark());
     let p = palette();
-    BRUSHES.set(unsafe { [CreateSolidBrush(p.bg), CreateSolidBrush(p.field), CreateSolidBrush(p.separator)] });
+    BRUSHES.set(unsafe {
+        [
+            CreateSolidBrush(p.bg),
+            CreateSolidBrush(p.field),
+            CreateSolidBrush(p.separator),
+        ]
+    });
     if is_dark() {
         theme::allow_for_window(hwnd);
         let on: i32 = 1;
-        unsafe { DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE as u32, &on as *const _ as _, 4) };
+        unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE as u32,
+                &on as *const _ as _,
+                4,
+            )
+        };
     }
 }
 
@@ -136,9 +149,25 @@ pub fn style_control(h: HWND, class: &str, style: u32) {
         "Edit" if style & ES_MULTILINE as u32 != 0 => unsafe {
             set_theme(h, "DarkMode_Explorer");
             // that theme has no edit border: the 3D edge turns bright white, a flat 1px border stays dark
-            SetWindowLongW(h, GWL_EXSTYLE, GetWindowLongW(h, GWL_EXSTYLE) & !(WS_EX_CLIENTEDGE as i32));
-            SetWindowLongW(h, GWL_STYLE, GetWindowLongW(h, GWL_STYLE) | WS_BORDER as i32);
-            SetWindowPos(h, null_mut(), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            SetWindowLongW(
+                h,
+                GWL_EXSTYLE,
+                GetWindowLongW(h, GWL_EXSTYLE) & !(WS_EX_CLIENTEDGE as i32),
+            );
+            SetWindowLongW(
+                h,
+                GWL_STYLE,
+                GetWindowLongW(h, GWL_STYLE) | WS_BORDER as i32,
+            );
+            SetWindowPos(
+                h,
+                null_mut(),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
+            );
         },
         "Edit" | "ComboBox" => set_theme(h, "DarkMode_CFD"),
         _ => {}
@@ -164,7 +193,14 @@ pub fn style_list(lv: HWND) {
 }
 
 /// Header notifications go to the list view itself: light header text there
-unsafe extern "system" fn list_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _: usize, _: usize) -> LRESULT {
+unsafe extern "system" fn list_proc(
+    h: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _: usize,
+    _: usize,
+) -> LRESULT {
     if msg == WM_NOTIFY {
         let nm = unsafe { &*(lparam as *const NMHDR) };
         if nm.code == NM_CUSTOMDRAW {
@@ -184,7 +220,14 @@ unsafe extern "system" fn list_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: L
 
 // ---------------------------------------------------------------- checkbox / radio
 
-unsafe extern "system" fn check_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _: usize, _: usize) -> LRESULT {
+unsafe extern "system" fn check_proc(
+    h: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _: usize,
+    _: usize,
+) -> LRESULT {
     match msg {
         WM_PAINT => {
             paint_check(h);
@@ -192,7 +235,8 @@ unsafe extern "system" fn check_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: 
         }
         WM_ERASEBKGND => 1,
         // State changes repaint through the default handler; redraw fully so our text stays
-        BM_SETCHECK | BM_SETSTATE | WM_ENABLE | WM_SETTEXT | WM_SETFOCUS | WM_KILLFOCUS | WM_UPDATEUISTATE => {
+        BM_SETCHECK | BM_SETSTATE | WM_ENABLE | WM_SETTEXT | WM_SETFOCUS | WM_KILLFOCUS
+        | WM_UPDATEUISTATE => {
             let r = unsafe { DefSubclassProc(h, msg, wparam, lparam) };
             unsafe { InvalidateRect(h, std::ptr::null(), 0) };
             r
@@ -207,7 +251,12 @@ fn paint_check(h: HWND) {
     unsafe {
         let mut ps: PAINTSTRUCT = std::mem::zeroed();
         let hdc = BeginPaint(h, &mut ps);
-        let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        let mut rc = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
         GetClientRect(h, &mut rc);
         fill(hdc, &rc, p.bg);
 
@@ -230,9 +279,22 @@ fn paint_check(h: HWND) {
         let class = wide("Button");
         let theme = OpenThemeData(h, class.as_ptr());
         let mut size = SIZE { cx: 13, cy: 13 };
-        GetThemePartSize(theme, hdc, part, base + variant, std::ptr::null(), TS_DRAW, &mut size);
+        GetThemePartSize(
+            theme,
+            hdc,
+            part,
+            base + variant,
+            std::ptr::null(),
+            TS_DRAW,
+            &mut size,
+        );
         let top = (rc.bottom - size.cy) / 2;
-        let bx = RECT { left: 0, top, right: size.cx, bottom: top + size.cy };
+        let bx = RECT {
+            left: 0,
+            top,
+            right: size.cx,
+            bottom: top + size.cy,
+        };
         DrawThemeBackground(theme, hdc, part, base + variant, &bx, std::ptr::null());
         CloseThemeData(theme);
 
@@ -241,14 +303,34 @@ fn paint_check(h: HWND) {
         SetBkMode(hdc, TRANSPARENT as i32);
         SetTextColor(hdc, if enabled { p.text } else { p.disabled });
         let mut text = window_text(h);
-        let mut tr = RECT { left: size.cx + scale(6, GetDpiForWindowSafe(h)), ..rc };
-        DrawTextW(hdc, text.as_mut_ptr(), text.len() as i32, &mut tr, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+        let mut tr = RECT {
+            left: size.cx + scale(6, GetDpiForWindowSafe(h)),
+            ..rc
+        };
+        DrawTextW(
+            hdc,
+            text.as_mut_ptr(),
+            text.len() as i32,
+            &mut tr,
+            DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS,
+        );
         // Focus rectangle only while navigating with the keyboard, like the standard control
         let hide_focus = SendMessageW(h, WM_QUERYUISTATE, 0, 0) as u32 & UISF_HIDEFOCUS != 0;
         if GetFocus() == h && !hide_focus {
             let mut fr = tr;
-            DrawTextW(hdc, text.as_mut_ptr(), text.len() as i32, &mut fr, DT_SINGLELINE | DT_CALCRECT);
-            let fr = RECT { left: fr.left - 1, top: (rc.bottom - (fr.bottom - fr.top)) / 2 - 1, right: fr.right + 1, bottom: (rc.bottom + (fr.bottom - fr.top)) / 2 + 1 };
+            DrawTextW(
+                hdc,
+                text.as_mut_ptr(),
+                text.len() as i32,
+                &mut fr,
+                DT_SINGLELINE | DT_CALCRECT,
+            );
+            let fr = RECT {
+                left: fr.left - 1,
+                top: (rc.bottom - (fr.bottom - fr.top)) / 2 - 1,
+                right: fr.right + 1,
+                bottom: (rc.bottom + (fr.bottom - fr.top)) / 2 + 1,
+            };
             DrawFocusRect(hdc, &fr);
         }
         SelectObject(hdc, old);
@@ -272,7 +354,14 @@ pub fn style_tab(tab: HWND) {
     }
 }
 
-unsafe extern "system" fn tab_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _: usize, _: usize) -> LRESULT {
+unsafe extern "system" fn tab_proc(
+    h: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _: usize,
+    _: usize,
+) -> LRESULT {
     match msg {
         WM_PAINT => {
             paint_tab(h);
@@ -290,7 +379,12 @@ fn paint_tab(h: HWND) {
     unsafe {
         let mut ps: PAINTSTRUCT = std::mem::zeroed();
         let hdc = BeginPaint(h, &mut ps);
-        let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        let mut rc = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
         GetClientRect(h, &mut rc);
         fill(hdc, &rc, p.tab_strip);
         let font = SendMessageW(h, WM_GETFONT, 0, 0) as HGDIOBJ;
@@ -299,7 +393,12 @@ fn paint_tab(h: HWND) {
         let selected = SendMessageW(h, TCM_GETCURSEL, 0, 0);
         let mut gap = (0, 0); // bottom line is open under the selected tab
         for i in 0..SendMessageW(h, TCM_GETITEMCOUNT, 0, 0) {
-            let mut r = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            let mut r = RECT {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
             SendMessageW(h, TCM_GETITEMRECT, i as usize, &mut r as *mut _ as isize);
             let mut buf = [0u16; 64];
             let mut item: TCITEMW = std::mem::zeroed();
@@ -309,21 +408,52 @@ fn paint_tab(h: HWND) {
             SendMessageW(h, TCM_GETITEMW, i as usize, &mut item as *mut _ as isize);
             let len = buf.iter().position(|&c| c == 0).unwrap_or(0);
             if i == selected {
-                let tab = RECT { bottom: rc.bottom, ..r };
+                let tab = RECT {
+                    bottom: rc.bottom,
+                    ..r
+                };
                 fill(hdc, &tab, p.bg);
                 for edge in [
-                    RECT { right: tab.left + 1, ..tab },
-                    RECT { left: tab.right - 1, ..tab },
-                    RECT { bottom: tab.top + 1, ..tab },
+                    RECT {
+                        right: tab.left + 1,
+                        ..tab
+                    },
+                    RECT {
+                        left: tab.right - 1,
+                        ..tab
+                    },
+                    RECT {
+                        bottom: tab.top + 1,
+                        ..tab
+                    },
                 ] {
                     fill(hdc, &edge, p.separator);
                 }
                 gap = (tab.left + 1, tab.right - 1);
             }
             SetTextColor(hdc, if i == selected { p.text } else { p.hint });
-            DrawTextW(hdc, buf.as_mut_ptr(), len as i32, &mut r, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
+            DrawTextW(
+                hdc,
+                buf.as_mut_ptr(),
+                len as i32,
+                &mut r,
+                DT_SINGLELINE | DT_VCENTER | DT_CENTER,
+            );
         }
-        for line in [RECT { left: 0, top: rc.bottom - 1, right: gap.0, bottom: rc.bottom }, RECT { left: gap.1, top: rc.bottom - 1, right: rc.right, bottom: rc.bottom }] {
+        for line in [
+            RECT {
+                left: 0,
+                top: rc.bottom - 1,
+                right: gap.0,
+                bottom: rc.bottom,
+            },
+            RECT {
+                left: gap.1,
+                top: rc.bottom - 1,
+                right: rc.right,
+                bottom: rc.bottom,
+            },
+        ] {
             fill(hdc, &line, p.separator);
         }
         SelectObject(hdc, old);

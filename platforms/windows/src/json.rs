@@ -17,7 +17,10 @@ impl Value {
     /// Missing key / not an object → Null
     pub fn get(&self, key: &str) -> &Value {
         match self {
-            Value::Object(members) => members.iter().find(|(k, _)| k == key).map_or(&NULL, |(_, v)| v),
+            Value::Object(members) => members
+                .iter()
+                .find(|(k, _)| k == key)
+                .map_or(&NULL, |(_, v)| v),
             _ => &NULL,
         }
     }
@@ -39,7 +42,11 @@ impl Value {
 }
 
 pub fn parse(text: &str) -> Option<Value> {
-    let mut p = Parser { s: text.as_bytes(), i: 0, depth: 0 };
+    let mut p = Parser {
+        s: text.as_bytes(),
+        i: 0,
+        depth: 0,
+    };
     let v = p.value()?;
     p.ws();
     (p.i == p.s.len()).then_some(v)
@@ -108,10 +115,14 @@ impl Parser<'_> {
                         b't' => '\t',
                         b'u' => {
                             let mut cp = self.hex4()?;
-                            if (0xD800..0xDC00).contains(&cp) && self.s[self.i..].starts_with(b"\\u") {
+                            if (0xD800..0xDC00).contains(&cp)
+                                && self.s[self.i..].starts_with(b"\\u")
+                            {
                                 self.i += 2; // surrogate pair
                                 let lo = self.hex4()?;
-                                cp = 0x10000 + ((cp - 0xD800) << 10) + (lo.wrapping_sub(0xDC00) & 0x3FF);
+                                cp = 0x10000
+                                    + ((cp - 0xD800) << 10)
+                                    + (lo.wrapping_sub(0xDC00) & 0x3FF);
                             }
                             char::from_u32(cp).unwrap_or('\u{FFFD}')
                         }
@@ -174,10 +185,20 @@ impl Parser<'_> {
             _ if self.literal("null") => Value::Null,
             _ => {
                 let start = self.i;
-                while self.i < self.s.len() && matches!(self.s[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                while self.i < self.s.len()
+                    && matches!(
+                        self.s[self.i],
+                        b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                    )
+                {
                     self.i += 1;
                 }
-                Value::Number(std::str::from_utf8(&self.s[start..self.i]).ok()?.parse().ok()?)
+                Value::Number(
+                    std::str::from_utf8(&self.s[start..self.i])
+                        .ok()?
+                        .parse()
+                        .ok()?,
+                )
             }
         };
         self.depth -= 1;

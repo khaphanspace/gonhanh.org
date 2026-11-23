@@ -16,7 +16,10 @@ use std::ptr::null_mut;
 
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
 use windows_sys::Win32::System::Threading::{CreateMutexW, ReleaseMutex};
-use windows_sys::Win32::UI::Controls::{InitCommonControlsEx, ICC_LISTVIEW_CLASSES, ICC_STANDARD_CLASSES, ICC_TAB_CLASSES, INITCOMMONCONTROLSEX};
+use windows_sys::Win32::UI::Controls::{
+    InitCommonControlsEx, ICC_LISTVIEW_CLASSES, ICC_STANDARD_CLASSES, ICC_TAB_CLASSES,
+    INITCOMMONCONTROLSEX,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use controller::InputController;
@@ -59,7 +62,10 @@ fn main() {
         // Launched again: open the running instance's settings instead of a second copy
         let running = tray::find_running();
         if running.is_null() {
-            message_box("GoNhanh đang chạy.\nKiểm tra khay hệ thống (system tray).", MB_ICONINFORMATION);
+            message_box(
+                "GoNhanh đang chạy.\nKiểm tra khay hệ thống (system tray).",
+                MB_ICONINFORMATION,
+            );
         } else {
             unsafe {
                 AllowSetForegroundWindow(ASFW_ANY);

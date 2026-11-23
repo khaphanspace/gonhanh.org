@@ -26,7 +26,10 @@ pub fn check() -> Result<Option<Info>, String> {
 
 pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     let parts = |v: &str| -> Vec<u64> {
-        let mut p: Vec<u64> = v.split('.').map(|x| x.trim().parse().unwrap_or(0)).collect();
+        let mut p: Vec<u64> = v
+            .split('.')
+            .map(|x| x.trim().parse().unwrap_or(0))
+            .collect();
         p.resize(4, 0);
         p
     };
@@ -41,11 +44,17 @@ pub fn pick_update(releases_json: &str, current: &str) -> Result<Option<Info>, S
         if release.get("draft").is_true() || release.get("prerelease").is_true() {
             continue;
         }
-        let tag = release.get("tag_name").as_str().trim_start_matches(['v', 'V']);
+        let tag = release
+            .get("tag_name")
+            .as_str()
+            .trim_start_matches(['v', 'V']);
         if !tag.starts_with(|c: char| c.is_ascii_digit()) {
             continue;
         }
-        if best.as_ref().is_some_and(|b| compare_versions(tag, &b.version).is_le()) {
+        if best
+            .as_ref()
+            .is_some_and(|b| compare_versions(tag, &b.version).is_le())
+        {
             continue;
         }
         let zip_url = release
@@ -54,7 +63,11 @@ pub fn pick_update(releases_json: &str, current: &str) -> Result<Option<Info>, S
             .iter()
             .find(|a| a.get("name").as_str().to_lowercase().ends_with(ZIP_SUFFIX))
             .map(|a| a.get("browser_download_url").as_str().to_string());
-        best = Some(Info { version: tag.to_string(), page_url: release.get("html_url").as_str().to_string(), zip_url });
+        best = Some(Info {
+            version: tag.to_string(),
+            page_url: release.get("html_url").as_str().to_string(),
+            zip_url,
+        });
     }
     Ok(best.filter(|b| compare_versions(&b.version, current).is_gt()))
 }
@@ -72,10 +85,12 @@ pub fn install(info: &Info) -> Result<bool, String> {
     std::fs::create_dir_all(&files).map_err(|e| format!("Không tạo được thư mục tạm: {e}"))?;
 
     let zip = work.join("update.zip");
-    std::fs::write(&zip, crate::win::http_get(zip_url)?).map_err(|e| format!("Không ghi được file cập nhật: {e}"))?;
+    std::fs::write(&zip, crate::win::http_get(zip_url)?)
+        .map_err(|e| format!("Không ghi được file cập nhật: {e}"))?;
 
     // tar.exe ships with Windows 10 1803+ and reads zip
-    let tar = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or("C:\\Windows".into())).join(r"System32\tar.exe");
+    let tar = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or("C:\\Windows".into()))
+        .join(r"System32\tar.exe");
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let status = std::process::Command::new(tar)
         .arg("-xf")
@@ -121,7 +136,10 @@ fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
             if let Some(found) = find_file(&path, name) {
                 return Some(found);
             }
-        } else if path.file_name().is_some_and(|n| n.eq_ignore_ascii_case(name)) {
+        } else if path
+            .file_name()
+            .is_some_and(|n| n.eq_ignore_ascii_case(name))
+        {
             return Some(path);
         }
     }

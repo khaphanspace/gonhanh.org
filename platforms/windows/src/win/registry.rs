@@ -9,7 +9,17 @@ use super::{from_wide, wide};
 pub fn get_dword(path: &str, name: &str) -> Option<u32> {
     let (p, n) = (wide(path), wide(name));
     let (mut v, mut size) = (0u32, 4u32);
-    let r = unsafe { RegGetValueW(HKEY_CURRENT_USER, p.as_ptr(), n.as_ptr(), RRF_RT_REG_DWORD, null_mut(), &mut v as *mut _ as _, &mut size) };
+    let r = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            p.as_ptr(),
+            n.as_ptr(),
+            RRF_RT_REG_DWORD,
+            null_mut(),
+            &mut v as *mut _ as _,
+            &mut size,
+        )
+    };
     (r == 0).then_some(v)
 }
 
@@ -17,11 +27,29 @@ pub fn get_string(path: &str, name: &str) -> Option<String> {
     let (p, n) = (wide(path), wide(name));
     let mut size = 0u32;
     unsafe {
-        if RegGetValueW(HKEY_CURRENT_USER, p.as_ptr(), n.as_ptr(), RRF_RT_REG_SZ, null_mut(), null_mut(), &mut size) != 0 {
+        if RegGetValueW(
+            HKEY_CURRENT_USER,
+            p.as_ptr(),
+            n.as_ptr(),
+            RRF_RT_REG_SZ,
+            null_mut(),
+            null_mut(),
+            &mut size,
+        ) != 0
+        {
             return None;
         }
         let mut buf = vec![0u16; size as usize / 2 + 1];
-        if RegGetValueW(HKEY_CURRENT_USER, p.as_ptr(), n.as_ptr(), RRF_RT_REG_SZ, null_mut(), buf.as_mut_ptr() as _, &mut size) != 0 {
+        if RegGetValueW(
+            HKEY_CURRENT_USER,
+            p.as_ptr(),
+            n.as_ptr(),
+            RRF_RT_REG_SZ,
+            null_mut(),
+            buf.as_mut_ptr() as _,
+            &mut size,
+        ) != 0
+        {
             return None;
         }
         Some(from_wide(&buf))
@@ -40,7 +68,16 @@ pub fn dword_values(path: &str) -> Vec<(String, u32)> {
         for i in 0.. {
             let mut name = [0u16; 260];
             let (mut name_len, mut ty, mut value, mut size) = (260u32, 0u32, 0u32, 4u32);
-            let r = RegEnumValueW(key, i, name.as_mut_ptr(), &mut name_len, null_mut(), &mut ty, &mut value as *mut _ as _, &mut size);
+            let r = RegEnumValueW(
+                key,
+                i,
+                name.as_mut_ptr(),
+                &mut name_len,
+                null_mut(),
+                &mut ty,
+                &mut value as *mut _ as _,
+                &mut size,
+            );
             if r != 0 {
                 break;
             }
@@ -62,7 +99,16 @@ impl Key {
     }
     pub fn set_string(&self, name: &str, v: &str) {
         let (n, w) = (wide(name), wide(v));
-        unsafe { RegSetValueExW(self.0, n.as_ptr(), 0, REG_SZ, w.as_ptr() as _, (w.len() * 2) as u32) };
+        unsafe {
+            RegSetValueExW(
+                self.0,
+                n.as_ptr(),
+                0,
+                REG_SZ,
+                w.as_ptr() as _,
+                (w.len() * 2) as u32,
+            )
+        };
     }
 }
 
@@ -70,7 +116,19 @@ impl Key {
 pub fn with_key(path: &str, f: impl FnOnce(&Key)) -> bool {
     let p = wide(path);
     let mut key: HKEY = null_mut();
-    let r = unsafe { RegCreateKeyExW(HKEY_CURRENT_USER, p.as_ptr(), 0, std::ptr::null(), 0, KEY_WRITE, std::ptr::null(), &mut key, null_mut()) };
+    let r = unsafe {
+        RegCreateKeyExW(
+            HKEY_CURRENT_USER,
+            p.as_ptr(),
+            0,
+            std::ptr::null(),
+            0,
+            KEY_WRITE,
+            std::ptr::null(),
+            &mut key,
+            null_mut(),
+        )
+    };
     if r != 0 {
         return false;
     }

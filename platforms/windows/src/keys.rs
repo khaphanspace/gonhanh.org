@@ -48,7 +48,10 @@ pub const fn is_number(vk: u16) -> bool {
 
 /// Same table as Linux KeycodeMap.h / core/src/data/keys.rs. `None` keys never reach the engine.
 pub fn to_mac_key(vk: u16) -> Option<u16> {
-    const LETTERS: [u16; 26] = [0, 11, 8, 2, 14, 3, 5, 4, 34, 38, 40, 37, 46, 45, 31, 35, 12, 15, 1, 17, 32, 9, 13, 7, 16, 6];
+    const LETTERS: [u16; 26] = [
+        0, 11, 8, 2, 14, 3, 5, 4, 34, 38, 40, 37, 46, 45, 31, 35, 12, 15, 1, 17, 32, 9, 13, 7, 16,
+        6,
+    ];
     const DIGITS: [u16; 10] = [29, 18, 19, 20, 21, 23, 22, 26, 28, 25];
     if is_letter(vk) {
         return Some(LETTERS[(vk - b'A' as u16) as usize]);
@@ -92,7 +95,23 @@ pub const fn is_break_key(vk: u16, shift: bool) -> bool {
     }
     matches!(
         vk,
-        TAB | RETURN | ESCAPE | LEFT | RIGHT | UP | DOWN | OEM_PERIOD | OEM_COMMA | OEM_2 | OEM_1 | OEM_7 | OEM_4 | OEM_6 | OEM_5 | OEM_MINUS | OEM_PLUS | OEM_3
+        TAB | RETURN
+            | ESCAPE
+            | LEFT
+            | RIGHT
+            | UP
+            | DOWN
+            | OEM_PERIOD
+            | OEM_COMMA
+            | OEM_2
+            | OEM_1
+            | OEM_7
+            | OEM_4
+            | OEM_6
+            | OEM_5
+            | OEM_MINUS
+            | OEM_PLUS
+            | OEM_3
     )
 }
 
