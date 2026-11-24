@@ -1,34 +1,10 @@
-//! Onboarding + About as native TaskDialogs
+//! Onboarding as a native TaskDialog
 
-use windows_sys::core::HRESULT;
-use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Controls::*;
 
 use crate::services::settings::Method;
-use crate::services::updater::VERSION;
 use crate::win::wide;
-
-unsafe extern "system" fn link_callback(
-    _: HWND,
-    msg: u32,
-    _: WPARAM,
-    lparam: LPARAM,
-    _: isize,
-) -> HRESULT {
-    if msg == TDN_HYPERLINK_CLICKED as u32 {
-        let url = unsafe {
-            std::slice::from_raw_parts(
-                lparam as *const u16,
-                (0..)
-                    .take_while(|&i| *(lparam as *const u16).add(i) != 0)
-                    .count(),
-            )
-        };
-        crate::win::open_url(&String::from_utf16_lossy(url));
-    }
-    0
-}
 
 fn app_icon() -> *const u16 {
     crate::win::make_int_resource(1) // icon from app.rc
@@ -88,36 +64,4 @@ pub fn run_onboarding(current: Method) -> Method {
     } else {
         current
     }
-}
-
-pub fn show_about(owner: HWND) {
-    let content = wide(&format!(
-        "Phiên bản {VERSION}\n\nPhát triển bởi Kha Phan và cộng đồng, với tất cả ❤️\n\n\
-         <a href=\"https://gonhanh.org\">Website</a>   •   \
-         <a href=\"https://github.com/khaphanspace/gonhanh.org\">GitHub</a>   •   \
-         <a href=\"https://github.com/khaphanspace/gonhanh.org/issues\">Góp ý & báo lỗi</a>\n\n\
-         Giấy phép GPL-3.0-or-later. Viết bằng Rust."
-    ));
-    let title = wide("Giới thiệu GoNhanh");
-    let main = wide("GoNhanh – Gõ Nhanh");
-
-    let mut tdc: TASKDIALOGCONFIG = unsafe { std::mem::zeroed() };
-    tdc.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
-    tdc.hwndParent = owner;
-    tdc.hInstance = unsafe { GetModuleHandleW(std::ptr::null()) };
-    tdc.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_ALLOW_DIALOG_CANCELLATION;
-    tdc.dwCommonButtons = TDCBF_CLOSE_BUTTON;
-    tdc.pszWindowTitle = title.as_ptr();
-    tdc.Anonymous1.pszMainIcon = app_icon();
-    tdc.pszMainInstruction = main.as_ptr();
-    tdc.pszContent = content.as_ptr();
-    tdc.pfCallback = Some(link_callback);
-    unsafe {
-        TaskDialogIndirect(
-            &tdc,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
 }

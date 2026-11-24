@@ -10,7 +10,7 @@ use windows_sys::Win32::UI::HiDpi::{GetDpiForSystem, GetSystemMetricsForDpi};
 use windows_sys::Win32::UI::Shell::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use super::{dialogs, icon, settings_window, theme};
+use super::{icon, settings_window, theme};
 use crate::app::{self, WM_APP_BG_UPDATE, WM_APP_SHOW_SETTINGS, WM_APP_STATE_CHANGED, WM_APP_TRAY};
 use crate::services::settings::Method;
 use crate::services::updater;
@@ -199,7 +199,7 @@ fn show_menu() {
             }
             ID_SETTINGS => settings_window::show(false),
             ID_UPDATE => settings_window::show(true),
-            ID_ABOUT => dialogs::show_about(null_mut()),
+            ID_ABOUT => settings_window::show_about(),
             ID_FEEDBACK => {
                 crate::win::open_url("https://github.com/khaphanspace/gonhanh.org/issues")
             }

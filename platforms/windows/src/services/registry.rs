@@ -56,6 +56,28 @@ pub fn get_string(path: &str, name: &str) -> Option<String> {
     }
 }
 
+/// A REG_BINARY value of at most `max` bytes
+pub fn get_binary(path: &str, name: &str, max: usize) -> Option<Vec<u8>> {
+    let (p, n) = (wide(path), wide(name));
+    let mut buf = vec![0u8; max];
+    let mut size = max as u32;
+    let r = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            p.as_ptr(),
+            n.as_ptr(),
+            RRF_RT_REG_BINARY,
+            null_mut(),
+            buf.as_mut_ptr() as _,
+            &mut size,
+        )
+    };
+    (r == 0).then(|| {
+        buf.truncate(size as usize);
+        buf
+    })
+}
+
 /// All DWORD values under a key (name, value)
 pub fn dword_values(path: &str) -> Vec<(String, u32)> {
     let p = wide(path);

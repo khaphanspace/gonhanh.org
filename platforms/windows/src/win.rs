@@ -3,7 +3,9 @@
 use std::ptr::null_mut;
 
 use windows_sys::Win32::Foundation::{CloseHandle, SYSTEMTIME};
-use windows_sys::Win32::Graphics::Gdi::{CreateFontIndirectW, FW_SEMIBOLD, HFONT};
+use windows_sys::Win32::Graphics::Gdi::{
+    CreateFontIndirectW, CLEARTYPE_QUALITY, FW_SEMIBOLD, HFONT,
+};
 use windows_sys::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_NODEFAULT};
 use windows_sys::Win32::Networking::WinInet::*;
 use windows_sys::Win32::Security::{
@@ -189,6 +191,16 @@ pub fn scale(px: i32, dpi: u32) -> i32 {
 }
 
 /// System message font (Segoe UI 9pt) at `dpi`, optionally bold / resized by `point_delta`
+fn has_segoe_variable() -> bool {
+    static FOUND: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *FOUND.get_or_init(|| {
+        let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
+        std::path::Path::new(&root)
+            .join(r"Fonts\SegUIVar.ttf")
+            .exists()
+    })
+}
+
 pub fn ui_font(dpi: u32, bold: bool, point_delta: i32) -> HFONT {
     unsafe {
         let mut ncm: NONCLIENTMETRICSW = std::mem::zeroed();
@@ -208,6 +220,14 @@ pub fn ui_font(dpi: u32, bold: bool, point_delta: i32) -> HFONT {
         if bold {
             lf.lfWeight = FW_SEMIBOLD as i32;
         }
+        // Windows 11 draws its own UI in Segoe UI Variable; the system font setting still says
+        // Segoe UI. Use the newer one when it is installed.
+        if from_wide(&lf.lfFaceName) == "Segoe UI" && has_segoe_variable() {
+            let name: Vec<u16> = "Segoe UI Variable Text".encode_utf16().collect();
+            lf.lfFaceName = [0; 32];
+            lf.lfFaceName[..name.len()].copy_from_slice(&name);
+        }
+        lf.lfQuality = CLEARTYPE_QUALITY;
         CreateFontIndirectW(&lf)
     }
 }
