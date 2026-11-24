@@ -9,7 +9,7 @@ use crate::core::hook;
 use crate::views::tray;
 
 pub const WM_APP_TRAY: u32 = WM_APP + 1; // tray icon callback
-pub const WM_APP_UPDATE_DONE: u32 = WM_APP + 2; // worker → settings window, lParam = Box<UpdateResult>
+pub const WM_APP_UPDATE_DONE: u32 = WM_APP + 2; // update worker → tray window, lParam = Box<UpdateResult>
 pub const WM_APP_HOTKEY_SET: u32 = WM_APP + 3; // recorder → settings window, wParam = control id
 pub const WM_APP_RECREATE: u32 = WM_APP + 4; // settings window: rebuild after DPI change
 pub const WM_APP_SHOW_SETTINGS: u32 = WM_APP + 5; // second launch → running instance

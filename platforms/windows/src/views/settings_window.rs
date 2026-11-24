@@ -1138,7 +1138,9 @@ fn run_update_step() {
     } else {
         "Đang kiểm tra cập nhật"
     });
-    let hwnd = MAIN.get() as usize;
+    // The tray window outlives this one: the result still arrives (and restarts after an install)
+    // when the settings window was closed meanwhile
+    let hwnd = super::tray::hwnd() as usize;
     std::thread::spawn(move || {
         let result = match &info {
             Some(i) => match updater::install(i) {
@@ -1175,6 +1177,18 @@ fn run_update_step() {
             drop(unsafe { Box::from_raw(ptr) });
         }
     });
+}
+
+/// Update worker finished (delivered through the tray window)
+pub fn update_done(r: UpdateResult) {
+    if MAIN.get().is_null() {
+        BUSY.set(false);
+        if r.install_step && r.restart {
+            crate::restart_after_update();
+        }
+        return;
+    }
+    on_update_done(r);
 }
 
 fn on_update_done(r: UpdateResult) {
@@ -1844,11 +1858,16 @@ fn draw_item(dis: &DRAWITEMSTRUCT) {
 /// on_command reads them. Double clicks count as two clicks.
 fn command(id: i32, code: u32) {
     let (mut id, mut code) = (id, code);
-    if (LABEL..LABEL + 1000).contains(&id) || (SUB_LABEL..SUB_LABEL + 1000).contains(&id) {
+    // A switch row's text is LABEL + switch id, its gray second line SUB_LABEL + switch id
+    let row_switch = [SUB_LABEL, LABEL]
+        .into_iter()
+        .map(|base| id - base)
+        .find(|&s| is_switch(s));
+    if let Some(switch_id) = row_switch {
         if code != STN_CLICKED && code != STN_DBLCLK {
             return;
         }
-        id -= if id >= SUB_LABEL { SUB_LABEL } else { LABEL };
+        id = switch_id;
         if unsafe { IsWindowEnabled(ctl(id)) } == 0 {
             return;
         }
@@ -1999,9 +2018,6 @@ unsafe extern "system" fn wnd_proc(h: HWND, msg: u32, wparam: WPARAM, lparam: LP
         },
         WM_ERASEBKGND => return erase(h, wparam as HDC),
         WM_APP_HOTKEY_SET => commit(),
-        WM_APP_UPDATE_DONE => {
-            on_update_done(*unsafe { Box::from_raw(lparam as *mut UpdateResult) })
-        }
         WM_DPICHANGED => {
             // Rebuild at the new DPI where Windows suggests
             let r = unsafe { &*(lparam as *const RECT) };

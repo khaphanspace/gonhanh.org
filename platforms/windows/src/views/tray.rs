@@ -11,7 +11,10 @@ use windows_sys::Win32::UI::Shell::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use super::{icon, settings_window, theme};
-use crate::app::{self, WM_APP_BG_UPDATE, WM_APP_SHOW_SETTINGS, WM_APP_STATE_CHANGED, WM_APP_TRAY};
+use crate::app::{
+    self, WM_APP_BG_UPDATE, WM_APP_SHOW_SETTINGS, WM_APP_STATE_CHANGED, WM_APP_TRAY,
+    WM_APP_UPDATE_DONE,
+};
 use crate::services::settings::Method;
 use crate::services::updater;
 use crate::win::wide;
@@ -248,6 +251,12 @@ unsafe extern "system" fn wnd_proc(
             settings_window::show(false);
             0
         }
+        WM_APP_UPDATE_DONE => {
+            settings_window::update_done(*unsafe {
+                Box::from_raw(lparam as *mut settings_window::UpdateResult)
+            });
+            0
+        }
         WM_APP_BG_UPDATE => {
             let info = unsafe { Box::from_raw(lparam as *mut updater::Info) };
             notify_update(&info);
@@ -303,6 +312,11 @@ pub fn create() -> bool {
         add_icon();
         true
     }
+}
+
+/// The hidden tray window (lives as long as the app)
+pub fn hwnd() -> HWND {
+    HWND_.get()
 }
 
 /// Find the tray window of a running instance (second launch)
