@@ -5,10 +5,10 @@
 use gonhanh_core::engine::shortcut::Shortcut;
 use gonhanh_core::engine::{Engine, FLAG_KEY_CONSUMED};
 
-use crate::hotkey::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
-use crate::keys;
-use crate::log;
-use crate::settings::Settings;
+use crate::core::hotkey::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
+use crate::core::keys;
+use crate::services::log;
+use crate::services::settings::Settings;
 
 const OWN_PROCESS: &str = "gonhanh.exe";
 
@@ -42,8 +42,8 @@ struct Reply {
     consumed: bool,
 }
 
-/// (text, backspaces, key to type after the text or 0) → screen
-pub type SendFn = Box<dyn FnMut(&str, usize, u16)>;
+/// (text, backspaces, key to type after the text or 0) → screen; false = not (fully) sent
+pub type SendFn = Box<dyn FnMut(&str, usize, u16) -> bool>;
 
 pub struct InputController {
     pub settings: Settings,
@@ -240,7 +240,7 @@ impl InputController {
             return;
         }
 
-        // Japanese, Russian, Thai... keyboard: stay out of the way
+        // Japanese, Russian, Thai keyboards: stay out of the way
         if (self.is_non_latin_layout)() {
             self.engine.clear();
             return;
@@ -261,7 +261,7 @@ impl InputController {
             return;
         }
 
-        // Home, End, Delete, F-keys, numpad...: caret moved or unknown key
+        // Home, End, Delete, F-keys, numpad: caret moved or unknown key
         let Some(reply) = self.process_key(vk, e.shift(), e.caps_lock) else {
             return; // pass the key through
         };
@@ -269,8 +269,15 @@ impl InputController {
         // Word-ending keys (punctuation, Enter, Tab, arrows) are typed after the replacement,
         // unless a shortcut consumed them (e.g. "->" → "→")
         let retype = keys::is_break_key(vk, e.shift()) && !reply.consumed;
-        (self.send)(&reply.text, reply.backspace, if retype { vk } else { 0 });
-        e.handled = true;
+        if (self.send)(&reply.text, reply.backspace, if retype { vk } else { 0 }) {
+            e.handled = true;
+        } else {
+            // Injection failed: let the key through and start a fresh word so engine and screen agree
+            if log::enabled() {
+                log::write("SendInput failed, passing key through");
+            }
+            self.engine.clear();
+        }
     }
 
     /// Engine reply for a Windows key, None = nothing to replace
@@ -303,12 +310,12 @@ impl InputController {
 
     /// Undo Vietnamese transforms of the current word (engine treats it as ESC). false = nothing to undo.
     fn restore(&mut self) -> bool {
-        let reply = self.process_key(keys::ESCAPE, false, false);
-        if let Some(r) = &reply {
-            (self.send)(&r.text, r.backspace, 0);
-        }
+        // A failed send counts as nothing restored, so the shortcut key keeps its normal job
+        let restored = self
+            .process_key(keys::ESCAPE, false, false)
+            .is_some_and(|r| (self.send)(&r.text, r.backspace, 0));
         self.engine.clear();
-        reply.is_some()
+        restored
     }
 }
 

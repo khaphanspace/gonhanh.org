@@ -4,8 +4,9 @@ use std::cell::RefCell;
 
 use windows_sys::Win32::UI::WindowsAndMessaging::WM_APP;
 
-use crate::controller::InputController;
-use crate::win::{hook, tray};
+use crate::core::controller::InputController;
+use crate::core::hook;
+use crate::views::tray;
 
 pub const WM_APP_TRAY: u32 = WM_APP + 1; // tray icon callback
 pub const WM_APP_UPDATE_DONE: u32 = WM_APP + 2; // worker → settings window, lParam = Box<UpdateResult>

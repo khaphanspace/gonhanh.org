@@ -18,14 +18,21 @@ Version comes from the git tag (`GONHANH_VERSION` overrides it).
 
 ## Layout
 
+Same folders as the old C# app (`GoNhanh/Core`, `Services`, `Views`) so the two are easy to compare.
+
 | Path | What |
 |---|---|
-| `src/controller.rs` | Key policy (shortcuts, buffer resets, per-app state) — Windows counterpart of macOS `keyboardCallback` |
-| `src/controller_tests.rs` | Types through the controller + the real engine |
-| `src/keys.rs`, `src/hotkey.rs` | Windows VK → macOS keycode mapping, shortcuts |
-| `src/settings.rs` | `HKCU\SOFTWARE\GoNhanh` + `%APPDATA%\GoNhanh\shortcuts.txt` |
-| `src/updater.rs`, `src/json.rs` | GitHub release check, in-place update (zip asset `*-win-x64.zip`) |
-| `src/win/hook.rs`, `src/win/send.rs` | `WH_KEYBOARD_LL`/`WH_MOUSE_LL` hooks, `SendInput` output |
-| `src/win/foreground.rs` | Foreground app + non-Latin keyboard detection |
-| `src/win/tray.rs`, `src/win/settings_window.rs`, `src/win/dialogs.rs` | Tray, settings window, onboarding/about |
+| `src/main.rs`, `src/app.rs` | Startup, single instance, message loop, shared controller (old `App.xaml.cs`) |
+| `src/win.rs` | Small Win32 helpers: UTF-16, fonts, URLs, HTTP |
+| `src/core/controller.rs` | Key policy (shortcuts, buffer resets, per-app state), Windows counterpart of macOS `keyboardCallback` |
+| `src/core/controller_tests.rs` | Types through the controller + the real engine |
+| `src/core/keys.rs`, `src/core/hotkey.rs` | Windows VK → macOS keycode mapping, shortcuts (old `KeyCodes.cs`) |
+| `src/core/hook.rs`, `src/core/send.rs` | `WH_KEYBOARD_LL`/`WH_MOUSE_LL` hooks, `SendInput` output (old `KeyboardHook.cs`, `TextSender.cs`) |
+| `src/services/settings.rs`, `src/services/registry.rs` | `HKCU\SOFTWARE\GoNhanh` + `%APPDATA%\GoNhanh\shortcuts.txt` (old `SettingsService.cs`) |
+| `src/services/autostart.rs` | Task Scheduler task for "Khởi động cùng Windows" (logon trigger) and "Chạy với quyền admin" (highest privileges, started without UAC) |
+| `src/services/updater.rs`, `src/services/json.rs` | GitHub release check, in-place update (zip asset `*-win-x64.zip`) |
+| `src/services/foreground.rs` | Foreground app + non-Latin keyboard detection |
+| `src/services/log.rs` | Debug log |
+| `src/views/tray.rs`, `src/views/settings_window.rs`, `src/views/dialogs.rs` | Tray, settings window, onboarding/about (old `TrayIcon.cs`, `OnboardingWindow`, `AboutWindow`) |
+| `src/views/theme.rs`, `src/views/dark.rs`, `src/views/icon.rs` | Light/dark theme, tray icon drawing |
 | `build.rs`, `res/` | Icon, manifest (Common Controls v6, per-monitor DPI), version info |

@@ -5,9 +5,9 @@ use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Controls::*;
 
-use super::wide;
-use crate::settings::Method;
-use crate::updater::VERSION;
+use crate::services::settings::Method;
+use crate::services::updater::VERSION;
+use crate::win::wide;
 
 unsafe extern "system" fn link_callback(
     _: HWND,
@@ -25,13 +25,13 @@ unsafe extern "system" fn link_callback(
                     .count(),
             )
         };
-        super::open_url(&String::from_utf16_lossy(url));
+        crate::win::open_url(&String::from_utf16_lossy(url));
     }
     0
 }
 
 fn app_icon() -> *const u16 {
-    super::make_int_resource(1) // icon from app.rc
+    crate::win::make_int_resource(1) // icon from app.rc
 }
 
 /// First run: choose Telex / VNI. Returns the chosen method.

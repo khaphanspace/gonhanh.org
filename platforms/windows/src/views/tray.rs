@@ -10,10 +10,11 @@ use windows_sys::Win32::UI::HiDpi::{GetDpiForSystem, GetSystemMetricsForDpi};
 use windows_sys::Win32::UI::Shell::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use super::{dialogs, icon, settings_window, theme, wide};
+use super::{dialogs, icon, settings_window, theme};
 use crate::app::{self, WM_APP_BG_UPDATE, WM_APP_SHOW_SETTINGS, WM_APP_STATE_CHANGED, WM_APP_TRAY};
-use crate::settings::Method;
-use crate::updater;
+use crate::services::settings::Method;
+use crate::services::updater;
+use crate::win::wide;
 
 const ICON_ID: u32 = 1;
 const NIN_KEYSELECT_: u32 = NIN_SELECT | 1; // NINF_KEY | NIN_SELECT (not in windows-sys)
@@ -160,8 +161,8 @@ fn show_menu() {
             MF_BYCOMMAND,
         );
         separator();
-        add(MF_STRING, ID_SETTINGS, "Cài đặt...");
-        add(MF_STRING, ID_UPDATE, "Kiểm tra cập nhật...");
+        add(MF_STRING, ID_SETTINGS, "Cài đặt");
+        add(MF_STRING, ID_UPDATE, "Kiểm tra cập nhật");
         add(MF_STRING, ID_ABOUT, "Giới thiệu GoNhanh");
         add(MF_STRING, ID_FEEDBACK, "Góp ý && báo lỗi");
         separator();
@@ -199,7 +200,9 @@ fn show_menu() {
             ID_SETTINGS => settings_window::show(false),
             ID_UPDATE => settings_window::show(true),
             ID_ABOUT => dialogs::show_about(null_mut()),
-            ID_FEEDBACK => super::open_url("https://github.com/khaphanspace/gonhanh.org/issues"),
+            ID_FEEDBACK => {
+                crate::win::open_url("https://github.com/khaphanspace/gonhanh.org/issues")
+            }
             ID_EXIT => PostQuitMessage(0),
             _ => {}
         }
@@ -233,7 +236,8 @@ unsafe extern "system" fn wnd_proc(
         }
         // Light/dark switched: redraw the letter in the matching color, re-theme menus
         WM_SETTINGCHANGE
-            if unsafe { super::read_wide_z(lparam as *const u16, 64) } == "ImmersiveColorSet" =>
+            if unsafe { crate::win::read_wide_z(lparam as *const u16, 64) }
+                == "ImmersiveColorSet" =>
         {
             theme::refresh();
             settings_window::theme_changed();
@@ -289,6 +293,11 @@ pub fn create() -> bool {
         theme::allow_for_window(hwnd);
         let msg = wide("TaskbarCreated");
         TASKBAR_CREATED.set(RegisterWindowMessageW(msg.as_ptr()));
+        // When running as admin, Explorer and a second normal launch have lower rights: let their
+        // messages through (icon comes back after Explorer restarts, second launch opens settings)
+        for m in [TASKBAR_CREATED.get(), WM_APP_SHOW_SETTINGS] {
+            ChangeWindowMessageFilterEx(hwnd, m, MSGFLT_ALLOW, null_mut());
+        }
         let enabled = app::try_with(|c| c.settings.enabled).unwrap_or(true);
         ICON.set(make_icon(enabled));
         add_icon();

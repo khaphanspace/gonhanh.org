@@ -11,20 +11,24 @@ use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Controls::Dialogs::*;
 use windows_sys::Win32::UI::Controls::*;
-use windows_sys::Win32::UI::HiDpi::{
-    AdjustWindowRectExForDpi, GetDpiForWindow, GetSystemMetricsForDpi,
-};
+use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     EnableWindow, GetKeyState, SetFocus, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use super::{dark, foreground, from_wide, hook, scale, ui_font, wide};
+use super::dark;
 use crate::app::{self, WM_APP_HOTKEY_SET, WM_APP_RECREATE, WM_APP_UPDATE_DONE};
-use crate::hotkey::{Hotkey, MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
-use crate::settings::{self, Method, ShortcutItem};
-use crate::{keys, log, updater};
+use crate::core::hook;
+use crate::core::hotkey::{Hotkey, MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
+use crate::core::keys;
+use crate::services::autostart::{self, Outcome};
+use crate::services::foreground;
+use crate::services::settings::{self, Method, ShortcutItem};
+use crate::services::{log, updater};
+use crate::win::is_elevated;
+use crate::win::{from_wide, scale, ui_font, wide};
 
 // ---------------------------------------------------------------- ids & layout
 const ID_TAB: i32 = 1000;
@@ -66,12 +70,13 @@ const ID_APP_PICKER: i32 = 1036;
 const ID_PROFILE_STATE: i32 = 1037;
 const ID_PROFILE_ADD: i32 = 1038;
 const ID_PROFILE_REMOVE: i32 = 1039;
+const ID_RUN_AS_ADMIN: i32 = 1040;
 const ID_SEPARATOR: i32 = 1099;
 
 const SS_LEFT: u32 = 0; // static control styles (not in windows-sys)
 const SS_PATHELLIPSIS: u32 = 0x8000;
 const CLIENT_W: i32 = 488; // page content spans x 16..472 → equal side margins
-const CLIENT_H: i32 = 450;
+const CLIENT_H: i32 = 474;
 const PAGE_TITLES: [&str; 3] = ["Cài đặt", "Gõ tắt", "Nâng cao"];
 const STATE_NAMES: [&str; 3] = ["Tự động", "Luôn bật", "Luôn tắt"];
 const MAIN_CLASS: &str = "GoNhanhSettings";
@@ -290,7 +295,7 @@ fn start_recording(rec: HWND) {
     RECORDING.set(rec);
     PENDING_MODS.set(0);
     hook::set_suspended(true); // the old shortcut must not fire while recording
-    let w = wide("Nhấn phím...");
+    let w = wide("Nhấn phím");
     unsafe {
         SetWindowTextW(rec, w.as_ptr());
         SetFocus(rec);
@@ -321,7 +326,7 @@ unsafe extern "system" fn recorder_proc(
                 if keys::is_modifier(vk) {
                     PENDING_MODS.set(PENDING_MODS.get() | held_mods());
                     let w = wide(&format!(
-                        "{} ...",
+                        "{} +",
                         Hotkey {
                             vk: 0,
                             mods: PENDING_MODS.get()
@@ -399,20 +404,15 @@ fn list_view(
     dark::style_list(lv);
     for (i, (title, width)) in columns.iter().enumerate() {
         let t = wide(title);
-        let cx = if *width < 0 {
-            // last column fills the rest
-            s(w) - s(4)
-                - send(lv, LVM_GETCOLUMNWIDTH, 0, 0) as i32
-                - unsafe { GetSystemMetricsForDpi(SM_CXVSCROLL, DPI.get()) }
-        } else {
-            s(*width)
-        };
+        // A negative width = the last column fills the rest (sized by fit_last_column)
+        let cx = s((*width).max(60));
         let mut col: LVCOLUMNW = unsafe { std::mem::zeroed() };
         col.mask = LVCF_TEXT | LVCF_WIDTH;
         col.pszText = t.as_ptr() as *mut u16;
         col.cx = cx;
         send(lv, LVM_INSERTCOLUMNW, i, &col as *const _ as isize);
     }
+    fit_last_column(lv);
     lv
 }
 
@@ -488,6 +488,7 @@ fn fill_shortcuts(select: Option<usize>) {
     if let Some(row) = select {
         lv_select(lv, row);
     }
+    fit_last_column(lv);
     LOADING.set(false);
 }
 
@@ -513,7 +514,30 @@ fn fill_profiles(select: Option<&str>) {
             lv_select(lv, i);
         }
     }
+    fit_last_column(lv);
     LOADING.set(false);
+}
+
+/// The last column takes exactly the visible width left: no empty strip after it that looks like an
+/// extra column, no horizontal scrollbar. Call again after the rows change (the vertical scrollbar
+/// comes and goes with them).
+fn fit_last_column(lv: HWND) {
+    let header = send(lv, LVM_GETHEADER, 0, 0) as HWND;
+    let count = send(header, HDM_GETITEMCOUNT, 0, 0).max(0) as usize;
+    if count == 0 {
+        return;
+    }
+    let mut rc: RECT = unsafe { std::mem::zeroed() };
+    unsafe { GetClientRect(lv, &mut rc) };
+    let used: i32 = (0..count - 1)
+        .map(|i| send(lv, LVM_GETCOLUMNWIDTH, i, 0) as i32)
+        .sum();
+    send(
+        lv,
+        LVM_SETCOLUMNWIDTH,
+        count - 1,
+        (rc.right - used).max(s(60)) as isize,
+    );
 }
 
 // ---------------------------------------------------------------- apply
@@ -553,6 +577,7 @@ fn commit() {
         st.per_app_mode = checked(ID_PER_APP);
         st.sound_enabled = checked(ID_SOUND);
         st.auto_start = checked(ID_AUTO_START);
+        st.run_as_admin = checked(ID_RUN_AS_ADMIN);
         st.secondary_toggle_enabled = checked(ID_SECONDARY);
         st.remote_desktop_mode = checked(ID_REMOTE);
         st.debug_log = checked(ID_DEBUG_LOG);
@@ -739,9 +764,9 @@ fn run_update_step() {
     enable(ID_UPDATE_BTN, false);
     let info = UPDATE.with(|u| u.borrow().clone());
     set_status(if info.is_some() {
-        "Đang tải bản cập nhật..."
+        "Đang tải bản cập nhật"
     } else {
-        "Đang kiểm tra..."
+        "Đang kiểm tra cập nhật"
     });
     let hwnd = MAIN.get() as usize;
     std::thread::spawn(move || {
@@ -892,6 +917,16 @@ fn build_general(st: &settings::Settings) {
     );
     check(0, ID_SOUND, "Âm thanh khi bật/tắt", 16, 308, 224);
     check(0, ID_AUTO_START, "Khởi động cùng Windows", 248, 308, 224);
+    check(0, ID_RUN_AS_ADMIN, "Chạy với quyền admin", 16, 332, 224);
+    hint(
+        0,
+        "Gõ được trong app chạy quyền admin",
+        248,
+        335,
+        224,
+        18,
+        0,
+    );
 
     add(
         0,
@@ -899,7 +934,7 @@ fn build_general(st: &settings::Settings) {
         "",
         SS_LEFT,
         16,
-        344,
+        368,
         456,
         1,
         ID_SEPARATOR,
@@ -912,7 +947,7 @@ fn build_general(st: &settings::Settings) {
         "",
         SS_LEFT,
         16,
-        360,
+        384,
         290,
         34,
         ID_UPDATE_STATUS,
@@ -920,7 +955,7 @@ fn build_general(st: &settings::Settings) {
         0,
     );
     set_status("");
-    button(0, ID_UPDATE_BTN, "Kiểm tra cập nhật", 312, 356, 160);
+    button(0, ID_UPDATE_BTN, "Kiểm tra cập nhật", 312, 380, 160);
 }
 
 fn build_shortcuts() {
@@ -967,8 +1002,8 @@ fn build_shortcuts() {
     );
     button(1, ID_SHORTCUT_SAVE, "Thêm / Cập nhật", 84, 366, 124);
     button(1, ID_SHORTCUT_DELETE, "Xoá", 214, 366, 70);
-    button(1, ID_IMPORT, "Nhập từ file...", 316, 366, 76);
-    button(1, ID_EXPORT, "Xuất ra file...", 396, 366, 76);
+    button(1, ID_IMPORT, "Nhập từ file", 316, 366, 76);
+    button(1, ID_EXPORT, "Xuất ra file", 396, 366, 76);
     fill_shortcuts(None);
 }
 
@@ -1071,6 +1106,7 @@ fn load_values() {
     set_checked(ID_PER_APP, st.per_app_mode);
     set_checked(ID_SOUND, st.sound_enabled);
     set_checked(ID_AUTO_START, st.auto_start);
+    set_checked(ID_RUN_AS_ADMIN, st.run_as_admin);
     set_checked(ID_SECONDARY, st.secondary_toggle_enabled);
     set_checked(ID_REMOTE, st.remote_desktop_mode);
     set_checked(ID_DEBUG_LOG, st.debug_log);
@@ -1095,6 +1131,32 @@ fn show_page(index: usize) {
     };
 }
 
+/// "Khởi động cùng Windows" / "Chạy với quyền admin" clicked: update the Task Scheduler task (may ask
+/// UAC; the checkbox goes back if that fails), then restart with the new rights when admin changed
+fn toggle_task_option(id: i32) {
+    let (auto_start, admin) = (checked(ID_AUTO_START), checked(ID_RUN_AS_ADMIN));
+    let main = MAIN.get();
+    unsafe { EnableWindow(main, 0) }; // no second click while UAC / schtasks runs
+    let outcome = autostart::sync(auto_start, admin, main);
+    unsafe {
+        EnableWindow(main, 1);
+        SetForegroundWindow(main);
+    }
+    match outcome {
+        Outcome::Done => commit(),
+        Outcome::Cancelled => return set_checked(id, !checked(id)),
+        Outcome::Failed => {
+            set_checked(id, !checked(id));
+            return message(
+                "Không cập nhật được Task Scheduler. Bật Debug log rồi thử lại để xem lỗi.",
+            );
+        }
+    }
+    if id == ID_RUN_AS_ADMIN && admin != is_elevated() && !crate::restart_with_admin(admin) {
+        message("Đã lưu. Mở lại GoNhanh để áp dụng quyền mới.");
+    }
+}
+
 // ---------------------------------------------------------------- window procs
 
 fn on_command(id: i32, code: u32) {
@@ -1102,6 +1164,11 @@ fn on_command(id: i32, code: u32) {
         ID_ENABLED => {
             let on = checked(ID_ENABLED);
             app::try_with(|c| c.set_enabled(on));
+        }
+        ID_AUTO_START | ID_RUN_AS_ADMIN => {
+            if code == BN_CLICKED && !LOADING.get() {
+                toggle_task_option(id);
+            }
         }
         ID_TOGGLE_HOTKEY | ID_RESTORE_HOTKEY | ID_SECONDARY_HOTKEY => {
             if code == BN_CLICKED {
@@ -1129,7 +1196,7 @@ fn on_command(id: i32, code: u32) {
         ID_EXPORT => export_shortcuts(),
         ID_OPEN_LOG => {
             if log::file_path().exists() {
-                super::open_url(&log::file_path().display().to_string());
+                crate::win::open_url(&log::file_path().display().to_string());
             } else {
                 message("Chưa có log. Bật Debug log rồi gõ thử.");
             }
@@ -1304,7 +1371,7 @@ fn register_classes() {
         wc.hInstance = instance;
         wc.hCursor = LoadCursorW(null_mut(), IDC_ARROW);
         wc.hbrBackground = null_mut(); // painted in WM_ERASEBKGND with the light/dark palette
-        wc.hIcon = LoadIconW(instance, super::make_int_resource(1));
+        wc.hIcon = LoadIconW(instance, crate::win::make_int_resource(1));
         wc.lpszClassName = main.as_ptr();
         RegisterClassExW(&wc);
         wc.lpfnWndProc = Some(page_proc);

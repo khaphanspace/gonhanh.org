@@ -13,7 +13,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetFocus, IsWindowEnabled}
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use super::{scale, theme, wide};
+use super::theme;
+use crate::win::{scale, wide};
 
 /// COLORREF values (0x00BBGGRR)
 #[derive(Clone, Copy)]

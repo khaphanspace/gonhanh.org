@@ -2,7 +2,7 @@
 
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 
-use crate::keys;
+use crate::core::keys;
 
 /// Marks our own injected keys so the hook skips them ("GNH ")
 pub const INJECTED_MARKER: usize = 0x474E_4820;
@@ -28,8 +28,9 @@ fn press(out: &mut Vec<INPUT>, vk: u16, extra: KEYBD_EVENT_FLAGS) {
 }
 
 /// Delete `backspaces` chars, type `text`, then press `trailing_vk` (0 = none) — one SendInput batch,
-/// so the order is kept (Shift held by the user still applies to the trailing key)
-pub fn send_text(text: &str, backspaces: usize, trailing_vk: u16) {
+/// so the order is kept (Shift held by the user still applies to the trailing key).
+/// false = Windows inserted fewer events than asked (input blocked or desktop switched)
+pub fn send_text(text: &str, backspaces: usize, trailing_vk: u16) -> bool {
     let mut inputs = Vec::with_capacity(backspaces * 2 + text.len() * 2 + 2);
     for _ in 0..backspaces {
         press(&mut inputs, VK_BACK, 0);
@@ -61,13 +62,15 @@ pub fn send_text(text: &str, backspaces: usize, trailing_vk: u16) {
             },
         );
     }
-    if !inputs.is_empty() {
-        unsafe {
-            SendInput(
-                inputs.len() as u32,
-                inputs.as_ptr(),
-                std::mem::size_of::<INPUT>() as i32,
-            )
-        };
+    if inputs.is_empty() {
+        return true;
     }
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_ptr(),
+            std::mem::size_of::<INPUT>() as i32,
+        )
+    };
+    sent as usize == inputs.len()
 }

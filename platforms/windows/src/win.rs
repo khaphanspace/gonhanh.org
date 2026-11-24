@@ -1,24 +1,17 @@
-//! Win32 layer: hooks, text output, foreground watcher, tray, settings window, small OS helpers
-
-pub mod dark;
-pub mod dialogs;
-pub mod foreground;
-pub mod hook;
-pub mod icon;
-pub mod registry;
-pub mod send;
-pub mod settings_window;
-pub mod theme;
-pub mod tray;
+//! Small Win32 helpers shared by core, services and views (UTF-16, fonts, URLs, HTTP)
 
 use std::ptr::null_mut;
 
-use windows_sys::Win32::Foundation::SYSTEMTIME;
+use windows_sys::Win32::Foundation::{CloseHandle, SYSTEMTIME};
 use windows_sys::Win32::Graphics::Gdi::{CreateFontIndirectW, FW_SEMIBOLD, HFONT};
 use windows_sys::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_NODEFAULT};
 use windows_sys::Win32::Networking::WinInet::*;
+use windows_sys::Win32::Security::{
+    GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+};
 use windows_sys::Win32::System::Diagnostics::Debug::OutputDebugStringW;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 use windows_sys::Win32::UI::HiDpi::SystemParametersInfoForDpi;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyNameTextW, MapVirtualKeyW, MAPVK_VK_TO_VSC,
@@ -26,7 +19,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use crate::keys;
+use crate::core::keys;
 
 /// UTF-16, NUL-terminated
 pub fn wide(s: &str) -> Vec<u16> {
@@ -60,19 +53,47 @@ pub fn key_name_text(vk: u16) -> Option<String> {
     (n > 0).then(|| from_wide(&buf))
 }
 
-/// Open a URL (or a file with its default app)
+/// Open a URL (or a file with its default app). When GoNhanh runs elevated (Task Scheduler autostart),
+/// Explorer opens it instead, so the browser or editor runs with normal rights.
 pub fn open_url(url: &str) {
-    let (verb, target) = (wide("open"), wide(url));
+    let verb = wide("open");
+    let (file, params) = if is_elevated() {
+        (wide("explorer.exe"), Some(wide(&format!("\"{url}\""))))
+    } else {
+        (wide(url), None)
+    };
     unsafe {
         ShellExecuteW(
             null_mut(),
             verb.as_ptr(),
-            target.as_ptr(),
-            std::ptr::null(),
+            file.as_ptr(),
+            params.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
             std::ptr::null(),
             SW_SHOWNORMAL,
         )
     };
+}
+
+/// Running as administrator (e.g. started by the autostart task)
+pub fn is_elevated() -> bool {
+    static ELEVATED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ELEVATED.get_or_init(|| unsafe {
+        let mut token = null_mut();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
+            return false;
+        }
+        let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+        let mut len = 0;
+        let ok = GetTokenInformation(
+            token,
+            TokenElevation,
+            &mut elevation as *mut TOKEN_ELEVATION as *mut _,
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut len,
+        ) != 0;
+        CloseHandle(token);
+        ok && elevation.TokenIsElevated != 0
+    })
 }
 
 /// Short Windows "Speech On/Off" sounds, like macOS Tink/Pop

@@ -1,6 +1,6 @@
 //! Keyboard shortcut: key + modifiers, or modifiers alone (vk = 0, e.g. Ctrl+Shift like Unikey)
 
-use crate::keys;
+use crate::core::keys;
 
 pub const MOD_CTRL: u32 = 1;
 pub const MOD_ALT: u32 = 2;

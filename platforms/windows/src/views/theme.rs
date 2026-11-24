@@ -5,7 +5,7 @@
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 
-use super::wide;
+use crate::win::wide;
 
 type SetPreferredAppMode = unsafe extern "system" fn(i32) -> i32; // uxtheme #135 (1 = allow dark)
 type AllowDarkModeForWindow = unsafe extern "system" fn(HWND, i32) -> u8; // uxtheme #133
@@ -49,7 +49,7 @@ pub fn refresh() {
 
 /// Windows "app mode" is dark (Settings › Personalization › Colors › "Choose your default app mode")
 pub fn apps_dark() -> bool {
-    super::registry::get_dword(
+    crate::services::registry::get_dword(
         r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         "AppsUseLightTheme",
     ) == Some(0)

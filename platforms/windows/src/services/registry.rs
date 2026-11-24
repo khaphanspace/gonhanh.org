@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 
 use windows_sys::Win32::System::Registry::*;
 
-use super::{from_wide, wide};
+use crate::win::{from_wide, wide};
 
 pub fn get_dword(path: &str, name: &str) -> Option<u32> {
     let (p, n) = (wide(path), wide(name));

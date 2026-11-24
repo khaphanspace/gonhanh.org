@@ -10,11 +10,11 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use super::send::INJECTED_MARKER;
 use crate::app;
-use crate::controller::KeyEvent;
-use crate::hotkey::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
-use crate::keys;
+use crate::core::controller::KeyEvent;
+use crate::core::hotkey::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_WIN};
+use crate::core::keys;
+use crate::core::send::INJECTED_MARKER;
 
 thread_local! {
     static KEYBOARD: Cell<HHOOK> = const { Cell::new(null_mut()) };

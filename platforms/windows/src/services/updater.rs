@@ -3,7 +3,7 @@
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 
-use crate::json;
+use crate::services::json;
 
 /// /releases (not /releases/latest) to get the highest version, same as macOS UpdateChecker
 const API_URL: &str = "https://api.github.com/repos/khaphanspace/gonhanh.org/releases";

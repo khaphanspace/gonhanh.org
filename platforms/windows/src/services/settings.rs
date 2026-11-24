@@ -4,9 +4,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::hotkey::Hotkey;
-use crate::log;
-use crate::win::registry as reg;
+use crate::core::hotkey::Hotkey;
+use crate::services::log;
+use crate::services::registry as reg;
 
 const KEY: &str = r"SOFTWARE\GoNhanh";
 const PER_APP_MODES_KEY: &str = r"SOFTWARE\GoNhanh\PerAppModes";
@@ -42,6 +42,8 @@ pub struct Settings {
     pub enabled: bool,
     pub first_run: bool,
     pub auto_start: bool,
+    /// Run elevated through the Task Scheduler task (services::autostart)
+    pub run_as_admin: bool,
 
     pub auto_w_shortcut: bool,
     pub bracket_shortcut: bool,
@@ -76,6 +78,7 @@ impl Default for Settings {
             enabled: true,
             first_run: true,
             auto_start: false,
+            run_as_admin: false,
             auto_w_shortcut: true,
             bracket_shortcut: false,
             english_auto_restore: true,
@@ -130,6 +133,7 @@ impl Settings {
             enabled: b("Enabled", d.enabled),
             first_run: b("FirstRun", d.first_run),
             auto_start: b("AutoStart", d.auto_start),
+            run_as_admin: b("RunAsAdmin", d.run_as_admin),
             auto_w_shortcut: b("AutoWShortcut", d.auto_w_shortcut),
             bracket_shortcut: b("BracketShortcut", d.bracket_shortcut),
             english_auto_restore: b("EnglishAutoRestore", d.english_auto_restore),
@@ -169,6 +173,7 @@ impl Settings {
             b("Enabled", self.enabled);
             b("FirstRun", self.first_run);
             b("AutoStart", self.auto_start);
+            b("RunAsAdmin", self.run_as_admin);
             b("AutoWShortcut", self.auto_w_shortcut);
             b("BracketShortcut", self.bracket_shortcut);
             b("EnglishAutoRestore", self.english_auto_restore);
@@ -201,7 +206,6 @@ impl Settings {
                 k.set_dword(app, *state as u32);
             }
         });
-        self.update_auto_start();
     }
 
     pub fn save_per_app_mode(&mut self, app: &str, on: bool) {
@@ -226,18 +230,6 @@ impl Settings {
         let _ = std::fs::create_dir_all(data_dir());
         if std::fs::write(shortcuts_file(), text).is_err() {
             log::write("Failed to save shortcuts");
-        }
-    }
-
-    fn update_auto_start(&self) {
-        const RUN: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-        if self.auto_start {
-            let exe = std::env::current_exe().unwrap_or_default();
-            reg::with_key(RUN, |k| {
-                k.set_string("GoNhanh", &format!("\"{}\"", exe.display()))
-            });
-        } else {
-            reg::delete_value(RUN, "GoNhanh");
         }
     }
 

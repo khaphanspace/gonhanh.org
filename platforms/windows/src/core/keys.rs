@@ -91,7 +91,7 @@ pub const fn is_navigation(vk: u16) -> bool {
 /// Word-ending keys other than Space (macOS isBreakKey): typed again after an engine replacement
 pub const fn is_break_key(vk: u16, shift: bool) -> bool {
     if is_number(vk) {
-        return shift; // Shift+digit = !@#...
+        return shift; // Shift+digit = a symbol (!@#)
     }
     matches!(
         vk,

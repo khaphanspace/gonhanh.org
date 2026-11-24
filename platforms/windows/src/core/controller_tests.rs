@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::*;
-use crate::hotkey::Hotkey;
-use crate::settings::{self, Method, ShortcutItem};
+use crate::core::hotkey::Hotkey;
+use crate::services::settings::{self, Method, ShortcutItem};
 
 /// Script: plain chars are keys; '⇧' = next key with Shift, '^' = next key with Ctrl; ⎋ ← ⏎ ⌫ special keys
 fn key_of(c: char) -> (u16, bool) {
@@ -69,6 +69,7 @@ fn type_with(script: &str, setup: impl FnOnce(&mut Settings), non_latin: bool) -
         if trailing != 0 {
             sc.push_str(&printed(trailing, false));
         }
+        true
     });
     let mut c = InputController::new(s, send);
     c.persist = false;
@@ -225,12 +226,31 @@ fn hotkeys() {
 
 #[test]
 fn toggle_hotkey_switches_off_and_blocks_key() {
-    let mut c = InputController::new(Settings::default(), Box::new(|_, _, _| {}));
+    let mut c = InputController::new(Settings::default(), Box::new(|_, _, _| true));
     c.persist = false;
     let mut e = KeyEvent::new(keys::SPACE, MOD_CTRL, false);
     c.on_key(&mut e);
     assert!(e.handled);
     assert!(!c.settings.enabled);
+}
+
+#[test]
+fn failed_send_passes_key_through_and_resets_word() {
+    let fail = Rc::new(RefCell::new(true));
+    let f = fail.clone();
+    let mut c = InputController::new(Settings::default(), Box::new(move |_, _, _| !*f.borrow()));
+    c.persist = false;
+    let mut press = |vk: u8| {
+        let mut e = KeyEvent::new(vk as u16, 0, false);
+        c.on_key(&mut e);
+        e.handled
+    };
+    // Telex "as" → "á", but the replacement can't be sent: "s" must reach the app instead of vanishing
+    assert!(!press(b'A'));
+    assert!(!press(b'S'));
+    // The word was reset: the next "s" is a plain letter, not an undo of a mark the screen never showed
+    *fail.borrow_mut() = false;
+    assert!(!press(b'S'));
 }
 
 #[test]
@@ -260,7 +280,7 @@ fn shortcut_files() {
 fn per_app_profile_overrides_and_restores() {
     let mut s = Settings::default();
     s.per_app_profiles.insert("game.exe".into(), -1);
-    let mut c = InputController::new(s, Box::new(|_, _, _| {}));
+    let mut c = InputController::new(s, Box::new(|_, _, _| true));
     c.persist = false;
     c.on_app_changed("Game.exe");
     assert!(!c.settings.enabled);
