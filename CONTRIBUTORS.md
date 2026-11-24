@@ -1357,12 +1357,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
   </tr>
   <tr>
     <td align="center">
-      <a href="https://github.com/n3d06">
-        <img src="https://avatars.githubusercontent.com/u/217141310?u=f64316b2085eee05b2010a6b31a1787389ebfdd5&v=4" width="50" style="border-radius:50%"/><br/>
-        <b>n3d06</b>
-      </a>
-    </td>
-    <td align="center">
       <a href="https://github.com/huyz">
         <img src="https://avatars.githubusercontent.com/u/128394?u=aaee556390ecf35d979057519bcb5e18ccc7123c&v=4" width="50" style="border-radius:50%"/><br/>
         <b>huyz</b>
@@ -1395,6 +1389,6 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
 
 ---
 
-*Được cập nhật tự động · Lần cuối: 23/11/2026*
+*Được cập nhật tự động · Lần cuối: 24/11/2026*
 
 </div>
