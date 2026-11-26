@@ -1357,6 +1357,12 @@ Những người đã báo lỗi, góp ý, và thảo luận giúp định hình
   </tr>
   <tr>
     <td align="center">
+      <a href="https://github.com/ijmae">
+        <img src="https://avatars.githubusercontent.com/u/40908539?v=4" width="50" style="border-radius:50%"/><br/>
+        <b>ijmae</b>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/MinhAmazing">
         <img src="https://avatars.githubusercontent.com/u/33222317?u=01043ef2ff793d7e0212cac1d34a43b004b8ed32&v=4" width="50" style="border-radius:50%"/><br/>
         <b>MinhAmazing</b>
