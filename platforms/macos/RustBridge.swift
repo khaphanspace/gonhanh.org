@@ -1937,6 +1937,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.carriez.rustdesk", // RustDesk
         "com.philandro.anydesk", // AnyDesk
         "com.teamviewer.TeamViewer", // TeamViewer
+        "com.apple.ScreenSharing", // Screen Sharing
     ]
     if remoteDesktopApps.contains(bundleId) {
         return cached(.passthrough, (0, 0, 0), "pass:remote")
