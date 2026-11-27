@@ -181,8 +181,8 @@ private func isBreakKey(_ keyCode: CGKeyCode, shift: Bool) -> Bool {
 // MARK: - Injection Method
 
 private enum InjectionMethod {
-    case fast // Default: backspace + text with minimal delays
-    case slow // Terminals/Electron: backspace + text with higher delays
+    case fast // Default: backspace + text
+    case slow // Terminals/Electron: backspace + text (same as fast unless a delay is set by hand)
     case charByChar // Safari Google Docs: backspace + text character-by-character
     case selection // Browser address bars: Shift+Left select + type replacement
     case axDirect // Spotlight primary: AX API direct text manipulation (macOS 13+)
@@ -202,47 +202,54 @@ private class TextInjector {
 
     private init() {}
 
-    /// Post break key (Enter, punctuation) synthetically after text injection
+    /// Post the break key (Enter, punctuation) after a replacement, at the same place in the stream
     /// Used for auto-restore to ensure correct event ordering
-    func postBreakKey(keyCode: CGKeyCode, shift: Bool) {
+    func postBreakKey(keyCode: CGKeyCode, shift: Bool, proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
         let flags: CGEventFlags = shift ? .maskShift : []
-        postKey(keyCode, source: src, flags: flags)
+        postKey(keyCode, source: src, flags: flags, proxy: proxy)
     }
 
     /// Inject text replacement synchronously (blocks until complete)
+    ///
+    /// Every event is posted with CGEventTapPostEvent (proxy), i.e. at the tap's own position in the
+    /// event stream. Posting at the end of the session queue (CGEvent.post) let the next physical key
+    /// overtake the replacement (việt -> vitệ), so there is nothing to wait for after posting.
+    /// `delays` is zero unless the user set a delay for the app by hand.
     func injectSync(bs: Int, text: String, method: InjectionMethod, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
         semaphore.wait()
         defer { semaphore.signal() }
 
         switch method {
         case .selection:
-            injectViaSelection(bs: bs, text: text, delays: delays)
+            injectViaSelection(bs: bs, text: text, delays: delays, proxy: proxy)
         case .axDirect:
             injectViaAXWithFallback(bs: bs, text: text, proxy: proxy)
         case .emptyCharPrefix:
-            injectViaBackspace(bs: bs, text: text, delays: delays, emptyCharPrefix: true)
+            injectViaBackspace(bs: bs, text: text, delays: delays, proxy: proxy, emptyCharPrefix: true)
         case .charByChar:
-            injectViaBackspace(bs: bs, text: text, delays: delays, charByChar: true)
+            injectViaBackspace(bs: bs, text: text, delays: delays, proxy: proxy, charByChar: true)
         case .slow, .fast:
-            injectViaBackspace(bs: bs, text: text, delays: delays)
+            injectViaBackspace(bs: bs, text: text, delays: delays, proxy: proxy)
         case .syncProxy:
             injectViaProxy(bs: bs, text: text, proxy: proxy)
         case .passthrough:
             // Should not reach here - passthrough is handled in keyboard callback
             break
         }
-
-        // Settle time: 20ms for slow apps, 5ms for others
-        usleep(method == .slow ? 20000 : 5000)
     }
 
     // MARK: - Injection Methods
 
+    /// Sleep only when a delay was asked for (zero means post straight away)
+    private func pause(_ micros: UInt32) {
+        if micros > 0 { usleep(micros) }
+    }
+
     /// Standard backspace injection: delete N chars, then type replacement
     /// - charByChar: character-by-character mode (slower but more reliable for Safari Google Docs)
     /// - emptyCharPrefix: send empty char (U+202F) first to break autocomplete highlight (for browser address bars)
-    private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), charByChar: Bool = false, emptyCharPrefix: Bool = false) {
+    private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy, charByChar: Bool = false, emptyCharPrefix: Bool = false) {
         guard let src = CGEventSource(stateID: .privateState) else {
             Log.info("inject FAILED: no event source")
             return
@@ -253,35 +260,24 @@ private class TextInjector {
 
         // Empty char prefix: send U+202F to break autocomplete highlight, then +1 backspace
         if emptyCharPrefix {
-            let emptyChar: [UniChar] = [0x202F]
-            if let dn = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
-               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false)
-            {
-                dn.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                up.setIntegerValueField(.eventSourceUserData, value: kEventMarker)
-                dn.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                up.keyboardSetUnicodeString(stringLength: 1, unicodeString: emptyChar)
-                dn.post(tap: .cgSessionEventTap)
-                up.post(tap: .cgSessionEventTap)
-            }
-            usleep(delays.0 > 0 ? delays.0 : 1000)
+            postText("\u{202F}", source: src, proxy: proxy)
+            pause(delays.0)
             bs += 1 // +1 to also delete the empty char
         }
 
         for _ in 0 ..< bs {
-            postKey(KeyCode.backspace, source: src)
-            usleep(delays.0)
+            postKey(KeyCode.backspace, source: src, proxy: proxy)
+            pause(delays.0)
         }
         if bs > 0 {
-            usleep(delays.1)
+            pause(delays.1)
         }
 
-        let chunks = postText(text, source: src, delay: delays.2, chunkSize: charByChar ? 1 : 20)
+        let chunks = postText(text, source: src, delay: delays.2, proxy: proxy, chunkSize: charByChar ? 1 : 20)
 
         if Log.isEnabled {
             let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-            let expected = (Double(bs) * Double(delays.0) + (bs > 0 ? Double(delays.1) : 0) + Double(chunks) * Double(delays.2)) / 1000
-            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.1f", elapsed))ms expect=\(String(format: "%.1f", expected))ms")
+            Log.info("inject done: bs=\(bs) chunks=\(chunks) time=\(String(format: "%.2f", elapsed))ms delays=\(delays)")
         }
     }
 
@@ -300,12 +296,8 @@ private class TextInjector {
     /// Selection injection: Shift+Left to select, then type replacement (for browser address bars)
     /// For backspace-only (text empty): use backspace to properly delete spaces/punctuation
     /// For text replacement: use Shift+Left to select (normal behavior)
-    private func injectViaSelection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
+    private func injectViaSelection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), proxy: CGEventTapProxy) {
         guard let src = CGEventSource(stateID: .privateState) else { return }
-
-        let selDelay = delays.0 > 0 ? delays.0 : 1000
-        let waitDelay = delays.1 > 0 ? delays.1 : 3000
-        let textDelay = delays.2 > 0 ? delays.2 : 2000
 
         if bs > 0 {
             // If text is empty (backspace-only, no replacement), use backspace to properly delete spaces/punctuation
@@ -313,20 +305,20 @@ private class TextInjector {
             if text.isEmpty {
                 // Backspace-only: use backspace for all deletions
                 for _ in 0 ..< bs {
-                    postKey(KeyCode.backspace, source: src)
-                    usleep(selDelay)
+                    postKey(KeyCode.backspace, source: src, proxy: proxy)
+                    pause(delays.0)
                 }
             } else {
                 // Text replacement: use Shift+Left to select (normal selection method)
                 for _ in 0 ..< bs {
-                    postKey(KeyCode.leftArrow, source: src, flags: .maskShift)
-                    usleep(selDelay)
+                    postKey(KeyCode.leftArrow, source: src, flags: .maskShift, proxy: proxy)
+                    pause(delays.0)
                 }
             }
-            usleep(waitDelay)
+            pause(delays.1)
         }
 
-        postText(text, source: src, delay: textDelay)
+        postText(text, source: src, delay: delays.2, proxy: proxy)
     }
 
     /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text via proxy
@@ -1582,7 +1574,7 @@ private func keyboardCallback(
             if bs > 0 || !chars.isEmpty {
                 // Shortcut: consumed, don't post. Auto-restore: post Enter after replacement
                 if !keyConsumed {
-                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                    TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
                 }
                 return nil
             }
@@ -1719,7 +1711,7 @@ private func keyboardCallback(
         if isBreak {
             // Auto-restore: post break key after replacement for correct ordering
             if bs > 0, !chars.isEmpty {
-                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift)
+                TextInjector.shared.postBreakKey(keyCode: keyCode, shift: shift, proxy: proxy)
             } else {
                 return Unmanaged.passUnretained(event)
             }
@@ -1891,17 +1883,24 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
     }
 
-    guard let bundleId else { return (.fast, (200, 800, 500)) }
+    guard let bundleId else { return (.fast, (0, 0, 0)) }
 
     /// Helper to cache and return result (only logs when method+app changes)
-    func cached(_ m: InjectionMethod, _ d: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
-        // Store base detection result (before overrides) for UI hint
+    /// Replacements go out through the event tap proxy (in order, no waiting), so the delays in the
+    /// table below are not applied: the base delays are zero. Only a delay set by hand for the app
+    /// (per-app profile) is honored.
+    func cached(_ m: InjectionMethod, _ tableDelays: (UInt32, UInt32, UInt32), _ methodName: String) -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
+        let d: (UInt32, UInt32, UInt32) = (0, 0, 0)
+        // Store base detection result (before overrides) for UI hint; zero delays, so a profile
+        // pre-filled from it starts at "none" like what is actually applied
         DetectionCache.setDetectedDefault(for: bundleId, value: (method: "\(m)", delays: d))
 
         // Apply per-app profile overrides from snapshot (set on app switch, thread-safe)
         if let profile = DetectionCache.activeProfile {
             var finalMethod = m
-            let finalDelays = DelayPreset(rawValue: profile.delayPreset)?.delays ?? d
+            // Preset .none must stay zero (DelayPreset.none.delays is the old 200/800/500 default)
+            let preset = DelayPreset(rawValue: profile.delayPreset) ?? .none
+            let finalDelays = preset == .none ? d : preset.delays
 
             // Injection method override
             if profile.injectionOverride >= 0, let inject = InjectionOverride(rawValue: profile.injectionOverride) {
@@ -2006,7 +2005,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "com.openai.atlas", // ChatGPT Atlas
     ]
     // All browser contexts use emptyCharPrefix to break autocomplete/suggestion highlights
-    // Medium delays (3ms/8ms/3ms) to handle web apps with popup interception (e.g. Telegram Web)
+    // (table delays are not applied, see cached())
     if browsers.contains(bundleId) {
         return cached(.emptyCharPrefix, (3000, 8000, 3000), "emptyChar:browser")
     }
@@ -2025,7 +2024,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.slow, (8000, 15000, 8000), "slow:outlook")
     }
 
-    // Electron apps - higher delays for Monaco editor
+    // Electron apps (Monaco editor)
     if bundleId == "com.todesktop.230313mzl4w4u92" {
         return cached(.slow, (8000, 15000, 8000), "slow:claude")
     }
@@ -2033,7 +2032,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.slow, (12000, 25000, 12000), "slow:notion")
     }
 
-    // Code editors & terminals - higher delays for Monaco/Electron-based apps
+    // Code editors & terminals (Monaco/Electron-based apps)
     // Includes: VSCode-based (VSCode, Cursor, Antigravity), terminals (Warp, Ghostty, Kitty, etc.)
     let codeApps = [
         // VSCode-based IDEs
@@ -2059,7 +2058,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.slow, (8000, 25000, 8000), "slow:jb")
     }
 
-    // Caudex - char-by-char with higher delays for reliable text replacement
+    // Caudex - char-by-char for reliable text replacement
     if bundleId == "com.caudex.dev" {
         return cached(.charByChar, (5000, 15000, 5000), "char:caudex")
     }
@@ -2080,7 +2079,7 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         return cached(.syncProxy, (0, 0, 0), "sync:game")
     }
 
-    // Default: safe delays
+    // Default
     return cached(.fast, (1000, 3000, 1500), "default")
 }
 
