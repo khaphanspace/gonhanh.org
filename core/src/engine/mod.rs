@@ -11,6 +11,7 @@
 //! 4. **Longest-Match-First**: For diacritic placement
 
 pub mod buffer;
+pub mod morse;
 pub mod shortcut;
 pub mod syllable;
 pub mod transform;
@@ -360,6 +361,9 @@ pub struct Engine {
     /// Allow foreign consonants (z, w, j, f) as valid initial consonants
     /// When true, these letters are accepted as Vietnamese consonants for loanwords
     allow_foreign_consonants: bool,
+    /// Morse code output mode
+    /// When true, Vietnamese text is converted to Morse code on space
+    morse_mode: bool,
 }
 
 impl Default for Engine {
@@ -406,6 +410,7 @@ impl Engine {
             auto_capitalize_used: false,
             saw_sentence_ending: false,
             allow_foreign_consonants: false, // Default: OFF
+            morse_mode: false,               // Default: OFF
         }
     }
 
@@ -464,6 +469,12 @@ impl Engine {
     /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
     pub fn set_allow_foreign_consonants(&mut self, enabled: bool) {
         self.allow_foreign_consonants = enabled;
+    }
+
+    /// Set whether to enable Morse code output mode
+    /// When enabled, Vietnamese text is converted to Morse code on space
+    pub fn set_morse_mode(&mut self, enabled: bool) {
+        self.morse_mode = enabled;
     }
 
     /// Get whether foreign consonants are allowed
@@ -766,8 +777,42 @@ impl Engine {
             // First check for shortcut
             let shortcut_result = self.try_word_boundary_shortcut();
             if shortcut_result.action != 0 {
+                if self.morse_mode {
+                    // Convert shortcut output to Morse
+                    let shortcut_text: String = (0..shortcut_result.count as usize)
+                        .filter_map(|i| char::from_u32(shortcut_result.chars[i]))
+                        .collect();
+                    let text = shortcut_text.trim_end();
+                    let mut morse_chars = morse::encode(text);
+                    morse_chars.push(' ');
+                    if morse_chars.len() <= MAX {
+                        self.word_history.clear();
+                        self.spaces_after_commit = 0;
+                        self.clear();
+                        return Result::send(shortcut_result.backspace, &morse_chars);
+                    }
+                    // Output too long, fall through to normal shortcut result
+                }
                 self.clear();
                 return shortcut_result;
+            }
+
+            // Morse mode: convert buffer to Morse code on space
+            // Falls back to normal if output exceeds buffer capacity (MAX=256 chars)
+            if self.morse_mode && !self.buf.is_empty() {
+                let word = self.buf.to_full_string();
+                let mut morse_chars = morse::encode(&word);
+                morse_chars.push(' ');
+                if morse_chars.len() <= MAX {
+                    let backspace = self.buf.len() as u8;
+                    // Emitted text is Morse rather than the plain Vietnamese buffer,
+                    // so avoid pushing mismatched plain words into word_history.
+                    self.word_history.clear();
+                    self.spaces_after_commit = 0;
+                    self.clear();
+                    return Result::send(backspace, &morse_chars);
+                }
+                // Output too long, fall through to normal space handling
             }
 
             // Auto-restore: if buffer has transforms but is invalid Vietnamese,
@@ -8691,5 +8736,26 @@ mod tests {
                 input, result, expected
             );
         }
+    }
+
+    #[test]
+    fn test_morse_mode_does_not_restore_plain_word_on_backspace() {
+        use super::Action;
+        use crate::data::keys;
+
+        let mut e = Engine::new();
+        e.set_morse_mode(true);
+
+        // Type "hi" + SPACE to emit Morse output
+        assert_eq!(e.on_key(keys::H, false, false).action, Action::None as u8);
+        assert_eq!(e.on_key(keys::I, false, false).action, Action::None as u8);
+        let space_res = e.on_key(keys::SPACE, false, false);
+        assert_eq!(space_res.action, Action::Send as u8);
+
+        // Deleting after a Morse commit must not restore the plain buffer from word_history
+        let bs = e.on_key(keys::DELETE, false, false);
+        assert_eq!(bs.action, Action::None as u8);
+        assert!(e.buf.is_empty());
+        assert_eq!(e.word_history.len, 0);
     }
 }

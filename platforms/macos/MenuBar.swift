@@ -78,9 +78,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         // Observe AppState changes via Combine
         appState.$isEnabled
-            .combineLatest(appState.$currentMethod)
+            .combineLatest(appState.$currentMethod, appState.$morseMode)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _, _ in
+            .sink { [weak self] _, _, _ in
                 self?.updateStatusButton()
                 self?.updateMenu()
             }
@@ -119,6 +119,13 @@ class MenuBarController: NSObject, NSWindowDelegate {
         vni.target = self
         vni.tag = 11
         menu.addItem(vni)
+        menu.addItem(.separator())
+
+        // Morse code mode
+        let morse = NSMenuItem(title: "Chế độ Morse", action: #selector(toggleMorse), keyEquivalent: "")
+        morse.target = self
+        morse.tag = 12
+        menu.addItem(morse)
         menu.addItem(.separator())
 
         // Settings
@@ -213,6 +220,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         menu.item(withTag: 10)?.state = appState.currentMethod == .telex ? .on : .off
         menu.item(withTag: 11)?.state = appState.currentMethod == .vni ? .on : .off
+        menu.item(withTag: 12)?.state = appState.morseMode ? .on : .off
     }
 
     @objc private func selectTelex() {
@@ -221,6 +229,10 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
     @objc private func selectVNI() {
         appState.setMethod(.vni)
+    }
+
+    @objc private func toggleMorse() {
+        appState.morseMode.toggle()
     }
 
     @objc private func handleUpdateAction() {
@@ -267,6 +279,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setEnglishAutoRestore(appState.englishAutoRestore)
         RustBridge.setAutoCapitalize(appState.autoCapitalize)
         RustBridge.setAllowForeignConsonants(appState.allowForeignConsonants)
+        RustBridge.setMorseMode(appState.morseMode)
 
         // Sync shortcuts and start per-app mode manager
         appState.syncShortcutsToEngine()
