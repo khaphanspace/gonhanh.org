@@ -749,6 +749,8 @@ impl Engine {
                     let mut morse_chars = morse::encode(text);
                     morse_chars.push(' ');
                     if morse_chars.len() <= MAX {
+                        self.word_history.clear();
+                        self.spaces_after_commit = 0;
                         self.clear();
                         return Result::send(shortcut_result.backspace, &morse_chars);
                     }
@@ -766,8 +768,10 @@ impl Engine {
                 morse_chars.push(' ');
                 if morse_chars.len() <= MAX {
                     let backspace = self.buf.len() as u8;
-                    self.word_history.push(self.buf.clone());
-                    self.spaces_after_commit = 1;
+                    // Emitted text is Morse rather than the plain Vietnamese buffer,
+                    // so avoid pushing mismatched plain words into word_history.
+                    self.word_history.clear();
+                    self.spaces_after_commit = 0;
                     self.clear();
                     return Result::send(backspace, &morse_chars);
                 }
@@ -8255,5 +8259,26 @@ mod tests {
                 input, result, expected
             );
         }
+    }
+
+    #[test]
+    fn test_morse_mode_does_not_restore_plain_word_on_backspace() {
+        use super::Action;
+        use crate::data::keys;
+
+        let mut e = Engine::new();
+        e.set_morse_mode(true);
+
+        // Type "hi" + SPACE to emit Morse output
+        assert_eq!(e.on_key(keys::H, false, false).action, Action::None as u8);
+        assert_eq!(e.on_key(keys::I, false, false).action, Action::None as u8);
+        let space_res = e.on_key(keys::SPACE, false, false);
+        assert_eq!(space_res.action, Action::Send as u8);
+
+        // Deleting after a Morse commit must not restore the plain buffer from word_history
+        let bs = e.on_key(keys::DELETE, false, false);
+        assert_eq!(bs.action, Action::None as u8);
+        assert!(e.buf.is_empty());
+        assert_eq!(e.word_history.len, 0);
     }
 }

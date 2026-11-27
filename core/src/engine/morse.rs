@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_encode_vietnamese_with_tone() {
         let result: String = encode("á").into_iter().collect();
-        // á = A (.-) + space + sắc (.-.-.)
+        // á = A (.-) + space + sắc (.--.-.)
         assert!(!result.is_empty());
         assert!(result.contains(' ')); // separator between base and tone
     }

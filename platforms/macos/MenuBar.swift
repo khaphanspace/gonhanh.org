@@ -77,9 +77,9 @@ class MenuBarController: NSObject, NSWindowDelegate {
 
         // Observe AppState changes via Combine
         appState.$isEnabled
-            .combineLatest(appState.$currentMethod)
+            .combineLatest(appState.$currentMethod, appState.$morseMode)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _, _ in
+            .sink { [weak self] _, _, _ in
                 self?.updateStatusButton()
                 self?.updateMenu()
             }
@@ -263,6 +263,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setEnglishAutoRestore(appState.englishAutoRestore)
         RustBridge.setAutoCapitalize(appState.autoCapitalize)
         RustBridge.setAllowForeignConsonants(appState.allowForeignConsonants)
+        RustBridge.setMorseMode(appState.morseMode)
 
         // Sync shortcuts and start per-app mode manager
         appState.syncShortcutsToEngine()
