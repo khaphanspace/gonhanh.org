@@ -200,12 +200,17 @@ private class TextInjector {
     /// Semaphore to block keyboard callback until injection completes
     private let semaphore = DispatchSemaphore(value: 1)
 
+    /// Single reused event source. Every `CGEventSource(stateID: .privateState)` maps a
+    /// 16KB WindowServer shared-memory region that is never unmapped, even after the
+    /// object is released — creating one per injection leaked ~600MB over a few weeks.
+    private static let eventSource = CGEventSource(stateID: .privateState)
+
     private init() {}
 
     /// Post break key (Enter, punctuation) synthetically after text injection
     /// Used for auto-restore to ensure correct event ordering
     func postBreakKey(keyCode: CGKeyCode, shift: Bool) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
+        guard let src = Self.eventSource else { return }
         let flags: CGEventFlags = shift ? .maskShift : []
         postKey(keyCode, source: src, flags: flags)
     }
@@ -243,7 +248,7 @@ private class TextInjector {
     /// - charByChar: character-by-character mode (slower but more reliable for Safari Google Docs)
     /// - emptyCharPrefix: send empty char (U+202F) first to break autocomplete highlight (for browser address bars)
     private func injectViaBackspace(bs: Int, text: String, delays: (UInt32, UInt32, UInt32), charByChar: Bool = false, emptyCharPrefix: Bool = false) {
-        guard let src = CGEventSource(stateID: .privateState) else {
+        guard let src = Self.eventSource else {
             Log.info("inject FAILED: no event source")
             return
         }
@@ -288,7 +293,7 @@ private class TextInjector {
     /// Synchronous proxy injection: uses CGEventTapPostEvent(proxy) for zero-delay delivery
     /// Events are injected directly into the event tap pipeline, guaranteeing correct ordering
     private func injectViaProxy(bs: Int, text: String, proxy: CGEventTapProxy) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
+        guard let src = Self.eventSource else { return }
 
         for _ in 0 ..< bs {
             postKey(KeyCode.backspace, source: src, proxy: proxy)
@@ -301,7 +306,7 @@ private class TextInjector {
     /// For backspace-only (text empty): use backspace to properly delete spaces/punctuation
     /// For text replacement: use Shift+Left to select (normal behavior)
     private func injectViaSelection(bs: Int, text: String, delays: (UInt32, UInt32, UInt32)) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
+        guard let src = Self.eventSource else { return }
 
         let selDelay = delays.0 > 0 ? delays.0 : 1000
         let waitDelay = delays.1 > 0 ? delays.1 : 3000
@@ -332,7 +337,7 @@ private class TextInjector {
     /// Autocomplete injection: Forward Delete to clear suggestion, then backspace + text via proxy
     /// Used for Spotlight where autocomplete auto-selects suggestion text after cursor
     private func injectViaAutocomplete(bs: Int, text: String, proxy: CGEventTapProxy) {
-        guard let src = CGEventSource(stateID: .privateState) else { return }
+        guard let src = Self.eventSource else { return }
 
         // Forward Delete clears auto-selected suggestion
         postKey(KeyCode.forwardDelete, source: src, proxy: proxy)
