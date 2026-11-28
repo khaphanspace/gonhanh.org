@@ -19,7 +19,7 @@ jobs:
         with:
           workspaces: core
       - run: cargo fmt --manifest-path core/Cargo.toml -- --check
-      - run: cargo clippy --manifest-path core/Cargo.toml -- -D warnings
+      - run: cargo clippy --manifest-path core/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path core/Cargo.toml
 
   build-macos:

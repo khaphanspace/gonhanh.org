@@ -31,8 +31,8 @@ fn assert_no_transform(words: &[&str]) {
                 for _ in 0..bs.min(output.len()) {
                     output.pop();
                 }
-                for i in 0..result.count as usize {
-                    if let Some(c) = char::from_u32(result.chars[i]) {
+                for &cp in result.chars.iter().take(result.count as usize) {
+                    if let Some(c) = char::from_u32(cp) {
                         output.push(c);
                     }
                 }
@@ -65,8 +65,8 @@ fn assert_auto_restore(words: &[&str]) {
                 for _ in 0..bs.min(output.len()) {
                     output.pop();
                 }
-                for i in 0..result.count as usize {
-                    if let Some(c) = char::from_u32(result.chars[i]) {
+                for &cp in result.chars.iter().take(result.count as usize) {
+                    if let Some(c) = char::from_u32(cp) {
                         output.push(c);
                     }
                 }
@@ -82,8 +82,8 @@ fn assert_auto_restore(words: &[&str]) {
             for _ in 0..bs.min(output.len()) {
                 output.pop();
             }
-            for i in 0..result.count as usize {
-                if let Some(c) = char::from_u32(result.chars[i]) {
+            for &cp in result.chars.iter().take(result.count as usize) {
+                if let Some(c) = char::from_u32(cp) {
                     output.push(c);
                 }
             }
